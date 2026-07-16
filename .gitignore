@@ -1,0 +1,15 @@
+.vscode/
+
+# Catkin build outputs
+build/
+devel/
+install/
+logs/
+
+# Python caches
+__pycache__/
+*.py[cod]
+
+# Local export and runtime logs
+*.log
+

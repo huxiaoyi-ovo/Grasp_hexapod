@@ -1,0 +1,720 @@
+<?xml version="1.0" encoding="utf-8"?>
+<robot name="hexapod_robot">
+  <material name="white"><color rgba="1 1 1 1"/></material>
+  <material name="foot_black"><color rgba="0.02 0.02 0.02 1"/></material>
+  <link name="base_link">
+    <inertial>
+      <origin xyz="0.00048381 0.0032191 0.050559" rpy="0 0 0"/>
+      <mass value="3"/>
+      <inertia ixx="0.00045119" ixy="1.4679E-06" ixz="-1.2424E-07" iyy="0.00050737" iyz="-7.1838E-07" izz="0.00089983"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://hexapod_robot/meshes/body_link.STL"/>
+      </geometry>
+      <material name="white">
+        <color rgba="1 1 1 1"/>
+      </material>
+    </visual>
+    <collision>
+      <!-- Body collision: regular-hexagon outer circumcircle approximation.
+           Hexagon perimeter = 0.733 m, side length = circumradius = 0.1221667 m.
+           Height = 0.121 m; origin z=0.0605 assumes base_link z=0 is the body bottom plane. -->
+      <origin xyz="0 0 0.0605" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.097" length="0.121"/>
+      </geometry>
+    </collision>
+  </link>
+  <link name="lf_thigh_link">
+    <inertial>
+      <origin xyz="0.019013 0.00032996 0.00086404" rpy="0 0 0"/>
+      <mass value="0.071"/>
+      <inertia ixx="2.5711E-06" ixy="1.9851E-08" ixz="-8.344E-08" iyy="2.9345E-06" iyz="-5.4072E-09" izz="4.3664E-06"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://hexapod_robot/meshes/thigh_link.STL"/>
+      </geometry>
+      <material name="white">
+        <color rgba="1 1 1 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0.02618 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.05236 0.025 0.025"/>
+      </geometry>
+    </collision>
+  </link>
+  <joint name="lf_thigh_joint" type="revolute">
+    <origin xyz="-0.0425 0.07361 0.02525" rpy="0 0 2.0944"/>
+    <parent link="base_link"/>
+    <child link="lf_thigh_link"/>
+    <axis xyz="0 0 -1"/>
+    <limit lower="-1.571" upper="0.698" effort="1.2" velocity="4.0"/>
+    <dynamics damping="0.02" friction="0"/>
+  </joint>
+  <link name="lf_knee_link">
+    <inertial>
+      <origin xyz="0.024 0.00029496 0.00084694" rpy="0 0 0"/>
+      <mass value="0.079"/>
+      <inertia ixx="3.459E-06" ixy="1.9852E-08" ixz="-8.344E-08" iyy="6.155E-06" iyz="-5.407E-09" izz="4.8098E-06"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://hexapod_robot/meshes/knee_link.STL"/>
+      </geometry>
+      <material name="white">
+        <color rgba="1 1 1 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0.038725 0 0.000125" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.07745 0.022 0.022"/>
+      </geometry>
+    </collision>
+  </link>
+  <joint name="lf_knee_joint" type="revolute">
+    <origin xyz="0.05236 0 0" rpy="1.5708 0 0"/>
+    <parent link="lf_thigh_link"/>
+    <child link="lf_knee_link"/>
+    <axis xyz="0 0 -1"/>
+    <limit lower="-2.094" upper="2.094" effort="1.2" velocity="4.0"/>
+    <dynamics damping="0.02" friction="0"/>
+  </joint>
+  <link name="lf_ankle_link">
+    <inertial>
+      <origin xyz="0.037761 -0.014128 0.0005094" rpy="0 0 0"/>
+      <mass value="0.092"/>
+      <inertia ixx="9.9998E-06" ixy="8.2893E-06" ixz="-8.344E-08" iyy="1.1276E-05" iyz="-5.407E-09" izz="1.9753E-05"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://hexapod_robot/meshes/ankle_link.STL"/>
+      </geometry>
+      <material name="white">
+        <color rgba="1 1 1 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0.05830 -0.040075 -0.000125" rpy="0 0 -0.6024"/>
+      <geometry>
+        <box size="0.130 0.022 0.022"/>
+      </geometry>
+    </collision>
+  </link>
+  <joint name="lf_ankle_joint" type="revolute">
+    <origin xyz="0.07745 0 0.00025" rpy="0 0 0"/>
+    <parent link="lf_knee_link"/>
+    <child link="lf_ankle_link"/>
+    <axis xyz="0 0 -1"/>
+    <limit lower="-1.745" upper="1.745" effort="1.2" velocity="4.0"/>
+    <dynamics damping="0.02" friction="0"/>
+  </joint>
+  <link name="lf_foot_link">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="0.005"/>
+      <inertia ixx="2.0E-07" ixy="0" ixz="0" iyy="2.0E-07" iyz="0" izz="2.0E-07"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <sphere radius="0.0065"/>
+      </geometry>
+      <material name="foot_black"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <sphere radius="0.0065"/>
+      </geometry>
+    </collision>
+  </link>
+  <joint name="lf_foot_fixed" type="fixed">
+    <origin xyz="0.11660 -0.08015 -0.00025" rpy="0 0 0"/>
+    <parent link="lf_ankle_link"/>
+    <child link="lf_foot_link"/>
+  </joint>
+  <link name="lm_thigh_link">
+    <inertial>
+      <origin xyz="0.019013 0.00032996 0.00086404" rpy="0 0 0"/>
+      <mass value="0.071"/>
+      <inertia ixx="2.5711E-06" ixy="1.9851E-08" ixz="-8.344E-08" iyy="2.9345E-06" iyz="-5.4072E-09" izz="4.3664E-06"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://hexapod_robot/meshes/thigh_link.STL"/>
+      </geometry>
+      <material name="white">
+        <color rgba="1 1 1 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0.02618 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.05236 0.025 0.025"/>
+      </geometry>
+    </collision>
+  </link>
+  <joint name="lm_thigh_joint" type="revolute">
+    <origin xyz="-0.085 0 0.02525" rpy="0 0 -3.1416"/>
+    <parent link="base_link"/>
+    <child link="lm_thigh_link"/>
+    <axis xyz="0 0 -1"/>
+    <limit lower="-0.698" upper="0.698" effort="1.2" velocity="4.0"/>
+    <dynamics damping="0.02" friction="0"/>
+  </joint>
+  <link name="lm_knee_link">
+    <inertial>
+      <origin xyz="0.024 0.00029496 0.00084694" rpy="0 0 0"/>
+      <mass value="0.079"/>
+      <inertia ixx="3.459E-06" ixy="1.9852E-08" ixz="-8.344E-08" iyy="6.155E-06" iyz="-5.407E-09" izz="4.8098E-06"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://hexapod_robot/meshes/knee_link.STL"/>
+      </geometry>
+      <material name="white">
+        <color rgba="1 1 1 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0.038725 0 0.000125" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.07745 0.022 0.022"/>
+      </geometry>
+    </collision>
+  </link>
+  <joint name="lm_knee_joint" type="revolute">
+    <origin xyz="0.05236 0 0" rpy="1.5708 0 0"/>
+    <parent link="lm_thigh_link"/>
+    <child link="lm_knee_link"/>
+    <axis xyz="0 0 -1"/>
+    <limit lower="-2.094" upper="2.094" effort="1.2" velocity="4.0"/>
+    <dynamics damping="0.02" friction="0"/>
+  </joint>
+  <link name="lm_ankle_link">
+    <inertial>
+      <origin xyz="0.037761 -0.014128 0.0005094" rpy="0 0 0"/>
+      <mass value="0.092"/>
+      <inertia ixx="9.9998E-06" ixy="8.2893E-06" ixz="-8.344E-08" iyy="1.1276E-05" iyz="-5.407E-09" izz="1.9753E-05"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://hexapod_robot/meshes/ankle_link.STL"/>
+      </geometry>
+      <material name="white">
+        <color rgba="1 1 1 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0.05830 -0.040075 -0.000125" rpy="0 0 -0.6024"/>
+      <geometry>
+        <box size="0.130 0.022 0.022"/>
+      </geometry>
+    </collision>
+  </link>
+  <joint name="lm_ankle_joint" type="revolute">
+    <origin xyz="0.07745 0 0.00025" rpy="0 0 0"/>
+    <parent link="lm_knee_link"/>
+    <child link="lm_ankle_link"/>
+    <axis xyz="0 0 -1"/>
+    <limit lower="-1.745" upper="1.745" effort="1.2" velocity="4.0"/>
+    <dynamics damping="0.02" friction="0"/>
+  </joint>
+  <link name="lm_foot_link">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="0.005"/>
+      <inertia ixx="2.0E-07" ixy="0" ixz="0" iyy="2.0E-07" iyz="0" izz="2.0E-07"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <sphere radius="0.0065"/>
+      </geometry>
+      <material name="foot_black"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <sphere radius="0.0065"/>
+      </geometry>
+    </collision>
+  </link>
+  <joint name="lm_foot_fixed" type="fixed">
+    <origin xyz="0.11660 -0.08015 -0.00025" rpy="0 0 0"/>
+    <parent link="lm_ankle_link"/>
+    <child link="lm_foot_link"/>
+  </joint>
+  <link name="lb_thigh_link">
+    <inertial>
+      <origin xyz="0.019013 0.00032996 0.00086404" rpy="0 0 0"/>
+      <mass value="0.071"/>
+      <inertia ixx="2.5711E-06" ixy="1.9851E-08" ixz="-8.344E-08" iyy="2.9345E-06" iyz="-5.4072E-09" izz="4.3664E-06"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://hexapod_robot/meshes/thigh_link.STL"/>
+      </geometry>
+      <material name="white">
+        <color rgba="1 1 1 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0.02618 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.05236 0.025 0.025"/>
+      </geometry>
+    </collision>
+  </link>
+  <joint name="lb_thigh_joint" type="revolute">
+    <origin xyz="-0.0425 -0.07361 0.02525" rpy="0 0 -2.0944"/>
+    <parent link="base_link"/>
+    <child link="lb_thigh_link"/>
+    <axis xyz="0 0 -1"/>
+    <limit lower="-0.698" upper="1.571" effort="1.2" velocity="4.0"/>
+    <dynamics damping="0.02" friction="0"/>
+  </joint>
+  <link name="lb_knee_link">
+    <inertial>
+      <origin xyz="0.024 0.00029496 0.00084694" rpy="0 0 0"/>
+      <mass value="0.079"/>
+      <inertia ixx="3.459E-06" ixy="1.9852E-08" ixz="-8.344E-08" iyy="6.155E-06" iyz="-5.407E-09" izz="4.8098E-06"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://hexapod_robot/meshes/knee_link.STL"/>
+      </geometry>
+      <material name="white">
+        <color rgba="1 1 1 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0.038725 0 0.000125" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.07745 0.022 0.022"/>
+      </geometry>
+    </collision>
+  </link>
+  <joint name="lb_knee_joint" type="revolute">
+    <origin xyz="0.05236 0 0" rpy="1.5708 0 0"/>
+    <parent link="lb_thigh_link"/>
+    <child link="lb_knee_link"/>
+    <axis xyz="0 0 -1"/>
+    <limit lower="-2.094" upper="2.094" effort="1.2" velocity="4.0"/>
+    <dynamics damping="0.02" friction="0"/>
+  </joint>
+  <link name="lb_ankle_link">
+    <inertial>
+      <origin xyz="0.037761 -0.014128 0.0005094" rpy="0 0 0"/>
+      <mass value="0.092"/>
+      <inertia ixx="9.9998E-06" ixy="8.2893E-06" ixz="-8.344E-08" iyy="1.1276E-05" iyz="-5.407E-09" izz="1.9753E-05"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://hexapod_robot/meshes/ankle_link.STL"/>
+      </geometry>
+      <material name="white">
+        <color rgba="1 1 1 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0.05830 -0.040075 -0.000125" rpy="0 0 -0.6024"/>
+      <geometry>
+        <box size="0.130 0.022 0.022"/>
+      </geometry>
+    </collision>
+  </link>
+  <joint name="lb_ankle_joint" type="revolute">
+    <origin xyz="0.07745 0 0.00025" rpy="0 0 0"/>
+    <parent link="lb_knee_link"/>
+    <child link="lb_ankle_link"/>
+    <axis xyz="0 0 -1"/>
+    <limit lower="-1.745" upper="1.745" effort="1.2" velocity="4.0"/>
+    <dynamics damping="0.02" friction="0"/>
+  </joint>
+  <link name="lb_foot_link">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="0.005"/>
+      <inertia ixx="2.0E-07" ixy="0" ixz="0" iyy="2.0E-07" iyz="0" izz="2.0E-07"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <sphere radius="0.0065"/>
+      </geometry>
+      <material name="foot_black"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <sphere radius="0.0065"/>
+      </geometry>
+    </collision>
+  </link>
+  <joint name="lb_foot_fixed" type="fixed">
+    <origin xyz="0.11660 -0.08015 -0.00025" rpy="0 0 0"/>
+    <parent link="lb_ankle_link"/>
+    <child link="lb_foot_link"/>
+  </joint>
+  <link name="rf_thigh_link">
+    <inertial>
+      <origin xyz="0.019013 0.00032996 0.00086404" rpy="0 0 0"/>
+      <mass value="0.071"/>
+      <inertia ixx="2.5711E-06" ixy="1.9851E-08" ixz="-8.344E-08" iyy="2.9345E-06" iyz="-5.4072E-09" izz="4.3664E-06"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://hexapod_robot/meshes/thigh_link.STL"/>
+      </geometry>
+      <material name="white">
+        <color rgba="1 1 1 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0.02618 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.05236 0.025 0.025"/>
+      </geometry>
+    </collision>
+  </link>
+  <joint name="rf_thigh_joint" type="revolute">
+    <origin xyz="0.0425 0.07361 0.02525" rpy="0 0 1.0472"/>
+    <parent link="base_link"/>
+    <child link="rf_thigh_link"/>
+    <axis xyz="0 0 -1"/>
+    <limit lower="-0.698" upper="1.571" effort="1.2" velocity="4.0"/>
+    <dynamics damping="0.02" friction="0"/>
+  </joint>
+  <link name="rf_knee_link">
+    <inertial>
+      <origin xyz="0.024 0.00029496 0.00084694" rpy="0 0 0"/>
+      <mass value="0.079"/>
+      <inertia ixx="3.459E-06" ixy="1.9852E-08" ixz="-8.344E-08" iyy="6.155E-06" iyz="-5.407E-09" izz="4.8098E-06"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://hexapod_robot/meshes/knee_link.STL"/>
+      </geometry>
+      <material name="white">
+        <color rgba="1 1 1 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0.038725 0 0.000125" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.07745 0.022 0.022"/>
+      </geometry>
+    </collision>
+  </link>
+  <joint name="rf_knee_joint" type="revolute">
+    <origin xyz="0.05236 0 0" rpy="1.5708 0 0"/>
+    <parent link="rf_thigh_link"/>
+    <child link="rf_knee_link"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="-2.094" upper="2.094" effort="1.2" velocity="4.0"/>
+    <dynamics damping="0.02" friction="0"/>
+  </joint>
+  <link name="rf_ankle_link">
+    <inertial>
+      <origin xyz="0.037761 -0.014128 0.0005094" rpy="0 0 0"/>
+      <mass value="0.092"/>
+      <inertia ixx="9.9998E-06" ixy="8.2893E-06" ixz="-8.344E-08" iyy="1.1276E-05" iyz="-5.407E-09" izz="1.9753E-05"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://hexapod_robot/meshes/ankle_link.STL"/>
+      </geometry>
+      <material name="white">
+        <color rgba="1 1 1 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0.05830 -0.040075 -0.000125" rpy="0 0 -0.6024"/>
+      <geometry>
+        <box size="0.130 0.022 0.022"/>
+      </geometry>
+    </collision>
+  </link>
+  <joint name="rf_ankle_joint" type="revolute">
+    <origin xyz="0.07745 0 0.00025" rpy="0 0 0"/>
+    <parent link="rf_knee_link"/>
+    <child link="rf_ankle_link"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="-1.745" upper="1.745" effort="1.2" velocity="4.0"/>
+    <dynamics damping="0.02" friction="0"/>
+  </joint>
+  <link name="rf_foot_link">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="0.005"/>
+      <inertia ixx="2.0E-07" ixy="0" ixz="0" iyy="2.0E-07" iyz="0" izz="2.0E-07"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <sphere radius="0.0065"/>
+      </geometry>
+      <material name="foot_black"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <sphere radius="0.0065"/>
+      </geometry>
+    </collision>
+  </link>
+  <joint name="rf_foot_fixed" type="fixed">
+    <origin xyz="0.11660 -0.08015 -0.00025" rpy="0 0 0"/>
+    <parent link="rf_ankle_link"/>
+    <child link="rf_foot_link"/>
+  </joint>
+  <link name="rm_thigh_link">
+    <inertial>
+      <origin xyz="0.019013 0.00032996 0.00086404" rpy="0 0 0"/>
+      <mass value="0.071"/>
+      <inertia ixx="2.5711E-06" ixy="1.9851E-08" ixz="-8.344E-08" iyy="2.9345E-06" iyz="-5.4072E-09" izz="4.3664E-06"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://hexapod_robot/meshes/thigh_link.STL"/>
+      </geometry>
+      <material name="white">
+        <color rgba="1 1 1 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0.02618 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.05236 0.025 0.025"/>
+      </geometry>
+    </collision>
+  </link>
+  <joint name="rm_thigh_joint" type="revolute">
+    <origin xyz="0.085 0 0.02525" rpy="0 0 0"/>
+    <parent link="base_link"/>
+    <child link="rm_thigh_link"/>
+    <axis xyz="0 0 -1"/>
+    <limit lower="-0.698" upper="0.698" effort="1.2" velocity="4.0"/>
+    <dynamics damping="0.02" friction="0"/>
+  </joint>
+  <link name="rm_knee_link">
+    <inertial>
+      <origin xyz="0.024 0.00029496 0.00084694" rpy="0 0 0"/>
+      <mass value="0.079"/>
+      <inertia ixx="3.459E-06" ixy="1.9852E-08" ixz="-8.344E-08" iyy="6.155E-06" iyz="-5.407E-09" izz="4.8098E-06"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://hexapod_robot/meshes/knee_link.STL"/>
+      </geometry>
+      <material name="white">
+        <color rgba="1 1 1 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0.038725 0 0.000125" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.07745 0.022 0.022"/>
+      </geometry>
+    </collision>
+  </link>
+  <joint name="rm_knee_joint" type="revolute">
+    <origin xyz="0.05236 0 0" rpy="1.5708 0 0"/>
+    <parent link="rm_thigh_link"/>
+    <child link="rm_knee_link"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="-2.094" upper="2.094" effort="1.2" velocity="4.0"/>
+    <dynamics damping="0.02" friction="0"/>
+  </joint>
+  <link name="rm_ankle_link">
+    <inertial>
+      <origin xyz="0.037761 -0.014128 0.0005094" rpy="0 0 0"/>
+      <mass value="0.092"/>
+      <inertia ixx="9.9998E-06" ixy="8.2893E-06" ixz="-8.344E-08" iyy="1.1276E-05" iyz="-5.407E-09" izz="1.9753E-05"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://hexapod_robot/meshes/ankle_link.STL"/>
+      </geometry>
+      <material name="white">
+        <color rgba="1 1 1 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0.05830 -0.040075 -0.000125" rpy="0 0 -0.6024"/>
+      <geometry>
+        <box size="0.130 0.022 0.022"/>
+      </geometry>
+    </collision>
+  </link>
+  <joint name="rm_ankle_joint" type="revolute">
+    <origin xyz="0.07745 0 0.00025" rpy="0 0 0"/>
+    <parent link="rm_knee_link"/>
+    <child link="rm_ankle_link"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="-1.745" upper="1.745" effort="1.2" velocity="4.0"/>
+    <dynamics damping="0.02" friction="0"/>
+  </joint>
+  <link name="rm_foot_link">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="0.005"/>
+      <inertia ixx="2.0E-07" ixy="0" ixz="0" iyy="2.0E-07" iyz="0" izz="2.0E-07"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <sphere radius="0.0065"/>
+      </geometry>
+      <material name="foot_black"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <sphere radius="0.0065"/>
+      </geometry>
+    </collision>
+  </link>
+  <joint name="rm_foot_fixed" type="fixed">
+    <origin xyz="0.11660 -0.08015 -0.00025" rpy="0 0 0"/>
+    <parent link="rm_ankle_link"/>
+    <child link="rm_foot_link"/>
+  </joint>
+  <link name="rb_thigh_link">
+    <inertial>
+      <origin xyz="0.019013 0.00032996 0.00086404" rpy="0 0 0"/>
+      <mass value="0.071"/>
+      <inertia ixx="2.5711E-06" ixy="1.9851E-08" ixz="-8.344E-08" iyy="2.9345E-06" iyz="-5.4072E-09" izz="4.3664E-06"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://hexapod_robot/meshes/thigh_link.STL"/>
+      </geometry>
+      <material name="white">
+        <color rgba="1 1 1 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0.02618 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.05236 0.025 0.025"/>
+      </geometry>
+    </collision>
+  </link>
+  <joint name="rb_thigh_joint" type="revolute">
+    <origin xyz="0.0425 -0.07361 0.02525" rpy="0 0 -1.0472"/>
+    <parent link="base_link"/>
+    <child link="rb_thigh_link"/>
+    <axis xyz="0 0 -1"/>
+    <limit lower="-1.571" upper="0.698" effort="1.2" velocity="4.0"/>
+    <dynamics damping="0.02" friction="0"/>
+  </joint>
+  <link name="rb_knee_link">
+    <inertial>
+      <origin xyz="0.024 0.00029496 0.00084694" rpy="0 0 0"/>
+      <mass value="0.079"/>
+      <inertia ixx="3.459E-06" ixy="1.9852E-08" ixz="-8.344E-08" iyy="6.155E-06" iyz="-5.407E-09" izz="4.8098E-06"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://hexapod_robot/meshes/knee_link.STL"/>
+      </geometry>
+      <material name="white">
+        <color rgba="1 1 1 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0.038725 0 0.000125" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.07745 0.022 0.022"/>
+      </geometry>
+    </collision>
+  </link>
+  <joint name="rb_knee_joint" type="revolute">
+    <origin xyz="0.05236 0 0" rpy="1.5708 0 0"/>
+    <parent link="rb_thigh_link"/>
+    <child link="rb_knee_link"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="-2.094" upper="2.094" effort="1.2" velocity="4.0"/>
+    <dynamics damping="0.02" friction="0"/>
+  </joint>
+  <link name="rb_ankle_link">
+    <inertial>
+      <origin xyz="0.037761 -0.014128 0.0005094" rpy="0 0 0"/>
+      <mass value="0.092"/>
+      <inertia ixx="9.9998E-06" ixy="8.2893E-06" ixz="-8.344E-08" iyy="1.1276E-05" iyz="-5.407E-09" izz="1.9753E-05"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://hexapod_robot/meshes/ankle_link.STL"/>
+      </geometry>
+      <material name="white">
+        <color rgba="1 1 1 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0.05830 -0.040075 -0.000125" rpy="0 0 -0.6024"/>
+      <geometry>
+        <box size="0.130 0.022 0.022"/>
+      </geometry>
+    </collision>
+  </link>
+  <joint name="rb_ankle_joint" type="revolute">
+    <origin xyz="0.07745 0 0.00025" rpy="0 0 0"/>
+    <parent link="rb_knee_link"/>
+    <child link="rb_ankle_link"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="-1.745" upper="1.745" effort="1.2" velocity="4.0"/>
+    <dynamics damping="0.02" friction="0"/>
+  </joint>
+  <link name="rb_foot_link">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="0.005"/>
+      <inertia ixx="2.0E-07" ixy="0" ixz="0" iyy="2.0E-07" iyz="0" izz="2.0E-07"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <sphere radius="0.0065"/>
+      </geometry>
+      <material name="foot_black"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <sphere radius="0.0065"/>
+      </geometry>
+    </collision>
+  </link>
+  <joint name="rb_foot_fixed" type="fixed">
+    <origin xyz="0.11660 -0.08015 -0.00025" rpy="0 0 0"/>
+    <parent link="rb_ankle_link"/>
+    <child link="rb_foot_link"/>
+  </joint>
+</robot>

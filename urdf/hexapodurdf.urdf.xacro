@@ -1,0 +1,183 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="hexapod_robot">
+  <material name="white"><color rgba="1 1 1 1"/></material>
+  <material name="foot_black"><color rgba="0.02 0.02 0.02 1"/></material>
+
+  <!-- Package / mesh paths -->
+  <xacro:property name="mesh_pkg" value="hexapod_robot"/>
+
+  <!-- Actuator / joint limits -->
+  <xacro:property name="servo_effort" value="1.2"/>
+  <xacro:property name="servo_velocity" value="4.0"/>
+  <xacro:property name="knee_lower" value="-2.094"/>
+  <xacro:property name="knee_upper" value="2.094"/>
+  <xacro:property name="ankle_lower" value="-1.745"/>
+  <xacro:property name="ankle_upper" value="1.745"/>
+
+  <!-- Joint geometry -->
+  <xacro:property name="thigh_to_knee_x" value="0.05236"/>
+  <xacro:property name="knee_to_ankle_x" value="0.07745"/>
+  <xacro:property name="knee_to_ankle_z" value="0.00025"/>
+  <xacro:property name="ankle_to_foot_x" value="0.11660"/>
+  <xacro:property name="ankle_to_foot_y" value="-0.08015"/>
+  <xacro:property name="ankle_to_foot_z" value="-0.00025"/>
+
+  <!-- Collision geometry: matches latest URDF -->
+  <xacro:property name="body_collision_radius" value="0.097"/>
+  <xacro:property name="body_collision_height" value="0.121"/>
+  <xacro:property name="foot_radius" value="0.0065"/>
+  <xacro:property name="thigh_col_size" value="0.05236 0.025 0.025"/>
+  <xacro:property name="knee_col_size" value="0.07745 0.022 0.022"/>
+  <xacro:property name="ankle_col_size" value="0.130 0.022 0.022"/>
+
+  <!-- Mass values -->
+  <xacro:property name="body_mass" value="3"/>
+  <xacro:property name="thigh_mass" value="0.071"/>
+  <xacro:property name="knee_mass" value="0.079"/>
+  <xacro:property name="ankle_mass" value="0.092"/>
+  <xacro:property name="foot_mass" value="0.005"/>
+
+  <xacro:macro name="inertial_full" params="mass com ixx ixy ixz iyy iyz izz">
+    <inertial>
+      <origin xyz="${com}" rpy="0 0 0"/>
+      <mass value="${mass}"/>
+      <inertia ixx="${ixx}" ixy="${ixy}" ixz="${ixz}" iyy="${iyy}" iyz="${iyz}" izz="${izz}"/>
+    </inertial>
+  </xacro:macro>
+
+  <xacro:macro name="white_visual_mesh" params="mesh_file">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://${mesh_pkg}/meshes/${mesh_file}"/>
+      </geometry>
+      <material name="white">
+        <color rgba="1 1 1 1"/>
+      </material>
+    </visual>
+  </xacro:macro>
+
+  <!-- Base link: matches latest URDF -->
+  <link name="base_link">
+    <xacro:inertial_full
+      mass="${body_mass}"
+      com="0.00048381 0.0032191 0.050559"
+      ixx="0.00045119" ixy="1.4679E-06" ixz="-1.2424E-07"
+      iyy="0.00050737" iyz="-7.1838E-07" izz="0.00089983"/>
+    <xacro:white_visual_mesh mesh_file="body_link.STL"/>
+    <collision>
+      <origin xyz="0 0 0.0605" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="${body_collision_radius}" length="${body_collision_height}"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <xacro:macro name="leg" params="prefix hip_x hip_y hip_z hip_yaw thigh_lower thigh_upper knee_axis ankle_axis">
+    <link name="${prefix}_thigh_link">
+      <xacro:inertial_full
+        mass="${thigh_mass}"
+        com="0.019013 0.00032996 0.00086404"
+        ixx="2.5711E-06" ixy="1.9851E-08" ixz="-8.344E-08"
+        iyy="2.9345E-06" iyz="-5.4072E-09" izz="4.3664E-06"/>
+      <xacro:white_visual_mesh mesh_file="thigh_link.STL"/>
+      <collision>
+        <origin xyz="0.02618 0 0" rpy="0 0 0"/>
+        <geometry>
+          <box size="${thigh_col_size}"/>
+        </geometry>
+      </collision>
+    </link>
+
+    <joint name="${prefix}_thigh_joint" type="revolute">
+      <origin xyz="${hip_x} ${hip_y} ${hip_z}" rpy="0 0 ${hip_yaw}"/>
+      <parent link="base_link"/>
+      <child link="${prefix}_thigh_link"/>
+      <axis xyz="0 0 -1"/>
+      <limit lower="${thigh_lower}" upper="${thigh_upper}" effort="${servo_effort}" velocity="${servo_velocity}"/>
+      <dynamics damping="0.02" friction="0"/>
+    </joint>
+
+    <link name="${prefix}_knee_link">
+      <xacro:inertial_full
+        mass="${knee_mass}"
+        com="0.024 0.00029496 0.00084694"
+        ixx="3.459E-06" ixy="1.9852E-08" ixz="-8.344E-08"
+        iyy="6.155E-06" iyz="-5.407E-09" izz="4.8098E-06"/>
+      <xacro:white_visual_mesh mesh_file="knee_link.STL"/>
+      <collision>
+        <origin xyz="0.038725 0 0.000125" rpy="0 0 0"/>
+        <geometry>
+          <box size="${knee_col_size}"/>
+        </geometry>
+      </collision>
+    </link>
+
+    <joint name="${prefix}_knee_joint" type="revolute">
+      <origin xyz="${thigh_to_knee_x} 0 0" rpy="1.5708 0 0"/>
+      <parent link="${prefix}_thigh_link"/>
+      <child link="${prefix}_knee_link"/>
+      <axis xyz="${knee_axis}"/>
+      <limit lower="${knee_lower}" upper="${knee_upper}" effort="${servo_effort}" velocity="${servo_velocity}"/>
+      <dynamics damping="0.02" friction="0"/>
+    </joint>
+
+    <link name="${prefix}_ankle_link">
+      <xacro:inertial_full
+        mass="${ankle_mass}"
+        com="0.037761 -0.014128 0.0005094"
+        ixx="9.9998E-06" ixy="8.2893E-06" ixz="-8.344E-08"
+        iyy="1.1276E-05" iyz="-5.407E-09" izz="1.9753E-05"/>
+      <xacro:white_visual_mesh mesh_file="ankle_link.STL"/>
+      <collision>
+        <origin xyz="0.05830 -0.040075 -0.000125" rpy="0 0 -0.6024"/>
+        <geometry>
+          <box size="${ankle_col_size}"/>
+        </geometry>
+      </collision>
+    </link>
+
+    <joint name="${prefix}_ankle_joint" type="revolute">
+      <origin xyz="${knee_to_ankle_x} 0 ${knee_to_ankle_z}" rpy="0 0 0"/>
+      <parent link="${prefix}_knee_link"/>
+      <child link="${prefix}_ankle_link"/>
+      <axis xyz="${ankle_axis}"/>
+      <limit lower="${ankle_lower}" upper="${ankle_upper}" effort="${servo_effort}" velocity="${servo_velocity}"/>
+      <dynamics damping="0.02" friction="0"/>
+    </joint>
+
+    <link name="${prefix}_foot_link">
+      <xacro:inertial_full
+        mass="${foot_mass}"
+        com="0 0 0"
+        ixx="2.0E-07" ixy="0" ixz="0"
+        iyy="2.0E-07" iyz="0" izz="2.0E-07"/>
+      <visual>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <sphere radius="${foot_radius}"/>
+        </geometry>
+        <material name="foot_black"/>
+      </visual>
+      <collision>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <sphere radius="${foot_radius}"/>
+        </geometry>
+      </collision>
+    </link>
+
+    <joint name="${prefix}_foot_fixed" type="fixed">
+      <origin xyz="${ankle_to_foot_x} ${ankle_to_foot_y} ${ankle_to_foot_z}" rpy="0 0 0"/>
+      <parent link="${prefix}_ankle_link"/>
+      <child link="${prefix}_foot_link"/>
+    </joint>
+  </xacro:macro>
+
+  <xacro:leg prefix="lf" hip_x="-0.0425" hip_y="0.07361" hip_z="0.02525" hip_yaw="2.0944" thigh_lower="-1.571" thigh_upper="0.698" knee_axis="0 0 -1" ankle_axis="0 0 -1"/>
+  <xacro:leg prefix="lm" hip_x="-0.085" hip_y="0" hip_z="0.02525" hip_yaw="-3.1416" thigh_lower="-0.698" thigh_upper="0.698" knee_axis="0 0 -1" ankle_axis="0 0 -1"/>
+  <xacro:leg prefix="lb" hip_x="-0.0425" hip_y="-0.07361" hip_z="0.02525" hip_yaw="-2.0944" thigh_lower="-0.698" thigh_upper="1.571" knee_axis="0 0 -1" ankle_axis="0 0 -1"/>
+  <xacro:leg prefix="rf" hip_x="0.0425" hip_y="0.07361" hip_z="0.02525" hip_yaw="1.0472" thigh_lower="-0.698" thigh_upper="1.571" knee_axis="0 0 1" ankle_axis="0 0 1"/>
+  <xacro:leg prefix="rm" hip_x="0.085" hip_y="0" hip_z="0.02525" hip_yaw="0" thigh_lower="-0.698" thigh_upper="0.698" knee_axis="0 0 1" ankle_axis="0 0 1"/>
+  <xacro:leg prefix="rb" hip_x="0.0425" hip_y="-0.07361" hip_z="0.02525" hip_yaw="-1.0472" thigh_lower="-1.571" thigh_upper="0.698" knee_axis="0 0 1" ankle_axis="0 0 1"/>
+</robot>

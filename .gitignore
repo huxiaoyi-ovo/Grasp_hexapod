@@ -1,4 +1,5 @@
 .vscode/
+AGENTS.md
 
 # Catkin build outputs
 build/
@@ -12,4 +13,3 @@ __pycache__/
 
 # Local export and runtime logs
 *.log
-

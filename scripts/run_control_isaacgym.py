@@ -1,14 +1,28 @@
 
 from pathlib import Path
 from isaacgym import gymapi
+from control import (
+    build_dof_indices,
+    isaac_to_control,
+)
 
 
+
+def print_model_info(gym, env, actor) :
+    # 后续控制器要靠名称建立索引，不能默认Isaac Gym的数组顺序
+    rigid_body_names = gym.get_actor_rigid_body_names(env, actor)
+    dof_names = gym.get_actor_dof_names(env, actor)
+    print(f"Robot loaded: {len(rigid_body_names)} rigid bodies, {len(dof_names)} DOFs")
+
+    return dof_names  # 主循环需要用它解释q_cur中每个元素的含义
 
 
 
 def main() -> None:
-
+    # get the asset path
+    repo_root = Path(__file__).resolve().parents[1]
     gym = gymapi.acquire_gym()
+    # create a simulator
     sim_params = gymapi.SimParams() # create a sim params object
 
     sim_params.dt = 1 / 60.0 # set the time step to 1/60 seconds
@@ -16,27 +30,33 @@ def main() -> None:
     sim_params.use_gpu_pipeline = False # set the use GPU pipeline to False
     sim_params.up_axis = gymapi.UP_AXIS_Z
     sim_params.gravity = gymapi.Vec3(0.0, 0.0, -9.81)
+    # TGS求解器， 0: PGS, 1: TGS, 2: TGS with warm start
     sim_params.physx.solver_type = 1
+    sim_params.physx.num_position_iterations = 8
+    sim_params.physx.num_velocity_iterations = 2
 
+    # create the simulation
     sim = gym.create_sim(0, 0, gymapi.SIM_PHYSX, sim_params)
     if sim is None:
         raise RuntimeError("Failed to create Isaac Gym simulation.")
-    
+    #创建地面和viewer
     plane = gymapi.PlaneParams()
     plane.normal = gymapi.Vec3(0.0, 0.0, 1.0)
+    plane.static_friction = 1.5
+    plane.dynamic_friction = 1.2
+
     gym.add_ground(sim, plane)
 
     viewer = gym.create_viewer(sim, gymapi.CameraProperties())
     if viewer is None:
         raise RuntimeError("Failed to create Isaac Gym viewer.")
-    # get the asset path
-    repo_root = Path(__file__).resolve().parents[1]
+    #加载urdf
     asset_root = str(repo_root)
     asset_file = "urdf/hexapod_isaacgym_view.urdf"
     asset_options = gymapi.AssetOptions()
     asset_options.fix_base_link = True
     asset_options.collapse_fixed_joints = False
-    asset_options.default_dof_drive_mode = gymapi.DOF_MODE_POS
+    asset_options.default_dof_drive_mode = int(gymapi.DOF_MODE_NONE) #有三种模式：位置、速度、力矩
     asset_options.use_mesh_materials = True
     
     robot_asset = gym.load_asset(sim, asset_root, asset_file, asset_options)
@@ -46,6 +66,7 @@ def main() -> None:
     lower = gymapi.Vec3(-1.0, -1.0, 0.0)
     upper = gymapi.Vec3(1.0, 1.0, 1.0)
     num_per_row = 1
+    #创建环境和actor
     env = gym.create_env(sim, lower, upper, num_per_row)
 
     pose = gymapi.Transform()
@@ -53,14 +74,19 @@ def main() -> None:
 
     actor = gym.create_actor(env, robot_asset, pose, "grasp_hexapod", 0, 1)
 
-    dof_names = gym.get_actor_dof_names(env, actor)
-    print(f"DOFs ({len(dof_names)}): {', '.join(dof_names)}")
-    dof_count = gym.get_actor_dof_count(env, actor)
-    print(f"DOF count: {dof_count}")
+    dof_names = print_model_info(gym, env, actor)
+    dof_indices = build_dof_indices(dof_names)
+    print(f"Control DOF mapping ready: {len(dof_indices)} joints")
+
 
     gym.viewer_camera_look_at(viewer, None, gymapi.Vec3(0.55, -0.75, 0.45), gymapi.Vec3(0.0, 0.0, 0.15))
-
+    #状态读取主循环
     while not gym.query_viewer_has_closed(viewer):
+        dof_states = gym.get_actor_dof_states(env, actor, gymapi.STATE_ALL)
+        q_cur = dof_states['pos']
+        q_dot_cur = dof_states['vel']
+        q_control = isaac_to_control(q_cur, dof_indices)
+        q_dot_control = isaac_to_control(q_dot_cur, dof_indices)
         gym.simulate(sim)
         gym.fetch_results(sim, True)
         gym.step_graphics(sim)

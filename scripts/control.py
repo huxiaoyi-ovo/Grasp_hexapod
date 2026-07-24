@@ -108,6 +108,60 @@ FOOT_OFFSET_ANKLE = np.array(
     [0.11660, -0.08015, -0.00025],
     dtype=np.float64,
 )
+FOOT_OFFSET_PLANAR_LENGTH = np.linalg.norm(FOOT_OFFSET_ANKLE[:2])
+FOOT_OFFSET_PLANAR_ANGLE = np.arctan2(FOOT_OFFSET_ANKLE[1], FOOT_OFFSET_ANKLE[0])
+REFERENCE_INIT_GEOMETRIC_ANGLES = np.array(
+    [
+        [0.5, 0.67, -2.2],  # lb
+        [-0.5, 0.67, -2.2],  # lf
+        [ 0.0, 0.67, -2.2],  # lm
+        [-0.5, 0.67, -2.2],  # rb
+        [ 0.5, 0.67, -2.2],  # rf
+        [ 0.0, 0.67, -2.2],  # rm
+    ],
+    dtype=np.float64,
+)
+GRASP_INIT_GEOMETRIC_ANGLES = (
+    REFERENCE_INIT_GEOMETRIC_ANGLES.copy()
+)
+
+# expert的左右腿基坐标系与抓取机器人的六个径向髋坐标系不同，
+# 因此先对齐thigh在base_link中的绝对方向，再换算成本机髋系转角。
+REFERENCE_THIGH_YAW_BASE = np.array(
+    [
+        -np.pi + 0.5,  # lb
+         np.pi - 0.5,  # lf
+        -np.pi,        # lm
+        -0.5,          # rb
+         0.5,          # rf
+         0.0,          # rm
+    ],
+    dtype=np.float64,
+)
+thigh_yaw_difference = REFERENCE_THIGH_YAW_BASE - HIP_YAW
+GRASP_INIT_GEOMETRIC_ANGLES[:, 0] = np.arctan2(
+    np.sin(thigh_yaw_difference),
+    np.cos(thigh_yaw_difference),
+)
+
+GRASP_INIT_GEOMETRIC_ANGLES[:, 2] -= (
+    FOOT_OFFSET_PLANAR_ANGLE
+)
+
+
+# 标准几何角与Isaac Gym关节坐标的关系：
+#     theta = JOINT_AXIS_SIGNS * q
+#
+# 因此：
+#     q = theta / JOINT_AXIS_SIGNS
+# Q_INIT是整个项目唯一的初始关节姿态来源。
+
+Q_INIT = (
+    GRASP_INIT_GEOMETRIC_ANGLES
+    / JOINT_AXIS_SIGNS
+)
+
+##Q_INIT = np.zeros((6,3),dtype=np.float64)#测试零位
 
 # foot_link使用半径6.5 mm的球
 # 正运动学算到球心；平地接触点还要考虑这个半径
@@ -233,6 +287,74 @@ class GraspKinematic:
             ]
         )
         return foot_positions_hip
+    
+    def jacobian_leg(self, leg_index, joint_angles):
+        """计算一条腿的雅克比
+        输出：
+            jacobian.shape == (3, 3)
+            行：足端[x, y, z]
+            列：关节[thigh, knee, ankle]
+
+        满足：
+            foot_velocity_hip = jacobian @ joint_velocity"""
+        joint_angles = np.asarray(
+            joint_angles, dtype=np.float64  
+        ).reshape(3)
+
+        # theta是URDF中真正发生的旋转角。
+        
+        theta = (JOINT_AXIS_SIGNS[leg_index]* joint_angles)
+        joint_origins = np.empty((3, 3), dtype=np.float64)
+        joint_axes = np.empty((3, 3), dtype=np.float64)
+        #下面分别计算thigh、knee、ankle的关节原点和旋转轴在髋坐标系中的位置
+        transform = np.eye(4, dtype=np.float64)
+        joint_origins[0] = transform[:3, 3]
+        joint_axes[0] = transform[:3, 2]    
+
+        transform = (transform @ rotation_z(theta[0]) @ self.thigh_to_knee_origin)
+        joint_origins[1] = transform[:3, 3]
+        joint_axes[1] = transform[:3, 2]    
+
+        transform = (transform @ rotation_z(theta[1]) @ self.knee_to_ankle_origin)  
+        joint_origins[2] = transform[:3, 3] 
+        joint_axes[2] = transform[:3, 2]    
+
+        #计算足端位置
+        transform = (transform @ rotation_z(theta[2]) @ self.ankle_to_foot)
+        foot_position = transform[:3, 3]    
+
+        jacobian = np.empty((3, 3), dtype=np.float64)
+        for joint_index in range(3):
+            # 对旋转角theta_i求导
+            jacobian[:, joint_index] = (JOINT_AXIS_SIGNS[leg_index, joint_index] * np.cross(
+                joint_axes[joint_index],
+                foot_position - joint_origins[joint_index],
+            ))
+        return jacobian
+
+    def jacobian(self, joint_angles):
+        joint_angles = np.asarray(joint_angles, dtype=np.float64).reshape(6, 3)
+        jacobians = np.stack(
+            [
+                self.jacobian_leg(leg_index, joint_angles[leg_index])
+                for leg_index in range(6)
+            ]
+        )   
+        return jacobians  # shape == (6, 3, 3)  
+
+    def damped_inverse_jacobian(self, joint_angles, damping=0.01): 
+        """计算阻尼雅克比逆"""
+        jacobians = self.jacobian(joint_angles)  # shape == (6, 3, 3)
+        identity = np.eye(3, dtype=np.float64)
+        damped_inverse = np.stack(
+            [
+                jacobian.T @ np.linalg.inv(jacobian @ jacobian.T + damping**2 * identity)
+                for jacobian in jacobians
+            ]
+        )  # shape == (6, 3, 3)
+        return damped_inverse
+
+
         
     def hip_to_base(self, foot_positions_hip):
         """将六个足端位置从各自髋坐标系转换到base_link坐标系。
@@ -267,49 +389,49 @@ class GraspKinematic:
         foot_positions_hip = self.forward(joint_angles)
         return self.hip_to_base(foot_positions_hip)
                                                                                     
-if __name__ == "__main__":
-    kinematic = GraspKinematic()
-    q_stand = np.zeros((6, 3), dtype=np.float64)
-    q_stand[:3, 1] = -0.5  
-    q_stand[:3, 2] = 0.8
-    q_stand[3:, 1] = 0.5
-    q_stand[3:, 2] = -0.8
+class GraspController:
+    """六足控制器"""
 
-    foot_positions_hip = kinematic.forward(q_stand)
-    foot_positions_base = kinematic.forward_base(q_stand)
-    np.set_printoptions(precision=6, suppress=True)
+    def __init__(self, dt):
+        self.dt = dt
+        self.kinematic = GraspKinematic()
 
-    print("Foot centers in hip frames:")
-    print(foot_positions_hip)
+        self.q_init = Q_INIT.copy()  # shape == (6, 3)
+        self.q_des = self.q_init.copy()  # shape == (6, 3)
 
-    print("Foot centers in base_link frame:")
-    print(foot_positions_base)
+        self.foot_init_hip = self.kinematic.forward(self.q_init)  # shape == (6, 3)
+        self.foot_current_hip = self.foot_init_hip.copy()  # shape == (6, 3)    
+        self.foot_desired_hip = self.foot_init_hip.copy()  # shape == (6, 3)
 
-    recovered_hip = kinematic.base_to_hip(foot_positions_base)
-    print(
-        "Frame round-trip correct:",
-        np.allclose(
-            recovered_hip,
-            foot_positions_hip,
-        ),
-    )
+        #True表示支撑腿，False表示摆动腿
+        #初始三条支撑腿
+        self.gaits = np.zeros(6, dtype=bool)
+        self.gaits[TRIPOD_A_INDICES] = True  # lb, lf，rm
 
-    # 仅打印足端固定偏移的几何意义
-    foot_planar_length = np.linalg.norm(
-        FOOT_OFFSET_ANKLE[:2]
-    )
+        self.stance_group_index = 0
+        self.swing_reach_point = np.zeros(6, dtype=bool)
 
-    foot_fixed_angle = np.arctan2(
-        FOOT_OFFSET_ANKLE[1],
-        FOOT_OFFSET_ANKLE[0],
-    )
+    def cal_joint_poses(self, q_cur, q_dot_cur):
 
-    print(
-        "Foot offset planar length:",
-        foot_planar_length,
-    )
+        q_cur = np.asarray(q_cur, dtype=np.float64).reshape(6,3)
+        q_dot_cur = np.asarray(q_dot_cur, dtype=np.float64).reshape(6,3)
 
-    print(
-        "Foot offset fixed angle:",
-        foot_fixed_angle,
-    )
+        #每个控制周期更新
+        self.foot_current_hip = self.kinematic.forward(q_cur)
+
+        position_error = (self.foot_desired_hip - self.foot_current_hip)
+
+        damped_inverse = (self.kinematic.damped_inverse_jacobian(q_cur))
+        joint_correction = (
+            damped_inverse @ position_error[..., np.newaxis]        
+        ).squeeze(-1)
+
+        self.q_des = (q_cur + 32.0*joint_correction*self.dt)
+
+        return self.q_des
+
+
+
+
+
+

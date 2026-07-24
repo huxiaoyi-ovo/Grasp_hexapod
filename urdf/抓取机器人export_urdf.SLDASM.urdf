@@ -26,7 +26,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://抓取机器人export_urdf.SLDASM/meshes/base_link.STL" />
+          filename="../meshes/body_link.STL" />
       </geometry>
       <material
         name="">
@@ -40,7 +40,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://抓取机器人export_urdf.SLDASM/meshes/base_link.STL" />
+          filename="../meshes/body_link.STL" />
       </geometry>
     </collision>
   </link>
@@ -66,7 +66,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://抓取机器人export_urdf.SLDASM/meshes/lf_thigh_Link.STL" />
+          filename="../meshes/thigh_link.STL" />
       </geometry>
       <material
         name="">
@@ -80,7 +80,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://抓取机器人export_urdf.SLDASM/meshes/lf_thigh_Link.STL" />
+          filename="../meshes/thigh_link.STL" />
       </geometry>
     </collision>
   </link>
@@ -124,7 +124,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://抓取机器人export_urdf.SLDASM/meshes/lf_knee_Link.STL" />
+          filename="../meshes/knee_link.STL" />
       </geometry>
       <material
         name="">
@@ -138,7 +138,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://抓取机器人export_urdf.SLDASM/meshes/lf_knee_Link.STL" />
+          filename="../meshes/knee_link.STL" />
       </geometry>
     </collision>
   </link>
@@ -182,7 +182,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://抓取机器人export_urdf.SLDASM/meshes/lf_ankle_Link.STL" />
+          filename="../meshes/ankle_link.STL" />
       </geometry>
       <material
         name="">
@@ -196,7 +196,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://抓取机器人export_urdf.SLDASM/meshes/lf_ankle_Link.STL" />
+          filename="../meshes/ankle_link.STL" />
       </geometry>
     </collision>
   </link>
@@ -240,7 +240,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://抓取机器人export_urdf.SLDASM/meshes/lm_thigh_Link.STL" />
+          filename="../meshes/thigh_link.STL" />
       </geometry>
       <material
         name="">
@@ -254,7 +254,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://抓取机器人export_urdf.SLDASM/meshes/lm_thigh_Link.STL" />
+          filename="../meshes/thigh_link.STL" />
       </geometry>
     </collision>
   </link>
@@ -298,7 +298,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://抓取机器人export_urdf.SLDASM/meshes/lm_knee_Link.STL" />
+          filename="../meshes/knee_link.STL" />
       </geometry>
       <material
         name="">
@@ -312,7 +312,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://抓取机器人export_urdf.SLDASM/meshes/lm_knee_Link.STL" />
+          filename="../meshes/knee_link.STL" />
       </geometry>
     </collision>
   </link>
@@ -356,7 +356,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://抓取机器人export_urdf.SLDASM/meshes/lm_ankle_Link.STL" />
+          filename="../meshes/ankle_link.STL" />
       </geometry>
       <material
         name="">
@@ -370,7 +370,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://抓取机器人export_urdf.SLDASM/meshes/lm_ankle_Link.STL" />
+          filename="../meshes/ankle_link.STL" />
       </geometry>
     </collision>
   </link>
@@ -414,7 +414,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://抓取机器人export_urdf.SLDASM/meshes/lb_thigh_Link.STL" />
+          filename="../meshes/thigh_link.STL" />
       </geometry>
       <material
         name="">
@@ -428,7 +428,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://抓取机器人export_urdf.SLDASM/meshes/lb_thigh_Link.STL" />
+          filename="../meshes/thigh_link.STL" />
       </geometry>
     </collision>
   </link>
@@ -472,7 +472,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://抓取机器人export_urdf.SLDASM/meshes/lb_knee_Link.STL" />
+          filename="../meshes/knee_link.STL" />
       </geometry>
       <material
         name="">
@@ -486,7 +486,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://抓取机器人export_urdf.SLDASM/meshes/lb_knee_Link.STL" />
+          filename="../meshes/knee_link.STL" />
       </geometry>
     </collision>
   </link>
@@ -530,7 +530,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://抓取机器人export_urdf.SLDASM/meshes/lb_ankle_Link.STL" />
+          filename="../meshes/ankle_link.STL" />
       </geometry>
       <material
         name="">
@@ -544,7 +544,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://抓取机器人export_urdf.SLDASM/meshes/lb_ankle_Link.STL" />
+          filename="../meshes/ankle_link.STL" />
       </geometry>
     </collision>
   </link>
@@ -588,7 +588,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://抓取机器人export_urdf.SLDASM/meshes/rf_thigh_Link.STL" />
+          filename="../meshes/thigh_link.STL" />
       </geometry>
       <material
         name="">
@@ -602,7 +602,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://抓取机器人export_urdf.SLDASM/meshes/rf_thigh_Link.STL" />
+          filename="../meshes/thigh_link.STL" />
       </geometry>
     </collision>
   </link>
@@ -646,7 +646,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://抓取机器人export_urdf.SLDASM/meshes/rf_knee_Link.STL" />
+          filename="../meshes/knee_link.STL" />
       </geometry>
       <material
         name="">
@@ -660,7 +660,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://抓取机器人export_urdf.SLDASM/meshes/rf_knee_Link.STL" />
+          filename="../meshes/knee_link.STL" />
       </geometry>
     </collision>
   </link>
@@ -704,7 +704,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://抓取机器人export_urdf.SLDASM/meshes/rf_ankle_Link.STL" />
+          filename="../meshes/ankle_link.STL" />
       </geometry>
       <material
         name="">
@@ -718,7 +718,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://抓取机器人export_urdf.SLDASM/meshes/rf_ankle_Link.STL" />
+          filename="../meshes/ankle_link.STL" />
       </geometry>
     </collision>
   </link>
@@ -762,7 +762,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://抓取机器人export_urdf.SLDASM/meshes/rm_thigh_Link.STL" />
+          filename="../meshes/thigh_link.STL" />
       </geometry>
       <material
         name="">
@@ -776,7 +776,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://抓取机器人export_urdf.SLDASM/meshes/rm_thigh_Link.STL" />
+          filename="../meshes/thigh_link.STL" />
       </geometry>
     </collision>
   </link>
@@ -820,7 +820,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://抓取机器人export_urdf.SLDASM/meshes/rm_knee_Link.STL" />
+          filename="../meshes/knee_link.STL" />
       </geometry>
       <material
         name="">
@@ -834,7 +834,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://抓取机器人export_urdf.SLDASM/meshes/rm_knee_Link.STL" />
+          filename="../meshes/knee_link.STL" />
       </geometry>
     </collision>
   </link>
@@ -878,7 +878,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://抓取机器人export_urdf.SLDASM/meshes/rm_ankle_Link.STL" />
+          filename="../meshes/ankle_link.STL" />
       </geometry>
       <material
         name="">
@@ -892,7 +892,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://抓取机器人export_urdf.SLDASM/meshes/rm_ankle_Link.STL" />
+          filename="../meshes/ankle_link.STL" />
       </geometry>
     </collision>
   </link>
@@ -936,7 +936,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://抓取机器人export_urdf.SLDASM/meshes/rb_thigh_Link.STL" />
+          filename="../meshes/thigh_link.STL" />
       </geometry>
       <material
         name="">
@@ -950,7 +950,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://抓取机器人export_urdf.SLDASM/meshes/rb_thigh_Link.STL" />
+          filename="../meshes/thigh_link.STL" />
       </geometry>
     </collision>
   </link>
@@ -994,7 +994,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://抓取机器人export_urdf.SLDASM/meshes/rb_knee_Link.STL" />
+          filename="../meshes/knee_link.STL" />
       </geometry>
       <material
         name="">
@@ -1008,7 +1008,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://抓取机器人export_urdf.SLDASM/meshes/rb_knee_Link.STL" />
+          filename="../meshes/knee_link.STL" />
       </geometry>
     </collision>
   </link>
@@ -1052,7 +1052,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://抓取机器人export_urdf.SLDASM/meshes/rb_ankle_Link.STL" />
+          filename="../meshes/ankle_link.STL" />
       </geometry>
       <material
         name="">
@@ -1066,7 +1066,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://抓取机器人export_urdf.SLDASM/meshes/rb_ankle_Link.STL" />
+          filename="../meshes/ankle_link.STL" />
       </geometry>
     </collision>
   </link>

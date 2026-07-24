@@ -3,9 +3,6 @@
   <material name="white"><color rgba="1 1 1 1"/></material>
   <material name="foot_black"><color rgba="0.02 0.02 0.02 1"/></material>
 
-  <!-- Package / mesh paths -->
-  <xacro:property name="mesh_pkg" value="hexapod_robot"/>
-
   <!-- Actuator / joint limits -->
   <xacro:property name="servo_effort" value="1.2"/>
   <xacro:property name="servo_velocity" value="4.0"/>
@@ -49,7 +46,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://${mesh_pkg}/meshes/${mesh_file}"/>
+        <mesh filename="../meshes/${mesh_file}"/>
       </geometry>
       <material name="white">
         <color rgba="1 1 1 1"/>

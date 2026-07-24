@@ -11,7 +11,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://hexapod_robot/meshes/body_link.STL"/>
+        <mesh filename="../meshes/body_link.STL"/>
       </geometry>
       <material name="white">
         <color rgba="1 1 1 1"/>
@@ -36,7 +36,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://hexapod_robot/meshes/thigh_link.STL"/>
+        <mesh filename="../meshes/thigh_link.STL"/>
       </geometry>
       <material name="white">
         <color rgba="1 1 1 1"/>
@@ -66,7 +66,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://hexapod_robot/meshes/knee_link.STL"/>
+        <mesh filename="../meshes/knee_link.STL"/>
       </geometry>
       <material name="white">
         <color rgba="1 1 1 1"/>
@@ -96,7 +96,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://hexapod_robot/meshes/ankle_link.STL"/>
+        <mesh filename="../meshes/ankle_link.STL"/>
       </geometry>
       <material name="white">
         <color rgba="1 1 1 1"/>
@@ -151,7 +151,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://hexapod_robot/meshes/thigh_link.STL"/>
+        <mesh filename="../meshes/thigh_link.STL"/>
       </geometry>
       <material name="white">
         <color rgba="1 1 1 1"/>
@@ -181,7 +181,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://hexapod_robot/meshes/knee_link.STL"/>
+        <mesh filename="../meshes/knee_link.STL"/>
       </geometry>
       <material name="white">
         <color rgba="1 1 1 1"/>
@@ -211,7 +211,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://hexapod_robot/meshes/ankle_link.STL"/>
+        <mesh filename="../meshes/ankle_link.STL"/>
       </geometry>
       <material name="white">
         <color rgba="1 1 1 1"/>
@@ -266,7 +266,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://hexapod_robot/meshes/thigh_link.STL"/>
+        <mesh filename="../meshes/thigh_link.STL"/>
       </geometry>
       <material name="white">
         <color rgba="1 1 1 1"/>
@@ -296,7 +296,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://hexapod_robot/meshes/knee_link.STL"/>
+        <mesh filename="../meshes/knee_link.STL"/>
       </geometry>
       <material name="white">
         <color rgba="1 1 1 1"/>
@@ -326,7 +326,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://hexapod_robot/meshes/ankle_link.STL"/>
+        <mesh filename="../meshes/ankle_link.STL"/>
       </geometry>
       <material name="white">
         <color rgba="1 1 1 1"/>
@@ -381,7 +381,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://hexapod_robot/meshes/thigh_link.STL"/>
+        <mesh filename="../meshes/thigh_link.STL"/>
       </geometry>
       <material name="white">
         <color rgba="1 1 1 1"/>
@@ -411,7 +411,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://hexapod_robot/meshes/knee_link.STL"/>
+        <mesh filename="../meshes/knee_link.STL"/>
       </geometry>
       <material name="white">
         <color rgba="1 1 1 1"/>
@@ -441,7 +441,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://hexapod_robot/meshes/ankle_link.STL"/>
+        <mesh filename="../meshes/ankle_link.STL"/>
       </geometry>
       <material name="white">
         <color rgba="1 1 1 1"/>
@@ -496,7 +496,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://hexapod_robot/meshes/thigh_link.STL"/>
+        <mesh filename="../meshes/thigh_link.STL"/>
       </geometry>
       <material name="white">
         <color rgba="1 1 1 1"/>
@@ -526,7 +526,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://hexapod_robot/meshes/knee_link.STL"/>
+        <mesh filename="../meshes/knee_link.STL"/>
       </geometry>
       <material name="white">
         <color rgba="1 1 1 1"/>
@@ -556,7 +556,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://hexapod_robot/meshes/ankle_link.STL"/>
+        <mesh filename="../meshes/ankle_link.STL"/>
       </geometry>
       <material name="white">
         <color rgba="1 1 1 1"/>
@@ -611,7 +611,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://hexapod_robot/meshes/thigh_link.STL"/>
+        <mesh filename="../meshes/thigh_link.STL"/>
       </geometry>
       <material name="white">
         <color rgba="1 1 1 1"/>
@@ -641,7 +641,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://hexapod_robot/meshes/knee_link.STL"/>
+        <mesh filename="../meshes/knee_link.STL"/>
       </geometry>
       <material name="white">
         <color rgba="1 1 1 1"/>
@@ -671,7 +671,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://hexapod_robot/meshes/ankle_link.STL"/>
+        <mesh filename="../meshes/ankle_link.STL"/>
       </geometry>
       <material name="white">
         <color rgba="1 1 1 1"/>

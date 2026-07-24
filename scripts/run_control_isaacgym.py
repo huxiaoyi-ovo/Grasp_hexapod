@@ -4,8 +4,10 @@ from isaacgym import gymapi
 from control import (
     build_dof_indices,
     isaac_to_control,
+    GraspController,
+    control_to_isaac
 )
-
+import numpy as np
 
 
 def print_model_info(gym, env, actor) :
@@ -56,7 +58,7 @@ def main() -> None:
     asset_options = gymapi.AssetOptions()
     asset_options.fix_base_link = True
     asset_options.collapse_fixed_joints = False
-    asset_options.default_dof_drive_mode = int(gymapi.DOF_MODE_NONE) #有三种模式：位置、速度、力矩
+    asset_options.default_dof_drive_mode = int(gymapi.DOF_MODE_POS) #有三种模式：位置、速度、力矩
     asset_options.use_mesh_materials = True
     
     robot_asset = gym.load_asset(sim, asset_root, asset_file, asset_options)
@@ -70,7 +72,7 @@ def main() -> None:
     env = gym.create_env(sim, lower, upper, num_per_row)
 
     pose = gymapi.Transform()
-    pose.p = gymapi.Vec3(0.0, 0.0, 0.15)
+    pose.p = gymapi.Vec3(0.0, 0.0, 0.075)
 
     actor = gym.create_actor(env, robot_asset, pose, "grasp_hexapod", 0, 1)
 
@@ -78,20 +80,105 @@ def main() -> None:
     dof_indices = build_dof_indices(dof_names)
     print(f"Control DOF mapping ready: {len(dof_indices)} joints")
 
+    controller = GraspController(dt=sim_params.dt)
+    dof_properties = gym.get_actor_dof_properties(env, actor)
+    dof_properties["driveMode"].fill(int(gymapi.DOF_MODE_POS))
+    dof_properties["stiffness"].fill(100.0)
+    dof_properties["damping"].fill(0.8)
+
+    gym.set_actor_dof_properties(
+        env,
+        actor,
+        dof_properties,
+    )
+    #做一系列控制器和isaac的顺序转换
+    lower_control = isaac_to_control(
+        dof_properties["lower"],
+        dof_indices,
+    )
+    upper_control = isaac_to_control(
+        dof_properties["upper"],
+        dof_indices,
+    )
+    velocity_control = isaac_to_control(
+        dof_properties["velocity"],
+        dof_indices,
+    )
+    q_init_isaac = control_to_isaac(
+        controller.q_init,
+        dof_indices
+    )
+    dof_states = gym.get_actor_dof_states(env, actor, gymapi.STATE_ALL)
+    dof_states["pos"][:] = q_init_isaac
+    dof_states["vel"][:] = 0.0
+
+    gym.set_actor_dof_states(
+        env,
+        actor,
+        dof_states,
+        gymapi.STATE_ALL,
+    )
+    # 位置驱动的目标也必须同时设置成Q_INIT
+    gym.set_actor_dof_position_targets(
+        env,
+        actor,
+        q_init_isaac,
+    )
 
     gym.viewer_camera_look_at(viewer, None, gymapi.Vec3(0.55, -0.75, 0.45), gymapi.Vec3(0.0, 0.0, 0.15))
+
     #状态读取主循环
     while not gym.query_viewer_has_closed(viewer):
         dof_states = gym.get_actor_dof_states(env, actor, gymapi.STATE_ALL)
-        q_cur = dof_states['pos']
-        q_dot_cur = dof_states['vel']
-        q_control = isaac_to_control(q_cur, dof_indices)
-        q_dot_control = isaac_to_control(q_dot_cur, dof_indices)
+        # Isaac一维顺序 → 控制器(6,3)顺序
+        q_control = isaac_to_control(
+            dof_states["pos"],
+            dof_indices,
+        )
+        q_dot_control = isaac_to_control(
+            dof_states["vel"],
+            dof_indices,
+        )
+         # 足端位置闭环计算关节目标
+        q_des_control = controller.cal_joint_poses(
+            q_control,
+            q_dot_control,
+        )
+         # 限制单个控制周期内允许变化的最大关节角
+        max_joint_step = velocity_control * sim_params.dt
+        q_target_control = (
+            q_control
+            + np.clip(
+                q_des_control - q_control,
+                -max_joint_step,
+                max_joint_step,
+            )
+        )
+        # 限制在URDF机械角度范围内
+        q_target_control = np.clip(
+            q_target_control,
+            lower_control,
+            upper_control,
+        )
+         # 控制器顺序 → Isaac Gym顺序
+        q_target_isaac = control_to_isaac(
+            q_target_control,
+            dof_indices,
+        )
+        # 把位置目标真正发送给关节驱动器
+        gym.set_actor_dof_position_targets(
+            env,
+            actor,
+            q_target_isaac,
+        )
+
+        
         gym.simulate(sim)
         gym.fetch_results(sim, True)
         gym.step_graphics(sim)
         gym.draw_viewer(viewer, sim, True)
         gym.sync_frame_time(sim)
+
     gym.destroy_viewer(viewer)
     gym.destroy_sim(sim)
 

@@ -84,16 +84,25 @@ def main() -> None:
 
     sim_params.dt = 1 / 60.0 # set the time step to 1/60 seconds
     sim_params.substeps = 2 # set the number of substeps to 2
-    sim_params.use_gpu_pipeline = False # set the use GPU pipeline to False
+    # PhysX明确使用cuda:0计算；控制器仍使用NumPy，因此保留CPU数据管线。
+    sim_params.use_gpu_pipeline = False
     sim_params.up_axis = gymapi.UP_AXIS_Z
     sim_params.gravity = gymapi.Vec3(0.0, 0.0, -9.81)
     # TGS求解器， 0: PGS, 1: TGS, 2: TGS with warm start
+    sim_params.physx.use_gpu = True
     sim_params.physx.solver_type = 1
     sim_params.physx.num_position_iterations = 8
     sim_params.physx.num_velocity_iterations = 2
 
     # create the simulation
-    sim = gym.create_sim(0, 0, gymapi.SIM_PHYSX, sim_params)
+    compute_device_id = 0
+    graphics_device_id = 0
+    sim = gym.create_sim(
+        compute_device_id,
+        graphics_device_id,
+        gymapi.SIM_PHYSX,
+        sim_params,
+    )
     if sim is None:
         raise RuntimeError("Failed to create Isaac Gym simulation.")
     #创建地面和viewer

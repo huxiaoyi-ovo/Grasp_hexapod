@@ -1,5 +1,7 @@
 
 from pathlib import Path
+import sys
+
 from isaacgym import gymapi
 from control import (
     build_dof_indices,
@@ -8,6 +10,11 @@ from control import (
     control_to_isaac
 )
 import numpy as np
+
+
+reference_dir = Path(__file__).resolve().parents[1] / "reference"
+sys.path.insert(0, str(reference_dir))
+from joy_stick import JoyStick
 
 
 def print_model_info(gym, env, actor) :
@@ -56,11 +63,10 @@ def main() -> None:
     asset_root = str(repo_root)
     asset_file = "urdf/hexapod_isaacgym_view.urdf"
     asset_options = gymapi.AssetOptions()
-    asset_options.fix_base_link = True
+    asset_options.fix_base_link = False
     asset_options.collapse_fixed_joints = False
-    asset_options.default_dof_drive_mode = int(gymapi.DOF_MODE_POS) #有三种模式：位置、速度、力矩
     asset_options.use_mesh_materials = True
-    
+
     robot_asset = gym.load_asset(sim, asset_root, asset_file, asset_options)
     if robot_asset is None:
         raise RuntimeError("Failed to load robot asset.")
@@ -68,11 +74,18 @@ def main() -> None:
     lower = gymapi.Vec3(-1.0, -1.0, 0.0)
     upper = gymapi.Vec3(1.0, 1.0, 1.0)
     num_per_row = 1
+
+    controller = GraspController(dt=sim_params.dt)
     #创建环境和actor
     env = gym.create_env(sim, lower, upper, num_per_row)
 
     pose = gymapi.Transform()
-    pose.p = gymapi.Vec3(0.0, 0.0, 0.075)
+    pose.p = gymapi.Vec3(
+        0.0,
+        0.0,
+        # 直接按标准站姿的足端球半径落在地面上，不再额外悬空25 mm。
+        float(controller.base_height_at_stand),
+    )
 
     actor = gym.create_actor(env, robot_asset, pose, "grasp_hexapod", 0, 1)
 
@@ -80,7 +93,6 @@ def main() -> None:
     dof_indices = build_dof_indices(dof_names)
     print(f"Control DOF mapping ready: {len(dof_indices)} joints")
 
-    controller = GraspController(dt=sim_params.dt)
     dof_properties = gym.get_actor_dof_properties(env, actor)
     dof_properties["driveMode"].fill(int(gymapi.DOF_MODE_POS))
     dof_properties["stiffness"].fill(100.0)
@@ -100,10 +112,6 @@ def main() -> None:
         dof_properties["upper"],
         dof_indices,
     )
-    velocity_control = isaac_to_control(
-        dof_properties["velocity"],
-        dof_indices,
-    )
     q_init_isaac = control_to_isaac(
         controller.q_init,
         dof_indices
@@ -118,7 +126,7 @@ def main() -> None:
         dof_states,
         gymapi.STATE_ALL,
     )
-    # 位置驱动的目标也必须同时设置成Q_INIT
+    # 位置驱动目标必须与Q_STAND同步，否则仿真开始第一帧会发生关节跳变。
     gym.set_actor_dof_position_targets(
         env,
         actor,
@@ -127,40 +135,117 @@ def main() -> None:
 
     gym.viewer_camera_look_at(viewer, None, gymapi.Vec3(0.55, -0.75, 0.45), gymapi.Vec3(0.0, 0.0, 0.15))
 
+    joystick = JoyStick()
+
+    # 所有平移方向统一为20 cm/s。
+    max_linear_speed = 0.20
+    max_vertical_speed = 0.02   # m/s
+    # 令标准足端的旋转切向速度同样等于20 cm/s。
+    nominal_foot_radius = np.mean(
+        np.linalg.norm(controller.foot_init_base[:, :2], axis=1)
+    )
+    max_yaw_rate = max_linear_speed / nominal_foot_radius
+
+    command = np.zeros(
+        4,
+        dtype=np.float64,
+    )
+    control_enabled = False
+    button_a_was_down = False
+    button_b_was_down = False
+    print(
+        "A: enable/pause motion | B: reset to stand | "
+        "RT: body up | LT: body down"
+    )
+
     #状态读取主循环
     while not gym.query_viewer_has_closed(viewer):
-        dof_states = gym.get_actor_dof_states(env, actor, gymapi.STATE_ALL)
+        dof_states = gym.get_actor_dof_states(env, actor, gymapi.STATE_POS)
         # Isaac一维顺序 → 控制器(6,3)顺序
         q_control = isaac_to_control(
             dof_states["pos"],
             dof_indices,
         )
-        q_dot_control = isaac_to_control(
-            dof_states["vel"],
-            dof_indices,
+
+        # reference手柄输出：[B, right, forward, up, yaw]。
+        # A/B在这里转换成单次按下事件，避免长按时每帧重复触发。
+        _reset, axis_right, axis_forward, _axis_up_unused, axis_yaw = (
+            joystick.get_commands()
         )
-         # 足端位置闭环计算关节目标
-        q_des_control = controller.cal_joint_poses(
-            q_control,
-            q_dot_control,
+
+        # 北通BTP-KP20的axis 4/5是两个扳机，静止值均为-1，
+        # 不能直接把axis 4取反，否则A使能后会持续收到最大上升指令。
+        left_trigger = 0.5 * (
+            joystick.joystick.get_axis(4) + 1.0
         )
-         # 限制单个控制周期内允许变化的最大关节角
-        max_joint_step = velocity_control * sim_params.dt
-        q_target_control = (
-            q_control
-            + np.clip(
-                q_des_control - q_control,
-                -max_joint_step,
-                max_joint_step,
+        right_trigger = 0.5 * (
+            joystick.joystick.get_axis(5) + 1.0
+        )
+        axis_up = right_trigger - left_trigger
+        if abs(axis_up) < 0.05:
+            axis_up = 0.0
+
+        button_a_down = bool(joystick.joystick.get_button(0))
+        button_b_down = bool(joystick.joystick.get_button(1))
+        button_a_pressed = button_a_down and not button_a_was_down
+        button_b_pressed = button_b_down and not button_b_was_down
+        button_a_was_down = button_a_down
+        button_b_was_down = button_b_down
+
+        if button_a_pressed:
+            control_enabled = not control_enabled
+            state = "ENABLED" if control_enabled else "PAUSED"
+            print(f"Motion control: {state}")
+            if control_enabled:
+                # A使能后先平滑回到末段竖直的Q_STAND，再接收摇杆。
+                controller.reset_to_stand(q_control)
+
+        if button_b_pressed:
+            control_enabled = False
+            controller.reset_to_stand(q_control)
+            print("Controller returning to stand")
+
+        if control_enabled and not controller.reset_active:
+            # 圆形归一化保证前后、左右和任意斜向的最大合速度一致。
+            translation_axes = np.array(
+                [axis_right, axis_forward],
+                dtype=np.float64,
             )
-        )
-        # 限制在URDF机械角度范围内
+            translation_norm = np.linalg.norm(translation_axes)
+            if translation_norm > 1.0:
+                translation_axes /= translation_norm
+
+            command[:] = [
+                max_linear_speed * translation_axes[0],
+                max_linear_speed * translation_axes[1],
+                max_vertical_speed * axis_up,
+                max_yaw_rate * axis_yaw,
+            ]
+        else:
+            # A暂停时给步态规划器零指令，使当前摆动腿先落地再停止。
+            command[:] = 0.0
+
+        # 手柄指令 -> 足端目标 -> 阻尼雅可比 -> 关节目标。
+        controller.update_gait(command)
+
+        q_des_control = controller.cal_joint_poses(q_control)
+        # 不再对每周期关节目标做人为速度裁剪，让位置驱动直接跟踪DLS结果。
+        # 机械角限位必须保留，避免控制目标越过URDF允许范围。
         q_target_control = np.clip(
-            q_target_control,
+            q_des_control,
             lower_control,
             upper_control,
         )
-         # 控制器顺序 → Isaac Gym顺序
+
+        # 正常情况下cal_joint_poses已经检查过碰撞；只有机械限位
+        # 实际改变了目标，才需要对改变后的姿态重新检查。
+        if not np.array_equal(q_target_control, q_des_control):
+            q_target_control = controller.collision_guard(
+                q_target_control,
+                q_control,
+            )
+
+        # 控制器顺序 → Isaac Gym顺序
         q_target_isaac = control_to_isaac(
             q_target_control,
             dof_indices,

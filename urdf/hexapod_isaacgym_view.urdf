@@ -114,7 +114,7 @@
     <parent link="lf_knee_link"/>
     <child link="lf_ankle_link"/>
     <axis xyz="0 0 -1"/>
-    <limit lower="-1.745" upper="1.745" effort="1.2" velocity="4.0"/>
+    <limit lower="-2.094" upper="2.094" effort="1.2" velocity="4.0"/>
     <dynamics damping="0.02" friction="0"/>
   </joint>
   <link name="lf_foot_link">
@@ -229,7 +229,7 @@
     <parent link="lm_knee_link"/>
     <child link="lm_ankle_link"/>
     <axis xyz="0 0 -1"/>
-    <limit lower="-1.745" upper="1.745" effort="1.2" velocity="4.0"/>
+    <limit lower="-2.094" upper="2.094" effort="1.2" velocity="4.0"/>
     <dynamics damping="0.02" friction="0"/>
   </joint>
   <link name="lm_foot_link">
@@ -344,7 +344,7 @@
     <parent link="lb_knee_link"/>
     <child link="lb_ankle_link"/>
     <axis xyz="0 0 -1"/>
-    <limit lower="-1.745" upper="1.745" effort="1.2" velocity="4.0"/>
+    <limit lower="-2.094" upper="2.094" effort="1.2" velocity="4.0"/>
     <dynamics damping="0.02" friction="0"/>
   </joint>
   <link name="lb_foot_link">
@@ -459,7 +459,7 @@
     <parent link="rf_knee_link"/>
     <child link="rf_ankle_link"/>
     <axis xyz="0 0 1"/>
-    <limit lower="-1.745" upper="1.745" effort="1.2" velocity="4.0"/>
+    <limit lower="-2.094" upper="2.094" effort="1.2" velocity="4.0"/>
     <dynamics damping="0.02" friction="0"/>
   </joint>
   <link name="rf_foot_link">
@@ -574,7 +574,7 @@
     <parent link="rm_knee_link"/>
     <child link="rm_ankle_link"/>
     <axis xyz="0 0 1"/>
-    <limit lower="-1.745" upper="1.745" effort="1.2" velocity="4.0"/>
+    <limit lower="-2.094" upper="2.094" effort="1.2" velocity="4.0"/>
     <dynamics damping="0.02" friction="0"/>
   </joint>
   <link name="rm_foot_link">
@@ -689,7 +689,7 @@
     <parent link="rb_knee_link"/>
     <child link="rb_ankle_link"/>
     <axis xyz="0 0 1"/>
-    <limit lower="-1.745" upper="1.745" effort="1.2" velocity="4.0"/>
+    <limit lower="-2.094" upper="2.094" effort="1.2" velocity="4.0"/>
     <dynamics damping="0.02" friction="0"/>
   </joint>
   <link name="rb_foot_link">

@@ -1,5 +1,6 @@
 
 from pathlib import Path
+import struct
 import sys
 
 from isaacgym import gymapi
@@ -15,6 +16,53 @@ import numpy as np
 reference_dir = Path(__file__).resolve().parents[1] / "reference"
 sys.path.insert(0, str(reference_dir))
 from joy_stick import JoyStick
+
+
+def add_static_stl_triangle_mesh(gym, sim, mesh_path, position):
+    """把二进制STL原始三角面作为静态PhysX碰撞面加入仿真。"""
+    data = mesh_path.read_bytes()
+    triangle_count = struct.unpack_from("<I", data, 80)[0]
+    record_dtype = np.dtype(
+        [
+            ("normal", "<f4", (3,)),
+            ("vertices", "<f4", (3, 3)),
+            ("attribute", "<u2"),
+        ]
+    )
+    expected_size = 84 + triangle_count * record_dtype.itemsize
+    if len(data) != expected_size:
+        raise ValueError(f"Only binary STL is supported: {mesh_path}")
+
+    records = np.frombuffer(
+        data,
+        dtype=record_dtype,
+        count=triangle_count,
+        offset=84,
+    )
+    vertices = np.ascontiguousarray(
+        records["vertices"].reshape(-1, 3)
+    )
+    triangles = np.arange(
+        triangle_count * 3,
+        dtype=np.uint32,
+    ).reshape(-1, 3)
+
+    mesh_params = gymapi.TriangleMeshParams()
+    mesh_params.nb_vertices = vertices.shape[0]
+    mesh_params.nb_triangles = triangles.shape[0]
+    mesh_params.transform.p = position
+    mesh_params.static_friction = 1.0
+    mesh_params.dynamic_friction = 0.8
+
+    gym.add_triangle_mesh(
+        sim,
+        vertices.ravel(),
+        triangles.ravel(),
+        mesh_params,
+    )
+    print(
+        f"Xiaolan loaded: {triangle_count} exact static collision triangles"
+    )
 
 
 def print_model_info(gym, env, actor) :
@@ -71,6 +119,15 @@ def main() -> None:
     if robot_asset is None:
         raise RuntimeError("Failed to load robot asset.")
 
+    # 小蓝固定在六足的+y前方，直接使用原始三角面而不是凸包近似。
+    # PhysX只允许静态物体使用这种凹三角网格，正适合当前固定的对接目标。
+    add_static_stl_triangle_mesh(
+        gym,
+        sim,
+        repo_root / "meshes" / "xiaolan" / "base_link_xiaolan.STL",
+        gymapi.Vec3(0.0, 0.8, 0.0),
+    )
+
     lower = gymapi.Vec3(-1.0, -1.0, 0.0)
     upper = gymapi.Vec3(1.0, 1.0, 1.0)
     num_per_row = 1
@@ -95,8 +152,8 @@ def main() -> None:
 
     dof_properties = gym.get_actor_dof_properties(env, actor)
     dof_properties["driveMode"].fill(int(gymapi.DOF_MODE_POS))
-    dof_properties["stiffness"].fill(100.0)
-    dof_properties["damping"].fill(0.8)
+    dof_properties["stiffness"].fill(100.0) #kp
+    dof_properties["damping"].fill(0.8) #kd
 
     gym.set_actor_dof_properties(
         env,
@@ -133,7 +190,13 @@ def main() -> None:
         q_init_isaac,
     )
 
-    gym.viewer_camera_look_at(viewer, None, gymapi.Vec3(0.55, -0.75, 0.45), gymapi.Vec3(0.0, 0.0, 0.15))
+    # 镜头中心放在两个机器人之间，初始画面可以同时观察六足和小蓝。
+    gym.viewer_camera_look_at(
+        viewer,
+        None,
+        gymapi.Vec3(0.75, -0.75, 0.5),
+        gymapi.Vec3(0.0, 0.38, 0.10),
+    )
 
     joystick = JoyStick()
 

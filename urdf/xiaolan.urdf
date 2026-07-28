@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<robot name="xiaolan">
+  <!--
+    Cleaned from the SolidWorks export in /home/hxy/下载/new_xiaolan.
+
+    The export contained two coincident fixed links with identical meshes,
+    mass properties, and collision geometry. Xiaolan is one rigid docking
+    target here, so only one copy is retained to avoid doubled mass and
+    overlapping collision shapes.
+  -->
+  <material name="xiaolan_gray">
+    <color rgba="0.705882 0.705882 0.705882 1"/>
+  </material>
+
+  <link name="xiaolan_base_link">
+    <inertial>
+      <!-- CAD mass properties, expressed in the exported Xiaolan frame. -->
+      <origin
+        xyz="0.0000000255 0.1029782145 0.0817612815"
+        rpy="0 0 0"/>
+      <mass value="11.467482077"/>
+      <inertia
+        ixx="0.1233826931"
+        ixy="-0.0000001171"
+        ixz="-0.0000000073"
+        iyy="0.3025366126"
+        iyz="0.0003908843"
+        izz="0.4062857437"/>
+    </inertial>
+
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="../meshes/xiaolan/base_link_xiaolan.STL"/>
+      </geometry>
+      <material name="xiaolan_gray"/>
+    </visual>
+
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <!--
+          Keep the CAD surface for ROS and other mesh-capable consumers.
+          PhysX convexifies URDF collision meshes, so run_control_isaacgym.py
+          loads this STL separately with add_triangle_mesh() to preserve every
+          triangle while Xiaolan remains static.
+        -->
+        <mesh filename="../meshes/xiaolan/base_link_xiaolan.STL"/>
+      </geometry>
+    </collision>
+  </link>
+</robot>

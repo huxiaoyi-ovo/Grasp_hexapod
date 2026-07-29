@@ -1,12 +1,28 @@
+#!/usr/bin/env python3
+"""六足安全工作空间的离线采样、边界生成和可视化工具。
+
+功能：
+    从当前仿真URDF读取关节限位，采样六腿可达空间，筛选站立步态分支、
+    奇异性和角度余量，并生成在线控制器使用的z-rho安全边界。
+输入：
+    urdf/hexapod_isaacgym_view.urdf、kinematics.py几何模型和离线采样参数。
+输出：
+    config/workspace_bounds.csv、统计信息以及六足工作空间三维可视化。
+结构：
+    读取限位 -> 关节采样 -> FK/奇异值筛选 -> 边界提取 -> 保存与绘图。
+边界：
+    仅离线运行，不进入run_sim.py或run_real.py的实时控制循环。
+"""
+
 from pathlib import Path
 import xml.etree.ElementTree as ET
 
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 import numpy as np
+import rospkg
 
-from control import (
-    CONTROL_DOF_NAMES,
+from kinematics import (
     FOOT_RADIUS,
     HIP_XYZ,
     JOINT_AXIS_SIGNS,
@@ -15,16 +31,18 @@ from control import (
     THIGH_TO_KNEE_LENGTH,
     GraspKinematic,
 )
+from utils import CONTROL_DOF_NAMES, transform_points
 
 
 # 必须分析当前仿真实际使用的URDF，不能照抄reference里的工作空间常数。
+ROS_PACKAGES = rospkg.RosPack()
 URDF_PATH = (
-    Path(__file__).resolve().parents[1]
+    Path(ROS_PACKAGES.get_path("grasp_hexapod_description"))
     / "urdf"
     / "hexapod_isaacgym_view.urdf"
 )
 WORKSPACE_BOUNDARY_PATH = (
-    Path(__file__).resolve().parents[1]
+    Path(ROS_PACKAGES.get_path("grasp_hexapod_control"))
     / "config"
     / "workspace_bounds.csv"
 )
@@ -101,13 +119,6 @@ def sample_leg_workspace(kinematic, leg_index, limits, rng):
         sigma_min[gait_candidate],
         reachable.sum(),
     )
-
-
-def transform_points(transform, points):
-    """把N个三维点通过4×4齐次变换转换坐标系。"""
-
-    points_h = np.column_stack((points, np.ones(len(points))))
-    return (transform @ points_h.T).T[:, :3]
 
 
 def get_leg_chain_base(kinematic, leg_index):

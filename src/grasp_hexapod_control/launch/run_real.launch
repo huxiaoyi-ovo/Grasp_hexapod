@@ -1,0 +1,19 @@
+<launch>
+  <arg name="base_pose" default="/grasp_hexapod/navigation/base_pose"/>
+  <arg name="xiaolan_pose" default="/grasp_hexapod/navigation/xiaolan_pose"/>
+  <arg name="pv_boundary" default="/grasp_hexapod/navigation/pv_boundary"/>
+  <arg name="landing_confirmed" default="/grasp_hexapod/landing_confirmed"/>
+  <arg name="max_pose_age" default="0.5"/>
+
+  <node
+    pkg="grasp_hexapod_control"
+    type="run_real.py"
+    name="grasp_hexapod_control"
+    output="screen">
+    <param name="max_pose_age" value="$(arg max_pose_age)"/>
+    <remap from="~base_pose" to="$(arg base_pose)"/>
+    <remap from="~xiaolan_pose" to="$(arg xiaolan_pose)"/>
+    <remap from="~pv_boundary" to="$(arg pv_boundary)"/>
+    <remap from="~landing_confirmed" to="$(arg landing_confirmed)"/>
+  </node>
+</launch>

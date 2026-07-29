@@ -1,21 +1,66 @@
+#!/usr/bin/env python3
+"""Isaac Gym仿真运行入口。
+
+功能：
+    配置CUDA/PhysX，加载六足、小蓝和地面，读取手柄与仿真关节状态，
+    调用GraspController，并把18个关节位置目标发送给Isaac Gym。
+输入：
+    手柄归一化指令；Isaac Gym关节状态，内部转换为q_cur.shape=(6,3)，单位rad。
+输出：
+    Isaac顺序的18关节位置目标；viewer画面和必要的启动状态信息。
+结构：
+    创建仿真与资产 -> 建立关节顺序映射 -> 主控制循环 -> 资源释放。
+约定：
+    base_link中+x向右、+y向前、+z向上；长度单位m，角度单位rad。
+"""
 
 from pathlib import Path
 import struct
-import sys
+import time
 
 from isaacgym import gymapi
-from control import (
-    build_dof_indices,
-    isaac_to_control,
-    GraspController,
-    control_to_isaac
-)
 import numpy as np
+import pygame
+
+from control import GraspController
+from utils import (
+    build_dof_indices,
+    control_to_external,
+    external_to_control,
+)
 
 
-reference_dir = Path(__file__).resolve().parents[1] / "reference"
-sys.path.insert(0, str(reference_dir))
-from joy_stick import JoyStick
+class JoyStick:
+    """仿真手柄输入；输出归一化的右移、前进、升降和偏航指令。"""
+
+    def __init__(self):
+        pygame.init()
+        pygame.joystick.init()
+
+        printed_waiting = False
+        while pygame.joystick.get_count() == 0:
+            pygame.event.pump()
+            if not printed_waiting:
+                print("Waiting for joystick to connect...")
+                printed_waiting = True
+            time.sleep(0.2)
+
+        self.joystick = pygame.joystick.Joystick(0)
+        self.joystick.init()
+        print(f"Joystick connected: {self.joystick.get_name()}")
+
+    @staticmethod
+    def _deadzone(value):
+        return 0.0 if abs(value) < 0.1 else value
+
+    def get_commands(self):
+        pygame.event.pump()
+        reset = self.joystick.get_button(1)
+        axis_right = self._deadzone(self.joystick.get_axis(0))
+        axis_forward = self._deadzone(-self.joystick.get_axis(1))
+        axis_up = self._deadzone(-self.joystick.get_axis(4))
+        axis_yaw = self._deadzone(-self.joystick.get_axis(3))
+        return reset, axis_right, axis_forward, axis_up, axis_yaw
 
 
 def add_static_stl_triangle_mesh(gym, sim, mesh_path, position):
@@ -76,8 +121,11 @@ def print_model_info(gym, env, actor) :
 
 
 def main() -> None:
-    # get the asset path
-    repo_root = Path(__file__).resolve().parents[1]
+    # 仿真从源码树直接运行，不依赖ROS_PACKAGE_PATH或source devel/setup.bash。
+    description_root = (
+        Path(__file__).resolve().parents[2]
+        / "grasp_hexapod_description"
+    )
     gym = gymapi.acquire_gym()
     # create a simulator
     sim_params = gymapi.SimParams() # create a sim params object
@@ -117,7 +165,7 @@ def main() -> None:
     if viewer is None:
         raise RuntimeError("Failed to create Isaac Gym viewer.")
     #加载urdf
-    asset_root = str(repo_root)
+    asset_root = str(description_root)
     asset_file = "urdf/hexapod_isaacgym_view.urdf"
     asset_options = gymapi.AssetOptions()
     asset_options.fix_base_link = False
@@ -133,7 +181,10 @@ def main() -> None:
     add_static_stl_triangle_mesh(
         gym,
         sim,
-        repo_root / "meshes" / "xiaolan" / "base_link_xiaolan.STL",
+        description_root
+        / "meshes"
+        / "xiaolan"
+        / "base_link_xiaolan.STL",
         gymapi.Vec3(0.0, 0.8, 0.0),
     )
 
@@ -170,15 +221,15 @@ def main() -> None:
         dof_properties,
     )
     #做一系列控制器和isaac的顺序转换
-    lower_control = isaac_to_control(
+    lower_control = external_to_control(
         dof_properties["lower"],
         dof_indices,
     )
-    upper_control = isaac_to_control(
+    upper_control = external_to_control(
         dof_properties["upper"],
         dof_indices,
     )
-    q_init_isaac = control_to_isaac(
+    q_init_isaac = control_to_external(
         controller.q_init,
         dof_indices
     )
@@ -234,7 +285,7 @@ def main() -> None:
     while not gym.query_viewer_has_closed(viewer):
         dof_states = gym.get_actor_dof_states(env, actor, gymapi.STATE_POS)
         # Isaac一维顺序 → 控制器(6,3)顺序
-        q_control = isaac_to_control(
+        q_control = external_to_control(
             dof_states["pos"],
             dof_indices,
         )
@@ -297,10 +348,8 @@ def main() -> None:
             # A暂停时给步态规划器零指令，使当前摆动腿先落地再停止。
             command[:] = 0.0
 
-        # 手柄指令 -> 足端目标 -> 阻尼雅可比 -> 关节目标。
-        controller.update_gait(command)
-
-        q_des_control = controller.cal_joint_poses(q_control)
+        # 总控制器选择当前mode，再统一完成足端规划和DLS关节解算。
+        q_des_control = controller.update(q_control, command)
         # 不再对每周期关节目标做人为速度裁剪，让位置驱动直接跟踪DLS结果。
         # 机械角限位必须保留，避免控制目标越过URDF允许范围。
         q_target_control = np.clip(
@@ -318,7 +367,7 @@ def main() -> None:
             )
 
         # 控制器顺序 → Isaac Gym顺序
-        q_target_isaac = control_to_isaac(
+        q_target_isaac = control_to_external(
             q_target_control,
             dof_indices,
         )

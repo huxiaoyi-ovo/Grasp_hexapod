@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>grasp_hexapod_control</name>
+  <version>0.1.0</version>
+  <description>Traditional gait, mission-mode, and safety controller for the grasp hexapod.</description>
+
+  <maintainer email="huxiaoyi-ovo@users.noreply.github.com">huxiaoyi-ovo</maintainer>
+  <license>BSD-3-Clause</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <depend>geometry_msgs</depend>
+  <depend>rospy</depend>
+  <depend>std_msgs</depend>
+
+  <exec_depend>grasp_hexapod_description</exec_depend>
+  <exec_depend>python3-numpy</exec_depend>
+  <exec_depend>python3-rospkg</exec_depend>
+</package>

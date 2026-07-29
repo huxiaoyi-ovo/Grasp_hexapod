@@ -2,6 +2,8 @@
 AGENTS.md
 
 # Catkin build outputs
+.catkin_workspace
+.catkin_tools/
 build/
 devel/
 install/

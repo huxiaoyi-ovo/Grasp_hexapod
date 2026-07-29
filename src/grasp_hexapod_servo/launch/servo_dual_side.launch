@@ -1,0 +1,23 @@
+<launch>
+  <arg name="left_port" default="/dev/ttyUSB0"/>
+  <arg name="right_port" default="/dev/tty0"/>
+  <arg name="baudrate" default="115200"/>
+  <arg name="control_rate_hz" default="100.0"/>
+  <arg name="command_duration_ms" default="10"/>
+
+  <node pkg="grasp_hexapod_servo" type="servo.py" name="servo_left_node" output="screen">
+    <param name="side" value="left"/>
+    <param name="port" value="$(arg left_port)"/>
+    <param name="baudrate" value="$(arg baudrate)"/>
+    <param name="control_rate_hz" value="$(arg control_rate_hz)"/>
+    <param name="command_duration_ms" value="$(arg command_duration_ms)"/>
+  </node>
+
+  <!-- <node pkg="grasp_hexapod_servo" type="servo.py" name="servo_right_node" output="screen">
+    <param name="side" value="right"/>
+    <param name="port" value="$(arg right_port)"/>
+    <param name="baudrate" value="$(arg baudrate)"/>
+    <param name="control_rate_hz" value="$(arg control_rate_hz)"/>
+    <param name="command_duration_ms" value="$(arg command_duration_ms)"/>
+  </node> -->
+</launch>

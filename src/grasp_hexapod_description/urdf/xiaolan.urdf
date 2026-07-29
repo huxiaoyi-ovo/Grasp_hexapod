@@ -41,7 +41,7 @@
       <geometry>
         <!--
           Keep the CAD surface for ROS and other mesh-capable consumers.
-          PhysX convexifies URDF collision meshes, so run_control_isaacgym.py
+          PhysX convexifies URDF collision meshes, so run_sim.py
           loads this STL separately with add_triangle_mesh() to preserve every
           triangle while Xiaolan remains static.
         -->

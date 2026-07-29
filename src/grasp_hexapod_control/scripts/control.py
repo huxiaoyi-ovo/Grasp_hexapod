@@ -109,6 +109,8 @@ class GraspController:
         self.dock_mode = DockMode(self)
         self.mode = self.APPROACH
         self.last_mode_result = None
+        self.dock_target_accepted = True
+        self.dock_reject_reason = ""
 
         if not self._workspace_feasible(self.foot_init_base).all():
             raise ValueError("Q_STAND is outside the safe workspace")
@@ -385,6 +387,21 @@ class GraspController:
         if self._foot_collision_free(safe_candidate).all():
             self.foot_desired_base[:] = safe_candidate
 
+    def _commit_dock_candidate(self, candidate_base):
+        """严格接受或拒绝固定足端候选，不允许投影破坏刚体关系。"""
+
+        candidate_base = np.asarray(
+            candidate_base,
+            dtype=np.float64,
+        ).reshape(6, 3)
+        if not self._workspace_feasible(candidate_base).all():
+            return False, "dock target is outside workspace"
+        if not self._foot_collision_free(candidate_base).all():
+            return False, "dock target contains foot collision"
+
+        self.foot_desired_base[:] = candidate_base
+        return True, ""
+
     def reset_to_stand(self, q_cur):
         """从当前关节角平滑回到标准站姿。"""
         self.reset_start_q = np.asarray(
@@ -407,8 +424,27 @@ class GraspController:
             navigation_state
         )
 
+    def set_mode(self, mode):
+        """切换唯一活动模式，并完成DOCK进入/退出处理。"""
+
+        if mode not in (self.APPROACH, self.CLIMB, self.DOCK):
+            raise ValueError(f"Unknown control mode: {mode}")
+        if mode == self.mode:
+            return
+
+        if self.mode == self.DOCK:
+            self.dock_mode.exit()
+        if mode == self.DOCK:
+            self.dock_mode.enter(self.foot_desired_base)
+            self.dock_target_accepted = True
+            self.dock_reject_reason = ""
+        self.mode = mode
+
     def update(self, q_cur, command, navigation_state=None):
         """执行当前任务模式并输出本周期关节目标。"""
+        dock_previous_target = None
+        dock_candidate_submitted = False
+
         if self.mode == self.APPROACH:
             self.last_mode_result = self.approach_mode.update(
                 command,
@@ -417,10 +453,42 @@ class GraspController:
         elif self.mode == self.CLIMB:
             self.last_mode_result = self.climb_mode.update(command)
         elif self.mode == self.DOCK:
-            self.last_mode_result = self.dock_mode.update(command)
+            if not self.dock_mode.active:
+                raise RuntimeError("Enter DOCK with controller.set_mode()")
+
+            self.last_mode_result = self.dock_mode.update(
+                command,
+                self.dock_target_accepted,
+                self.dock_reject_reason,
+            )
+            self.dock_target_accepted = True
+            self.dock_reject_reason = ""
+
+            if (
+                self.last_mode_result.active
+                and not self.last_mode_result.failed
+            ):
+                dock_previous_target = self.foot_desired_base.copy()
+                dock_candidate_submitted = True
+                (
+                    self.dock_target_accepted,
+                    self.dock_reject_reason,
+                ) = self._commit_dock_candidate(
+                    self.last_mode_result.foot_positions_base
+                )
         else:
             raise ValueError(f"Unknown control mode: {self.mode}")
-        return self.cal_joint_poses(q_cur)
+
+        q_des = self.cal_joint_poses(q_cur)
+        if (
+            dock_candidate_submitted
+            and self.dock_target_accepted
+            and not self.last_link_collision_free.all()
+        ):
+            self.foot_desired_base[:] = dock_previous_target
+            self.dock_target_accepted = False
+            self.dock_reject_reason = "dock target contains link collision"
+        return q_des
 
     def cal_joint_poses(self, q_cur):
         """根据足端目标计算下一周期关节目标"""

@@ -9,6 +9,7 @@ catkin_install_python(
   PROGRAMS
     scripts/servo.py
     scripts/servo_des_publisher.py
+    scripts/servo_trace_replay.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 

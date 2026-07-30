@@ -82,8 +82,13 @@ class ApproachMode:
         self.phase_duration = 0.30
         self.phase_time = 0.0
 
-        # 换相前保留3个控制周期的六足共同支撑。
-        self.transfer_duration = 3.0 * self.dt
+        # 共同支撑目标为50 ms，并量化到最接近的整数控制帧：
+        # 60 Hz为3帧，30 Hz为2帧，避免频率变化时缓冲时间直接翻倍。
+        self.transfer_frames = max(
+            1,
+            int(round(0.050 / self.dt)),
+        )
+        self.transfer_duration = self.transfer_frames * self.dt
         self.transfer_time = 0.0
         self.transfer_active = False
 

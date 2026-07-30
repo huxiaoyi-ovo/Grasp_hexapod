@@ -3,17 +3,20 @@
 
 功能：
     配置CUDA/PhysX，加载六足、小蓝和地面，读取手柄与仿真关节状态，
-    调用GraspController，并把18个关节位置目标发送给Isaac Gym。
+    调用GraspController，并把18个关节位置目标发送给Isaac Gym；可选地
+    自动执行固定行走序列并记录舵机目标和仿真反馈。
 输入：
     手柄归一化指令；Isaac Gym关节状态，内部转换为q_cur.shape=(6,3)，单位rad。
 输出：
-    Isaac顺序的18关节位置目标；viewer画面和必要的启动状态信息。
+    Isaac顺序的18关节位置目标；viewer画面；可选的CSV时序轨迹。
 结构：
     创建仿真与资产 -> 建立关节顺序映射 -> 主控制循环 -> 资源释放。
 约定：
     base_link中+x向右、+y向前、+z向上；长度单位m，角度单位rad。
 """
 
+import argparse
+import csv
 from pathlib import Path
 import struct
 import time
@@ -24,10 +27,15 @@ import pygame
 
 from control import GraspController
 from utils import (
+    CONTROL_DOF_NAMES,
     build_dof_indices,
     control_to_external,
     external_to_control,
 )
+
+
+DEFAULT_TRACE_PATH = Path("logs/servo_walk_trace.csv")
+TRACE_ACTION_DURATION = 5.0
 
 
 class JoyStick:
@@ -61,6 +69,105 @@ class JoyStick:
         axis_up = self._deadzone(-self.joystick.get_axis(4))
         axis_yaw = self._deadzone(-self.joystick.get_axis(3))
         return reset, axis_right, axis_forward, axis_up, axis_yaw
+
+
+def parse_arguments():
+    """读取仿真入口参数；不启用录制时保持原来的手柄控制。"""
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--record-servo-trace",
+        nargs="?",
+        const=DEFAULT_TRACE_PATH,
+        type=Path,
+        help="run the fixed motion sequence and write its CSV trace",
+    )
+    parser.add_argument(
+        "--headless",
+        action="store_true",
+        help="run trace recording without the Isaac Gym viewer",
+    )
+    parser.add_argument(
+        "--control-rate",
+        type=float,
+        choices=(30.0, 60.0),
+        default=60.0,
+        help="controller update rate",
+    )
+    parser.add_argument(
+        "--physics-rate",
+        type=float,
+        default=240.0,
+        help="fixed Isaac Gym physics rate",
+    )
+    return parser.parse_args()
+
+
+def build_servo_trace_script(controller, linear_speed, yaw_rate):
+    """生成初始化、前进、右移和旋转的确定性测试时间轴。"""
+
+    dt = controller.dt
+    half_cycle = (
+        controller.approach_mode.phase_duration
+        + controller.approach_mode.transfer_duration
+    )
+    full_cycle = 2.0 * half_cycle
+    action_cycles = max(
+        1,
+        int(round(TRACE_ACTION_DURATION / full_cycle)),
+    )
+    action_duration = action_cycles * full_cycle
+    print(
+        f"Trace action: {action_cycles} full gait cycles, "
+        f"{action_duration:.2f} s"
+    )
+    stages = (
+        ("initialize", 1.0, [0.0, 0.0, 0.0, 0.0]),
+        ("forward", action_duration, [0.0, linear_speed, 0.0, 0.0]),
+        ("settle", 2.0 * half_cycle, [0.0, 0.0, 0.0, 0.0]),
+        ("right", action_duration, [linear_speed, 0.0, 0.0, 0.0]),
+        ("settle", 2.0 * half_cycle, [0.0, 0.0, 0.0, 0.0]),
+        ("rotate", action_duration, [0.0, 0.0, 0.0, yaw_rate]),
+        ("settle", 2.0 * half_cycle, [0.0, 0.0, 0.0, 0.0]),
+    )
+
+    script = []
+    for name, duration, command in stages:
+        frame_count = int(round(duration / dt))
+        script.extend(
+            (name, np.asarray(command, dtype=np.float64))
+            for _ in range(frame_count)
+        )
+    return script
+
+
+def write_servo_trace(path, rows):
+    """保存控制器顺序的目标角和同帧Isaac Gym反馈角。"""
+
+    path = path.expanduser().resolve()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    header = [
+        "frame",
+        "time_s",
+        "stage",
+        "vx",
+        "vy",
+        "vz",
+        "wz",
+    ]
+    header.extend(f"target_{name}" for name in CONTROL_DOF_NAMES)
+    header.extend(f"actual_{name}" for name in CONTROL_DOF_NAMES)
+
+    with path.open("w", newline="", encoding="utf-8") as file:
+        writer = csv.writer(file)
+        writer.writerow(header)
+        writer.writerows(rows)
+
+    print(f"Servo trace saved: {path}")
+    duration = 0.0
+    if len(rows) >= 2:
+        duration = rows[-1][1] + rows[1][1] - rows[0][1]
+    print(f"Recorded frames: {len(rows)}, duration: {duration:.2f} s")
 
 
 def add_static_stl_triangle_mesh(gym, sim, mesh_path, position):
@@ -121,6 +228,15 @@ def print_model_info(gym, env, actor) :
 
 
 def main() -> None:
+    args = parse_arguments()
+    if args.headless and args.record_servo_trace is None:
+        raise ValueError("--headless is only used with --record-servo-trace")
+    rate_ratio = args.physics_rate / args.control_rate
+    if abs(rate_ratio - round(rate_ratio)) > 1e-9:
+        raise ValueError("physics rate must be an integer multiple of control rate")
+    control_interval = int(round(rate_ratio))
+    render_interval = max(1, int(round(args.physics_rate / 60.0)))
+
     # 仿真从源码树直接运行，不依赖ROS_PACKAGE_PATH或source devel/setup.bash。
     description_root = (
         Path(__file__).resolve().parents[2]
@@ -130,7 +246,7 @@ def main() -> None:
     # create a simulator
     sim_params = gymapi.SimParams() # create a sim params object
 
-    sim_params.dt = 1 / 60.0 # set the time step to 1/60 seconds
+    sim_params.dt = 1.0 / args.physics_rate
     sim_params.substeps = 2 # set the number of substeps to 2
     # PhysX明确使用cuda:0计算；控制器仍使用NumPy，因此保留CPU数据管线。
     sim_params.use_gpu_pipeline = False
@@ -144,7 +260,7 @@ def main() -> None:
 
     # create the simulation
     compute_device_id = 0
-    graphics_device_id = 0
+    graphics_device_id = -1 if args.headless else 0
     sim = gym.create_sim(
         compute_device_id,
         graphics_device_id,
@@ -161,9 +277,11 @@ def main() -> None:
 
     gym.add_ground(sim, plane)
 
-    viewer = gym.create_viewer(sim, gymapi.CameraProperties())
-    if viewer is None:
-        raise RuntimeError("Failed to create Isaac Gym viewer.")
+    viewer = None
+    if not args.headless:
+        viewer = gym.create_viewer(sim, gymapi.CameraProperties())
+        if viewer is None:
+            raise RuntimeError("Failed to create Isaac Gym viewer.")
     #加载urdf
     asset_root = str(description_root)
     asset_file = "urdf/hexapod_isaacgym_view.urdf"
@@ -192,7 +310,14 @@ def main() -> None:
     upper = gymapi.Vec3(1.0, 1.0, 1.0)
     num_per_row = 1
 
-    controller = GraspController(dt=sim_params.dt)
+    # 控制器使用命令频率的双精度dt；不要从Isaac Gym的float32 dt反读，
+    # 否则30 Hz下50 ms换相时间会因1.4999999取整成错误的1帧。
+    controller = GraspController(dt=1.0 / args.control_rate)
+    print(
+        f"Physics: {args.physics_rate:.0f} Hz, controller: "
+        f"{args.control_rate:.0f} Hz, update every "
+        f"{control_interval} physics frames"
+    )
     #创建环境和actor
     env = gym.create_env(sim, lower, upper, num_per_row)
 
@@ -251,14 +376,13 @@ def main() -> None:
     )
 
     # 镜头中心放在两个机器人之间，初始画面可以同时观察六足和小蓝。
-    gym.viewer_camera_look_at(
-        viewer,
-        None,
-        gymapi.Vec3(0.75, -0.75, 0.5),
-        gymapi.Vec3(0.0, 0.38, 0.10),
-    )
-
-    joystick = JoyStick()
+    if viewer is not None:
+        gym.viewer_camera_look_at(
+            viewer,
+            None,
+            gymapi.Vec3(0.75, -0.75, 0.5),
+            gymapi.Vec3(0.0, 0.38, 0.10),
+        )
 
     # 所有平移方向统一为20 cm/s。
     max_linear_speed = 0.20
@@ -269,6 +393,22 @@ def main() -> None:
     )
     max_yaw_rate = max_linear_speed / nominal_foot_radius
 
+    trace_script = None
+    trace_rows = []
+    script_frame = 0
+    if args.record_servo_trace is not None:
+        trace_script = build_servo_trace_script(
+            controller,
+            max_linear_speed,
+            max_yaw_rate,
+        )
+        print(
+            f"Recording {args.control_rate:.0f} Hz servo trace: "
+            "initialize -> forward -> right -> rotate"
+        )
+    else:
+        joystick = JoyStick()
+
     command = np.zeros(
         4,
         dtype=np.float64,
@@ -276,116 +416,154 @@ def main() -> None:
     control_enabled = False
     button_a_was_down = False
     button_b_was_down = False
-    print(
-        "A: enable/pause motion | B: reset to stand | "
-        "RT: body up | LT: body down"
-    )
-
-    #状态读取主循环
-    while not gym.query_viewer_has_closed(viewer):
-        dof_states = gym.get_actor_dof_states(env, actor, gymapi.STATE_POS)
-        # Isaac一维顺序 → 控制器(6,3)顺序
-        q_control = external_to_control(
-            dof_states["pos"],
-            dof_indices,
+    if trace_script is None:
+        print(
+            "A: enable/pause motion | B: reset to stand | "
+            "RT: body up | LT: body down"
         )
 
-        # reference手柄输出：[B, right, forward, up, yaw]。
-        # A/B在这里转换成单次按下事件，避免长按时每帧重复触发。
-        _reset, axis_right, axis_forward, _axis_up_unused, axis_yaw = (
-            joystick.get_commands()
-        )
+    physics_frame = 0
 
-        # 北通BTP-KP20的axis 4/5是两个扳机，静止值均为-1，
-        # 不能直接把axis 4取反，否则A使能后会持续收到最大上升指令。
-        left_trigger = 0.5 * (
-            joystick.joystick.get_axis(4) + 1.0
-        )
-        right_trigger = 0.5 * (
-            joystick.joystick.get_axis(5) + 1.0
-        )
-        axis_up = right_trigger - left_trigger
-        if abs(axis_up) < 0.05:
-            axis_up = 0.0
+    # PhysX固定高频运行，控制器只在自己的更新帧读取状态并生成新目标。
+    while (
+        viewer is None
+        or not gym.query_viewer_has_closed(viewer)
+    ):
+        if trace_script is not None and script_frame >= len(trace_script):
+            break
 
-        button_a_down = bool(joystick.joystick.get_button(0))
-        button_b_down = bool(joystick.joystick.get_button(1))
-        button_a_pressed = button_a_down and not button_a_was_down
-        button_b_pressed = button_b_down and not button_b_was_down
-        button_a_was_down = button_a_down
-        button_b_was_down = button_b_down
-
-        if button_a_pressed:
-            control_enabled = not control_enabled
-            state = "ENABLED" if control_enabled else "PAUSED"
-            print(f"Motion control: {state}")
-            if control_enabled:
-                # A使能后先平滑回到末段竖直的Q_STAND，再接收摇杆。
-                controller.reset_to_stand(q_control)
-
-        if button_b_pressed:
-            control_enabled = False
-            controller.reset_to_stand(q_control)
-            print("Controller returning to stand")
-
-        if control_enabled and not controller.reset_active:
-            # 圆形归一化保证前后、左右和任意斜向的最大合速度一致。
-            translation_axes = np.array(
-                [axis_right, axis_forward],
-                dtype=np.float64,
+        control_tick = physics_frame % control_interval == 0
+        if control_tick:
+            dof_states = gym.get_actor_dof_states(
+                env,
+                actor,
+                gymapi.STATE_POS,
             )
-            translation_norm = np.linalg.norm(translation_axes)
-            if translation_norm > 1.0:
-                translation_axes /= translation_norm
+            # Isaac一维顺序 → 控制器(6,3)顺序
+            q_control = external_to_control(
+                dof_states["pos"],
+                dof_indices,
+            )
 
-            command[:] = [
-                max_linear_speed * translation_axes[0],
-                max_linear_speed * translation_axes[1],
-                max_vertical_speed * axis_up,
-                max_yaw_rate * axis_yaw,
-            ]
-        else:
-            # A暂停时给步态规划器零指令，使当前摆动腿先落地再停止。
-            command[:] = 0.0
+            if trace_script is not None:
+                stage, scripted_command = trace_script[script_frame]
+                command[:] = scripted_command
+            else:
+                # reference手柄输出：[B, right, forward, up, yaw]。
+                # A/B转换成单次按下事件，避免长按时每帧重复触发。
+                (
+                    _reset,
+                    axis_right,
+                    axis_forward,
+                    _axis_up_unused,
+                    axis_yaw,
+                ) = joystick.get_commands()
 
-        # 总控制器选择当前mode，再统一完成足端规划和DLS关节解算。
-        q_des_control = controller.update(q_control, command)
-        # 不再对每周期关节目标做人为速度裁剪，让位置驱动直接跟踪DLS结果。
-        # 机械角限位必须保留，避免控制目标越过URDF允许范围。
-        q_target_control = np.clip(
-            q_des_control,
-            lower_control,
-            upper_control,
-        )
+                # 北通BTP-KP20的axis 4/5是两个扳机，静止值均为-1。
+                left_trigger = 0.5 * (
+                    joystick.joystick.get_axis(4) + 1.0
+                )
+                right_trigger = 0.5 * (
+                    joystick.joystick.get_axis(5) + 1.0
+                )
+                axis_up = right_trigger - left_trigger
+                if abs(axis_up) < 0.05:
+                    axis_up = 0.0
 
-        # 正常情况下cal_joint_poses已经检查过碰撞；只有机械限位
-        # 实际改变了目标，才需要对改变后的姿态重新检查。
-        if not np.array_equal(q_target_control, q_des_control):
-            q_target_control = controller.collision_guard(
+                button_a_down = bool(joystick.joystick.get_button(0))
+                button_b_down = bool(joystick.joystick.get_button(1))
+                button_a_pressed = (
+                    button_a_down and not button_a_was_down
+                )
+                button_b_pressed = (
+                    button_b_down and not button_b_was_down
+                )
+                button_a_was_down = button_a_down
+                button_b_was_down = button_b_down
+
+                if button_a_pressed:
+                    control_enabled = not control_enabled
+                    state = "ENABLED" if control_enabled else "PAUSED"
+                    print(f"Motion control: {state}")
+                    if control_enabled:
+                        controller.reset_to_stand(q_control)
+
+                if button_b_pressed:
+                    control_enabled = False
+                    controller.reset_to_stand(q_control)
+                    print("Controller returning to stand")
+
+                if control_enabled and not controller.reset_active:
+                    translation_axes = np.array(
+                        [axis_right, axis_forward],
+                        dtype=np.float64,
+                    )
+                    translation_norm = np.linalg.norm(translation_axes)
+                    if translation_norm > 1.0:
+                        translation_axes /= translation_norm
+
+                    command[:] = [
+                        max_linear_speed * translation_axes[0],
+                        max_linear_speed * translation_axes[1],
+                        max_vertical_speed * axis_up,
+                        max_yaw_rate * axis_yaw,
+                    ]
+                else:
+                    # 暂停时让当前摆动腿先落地再停止。
+                    command[:] = 0.0
+
+            # 当前控制帧读取反馈、规划足端并执行DLS。
+            q_des_control = controller.update(q_control, command)
+            q_target_control = np.clip(
+                q_des_control,
+                lower_control,
+                upper_control,
+            )
+
+            # 只有机械限位实际改变目标时才重新检查改变后的姿态。
+            if not np.array_equal(q_target_control, q_des_control):
+                q_target_control = controller.collision_guard(
+                    q_target_control,
+                    q_control,
+                )
+
+            q_target_isaac = control_to_external(
                 q_target_control,
-                q_control,
+                dof_indices,
+            )
+            gym.set_actor_dof_position_targets(
+                env,
+                actor,
+                q_target_isaac,
             )
 
-        # 控制器顺序 → Isaac Gym顺序
-        q_target_isaac = control_to_external(
-            q_target_control,
-            dof_indices,
-        )
-        # 把位置目标真正发送给关节驱动器
-        gym.set_actor_dof_position_targets(
-            env,
-            actor,
-            q_target_isaac,
-        )
+            if trace_script is not None:
+                trace_rows.append(
+                    [
+                        script_frame,
+                        script_frame * controller.dt,
+                        stage,
+                        *command,
+                        *q_target_control.reshape(18),
+                        *q_control.reshape(18),
+                    ]
+                )
+                script_frame += 1
 
-        
         gym.simulate(sim)
         gym.fetch_results(sim, True)
-        gym.step_graphics(sim)
-        gym.draw_viewer(viewer, sim, True)
-        gym.sync_frame_time(sim)
+        physics_frame += 1
 
-    gym.destroy_viewer(viewer)
+        if viewer is not None:
+            if physics_frame % render_interval == 0:
+                gym.step_graphics(sim)
+                gym.draw_viewer(viewer, sim, True)
+            gym.sync_frame_time(sim)
+
+    if args.record_servo_trace is not None:
+        write_servo_trace(args.record_servo_trace, trace_rows)
+    if viewer is not None:
+        gym.destroy_viewer(viewer)
     gym.destroy_sim(sim)
 
 

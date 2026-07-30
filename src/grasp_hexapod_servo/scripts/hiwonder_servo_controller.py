@@ -1,17 +1,11 @@
 #!/usr/bin/env python3
 # encoding: utf-8
-"""幻尔总线舵机串口控制封装。
-
-输入：舵机ID、协议命令和参数；输出：状态响应或写入结果。
-供servo.py调用，不包含ROS话题、关节顺序或运动控制逻辑。
-"""
-
 import time
 import serial
 from threading import Lock
 # import Jetson.GPIO as GPIO
 try:
-    from hiwonder_servo_cmd import *
+    from .hiwonder_servo_cmd import *
 except ImportError:
     from hiwonder_servo_cmd import *
 

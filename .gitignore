@@ -1,5 +1,11 @@
+# Local editor and AI-agent configuration
 .vscode/
+.codex/
 .serena/
+.agents/
+.agent/
+.mcp/
+.mcp.json
 AGENTS.md
 
 # Catkin build outputs

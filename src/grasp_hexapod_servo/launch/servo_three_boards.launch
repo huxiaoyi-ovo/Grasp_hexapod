@@ -1,6 +1,5 @@
 <launch>
-  <!-- 三块驱动板：left(ID 1~6) right(ID 10~15) mid(ID 7,8,9,16,17,18) -->
-  <!-- 三块板的串口名称不同，按实际连接修改 -->
+  <!-- 三块板分别管理两条腿；ID和方向的唯一默认值在servo.py中。 -->
   <arg name="left_port" default="/dev/ttyUSB0"/>
   <arg name="right_port" default="/dev/ttyUSB1"/>
   <arg name="mid_port" default="/dev/ttyUSB2"/>
@@ -8,19 +7,12 @@
   <arg name="control_rate_hz" default="30.0"/>
   <arg name="command_duration_ms" default="33"/>
 
-  <!-- 各板舵机方向（1 正 / -1 反），列表顺序与该板舵机 ID 顺序一致 -->
-  <!-- left:  ID 1,2,3,4,5,6  right:  ID 10,11,12,13,14,15  mid:  ID 7,8,9,16,17,18 -->
-  <arg name="left_directions" default="[1, 1, 1, 1, 1, 1]"/>
-  <arg name="right_directions" default="[1, -1, -1, 1, -1, -1]"/>
-  <arg name="mid_directions" default="[1, 1, 1, 1, -1, -1]"/>
-
   <node pkg="grasp_hexapod_servo" type="servo.py" name="servo_left_node" output="screen">
     <param name="side" value="left"/>
     <param name="port" value="$(arg left_port)"/>
     <param name="baudrate" value="$(arg baudrate)"/>
     <param name="control_rate_hz" value="$(arg control_rate_hz)"/>
     <param name="command_duration_ms" value="$(arg command_duration_ms)"/>
-    <param name="directions" value="$(arg left_directions)"/>
   </node>
 
   <node pkg="grasp_hexapod_servo" type="servo.py" name="servo_right_node" output="screen">
@@ -29,7 +21,6 @@
     <param name="baudrate" value="$(arg baudrate)"/>
     <param name="control_rate_hz" value="$(arg control_rate_hz)"/>
     <param name="command_duration_ms" value="$(arg command_duration_ms)"/>
-    <param name="directions" value="$(arg right_directions)"/>
   </node>
 
   <node pkg="grasp_hexapod_servo" type="servo.py" name="servo_mid_node" output="screen">
@@ -38,6 +29,5 @@
     <param name="baudrate" value="$(arg baudrate)"/>
     <param name="control_rate_hz" value="$(arg control_rate_hz)"/>
     <param name="command_duration_ms" value="$(arg command_duration_ms)"/>
-    <param name="directions" value="$(arg mid_directions)"/>
   </node>
 </launch>

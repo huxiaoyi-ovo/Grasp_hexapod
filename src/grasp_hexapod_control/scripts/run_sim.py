@@ -4,7 +4,8 @@
 功能：
     配置CUDA/PhysX，加载六足、小蓝和地面，读取手柄与仿真关节状态，
     调用GraspController，并把18个关节位置目标发送给Isaac Gym；可选地
-    自动执行固定行走序列并记录舵机目标和仿真反馈。
+    自动执行固定行走序列并记录舵机目标和仿真反馈。加--ros时仿真只
+    充当关节执行层，通过与实机相同的ROS话题接收目标、发布反馈。
 输入：
     手柄归一化指令；Isaac Gym关节状态，内部转换为q_cur.shape=(6,3)，单位rad。
 输出：
@@ -19,19 +20,36 @@ import argparse
 import csv
 from pathlib import Path
 import struct
+import sys
+from threading import Lock
 import time
+from typing import Any
 
-from isaacgym import gymapi
+from isaacgym import gymapi as _gymapi
 import numpy as np
-import pygame
+
+# catkin转发脚本不与控制器模块同目录，ROS启动时需定位源码scripts。
+scripts_dir = Path(__file__).resolve().parent
+if not (scripts_dir / "control.py").exists():
+    import rospkg
+
+    scripts_dir = (
+        Path(rospkg.RosPack().get_path("grasp_hexapod_control"))
+        / "scripts"
+    )
+sys.path.insert(0, str(scripts_dir))
 
 from control import GraspController
+from kinematics import LEG_NAMES
 from utils import (
     CONTROL_DOF_NAMES,
     build_dof_indices,
     control_to_external,
     external_to_control,
 )
+
+# Isaac Gym的C扩展没有完整类型声明，编辑器无法静态识别其动态属性。
+gymapi: Any = _gymapi
 
 
 DEFAULT_TRACE_PATH = Path("logs/servo_walk_trace.csv")
@@ -42,6 +60,10 @@ class JoyStick:
     """仿真手柄输入；输出归一化的右移、前进、升降和偏航指令。"""
 
     def __init__(self):
+        # ROS仿真不需要pygame；只在原直接控制链路中加载它。
+        import pygame
+
+        self.pygame = pygame
         pygame.init()
         pygame.joystick.init()
 
@@ -62,13 +84,91 @@ class JoyStick:
         return 0.0 if abs(value) < 0.1 else value
 
     def get_commands(self):
-        pygame.event.pump()
-        reset = self.joystick.get_button(1)
+        self.pygame.event.pump()
         axis_right = self._deadzone(self.joystick.get_axis(0))
         axis_forward = self._deadzone(-self.joystick.get_axis(1))
-        axis_up = self._deadzone(-self.joystick.get_axis(4))
         axis_yaw = self._deadzone(-self.joystick.get_axis(3))
-        return reset, axis_right, axis_forward, axis_up, axis_yaw
+        return axis_right, axis_forward, axis_yaw
+
+
+class RosSimBridge:
+    """让Isaac Gym使用与实机Servo节点相同的六腿ROS接口。"""
+
+    def __init__(self, initial_target):
+        # 只在--ros模式导入，保留直接运行仿真时对ROS环境零依赖。
+        import rospy
+        from std_msgs.msg import Float64MultiArray
+
+        self.rospy = rospy
+        self.message_type = Float64MultiArray
+        self.lock = Lock()
+        self.target = np.asarray(
+            initial_target,
+            dtype=np.float64,
+        ).reshape(6, 3).copy()
+
+        self.publishers = {
+            leg: rospy.Publisher(
+                f"/{leg}_pos",
+                Float64MultiArray,
+                queue_size=1,
+            )
+            for leg in LEG_NAMES
+        }
+        self.subscribers = [
+            rospy.Subscriber(
+                f"/{leg}_des",
+                Float64MultiArray,
+                self._make_target_callback(leg_index, leg),
+                queue_size=1,
+            )
+            for leg_index, leg in enumerate(LEG_NAMES)
+        ]
+
+    def _make_target_callback(self, leg_index, leg_name):
+        """缓存一条腿的位置目标；消息约定与servo.py完全一致。"""
+
+        def callback(message):
+            data = np.asarray(message.data, dtype=np.float64)
+            if (
+                data.shape != (10,)
+                or data[0] not in (0.0, 1.0)
+                or not np.isfinite(data[1:4]).all()
+            ):
+                self.rospy.logwarn_throttle(
+                    1.0,
+                    f"/{leg_name}_des must be [power, 3 positions, 6 reserved]",
+                )
+                return
+
+            # power=0在实机表示卸力；仿真阶段不更新位置目标即可。
+            if data[0] != 1.0:
+                return
+
+            with self.lock:
+                self.target[leg_index] = data[1:4]
+
+        return callback
+
+    def publish_feedback(self, joint_position):
+        """把控制器顺序的6×3关节反馈发布到六个ROS话题。"""
+
+        joint_position = np.asarray(
+            joint_position,
+            dtype=np.float64,
+        ).reshape(6, 3)
+        for leg_index, leg_name in enumerate(LEG_NAMES):
+            self.publishers[leg_name].publish(
+                self.message_type(
+                    data=joint_position[leg_index].tolist()
+                )
+            )
+
+    def get_target(self):
+        """返回同一时刻的完整18关节目标快照。"""
+
+        with self.lock:
+            return self.target.copy()
 
 
 def parse_arguments():
@@ -85,13 +185,18 @@ def parse_arguments():
     parser.add_argument(
         "--headless",
         action="store_true",
-        help="run trace recording without the Isaac Gym viewer",
+        help="run trace recording or ROS simulation without the viewer",
+    )
+    parser.add_argument(
+        "--ros",
+        action="store_true",
+        help="use ROS joint topics instead of the built-in controller",
     )
     parser.add_argument(
         "--control-rate",
         type=float,
         choices=(30.0, 60.0),
-        default=60.0,
+        default=30.0,
         help="controller update rate",
     )
     parser.add_argument(
@@ -100,7 +205,25 @@ def parse_arguments():
         default=240.0,
         help="fixed Isaac Gym physics rate",
     )
-    return parser.parse_args()
+    parser.add_argument(
+        "--max-linear-speed",
+        type=float,
+        default=0.02,
+        help="direct-control and trace planar speed in m/s",
+    )
+    parser.add_argument(
+        "--max-vertical-speed",
+        type=float,
+        default=0.005,
+        help="direct-control body-height speed in m/s",
+    )
+    # roslaunch会附加__name:=和__log:=；普通命令行参数仍严格检查。
+    argv = [
+        argument
+        for argument in sys.argv[1:]
+        if not argument.startswith("__")
+    ]
+    return parser.parse_args(argv)
 
 
 def build_servo_trace_script(controller, linear_speed, yaw_rate):
@@ -229,8 +352,17 @@ def print_model_info(gym, env, actor) :
 
 def main() -> None:
     args = parse_arguments()
-    if args.headless and args.record_servo_trace is None:
-        raise ValueError("--headless is only used with --record-servo-trace")
+    if args.ros and args.record_servo_trace is not None:
+        raise ValueError("--ros and --record-servo-trace cannot be combined")
+    if args.headless and not args.ros and args.record_servo_trace is None:
+        raise ValueError(
+            "--headless is only used with --ros or --record-servo-trace"
+        )
+    if args.ros:
+        import rospy
+
+        rospy.init_node("grasp_hexapod_sim")
+
     rate_ratio = args.physics_rate / args.control_rate
     if abs(rate_ratio - round(rate_ratio)) > 1e-9:
         raise ValueError("physics rate must be an integer multiple of control rate")
@@ -242,6 +374,12 @@ def main() -> None:
         Path(__file__).resolve().parents[2]
         / "grasp_hexapod_description"
     )
+    if not description_root.is_dir():
+        import rospkg
+
+        description_root = Path(
+            rospkg.RosPack().get_path("grasp_hexapod_description")
+        )
     gym = gymapi.acquire_gym()
     # create a simulator
     sim_params = gymapi.SimParams() # create a sim params object
@@ -384,10 +522,10 @@ def main() -> None:
             gymapi.Vec3(0.0, 0.38, 0.10),
         )
 
-    # 所有平移方向统一为20 cm/s。
-    max_linear_speed = 0.20
-    max_vertical_speed = 0.02   # m/s
-    # 令标准足端的旋转切向速度同样等于20 cm/s。
+    # 直接仿真、轨迹录制和ROS实机默认使用同一速度上限。
+    max_linear_speed = args.max_linear_speed
+    max_vertical_speed = args.max_vertical_speed
+    # 令标准足端的旋转切向速度等于平移速度上限。
     nominal_foot_radius = np.mean(
         np.linalg.norm(controller.foot_init_base[:, :2], axis=1)
     )
@@ -396,6 +534,7 @@ def main() -> None:
     trace_script = None
     trace_rows = []
     script_frame = 0
+    ros_bridge = None
     if args.record_servo_trace is not None:
         trace_script = build_servo_trace_script(
             controller,
@@ -406,6 +545,12 @@ def main() -> None:
             f"Recording {args.control_rate:.0f} Hz servo trace: "
             "initialize -> forward -> right -> rotate"
         )
+    elif args.ros:
+        ros_bridge = RosSimBridge(controller.q_init)
+        print(
+            "ROS simulation bridge ready: "
+            "/<leg>_des -> Isaac Gym -> /<leg>_pos"
+        )
     else:
         joystick = JoyStick()
 
@@ -414,20 +559,30 @@ def main() -> None:
         dtype=np.float64,
     )
     control_enabled = False
+    reset_started = False
+    initialized = False
     button_a_was_down = False
     button_b_was_down = False
-    if trace_script is None:
+    button_x_was_down = False
+    button_y_was_down = False
+    if trace_script is None and ros_bridge is None:
         print(
             "A: enable/pause motion | B: reset to stand | "
-            "RT: body up | LT: body down"
+            "X: climb(reserved) | Y: dock(reserved)"
         )
 
     physics_frame = 0
 
     # PhysX固定高频运行，控制器只在自己的更新帧读取状态并生成新目标。
     while (
-        viewer is None
-        or not gym.query_viewer_has_closed(viewer)
+        (
+            viewer is None
+            or not gym.query_viewer_has_closed(viewer)
+        )
+        and (
+            ros_bridge is None
+            or not ros_bridge.rospy.is_shutdown()
+        )
     ):
         if trace_script is not None and script_frame >= len(trace_script):
             break
@@ -445,17 +600,17 @@ def main() -> None:
                 dof_indices,
             )
 
-            if trace_script is not None:
+            if ros_bridge is not None:
+                # ROS模式下Isaac Gym只充当执行机构，不重复运行控制器。
+                ros_bridge.publish_feedback(q_control)
+                q_des_control = ros_bridge.get_target()
+            elif trace_script is not None:
                 stage, scripted_command = trace_script[script_frame]
                 command[:] = scripted_command
             else:
-                # reference手柄输出：[B, right, forward, up, yaw]。
-                # A/B转换成单次按下事件，避免长按时每帧重复触发。
                 (
-                    _reset,
                     axis_right,
                     axis_forward,
-                    _axis_up_unused,
                     axis_yaw,
                 ) = joystick.get_commands()
 
@@ -466,34 +621,56 @@ def main() -> None:
                 right_trigger = 0.5 * (
                     joystick.joystick.get_axis(5) + 1.0
                 )
-                axis_up = right_trigger - left_trigger
-                if abs(axis_up) < 0.05:
-                    axis_up = 0.0
+                axis_body = right_trigger - left_trigger
+                if abs(axis_body) < 0.05:
+                    axis_body = 0.0
 
                 button_a_down = bool(joystick.joystick.get_button(0))
                 button_b_down = bool(joystick.joystick.get_button(1))
+                button_x_down = bool(joystick.joystick.get_button(2))
+                button_y_down = bool(joystick.joystick.get_button(3))
                 button_a_pressed = (
                     button_a_down and not button_a_was_down
                 )
                 button_b_pressed = (
                     button_b_down and not button_b_was_down
                 )
+                button_x_pressed = (
+                    button_x_down and not button_x_was_down
+                )
+                button_y_pressed = (
+                    button_y_down and not button_y_was_down
+                )
                 button_a_was_down = button_a_down
                 button_b_was_down = button_b_down
-
-                if button_a_pressed:
-                    control_enabled = not control_enabled
-                    state = "ENABLED" if control_enabled else "PAUSED"
-                    print(f"Motion control: {state}")
-                    if control_enabled:
-                        controller.reset_to_stand(q_control)
+                button_x_was_down = button_x_down
+                button_y_was_down = button_y_down
 
                 if button_b_pressed:
                     control_enabled = False
+                    initialized = False
+                    reset_started = True
                     controller.reset_to_stand(q_control)
                     print("Controller returning to stand")
+                elif button_x_pressed or button_y_pressed:
+                    control_enabled = False
+                    mode = "CLIMB" if button_x_pressed else "DOCK"
+                    print(f"{mode} is reserved but not implemented")
+                elif button_a_pressed:
+                    if initialized:
+                        control_enabled = not control_enabled
+                        state = (
+                            "ENABLED" if control_enabled else "PAUSED"
+                        )
+                        print(f"Motion control: {state}")
+                    else:
+                        print("A ignored: press B and wait for stand first")
 
-                if control_enabled and not controller.reset_active:
+                if (
+                    reset_started
+                    and control_enabled
+                    and not controller.reset_active
+                ):
                     translation_axes = np.array(
                         [axis_right, axis_forward],
                         dtype=np.float64,
@@ -505,15 +682,25 @@ def main() -> None:
                     command[:] = [
                         max_linear_speed * translation_axes[0],
                         max_linear_speed * translation_axes[1],
-                        max_vertical_speed * axis_up,
+                        max_vertical_speed * axis_body,
                         max_yaw_rate * axis_yaw,
                     ]
                 else:
                     # 暂停时让当前摆动腿先落地再停止。
                     command[:] = 0.0
 
-            # 当前控制帧读取反馈、规划足端并执行DLS。
-            q_des_control = controller.update(q_control, command)
+            if ros_bridge is None:
+                # 直接模式仍由本文件读取手柄、规划足端并执行DLS。
+                q_des_control = controller.update(q_control, command)
+                if (
+                    trace_script is None
+                    and reset_started
+                    and not initialized
+                    and not controller.reset_active
+                ):
+                    initialized = True
+                    print("Stand initialization complete; press A to move")
+
             q_target_control = np.clip(
                 q_des_control,
                 lower_control,
@@ -521,7 +708,10 @@ def main() -> None:
             )
 
             # 只有机械限位实际改变目标时才重新检查改变后的姿态。
-            if not np.array_equal(q_target_control, q_des_control):
+            if (
+                ros_bridge is None
+                and not np.array_equal(q_target_control, q_des_control)
+            ):
                 q_target_control = controller.collision_guard(
                     q_target_control,
                     q_control,
@@ -558,6 +748,9 @@ def main() -> None:
             if physics_frame % render_interval == 0:
                 gym.step_graphics(sim)
                 gym.draw_viewer(viewer, sim, True)
+            gym.sync_frame_time(sim)
+        elif ros_bridge is not None:
+            # ROS闭环按真实时间运行，避免无Viewer时仿真无限加速并淹没话题。
             gym.sync_frame_time(sim)
 
     if args.record_servo_trace is not None:

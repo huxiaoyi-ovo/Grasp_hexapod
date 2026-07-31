@@ -14,6 +14,13 @@ include_directories(${catkin_INCLUDE_DIRS})
 
 catkin_install_python(PROGRAMS
   scripts/servo.py
+  scripts/servo_trace_replay.py
+  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
+
+install(FILES
+  scripts/hiwonder_servo_cmd.py
+  scripts/hiwonder_servo_controller.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 

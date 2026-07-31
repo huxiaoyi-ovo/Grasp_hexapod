@@ -1,4 +1,23 @@
 #!/usr/bin/env python3
+"""单块六舵机驱动板的ROS节点。
+
+每个节点管理一块串口板和两条腿：
+    left  -> lf、lm
+    right -> rf、rm
+    mid   -> lb、rb
+
+订阅：
+    /<leg>_des
+    [power, thigh_pos, knee_pos, ankle_pos,
+     thigh_vel, knee_vel, ankle_vel, 0, 0, 0]
+
+发布：
+    /<leg>_pos
+    [thigh_pos, knee_pos, ankle_pos]
+
+ROS侧角度单位统一为rad。
+"""
+
 import ast
 import math
 import os
@@ -8,193 +27,370 @@ from threading import Lock
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import rospy
-import hiwonder_servo_controller
 from std_msgs.msg import Float64MultiArray
+
+import hiwonder_servo_controller
 
 
 class ServoSideNode:
-    """
-    单块驱动板舵机控制节点（left / right / mid 三块板，各接一个串口）。
-    - left:  lf(1,2,3) lm(4,5,6)           -> ID 1~6
-    - right: rf(10,11,12) rm(13,14,15)     -> ID 10~15
-    - mid:   lb(7,8,9) rb(16,17,18)        -> ID 7,8,9,16,17,18
+    """管理一块驱动板上的六个LX-15D舵机。"""
 
-    订阅: /<leg>_des, 数据格式: [pos pos pos vel vel vel 0 0 0]
-    发布: /<leg>_pos, 数据格式: [pos pos pos]
-
-    参数：
-      ~side:       驱动板标识 left/right/mid，决定该串口控制的舵机 ID
-      ~port:       串口设备，三块板各不相同，默认按 side 取 /dev/ttyUSB0/1/2
-      ~directions: 各舵机方向列表（1 正 / -1 反），按舵机 ID 顺序排列，默认全 1
-
-    功能：程序启动时仅读取发布当前位置，接收到话题数据后才开始写入舵机
-    """
-
-    # 三块驱动板的固定配置：串口默认值、腿列表、腿->舵机ID映射
     SIDE_CONFIG = {
-        'left': {
-            'port': '/dev/ttyUSB0',
-            'legs': ['lf', 'lm'],
-            'id_map': {'lf': [1, 2, 3], 'lm': [4, 5, 6]},
+        "left": {
+            "port": "/dev/ttyUSB0",
+            "legs": ("lf", "lm"),
+            "directions": (1, 1, 1, 1, 1, 1),
+            "id_map": {
+                "lf": (1, 2, 3),
+                "lm": (4, 5, 6),
+            },
         },
-        'right': {
-            'port': '/dev/ttyUSB1',
-            'legs': ['rf', 'rm'],
-            'id_map': {'rf': [10, 11, 12], 'rm': [13, 14, 15]},
+        "right": {
+            "port": "/dev/ttyUSB1",
+            "legs": ("rf", "rm"),
+            "directions": (1, -1, -1, 1, -1, -1),
+            "id_map": {
+                "rf": (10, 11, 12),
+                "rm": (13, 14, 15),
+            },
         },
-        'mid': {
-            'port': '/dev/ttyUSB2',
-            'legs': ['lb', 'rb'],
-            'id_map': {'lb': [7, 8, 9], 'rb': [16, 17, 18]},
+        "mid": {
+            "port": "/dev/ttyUSB2",
+            "legs": ("lb", "rb"),
+            "directions": (1, 1, 1, 1, -1, -1),
+            "id_map": {
+                "lb": (7, 8, 9),
+                "rb": (16, 17, 18),
+            },
         },
     }
 
     def __init__(self):
-        self.side = str(rospy.get_param('~side', 'left')).strip().lower()
+        self.side = str(
+            rospy.get_param("~side", "left")
+        ).strip().lower()
+
         if self.side not in self.SIDE_CONFIG:
-            raise ValueError("~side must be one of 'left', 'right', 'mid'")
-        cfg = self.SIDE_CONFIG[self.side]
-        self.legs = cfg['legs']
-        self.id_map = cfg['id_map']
-
-        self.port = rospy.get_param('~port', cfg['port'])
-        self.baudrate = int(rospy.get_param('~baudrate', 115200))
-        self.control_rate_hz = float(rospy.get_param('~control_rate_hz', 30.0))
-        self.command_duration_ms = int(rospy.get_param('~command_duration_ms', 33))
-
-        # 各舵机方向（1 正转 / -1 反转），列表顺序与本板舵机 ID 顺序一致
-        self.servo_ids = [sid for leg in self.legs for sid in self.id_map[leg]]
-        dir_param = rospy.get_param('~directions', None)
-        if dir_param is None:
-            directions = [1] * len(self.servo_ids)
-        else:
-            if isinstance(dir_param, str):
-                directions = list(ast.literal_eval(dir_param))
-            else:
-                directions = list(dir_param)
-        if len(directions) != len(self.servo_ids):
             raise ValueError(
-                '~directions length %d != servo count %d (ids=%s)'
-                % (len(directions), len(self.servo_ids), self.servo_ids)
+                "~side must be one of: left, right, mid"
             )
-        self.directions = {
-            sid: (1 if int(d) >= 0 else -1)
-            for sid, d in zip(self.servo_ids, directions)
+
+        config = self.SIDE_CONFIG[self.side]
+        self.legs = config["legs"]
+        self.id_map = config["id_map"]
+        self.default_directions = config["directions"]
+
+        self.port = rospy.get_param(
+            "~port",
+            config["port"],
+        )
+        self.baudrate = int(
+            rospy.get_param("~baudrate", 115200) # pyright: ignore[reportArgumentType]
+        )
+        self.control_rate_hz = float(
+            rospy.get_param("~control_rate_hz", 30.0) # type: ignore
+        )
+        self.command_duration_ms = int(
+            rospy.get_param("~command_duration_ms", 33) # pyright: ignore[reportArgumentType]
+        )
+
+        # 一块板固定管理六个舵机。
+        self.servo_ids = tuple(
+            servo_id
+            for leg in self.legs
+            for servo_id in self.id_map[leg]
+        )
+
+        self.directions = self._load_directions()
+
+        self.control = (
+            hiwonder_servo_controller.HiwonderServoController(
+                self.port,
+                self.baudrate,
+            )
+        )
+
+        # LX-15D：0~1000脉冲对应0~240度。
+        self.resolution = 1000.0 / 240.0
+
+        # 回调和定时控制循环共享目标数据。
+        self.lock = Lock()
+
+        # power_on表示整块板的六个舵机是否加载。
+        self.power_on = False
+
+        # 每条腿是否收到过完整目标。
+        self.received_des = {
+            leg: False
+            for leg in self.legs
         }
 
-        self.control = hiwonder_servo_controller.HiwonderServoController(self.port, self.baudrate)
-        self.resolution = 1000.0 / 240.0  # pulse per degree
-        self._lock = Lock()
-        self.power_on = False
-        # 标记每条腿是否接收到过目标话题数据，初始为未接收
-        self.received_des = {leg: False for leg in ['lf', 'lm', 'lb', 'rf', 'rm', 'rb']}
+        # 每条腿请求的板级加载状态。
+        # Control会给六条腿发送相同的power值。
+        self.power_request = {
+            leg: False
+            for leg in self.legs
+        }
 
-        # 按腿保存目标角度（rad）与速度（rad/s）
-        self.des_pos = {leg: [0.0, 0.0, 0.0] for leg in self.legs}
-        self.des_vel = {leg: [0.0, 0.0, 0.0] for leg in self.legs}
+        self.des_pos = {
+            leg: [0.0, 0.0, 0.0]
+            for leg in self.legs
+        }
+
+        # 启动时整块板全部卸力。
+        # 此时仍然可以读取舵机位置。
+        self._set_board_power(False)
 
         self.des_subs = {}
         self.pos_pubs = {}
+
         for leg in self.legs:
             self.des_subs[leg] = rospy.Subscriber(
-                '/{}_des'.format(leg),
+                f"/{leg}_des",
                 Float64MultiArray,
                 self._make_des_callback(leg),
-                queue_size=10,
+                queue_size=1,
             )
+
             self.pos_pubs[leg] = rospy.Publisher(
-                '/{}_pos'.format(leg),
+                f"/{leg}_pos",
                 Float64MultiArray,
-                queue_size=10,
+                queue_size=1,
             )
 
         self.timer = rospy.Timer(
-            rospy.Duration(1.0 / max(1.0, self.control_rate_hz)),
+            rospy.Duration(
+                1.0 / self.control_rate_hz
+            ),
             self.control_loop,
         )
 
-        for leg in self.legs:
-                ids = self.id_map[leg]
-                for id in ids:
-                    self.control.unload_servo(id, 0)
         rospy.loginfo(
-            'servo_side_node started: side=%s, legs=%s, port=%s, hz=%.1f, ids=%s, directions=%s\n'
-            '等待话题数据，启动后仅读取舵机位置，不执行写入',
+            "Servo board ready: side=%s port=%s legs=%s "
+            "ids=%s rate=%.1fHz",
             self.side,
-            ','.join(self.legs),
             self.port,
-            self.control_rate_hz,
+            ",".join(self.legs),
             self.servo_ids,
-            [self.directions[sid] for sid in self.servo_ids],
+            self.control_rate_hz,
+        )
+
+    def _load_directions(self):
+        """读取本板六个舵机的安装方向。"""
+
+        direction_param = rospy.get_param(
+            "~directions",
+            None,
+        )
+
+        if direction_param is None:
+            directions = list(self.default_directions)
+        elif isinstance(direction_param, str):
+            directions = list(
+                ast.literal_eval(direction_param)
+            )
+        else:
+            directions = list(direction_param)
+
+        if len(directions) != len(self.servo_ids):
+            raise ValueError(
+                "~directions length %d does not match "
+                "servo count %d"
+                % (
+                    len(directions),
+                    len(self.servo_ids),
+                )
+            )
+        if any(int(direction) not in (-1, 1) for direction in directions):
+            raise ValueError("~directions values must be 1 or -1")
+
+        return {
+            servo_id: int(direction)
+            for servo_id, direction in zip(
+                self.servo_ids,
+                directions,
+            )
+        }
+
+    def _set_board_power(self, enabled):
+        """统一加载或卸载本板的全部六个舵机。"""
+
+        status = 1 if enabled else 0
+
+        for servo_id in self.servo_ids:
+            self.control.unload_servo(
+                servo_id,
+                status,
+            )
+
+        self.power_on = bool(enabled)
+
+        rospy.loginfo(
+            "Servo board %s power: %s",
+            self.side,
+            "ON" if enabled else "OFF",
         )
 
     def _make_des_callback(self, leg):
-        def _cb(msg):
-            data = list(msg.data)
-            if len(data) < 6:
-                rospy.logwarn_throttle(1.0, '/%s_des length < 6, got %d', leg, len(data))
+        """为一条腿生成目标消息回调。"""
+
+        def callback(message):
+            data = list(message.data)
+
+            # 接口固定为10个元素，避免上下游对数组含义理解不同。
+            if len(data) != 10:
+                rospy.logwarn_throttle(
+                    1.0,
+                    f"/{leg}_des must contain 10 values, "
+                    f"got {len(data)}",
+                )
                 return
-            # 约定: [status pos pos pos vel vel vel 0 0 0]
-            if not self.power_on and data[0] == 1:
-                if not self.control.load_status(self.id_map[leg][0]):
-                    self.control.unload_servo(self.id_map[leg][0], 1)
-                    self.power_on = True
-                else:
-                    self.power_on = True
-            elif self.power_on and data[0] == 0:
-                if self.control.load_status(self.id_map[leg][0]):
-                    self.control.unload_servo(self.id_map[leg][0], 0)
-                    self.power_on = False
-                else:
-                    self.power_on = False
 
-            self.des_pos[leg] = [float(data[1]), float(data[2]), float(data[3])]
-            self.des_vel[leg] = [float(data[4]), float(data[5]), float(data[6])]
-            # 标记该腿已接收到目标数据，允许写入
-            self.received_des[leg] = True
-            rospy.loginfo(f'已接收到 {leg} 腿的目标数据，开始写入舵机')
+            power_value = float(data[0])
+            target_position = [
+                float(data[1]),
+                float(data[2]),
+                float(data[3]),
+            ]
 
-        return _cb
+            if power_value not in (0.0, 1.0):
+                rospy.logwarn_throttle(
+                    1.0,
+                    f"/{leg}_des power must be 0 or 1",
+                )
+                return
 
-    def rad_to_servo(self, angle_rad, direction=1):
-        pos = direction * math.degrees(angle_rad) * self.resolution + 500.0
-        return int(max(0, min(1000, round(pos))))
+            if not all(
+                math.isfinite(value)
+                for value in target_position
+            ):
+                rospy.logwarn_throttle(
+                    1.0,
+                    f"/{leg}_des contains non-finite position",
+                )
+                return
 
-    def servo_to_rad(self, servo_pos, direction=1):
-        return direction * math.radians((servo_pos - 500.0) / self.resolution)
+            with self.lock:
+                first_message = not self.received_des[leg]
+
+                self.des_pos[leg] = target_position
+                self.power_request[leg] = bool(
+                    power_value
+                )
+                self.received_des[leg] = True
+
+            if first_message:
+                rospy.loginfo(
+                    "Received first target for %s",
+                    leg,
+                )
+
+            # data[4:7]是预留的目标速度。
+            # LX-15D当前通过command_duration_ms控制运动时间，
+            # 第一版实机控制不使用速度字段。
+
+        return callback
+
+    def rad_to_servo(self, angle_rad, direction):
+        """ROS关节角rad转换为LX-15D脉冲。"""
+
+        servo_position = (
+            direction
+            * math.degrees(angle_rad)
+            * self.resolution
+            + 500.0
+        )
+
+        return int(
+            max(
+                0,
+                min(1000, round(servo_position)),
+            )
+        )
+
+    def servo_to_rad(self, servo_position, direction):
+        """LX-15D脉冲转换为ROS关节角rad。"""
+
+        return direction * math.radians(
+            (servo_position - 500.0)
+            / self.resolution
+        )
 
     def control_loop(self, _event):
-        if not self._lock.acquire(False):
+        """顺序完成反馈读取、板级加载切换和目标写入。"""
+
+        if not self.lock.acquire(False):
             return
 
         try:
+            # 一、始终读取并发布六个舵机的位置。
             for leg in self.legs:
-                ids = self.id_map[leg]
-                # 读取舵机当前位置（始终执行，不受话题数据影响），按方向换算
-                read_pos = []
-                for i in range(3):
-                    servo_id = ids[i]
-                    raw = self.control.get_servo_position(servo_id)
-                    if raw is None:
-                        read_pos.append(float('nan'))
-                    else:
-                        read_pos.append(self.servo_to_rad(raw, self.directions[servo_id]))
-                # 发布当前位置（始终执行）
-                self.pos_pubs[leg].publish(Float64MultiArray(data=read_pos))
+                read_position = []
 
-                # 关键：仅当接收到该腿的目标数据后，才执行写入操作
-                if self.received_des[leg] and self.power_on:
-                    target_pos = self.des_pos[leg]
-                    for i in range(3):
-                        servo_id = ids[i]
-                        cmd = self.rad_to_servo(target_pos[i], self.directions[servo_id])
-                        self.control.set_servo_position(servo_id, cmd, self.command_duration_ms)
+                for servo_id in self.id_map[leg]:
+                    raw_position = (
+                        self.control.get_servo_position(
+                            servo_id
+                        )
+                    )
+
+                    if raw_position is None:
+                        read_position.append(
+                            float("nan")
+                        )
+                    else:
+                        read_position.append(
+                            self.servo_to_rad(
+                                raw_position,
+                                self.directions[
+                                    servo_id
+                                ],
+                            )
+                        )
+
+                self.pos_pubs[leg].publish(
+                    Float64MultiArray(
+                        data=read_position
+                    )
+                )
+
+            # 二、两条腿都收到目标并且都请求加载时，
+            # 才统一加载这块板的六个舵机。
+            targets_ready = all(
+                self.received_des.values()
+            )
+            requested_on = (
+                targets_ready
+                and all(self.power_request.values())
+            )
+
+            if requested_on != self.power_on:
+                self._set_board_power(requested_on)
+
+            # 三、只有整块板加载后才写入目标。
+            if not self.power_on:
+                return
+
+            for leg in self.legs:
+                for joint_index, servo_id in enumerate(
+                    self.id_map[leg]
+                ):
+                    servo_position = self.rad_to_servo(
+                        self.des_pos[leg][joint_index],
+                        self.directions[servo_id],
+                    )
+
+                    self.control.set_servo_position(
+                        servo_id,
+                        servo_position,
+                        self.command_duration_ms,
+                    )
 
         finally:
-            self._lock.release()
+            self.lock.release()
 
 
-if __name__ == '__main__':
-    rospy.init_node('servo_side_node')
+if __name__ == "__main__":
+    rospy.init_node("servo_side_node")
     ServoSideNode()
     rospy.spin()

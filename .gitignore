@@ -1,4 +1,5 @@
 .vscode/
+.serena/
 AGENTS.md
 
 # Catkin build outputs

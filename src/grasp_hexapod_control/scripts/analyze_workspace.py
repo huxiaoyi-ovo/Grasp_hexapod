@@ -181,7 +181,9 @@ def set_equal_3d_axes(axis, points):
     axis.set_xlim(center[0] - half_range, center[0] + half_range)
     axis.set_ylim(center[1] - half_range, center[1] + half_range)
     axis.set_zlim(center[2] - half_range, center[2] + half_range)
-    axis.set_box_aspect((1.0, 1.0, 1.0))
+    # Ubuntu 20.04系统Matplotlib较旧；等范围已保证比例，较新版本再设盒比例。
+    if hasattr(axis, "set_box_aspect"):
+        axis.set_box_aspect((1.0, 1.0, 1.0))
 
 
 def print_summary(name, points, sigma_min, reachable_count):
@@ -419,7 +421,8 @@ def visualize_workspace(kinematic, workspaces_hip):
 
     for axis in (axis_top, axis_rz):
         axis.grid(color="#CBD5E1", linewidth=0.7, alpha=0.55)
-        axis.spines[["top", "right"]].set_visible(False)
+        axis.spines["top"].set_visible(False)
+        axis.spines["right"].set_visible(False)
 
     figure.suptitle(
         "Offline Workspace Analysis",

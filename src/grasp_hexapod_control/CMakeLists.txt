@@ -5,16 +5,18 @@ find_package(
   catkin REQUIRED COMPONENTS
   geometry_msgs
   rospy
+  sensor_msgs
   std_msgs
 )
 
 catkin_package(
-  CATKIN_DEPENDS geometry_msgs rospy std_msgs
+  CATKIN_DEPENDS geometry_msgs rospy sensor_msgs std_msgs
 )
 
 catkin_install_python(
   PROGRAMS
     scripts/run_real.py
+    scripts/run_sim.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
@@ -25,6 +27,7 @@ install(
     scripts/control.py
     scripts/dock_mode.py
     scripts/kinematics.py
+    scripts/navigation_ros.py
     scripts/utils.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )

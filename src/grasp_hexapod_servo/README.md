@@ -31,11 +31,11 @@
 
 ### `/<leg>_des` 数据格式
 
-数组长度至少为 9，各字段含义如下：
+数组长度固定为 10，各字段含义如下：
 
 | 索引 | 字段 | 说明 |
 |------|------|------|
-| 0 | `power_status` | 使能标志：`1` 为该腿舵机上电（加载扭矩），`0` 为卸力 |
+| 0 | `power_status` | 板级使能请求：`1` 为加载扭矩，`0` 为卸力 |
 | 1 | `thigh_pos` | thigh 关节目标位置，单位 **rad** |
 | 2 | `knee_pos` | knee 关节目标位置，单位 **rad** |
 | 3 | `ankle_pos` | ankle 关节目标位置，单位 **rad** |
@@ -44,11 +44,13 @@
 | 6 | `ankle_vel` | ankle 关节目标速度，单位 **rad/s**（当前未使用，保留字段） |
 | 7 | `reserved_0` | 保留，填 `0` |
 | 8 | `reserved_1` | 保留，填 `0` |
-| 10 | `reserved_2` | 保留，填 `0` |
+| 9 | `reserved_2` | 保留，填 `0` |
 
 ### 安全机制：话题触发的写入
 
-节点启动后**仅读取并发布当前位置**，**不会向舵机写入任何目标**。只有当某条腿**首次收到**对应的 `/<leg>_des` 话题数据后，该腿才进入“允许写入”状态，后续周期才会把目标下发到舵机。这是为了防止程序启动瞬间的零值或噪声导致舵机意外运动。
+节点启动后先向本板六个舵机发送卸力命令，随后只读取并发布当前位置，
+不会写入位置目标。只有当本板两条腿都收到完整的`/<leg>_des`消息且都请求
+`power_status=1`时，节点才统一加载六个舵机并写入两条腿的位置目标。
 
 ---
 
@@ -90,18 +92,18 @@
 | `~side` | `string` | `left` | 驱动板标识：`left`、`right` 或 `mid` |
 | `~port` | `string` | 见上表 | 串口设备路径，按 `side` 自动选择默认值 |
 | `~baudrate` | `int` | `115200` | 串口波特率 |
-| `~control_rate_hz` | `float` | `50.0` | 控制循环频率（Hz），决定读/写舵机的周期 |
-| `~command_duration_ms` | `int` | `20` | 舵机单次转动指令的目标耗时（ms），传给 LX-15D 的 `MOVE_TIME_WRITE` |
-| `~directions` | `list<int>` | 全 `1` | 各舵机方向列表（`1` 正 / `-1` 反），顺序与该板舵机 ID 顺序一致 |
+| `~control_rate_hz` | `float` | `30.0` | 控制循环频率（Hz），决定读/写舵机的周期 |
+| `~command_duration_ms` | `int` | `33` | 舵机单次转动指令的目标耗时（ms），传给 LX-15D 的 `MOVE_TIME_WRITE` |
+| `~directions` | `list<int>` | 按板配置 | 可选覆盖值；顺序与该板舵机 ID 顺序一致 |
 
 ### `~directions` 配置示例
 
-launch 文件中可按板分别指定（见 `launch/servo_dual_side.launch`）：
+默认方向只有一份，位于`servo.py::SIDE_CONFIG`：
 
 ```xml
-<arg name="left_directions"  default="[1, 1, 1, 1, 1, 1]"/>
-<arg name="right_directions" default="[1, -1, -1, 1, -1, -1]"/>
-<arg name="mid_directions"   default="[1, 1, 1, 1, -1, -1]"/>
+left:  [1, 1, 1, 1, 1, 1]
+right: [1, -1, -1, 1, -1, -1]
+mid:   [1, 1, 1, 1, -1, -1]
 ```
 
 - **left**：ID 1,2,3,4,5,6
@@ -115,19 +117,19 @@ launch 文件中可按板分别指定（见 `launch/servo_dual_side.launch`）�
 ### 同时启动三块板（推荐）
 
 ```bash
-roslaunch grasp_hexapod_servo servo_dual_side.launch
+roslaunch grasp_hexapod_servo servo_three_boards.launch
 ```
 
 可在 launch 中按实机接线修改串口：
 
 ```bash
-roslaunch grasp_hexapod_servo servo_dual_side.launch left_port:=/dev/ttyUSB0 right_port:=/dev/ttyUSB1 mid_port:=/dev/ttyUSB2
+roslaunch grasp_hexapod_servo servo_three_boards.launch left_port:=/dev/ttyUSB0 right_port:=/dev/ttyUSB1 mid_port:=/dev/ttyUSB2
 ```
 
 ### 单独启动一块板
 
 ```bash
-rosrun grasp_hexapod_servo servo.py _side:=left _port:=/dev/ttyUSB0 _control_rate_hz:=50.0
+rosrun grasp_hexapod_servo servo.py _side:=left _port:=/dev/ttyUSB0
 ```
 
 ---
@@ -145,7 +147,7 @@ rosrun grasp_hexapod_servo servo.py _side:=left _port:=/dev/ttyUSB0 _control_rat
 ```
 grasp_hexapod_servo/
 ├── launch/
-│   └── servo_dual_side.launch    # 三块板同时启动
+│   └── servo_three_boards.launch # 三块板同时启动
 ├── scripts/
 │   ├── servo.py                   # 主节点：ServoSideNode
 │   ├── hiwonder_servo_controller.py   # LX-15D 串口协议封装
@@ -157,7 +159,7 @@ grasp_hexapod_servo/
 
 ## 注意事项
 
-1. **必须先收到 `/<leg>_des` 话题数据**，对应腿才会开始写入舵机；否则节点只读位置、不执行动作。
-2. `power_status`（`/<leg>_des.data[0]`）控制舵机是否加载扭矩；置 `0` 时卸力，机械腿可手动摆动。
+1. 本板两条腿必须都收到完整目标且都请求加载，整块板才开始写入位置。
+2. 任一腿的`power_status=0`都会卸载该板全部六个舵机。
 3. 若某舵机读数超时，对应 `/<leg>_pos` 元素为 `nan`，不影响其他舵机。
 4. 串口设备名（`/dev/ttyUSB*`）可能因插拔顺序变化，建议在系统层用 `udev` 规则固定别名。

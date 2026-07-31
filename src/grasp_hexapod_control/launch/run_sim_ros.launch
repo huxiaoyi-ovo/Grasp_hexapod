@@ -1,16 +1,17 @@
 <launch>
-  <!-- 实机链路：joy -> GraspController -> 三块Servo板。 -->
+  <!-- ROS链路：joy -> GraspController -> Isaac Gym -> 关节反馈。 -->
   <arg name="joy_dev" default="/dev/input/js0"/>
   <!-- mode只允许teleop或navigation；导航模式下手柄仍可接管。 -->
   <arg name="mode" default="teleop"/>
-  <arg name="left_port" default="/dev/ttyUSB0"/>
-  <arg name="right_port" default="/dev/ttyUSB1"/>
-  <arg name="mid_port" default="/dev/ttyUSB2"/>
-
   <arg name="control_rate_hz" default="30.0"/>
-  <arg name="command_duration_ms" default="33"/>
-  <arg name="max_feedback_age" default="0.5"/>
-  <arg name="max_joy_age" default="0.5"/>
+  <arg name="physics_rate_hz" default="240.0"/>
+  <arg name="headless" default="false"/>
+  <arg
+    name="python_executable"
+    default="/usr/bin/python3"/>
+  <arg
+    name="isaacgym_python_path"
+    default="/home/artrc/isaacgym/python"/>
 
   <arg name="button_a" default="0"/>
   <arg name="button_b" default="1"/>
@@ -31,8 +32,6 @@
     <arg name="control_source" value="$(arg mode)"/>
     <arg name="joy_dev" value="$(arg joy_dev)"/>
     <arg name="control_rate_hz" value="$(arg control_rate_hz)"/>
-    <arg name="max_feedback_age" value="$(arg max_feedback_age)"/>
-    <arg name="max_joy_age" value="$(arg max_joy_age)"/>
     <arg name="button_a" value="$(arg button_a)"/>
     <arg name="button_b" value="$(arg button_b)"/>
     <arg name="button_x" value="$(arg button_x)"/>
@@ -52,11 +51,33 @@
       value="$(arg xiaolan_from_right_base)"/>
   </include>
 
-  <include file="$(find grasp_hexapod_servo)/launch/servo_three_boards.launch">
-    <arg name="left_port" value="$(arg left_port)"/>
-    <arg name="right_port" value="$(arg right_port)"/>
-    <arg name="mid_port" value="$(arg mid_port)"/>
-    <arg name="control_rate_hz" value="$(arg control_rate_hz)"/>
-    <arg name="command_duration_ms" value="$(arg command_duration_ms)"/>
-  </include>
+  <group unless="$(arg headless)">
+    <node
+      pkg="grasp_hexapod_control"
+      type="run_sim.py"
+      name="grasp_hexapod_sim"
+      output="screen"
+      required="true"
+      launch-prefix="$(arg python_executable)"
+      args="--ros --control-rate $(arg control_rate_hz) --physics-rate $(arg physics_rate_hz)">
+      <env
+        name="PYTHONPATH"
+        value="$(arg isaacgym_python_path):$(env PYTHONPATH)"/>
+    </node>
+  </group>
+
+  <group if="$(arg headless)">
+    <node
+      pkg="grasp_hexapod_control"
+      type="run_sim.py"
+      name="grasp_hexapod_sim"
+      output="screen"
+      required="true"
+      launch-prefix="$(arg python_executable)"
+      args="--ros --headless --control-rate $(arg control_rate_hz) --physics-rate $(arg physics_rate_hz)">
+      <env
+        name="PYTHONPATH"
+        value="$(arg isaacgym_python_path):$(env PYTHONPATH)"/>
+    </node>
+  </group>
 </launch>

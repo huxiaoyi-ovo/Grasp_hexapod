@@ -22,6 +22,9 @@ from climb_mode import ClimbMode
 from dock_mode import DockMode
 from kinematics import (
     FOOT_RADIUS,
+    JOINT_LOWER,
+    JOINT_UPPER,
+    JOINT_VELOCITY_LIMIT,
     Q_STAND,
     GraspKinematic,
 )
@@ -97,7 +100,10 @@ class GraspController:
         )
 
         # A使能和B复位都用五次曲线平滑回到标准站姿。
-        self.reset_duration = 0.8
+        # 最远关节从机械限位回到Q_STAND时，2 s五次曲线峰值速度低于
+        # URDF的4 rad/s；轨迹结束后还会等待真实反馈进入容差。
+        self.reset_duration = 2.0
+        self.reset_tolerance = np.deg2rad(2.0)
         self.reset_time = 0.0
         self.reset_active = False
         self.reset_start_q = self.q_init.copy()
@@ -404,6 +410,8 @@ class GraspController:
 
     def reset_to_stand(self, q_cur):
         """从当前关节角平滑回到标准站姿。"""
+        # B是全局恢复动作，必须退出攀爬/对接状态再执行站立轨迹。
+        self.set_mode(self.APPROACH)
         self.reset_start_q = np.asarray(
             q_cur,
             dtype=np.float64,
@@ -510,23 +518,27 @@ class GraspController:
 
             # 五次曲线在起点和终点的速度、加速度都为零，
             # 因而B回正和A使能准备不会产生瞬时关节目标跳变。
-            q_candidate = (
+            q_scheduled = (
                 (1.0 - blend) * self.reset_start_q
                 + blend * self.q_init
             )
-            self.last_link_collision_free = (
-                self._link_collision_free(q_candidate)
+            # 若真实舵机落后于时间曲线，目标仍只领先实测位置一个
+            # 4 rad/s控制步长，避免33 ms指令突然追赶远处目标。
+            q_candidate = q_cur + np.clip(
+                q_scheduled - q_cur,
+                -JOINT_VELOCITY_LIMIT * self.dt,
+                JOINT_VELOCITY_LIMIT * self.dt,
             )
-
-            # 回正是整机同步动作；任何腿不安全时本周期整体暂停。
-            if not self.last_link_collision_free.all():
-                self.q_des = q_cur.copy()
-                return self.q_des
-
             self.reset_time = next_reset_time
             self.q_des = q_candidate
 
-            if phase >= 1.0:
+            # 时间曲线结束后持续保持Q_STAND，直到实测18关节都到位。
+            # 不能只按时间允许A，否则实机舵机滞后时会提前进入步态。
+            reset_reached = (
+                np.max(np.abs(q_cur - self.q_init))
+                <= self.reset_tolerance
+            )
+            if phase >= 1.0 and reset_reached:
                 self.reset_active = False
                 self.foot_desired_base[:] = self.foot_init_base
                 self.foot_desired_hip[:] = self.foot_init_hip
@@ -547,7 +559,16 @@ class GraspController:
             damped_inverse @ position_error[..., np.newaxis]        
         ).squeeze(-1)
 
-        q_candidate = q_cur + 32.0 * joint_correction * self.dt
+        joint_step = np.clip(
+            32.0 * joint_correction * self.dt,
+            -JOINT_VELOCITY_LIMIT * self.dt,
+            JOINT_VELOCITY_LIMIT * self.dt,
+        )
+        q_candidate = np.clip(
+            q_cur + joint_step,
+            JOINT_LOWER,
+            JOINT_UPPER,
+        )
 
         # 关节目标下发前检查完整连杆胶囊；
         # 一旦候选姿态碰撞，整机本周期保持当前位置。

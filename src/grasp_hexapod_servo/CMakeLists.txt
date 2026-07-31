@@ -3,11 +3,12 @@ project(grasp_hexapod_servo)
 
 find_package(catkin REQUIRED COMPONENTS
   rospy
+  sensor_msgs
   std_msgs
 )
 
 catkin_package(
-  CATKIN_DEPENDS rospy std_msgs
+  CATKIN_DEPENDS rospy sensor_msgs std_msgs
 )
 
 include_directories(${catkin_INCLUDE_DIRS})

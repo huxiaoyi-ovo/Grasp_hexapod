@@ -35,7 +35,9 @@ roslaunch grasp_hexapod_control run_real.launch \
 
 工控机部署时再用稳定的`/dev/serial/by-id/...`路径替换三个串口参数。
 
-第一次实机行走建议显式使用低速：
+仿真和实机默认都使用`0.20 m/s`平移、`0.02 m/s`升降。
+实机控制器以60 Hz运行，Servo串口以30 Hz运行并使用33 ms位置插值。
+第一次架空测试如需临时降速，可以显式覆盖：
 
 ```bash
 roslaunch grasp_hexapod_control run_real.launch \
@@ -67,8 +69,17 @@ Isaac Gym不在默认位置时：
 
 ```bash
 roslaunch grasp_hexapod_control run_sim_ros.launch \
-  python_executable:=/path/to/conda/env/bin/python \
   isaacgym_python_path:=/path/to/isaacgym/python
+```
+
+ROS仿真默认使用`/usr/bin/python3`，因为它同时具备ROS的`rospy/rospkg`
+和Isaac Gym所需的Python 3.8 ABI。原Python直启链路才使用conda环境。
+ROS仿真默认使用60 Hz控制器和60 Hz Isaac执行节拍，与原Python仿真一致。
+实机舵机节点仍按30 Hz发送带33 ms运动时间的指令。若只想观察30 Hz
+零阶保持对Isaac位置驱动的影响，可以显式运行：
+
+```bash
+roslaunch grasp_hexapod_control run_sim_ros.launch actuator_rate_hz:=30.0
 ```
 
 原来的非ROS仿真链路仍然保留：
@@ -104,6 +115,9 @@ B -> 等待回到标准站姿 -> A -> 接受运动指令
 - 导航运行时推动任一运动摇杆会取消导航并锁存为手柄控制。
 - 松开摇杆不会恢复导航；按B重新初始化，再按A才会重新规划。
 
+整机状态为`WAIT_B -> RESETTING -> HOLD <-> RUNNING`。`ApproachMode`
+内部的摆动腿、支撑腿和换相状态始终保留。
+
 ## 常用检查
 
 查看启动后会创建的节点，不实际运行：
@@ -127,6 +141,21 @@ roslaunch grasp_hexapod_control run_real.launch \
   axis_body_down:=<LT索引> \
   axis_body_up:=<RT索引>
 ```
+
+不同手柄的按钮编号和轴符号可能不同。用`rostopic echo /joy`确认后，可在
+实机和ROS仿真入口中使用同一组覆盖参数：
+
+```bash
+roslaunch grasp_hexapod_control run_sim_ros.launch \
+  button_a:=<A索引> \
+  button_b:=<B索引> \
+  axis_forward_scale:=-1.0
+```
+
+四个符号参数为`axis_right_scale`、`axis_forward_scale`、
+`axis_yaw_scale`和`axis_body_scale`，通常使用`1.0`或`-1.0`。
+摇杆默认死区为`0.15`；死区外会重新映射为从0到最大速度的线性输出。
+需要调整时，两个入口都可传入`joy_deadzone:=<0到1之间的值>`。
 
 检查六腿反馈和目标：
 
@@ -153,5 +182,5 @@ roslaunch grasp_hexapod_servo servo_three_boards.launch
 ## 文件职责
 
 - `run_real.launch`：公共控制链加三块Servo板。
-- `run_sim_ros.launch`：公共控制链加Isaac Gym执行后端。
-- `control_stack.launch`：内部复用的`joy_node`和高层控制节点，不作为日常入口。
+- `run_sim_ros.launch`：ROS输入加Isaac内部同步控制循环。
+- `control_stack.launch`：实机复用的`joy_node`和高层控制节点，不作为日常入口。

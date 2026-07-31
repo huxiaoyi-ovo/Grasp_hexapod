@@ -9,7 +9,8 @@
   src/grasp_hexapod_control/scripts/run_sim.py \
   --record-servo-trace logs/servo_walk_trace.csv \
   --physics-rate 240 \
-  --control-rate 30 \
+  --control-rate 60 \
+  --actuator-rate 30 \
   --headless
 ```
 

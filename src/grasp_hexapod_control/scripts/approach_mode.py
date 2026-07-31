@@ -78,8 +78,8 @@ class ApproachMode:
         self.gaits[TRIPOD_A_INDICES] = True
         self.stance_group_index = 0
 
-        # 每个摆动相固定为0.30 s；当前0.02 m/s实机限速下，
-        # 单相机身位移约6 mm，先以小步幅验证平地行走。
+        # 每个摆动相固定为0.30 s；0.20 m/s满杆时，
+        # 单相机身位移约60 mm。
         self.phase_duration = 0.30
         self.phase_time = 0.0
 

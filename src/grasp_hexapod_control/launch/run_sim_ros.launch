@@ -3,9 +3,12 @@
   <arg name="joy_dev" default="/dev/input/js0"/>
   <!-- mode只允许teleop或navigation；导航模式下手柄仍可接管。 -->
   <arg name="mode" default="teleop"/>
-  <arg name="control_rate_hz" default="30.0"/>
+  <arg name="controller_rate_hz" default="60.0"/>
+  <arg name="actuator_rate_hz" default="60.0"/>
   <arg name="physics_rate_hz" default="240.0"/>
   <arg name="headless" default="false"/>
+  <arg name="max_joy_age" default="0.2"/>
+  <arg name="joy_deadzone" default="0.15"/>
   <arg
     name="python_executable"
     default="/usr/bin/python3"/>
@@ -22,34 +25,71 @@
   <arg name="axis_yaw" default="3"/>
   <arg name="axis_body_down" default="4"/>
   <arg name="axis_body_up" default="5"/>
+  <arg name="axis_right_scale" default="-1.0"/>
+  <arg name="axis_forward_scale" default="1.0"/>
+  <arg name="axis_yaw_scale" default="1.0"/>
+  <arg name="axis_body_scale" default="-1.0"/>
 
-  <arg name="max_linear_speed" default="0.02"/>
-  <arg name="max_vertical_speed" default="0.005"/>
+  <arg name="max_linear_speed" default="0.20"/>
+  <arg name="max_vertical_speed" default="0.02"/>
   <arg name="xiaolan_from_left_base" default="[]"/>
   <arg name="xiaolan_from_right_base" default="[]"/>
 
-  <include file="$(find grasp_hexapod_control)/launch/control_stack.launch">
-    <arg name="control_source" value="$(arg mode)"/>
-    <arg name="joy_dev" value="$(arg joy_dev)"/>
-    <arg name="control_rate_hz" value="$(arg control_rate_hz)"/>
-    <arg name="button_a" value="$(arg button_a)"/>
-    <arg name="button_b" value="$(arg button_b)"/>
-    <arg name="button_x" value="$(arg button_x)"/>
-    <arg name="button_y" value="$(arg button_y)"/>
-    <arg name="axis_right" value="$(arg axis_right)"/>
-    <arg name="axis_forward" value="$(arg axis_forward)"/>
-    <arg name="axis_yaw" value="$(arg axis_yaw)"/>
-    <arg name="axis_body_down" value="$(arg axis_body_down)"/>
-    <arg name="axis_body_up" value="$(arg axis_body_up)"/>
-    <arg name="max_linear_speed" value="$(arg max_linear_speed)"/>
-    <arg name="max_vertical_speed" value="$(arg max_vertical_speed)"/>
-    <arg
-      name="xiaolan_from_left_base"
-      value="$(arg xiaolan_from_left_base)"/>
-    <arg
-      name="xiaolan_from_right_base"
-      value="$(arg xiaolan_from_right_base)"/>
-  </include>
+  <!-- ROS只负责输入；控制器在Isaac的60 Hz控制帧内同步运行。 -->
+  <node
+    pkg="joy"
+    type="joy_node"
+    name="joy_node"
+    output="screen"
+    required="true">
+    <param name="dev" value="$(arg joy_dev)"/>
+    <param name="deadzone" value="$(arg joy_deadzone)"/>
+    <param name="autorepeat_rate" value="60.0"/>
+    <param name="coalesce_interval" value="0.001"/>
+  </node>
+
+  <!-- 这些参数属于下面两个条件分支中同名的grasp_hexapod_sim节点。 -->
+  <param name="grasp_hexapod_sim/control_source" value="$(arg mode)"/>
+  <param
+    name="grasp_hexapod_sim/max_joy_age"
+    value="$(arg max_joy_age)"/>
+  <param name="grasp_hexapod_sim/button_a" value="$(arg button_a)"/>
+  <param name="grasp_hexapod_sim/button_b" value="$(arg button_b)"/>
+  <param name="grasp_hexapod_sim/button_x" value="$(arg button_x)"/>
+  <param name="grasp_hexapod_sim/button_y" value="$(arg button_y)"/>
+  <param name="grasp_hexapod_sim/axis_right" value="$(arg axis_right)"/>
+  <param name="grasp_hexapod_sim/axis_forward" value="$(arg axis_forward)"/>
+  <param name="grasp_hexapod_sim/axis_yaw" value="$(arg axis_yaw)"/>
+  <param
+    name="grasp_hexapod_sim/axis_body_down"
+    value="$(arg axis_body_down)"/>
+  <param
+    name="grasp_hexapod_sim/axis_body_up"
+    value="$(arg axis_body_up)"/>
+  <param
+    name="grasp_hexapod_sim/axis_right_scale"
+    value="$(arg axis_right_scale)"/>
+  <param
+    name="grasp_hexapod_sim/axis_forward_scale"
+    value="$(arg axis_forward_scale)"/>
+  <param
+    name="grasp_hexapod_sim/axis_yaw_scale"
+    value="$(arg axis_yaw_scale)"/>
+  <param
+    name="grasp_hexapod_sim/axis_body_scale"
+    value="$(arg axis_body_scale)"/>
+  <param
+    name="grasp_hexapod_sim/max_linear_speed"
+    value="$(arg max_linear_speed)"/>
+  <param
+    name="grasp_hexapod_sim/max_vertical_speed"
+    value="$(arg max_vertical_speed)"/>
+  <rosparam
+    param="grasp_hexapod_sim/xiaolan_from_left_base"
+    subst_value="true">$(arg xiaolan_from_left_base)</rosparam>
+  <rosparam
+    param="grasp_hexapod_sim/xiaolan_from_right_base"
+    subst_value="true">$(arg xiaolan_from_right_base)</rosparam>
 
   <group unless="$(arg headless)">
     <node
@@ -59,7 +99,7 @@
       output="screen"
       required="true"
       launch-prefix="$(arg python_executable)"
-      args="--ros --control-rate $(arg control_rate_hz) --physics-rate $(arg physics_rate_hz)">
+      args="--ros --control-rate $(arg controller_rate_hz) --actuator-rate $(arg actuator_rate_hz) --physics-rate $(arg physics_rate_hz)">
       <env
         name="PYTHONPATH"
         value="$(arg isaacgym_python_path):$(env PYTHONPATH)"/>
@@ -74,7 +114,7 @@
       output="screen"
       required="true"
       launch-prefix="$(arg python_executable)"
-      args="--ros --headless --control-rate $(arg control_rate_hz) --physics-rate $(arg physics_rate_hz)">
+      args="--ros --headless --control-rate $(arg controller_rate_hz) --actuator-rate $(arg actuator_rate_hz) --physics-rate $(arg physics_rate_hz)">
       <env
         name="PYTHONPATH"
         value="$(arg isaacgym_python_path):$(env PYTHONPATH)"/>

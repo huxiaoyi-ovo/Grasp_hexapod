@@ -8,7 +8,7 @@
   <arg name="physics_rate_hz" default="240.0"/>
   <arg name="headless" default="false"/>
   <arg name="max_joy_age" default="0.2"/>
-  <arg name="joy_deadzone" default="0.15"/>
+  <arg name="joy_deadzone" default="0.20"/>
   <arg
     name="python_executable"
     default="/usr/bin/python3"/>

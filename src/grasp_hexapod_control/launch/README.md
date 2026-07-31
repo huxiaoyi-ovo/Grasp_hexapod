@@ -154,7 +154,7 @@ roslaunch grasp_hexapod_control run_sim_ros.launch \
 
 四个符号参数为`axis_right_scale`、`axis_forward_scale`、
 `axis_yaw_scale`和`axis_body_scale`，通常使用`1.0`或`-1.0`。
-摇杆默认死区为`0.15`；死区外会重新映射为从0到最大速度的线性输出。
+摇杆默认死区为`0.20`；死区外会重新映射为从0到最大速度的线性输出。
 需要调整时，两个入口都可传入`joy_deadzone:=<0到1之间的值>`。
 
 检查六腿反馈和目标：

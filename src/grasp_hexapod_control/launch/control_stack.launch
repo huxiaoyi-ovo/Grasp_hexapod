@@ -5,7 +5,7 @@
   <arg name="controller_rate_hz" default="60.0"/>
   <arg name="max_feedback_age" default="0.15"/>
   <arg name="max_joy_age" default="0.2"/>
-  <arg name="joy_deadzone" default="0.15"/>
+  <arg name="joy_deadzone" default="0.20"/>
 
   <arg name="button_a" default="0"/>
   <arg name="button_b" default="1"/>

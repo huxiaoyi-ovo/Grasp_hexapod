@@ -58,7 +58,7 @@ TRACE_ACTION_DURATION = 5.0
 class JoyStick:
     """仿真手柄输入；输出归一化的右移、前进、升降和偏航指令。"""
 
-    DEADZONE = 0.15
+    DEADZONE = 0.20
 
     def __init__(self):
         # ROS仿真不需要pygame；只在原直接控制链路中加载它。

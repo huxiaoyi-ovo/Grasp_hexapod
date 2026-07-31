@@ -22,6 +22,9 @@ from climb_mode import ClimbMode
 from dock_mode import DockMode
 from kinematics import (
     FOOT_RADIUS,
+    JOINT_LOWER,
+    JOINT_UPPER,
+    JOINT_VELOCITY_LIMIT,
     Q_STAND,
     GraspKinematic,
 )
@@ -97,7 +100,10 @@ class GraspController:
         )
 
         # A使能和B复位都用五次曲线平滑回到标准站姿。
-        self.reset_duration = 0.8
+        # 最远关节从机械限位回到Q_STAND时，2 s五次曲线峰值速度低于
+        # URDF的4 rad/s；轨迹结束后还会等待真实反馈进入容差。
+        self.reset_duration = 2.0
+        self.reset_tolerance = np.deg2rad(2.0)
         self.reset_time = 0.0
         self.reset_active = False
         self.reset_start_q = self.q_init.copy()
@@ -109,6 +115,8 @@ class GraspController:
         self.dock_mode = DockMode(self)
         self.mode = self.APPROACH
         self.last_mode_result = None
+        self.dock_target_accepted = True
+        self.dock_reject_reason = ""
 
         if not self._workspace_feasible(self.foot_init_base).all():
             raise ValueError("Q_STAND is outside the safe workspace")
@@ -385,8 +393,25 @@ class GraspController:
         if self._foot_collision_free(safe_candidate).all():
             self.foot_desired_base[:] = safe_candidate
 
+    def _commit_dock_candidate(self, candidate_base):
+        """严格接受或拒绝固定足端候选，不允许投影破坏刚体关系。"""
+
+        candidate_base = np.asarray(
+            candidate_base,
+            dtype=np.float64,
+        ).reshape(6, 3)
+        if not self._workspace_feasible(candidate_base).all():
+            return False, "dock target is outside workspace"
+        if not self._foot_collision_free(candidate_base).all():
+            return False, "dock target contains foot collision"
+
+        self.foot_desired_base[:] = candidate_base
+        return True, ""
+
     def reset_to_stand(self, q_cur):
         """从当前关节角平滑回到标准站姿。"""
+        # B是全局恢复动作，必须退出攀爬/对接状态再执行站立轨迹。
+        self.set_mode(self.APPROACH)
         self.reset_start_q = np.asarray(
             q_cur,
             dtype=np.float64,
@@ -407,8 +432,27 @@ class GraspController:
             navigation_state
         )
 
+    def set_mode(self, mode):
+        """切换唯一活动模式，并完成DOCK进入/退出处理。"""
+
+        if mode not in (self.APPROACH, self.CLIMB, self.DOCK):
+            raise ValueError(f"Unknown control mode: {mode}")
+        if mode == self.mode:
+            return
+
+        if self.mode == self.DOCK:
+            self.dock_mode.exit()
+        if mode == self.DOCK:
+            self.dock_mode.enter(self.foot_desired_base)
+            self.dock_target_accepted = True
+            self.dock_reject_reason = ""
+        self.mode = mode
+
     def update(self, q_cur, command, navigation_state=None):
         """执行当前任务模式并输出本周期关节目标。"""
+        dock_previous_target = None
+        dock_candidate_submitted = False
+
         if self.mode == self.APPROACH:
             self.last_mode_result = self.approach_mode.update(
                 command,
@@ -417,10 +461,42 @@ class GraspController:
         elif self.mode == self.CLIMB:
             self.last_mode_result = self.climb_mode.update(command)
         elif self.mode == self.DOCK:
-            self.last_mode_result = self.dock_mode.update(command)
+            if not self.dock_mode.active:
+                raise RuntimeError("Enter DOCK with controller.set_mode()")
+
+            self.last_mode_result = self.dock_mode.update(
+                command,
+                self.dock_target_accepted,
+                self.dock_reject_reason,
+            )
+            self.dock_target_accepted = True
+            self.dock_reject_reason = ""
+
+            if (
+                self.last_mode_result.active
+                and not self.last_mode_result.failed
+            ):
+                dock_previous_target = self.foot_desired_base.copy()
+                dock_candidate_submitted = True
+                (
+                    self.dock_target_accepted,
+                    self.dock_reject_reason,
+                ) = self._commit_dock_candidate(
+                    self.last_mode_result.foot_positions_base
+                )
         else:
             raise ValueError(f"Unknown control mode: {self.mode}")
-        return self.cal_joint_poses(q_cur)
+
+        q_des = self.cal_joint_poses(q_cur)
+        if (
+            dock_candidate_submitted
+            and self.dock_target_accepted
+            and not self.last_link_collision_free.all()
+        ):
+            self.foot_desired_base[:] = dock_previous_target
+            self.dock_target_accepted = False
+            self.dock_reject_reason = "dock target contains link collision"
+        return q_des
 
     def cal_joint_poses(self, q_cur):
         """根据足端目标计算下一周期关节目标"""
@@ -442,23 +518,27 @@ class GraspController:
 
             # 五次曲线在起点和终点的速度、加速度都为零，
             # 因而B回正和A使能准备不会产生瞬时关节目标跳变。
-            q_candidate = (
+            q_scheduled = (
                 (1.0 - blend) * self.reset_start_q
                 + blend * self.q_init
             )
-            self.last_link_collision_free = (
-                self._link_collision_free(q_candidate)
+            # 若真实舵机落后于时间曲线，目标仍只领先实测位置一个
+            # 4 rad/s控制步长，避免33 ms指令突然追赶远处目标。
+            q_candidate = q_cur + np.clip(
+                q_scheduled - q_cur,
+                -JOINT_VELOCITY_LIMIT * self.dt,
+                JOINT_VELOCITY_LIMIT * self.dt,
             )
-
-            # 回正是整机同步动作；任何腿不安全时本周期整体暂停。
-            if not self.last_link_collision_free.all():
-                self.q_des = q_cur.copy()
-                return self.q_des
-
             self.reset_time = next_reset_time
             self.q_des = q_candidate
 
-            if phase >= 1.0:
+            # 时间曲线结束后持续保持Q_STAND，直到实测18关节都到位。
+            # 不能只按时间允许A，否则实机舵机滞后时会提前进入步态。
+            reset_reached = (
+                np.max(np.abs(q_cur - self.q_init))
+                <= self.reset_tolerance
+            )
+            if phase >= 1.0 and reset_reached:
                 self.reset_active = False
                 self.foot_desired_base[:] = self.foot_init_base
                 self.foot_desired_hip[:] = self.foot_init_hip
@@ -479,7 +559,16 @@ class GraspController:
             damped_inverse @ position_error[..., np.newaxis]        
         ).squeeze(-1)
 
-        q_candidate = q_cur + 32.0 * joint_correction * self.dt
+        joint_step = np.clip(
+            32.0 * joint_correction * self.dt,
+            -JOINT_VELOCITY_LIMIT * self.dt,
+            JOINT_VELOCITY_LIMIT * self.dt,
+        )
+        q_candidate = np.clip(
+            q_cur + joint_step,
+            JOINT_LOWER,
+            JOINT_UPPER,
+        )
 
         # 关节目标下发前检查完整连杆胶囊；
         # 一旦候选姿态碰撞，整机本周期保持当前位置。

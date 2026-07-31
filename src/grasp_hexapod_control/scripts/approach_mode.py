@@ -78,12 +78,18 @@ class ApproachMode:
         self.gaits[TRIPOD_A_INDICES] = True
         self.stance_group_index = 0
 
-        # 0.20 m/s满杆时，0.30 s摆动阶段前进约60 mm。
+        # 每个摆动相固定为0.30 s；当前0.02 m/s实机限速下，
+        # 单相机身位移约6 mm，先以小步幅验证平地行走。
         self.phase_duration = 0.30
         self.phase_time = 0.0
 
-        # 换相前保留3个控制周期的六足共同支撑。
-        self.transfer_duration = 3.0 * self.dt
+        # 共同支撑目标为50 ms，并量化到最接近的整数控制帧：
+        # 60 Hz为3帧，30 Hz为2帧，避免频率变化时缓冲时间直接翻倍。
+        self.transfer_frames = max(
+            1,
+            int(round(0.050 / self.dt)),
+        )
+        self.transfer_duration = self.transfer_frames * self.dt
         self.transfer_time = 0.0
         self.transfer_active = False
 
@@ -221,6 +227,7 @@ class ApproachMode:
         """取消自动接近，并让当前摆动组三腿正常落地后停止。"""
 
         self.approach_plan.active = False
+        self.approach_plan.failed = False
         self.approach_plan.state = "cancelled"
         self.approach_plan.reason = reason
 

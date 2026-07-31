@@ -3,36 +3,33 @@
 import time
 import serial
 from threading import Lock
-# import Jetson.GPIO as GPIO
-try:
-    from .hiwonder_servo_cmd import *
-except ImportError:
-    from hiwonder_servo_cmd import *
+import Jetson.GPIO as GPIO
+from .hiwonder_servo_cmd import *
 
 exception = None
-# rx_pin = 17
-# tx_pin = 27
+rx_pin = 17
+tx_pin = 27
 
-# def port_as_write():
-#     GPIO.output(tx_pin, 1)  # 拉高TX_CON 即 GPIO27
-#     GPIO.output(rx_pin, 0)  # 拉低RX_CON 即 GPIO17
+def port_as_write():
+    GPIO.output(tx_pin, 1)  # 拉高TX_CON 即 GPIO27
+    GPIO.output(rx_pin, 0)  # 拉低RX_CON 即 GPIO17
 
-# def port_as_read():
-#     GPIO.output(rx_pin, 1)  # 拉高RX_CON 即 GPIO17
-#     GPIO.output(tx_pin, 0)  # 拉低TX_CON 即 GPIO27
+def port_as_read():
+    GPIO.output(rx_pin, 1)  # 拉高RX_CON 即 GPIO17
+    GPIO.output(tx_pin, 0)  # 拉低TX_CON 即 GPIO27
 
-# def port_init():
-#     GPIO.setwarnings(False)
-#     mode = GPIO.getmode()
-#     if mode == 1 or mode is None:
-#         GPIO.setmode(GPIO.BCM)
-#     GPIO.setup(rx_pin, GPIO.OUT)  # 配置RX_CON 即 GPIO17 为输出
-#     GPIO.output(rx_pin, 0)
-#     GPIO.setup(tx_pin, GPIO.OUT)  # 配置TX_CON 即 GPIO27 为输出
-#     GPIO.output(tx_pin, 1)
+def port_init():
+    GPIO.setwarnings(False)
+    mode = GPIO.getmode()
+    if mode == 1 or mode is None:
+        GPIO.setmode(GPIO.BCM)
+    GPIO.setup(rx_pin, GPIO.OUT)  # 配置RX_CON 即 GPIO17 为输出
+    GPIO.output(rx_pin, 0)
+    GPIO.setup(tx_pin, GPIO.OUT)  # 配置TX_CON 即 GPIO27 为输出
+    GPIO.output(tx_pin, 1)
 
-# port_init()
-# port_as_write()
+port_init()
+port_as_write()
 
 class servo_state:
     def __init__(self):
@@ -68,10 +65,12 @@ class HiwonderServoController:
 
     def __write_serial(self, data):
         self.ser.flushInput()
+        port_as_write()
         self.ser.write(data)
         time.sleep(0.00034)
 
     def __read_response(self, servo_id):
+        port_as_read()
         data = []
         try:
             data.extend(self.ser.read(4))
@@ -80,6 +79,10 @@ class HiwonderServoController:
             data.extend(self.ser.read(data[3] - 1))
         except Exception as e:
             raise DroppedPacketError('Invalid response received from servo ' + str(servo_id) + ' ' + str(e))
+        #finally:
+        #    port_as_write()
+
+        # verify checksum
         checksum = 255 - (sum(data[2: -1]) % 256)
         if not checksum == data[-1]:
             raise ChecksumError(servo_id, data, checksum)
@@ -402,14 +405,7 @@ class HiwonderServoController:
             if count > self.timeout:
                 count = 0
                 return None
-    def load_status(self, servo_id):
-        data = self.get_servo_load_state(servo_id)
-        if data is None:
-            return False
-        if data == 0x01:
-            return True
-        else:
-            return False
+
     def exception_on_error(self, error_code, servo_id, command_failed):
         global exception
         exception = None

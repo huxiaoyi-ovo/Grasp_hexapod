@@ -1,0 +1,75 @@
+<launch>
+  <!-- 内部公共链路：joy_node + 唯一高层控制节点。 -->
+  <arg name="control_source" default="teleop"/>
+  <arg name="joy_dev" default="/dev/input/js0"/>
+  <arg name="control_rate_hz" default="30.0"/>
+  <arg name="max_feedback_age" default="0.5"/>
+  <arg name="max_joy_age" default="0.5"/>
+
+  <arg name="button_a" default="0"/>
+  <arg name="button_b" default="1"/>
+  <arg name="button_x" default="2"/>
+  <arg name="button_y" default="3"/>
+  <arg name="axis_right" default="0"/>
+  <arg name="axis_forward" default="1"/>
+  <arg name="axis_yaw" default="3"/>
+  <arg name="axis_body_down" default="4"/>
+  <arg name="axis_body_up" default="5"/>
+
+  <arg name="max_linear_speed" default="0.02"/>
+  <arg name="max_vertical_speed" default="0.005"/>
+  <arg name="max_pose_age" default="0.5"/>
+  <arg name="base_pose_topic" default="/grasp_hexapod/navigation/base_pose"/>
+  <arg name="xiaolan_pose_topic" default="/grasp_hexapod/navigation/xiaolan_pose"/>
+  <arg name="pv_boundary_topic" default="/grasp_hexapod/navigation/pv_boundary"/>
+  <arg name="landing_topic" default="/grasp_hexapod/landing_confirmed"/>
+  <arg name="xiaolan_from_left_base" default="[]"/>
+  <arg name="xiaolan_from_right_base" default="[]"/>
+
+  <node
+    pkg="joy"
+    type="joy_node"
+    name="joy_node"
+    output="screen"
+    required="true">
+    <param name="dev" value="$(arg joy_dev)"/>
+    <param name="deadzone" value="0.08"/>
+    <param name="autorepeat_rate" value="30.0"/>
+    <param name="coalesce_interval" value="0.01"/>
+  </node>
+
+  <node
+    pkg="grasp_hexapod_control"
+    type="run_real.py"
+    name="grasp_hexapod_control"
+    output="screen"
+    required="true">
+    <param name="control_source" value="$(arg control_source)"/>
+    <param name="control_rate_hz" value="$(arg control_rate_hz)"/>
+    <param name="max_feedback_age" value="$(arg max_feedback_age)"/>
+    <param name="max_joy_age" value="$(arg max_joy_age)"/>
+    <param name="button_a" value="$(arg button_a)"/>
+    <param name="button_b" value="$(arg button_b)"/>
+    <param name="button_x" value="$(arg button_x)"/>
+    <param name="button_y" value="$(arg button_y)"/>
+    <param name="axis_right" value="$(arg axis_right)"/>
+    <param name="axis_forward" value="$(arg axis_forward)"/>
+    <param name="axis_yaw" value="$(arg axis_yaw)"/>
+    <param name="axis_body_down" value="$(arg axis_body_down)"/>
+    <param name="axis_body_up" value="$(arg axis_body_up)"/>
+    <param name="max_linear_speed" value="$(arg max_linear_speed)"/>
+    <param name="max_vertical_speed" value="$(arg max_vertical_speed)"/>
+    <param name="navigation_linear_speed" value="$(arg max_linear_speed)"/>
+    <param name="max_pose_age" value="$(arg max_pose_age)"/>
+    <param name="base_pose_topic" value="$(arg base_pose_topic)"/>
+    <param name="xiaolan_pose_topic" value="$(arg xiaolan_pose_topic)"/>
+    <param name="pv_boundary_topic" value="$(arg pv_boundary_topic)"/>
+    <param name="landing_topic" value="$(arg landing_topic)"/>
+    <rosparam
+      param="xiaolan_from_left_base"
+      subst_value="true">$(arg xiaolan_from_left_base)</rosparam>
+    <rosparam
+      param="xiaolan_from_right_base"
+      subst_value="true">$(arg xiaolan_from_right_base)</rosparam>
+  </node>
+</launch>

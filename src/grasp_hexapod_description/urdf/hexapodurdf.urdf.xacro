@@ -8,8 +8,8 @@
   <xacro:property name="servo_velocity" value="4.0"/>
   <xacro:property name="knee_lower" value="-2.094"/>
   <xacro:property name="knee_upper" value="2.094"/>
-  <xacro:property name="ankle_lower" value="-1.745"/>
-  <xacro:property name="ankle_upper" value="1.745"/>
+  <xacro:property name="ankle_lower" value="-2.094"/>
+  <xacro:property name="ankle_upper" value="2.094"/>
 
   <!-- Joint geometry -->
   <xacro:property name="thigh_to_knee_x" value="0.05236"/>

@@ -1,84 +1,148 @@
-# Grasp Hexapod Robot
+# Grasp Hexapod
 
-抓取六足机器人的ROS Noetic工作空间，包含机器人描述、传统运动控制、
-Isaac Gym仿真入口和LX-15D舵机驱动。
+ROS Noetic六足机器人工作空间。项目使用手写运动控制器，同时支持Isaac Gym
+仿真和三块LX-15D舵机板实机执行。
 
-## 目录
+## 控制架构
+
+仿真和实机共用同一个高层控制节点，只替换关节执行后端：
 
 ```text
-src/
-├── grasp_hexapod_description/  # URDF、mesh、RViz/Gazebo
-├── grasp_hexapod_control/      # scripts中为全部Python控制代码
-├── grasp_hexapod_servo/        # scripts中为LX-15D通信与ROS节点
-├── reference/                  # 已验证六足项目，仅作逻辑参考
-└── docs/                       # 跨功能包的接口说明
+/joy 或导航输入
+    -> grasp_hexapod_control
+    -> 六个 /<leg>_des
+    -> Isaac Gym 或三块Servo板
+    -> 六个 /<leg>_pos
+    -> grasp_hexapod_control
 ```
 
-功能包内的`scripts/`放Python，未来需要C++时才建立功能包内的`src/`。
+固定约定：
 
-## 环境
+- 腿顺序：`lb, lf, lm, rb, rf, rm`
+- 关节顺序：`thigh, knee, ankle`
+- 角度单位：rad
+- `base_link`：`+x`向右、`+y`向前、`+z`向上
+- 默认控制频率：30 Hz
 
-```bash
-sudo apt update
-sudo apt install \
-  ros-noetic-desktop-full \
-  python3-catkin-tools \
-  python3-numpy \
-  python3-rospkg \
-  python3-serial
+主要功能包：
 
-python3 -m pip install numpy matplotlib pygame
-python3 -m pip install -e /path/to/isaacgym/python
+```text
+src/grasp_hexapod_control/      步态、运动学、安全状态机、ROS和Isaac入口
+src/grasp_hexapod_description/  URDF、mesh、RViz和Gazebo
+src/grasp_hexapod_servo/        三板LX-15D驱动和验证过的串口协议
+src/reference/                  参考控制器和SDK，不参与运行
 ```
 
-## Clone与构建
+## 构建
 
 ```bash
 source /opt/ros/noetic/setup.bash
-git clone https://github.com/huxiaoyi-ovo/Grasp_hexapod.git grasp_hexapod_robot
-cd grasp_hexapod_robot
-git switch test
 catkin_make
 source devel/setup.bash
 ```
 
-## 运行
+主要依赖：
 
 ```bash
-# RViz模型
-roslaunch grasp_hexapod_description display.launch
+sudo apt install \
+  ros-noetic-joy \
+  python3-numpy \
+  python3-rospkg \
+  python3-serial
+```
 
-# Gazebo模型
-roslaunch grasp_hexapod_description gazebo.launch
+Isaac Gym需要单独安装在其支持的Python环境中。
 
-# Isaac Gym手柄控制：只需Isaac Gym的Conda环境，无需source ROS工作空间
-/home/hxy/anaconda3/envs/hexapod_rl_env/bin/python \
+## 运行仿真
+
+保留原来的Python直接控制链：
+
+```bash
+/home/artrc/miniconda3/envs/grasp_hexapod/bin/python \
   src/grasp_hexapod_control/scripts/run_sim.py
-
-# 实机ROS感知接口；舵机闭环尚未接通
-roslaunch grasp_hexapod_control run_real.launch
-
-# 已验证的LX-15D节点
-roslaunch grasp_hexapod_servo servo_dual_side.launch
 ```
 
-外部感知话题、坐标系和自动接近接口见
-[`src/docs/ROS_INTERFACES.md`](src/docs/ROS_INTERFACES.md)。
-
-## 协作
+ROS手柄仿真：
 
 ```bash
-git switch test
-git pull --ff-only origin test
-git switch -c feat/your-feature
-
-git add <changed-files>
-git commit -m "Add your feature"
-git push -u origin feat/your-feature
+roslaunch grasp_hexapod_control run_sim_ros.launch \
+  python_executable:=/home/artrc/miniconda3/envs/grasp_hexapod/bin/python
 ```
 
-Pull Request目标分支统一为：
+导航模式或无界面运行：
+
+```bash
+roslaunch grasp_hexapod_control run_sim_ros.launch \
+  mode:=navigation \
+  headless:=true \
+  python_executable:=/home/artrc/miniconda3/envs/grasp_hexapod/bin/python
+```
+
+## 运行实机
+
+三块板分别控制两条腿：
+
+| 板 | 腿 | 舵机ID | 默认串口 |
+|---|---|---|---|
+| left | lf、lm | 1～6 | `/dev/ttyUSB0` |
+| right | rf、rm | 10～15 | `/dev/ttyUSB1` |
+| mid | lb、rb | 7～9、16～18 | `/dev/ttyUSB2` |
+
+开发机可直接覆盖临时串口：
+
+```bash
+roslaunch grasp_hexapod_control run_real.launch \
+  left_port:=/dev/ttyUSB0 \
+  right_port:=/dev/ttyUSB1 \
+  mid_port:=/dev/ttyUSB2
+```
+
+首次实机测试建议将机器人架起并降低速度：
+
+```bash
+roslaunch grasp_hexapod_control run_real.launch \
+  max_linear_speed:=0.01 \
+  max_vertical_speed:=0.003
+```
+
+工控机部署时应把三个串口参数替换为稳定的
+`/dev/serial/by-id/...`路径。
+
+## 安全操作顺序
 
 ```text
-feat/your-feature -> test
+B -> 等待回到标准站姿 -> A -> 接受运动指令
 ```
+
+- B：最高优先级，取消当前行为并平滑返回标准站姿。
+- A：站姿初始化完成后启用或暂停运动。
+- X：预留攀爬模式，当前只暂停。
+- Y：预留对接模式，当前只暂停。
+- 第一次按B前，高层控制器不发送目标，实机舵机保持卸力。
+- 导航模式下推动运动摇杆会立即取消导航并锁存为手柄控制。
+
+## 实机启动前检查
+
+```bash
+ls -l /dev/input/js*
+ls -l /dev/serial/by-id/
+roslaunch --nodes grasp_hexapod_control run_real.launch
+```
+
+启动后可检查：
+
+```bash
+rostopic echo /joy
+rostopic echo /lf_pos
+rostopic echo /lf_des
+```
+
+必须在机器人架起的状态下确认三块板串口、舵机ID、安装方向和机械零位，
+再进行平地行走。
+
+## 文档
+
+- [启动命令与参数](src/grasp_hexapod_control/launch/README.md)
+- [ROS消息、状态机和导航接口](src/docs/ROS_INTERFACES.md)
+- [Servo协议、ID和方向](src/grasp_hexapod_servo/README.md)
+- [实机延迟测试](src/docs/SERVO_LATENCY_TEST.md)

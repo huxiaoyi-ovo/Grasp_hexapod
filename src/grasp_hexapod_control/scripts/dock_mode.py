@@ -1,214 +1,67 @@
-"""固定六足支撑下的视觉对接模式接口。
+"""固定六个足端、仅调整机身位姿的视觉对接模式。
 
-功能定位
---------
-DockMode由两个主要模块组成：
+DockMode由对接协作者实现，内部只包含两个核心部分：
 
-1. DockPerception
-   负责视觉感知，持续读取和更新插销相对卡紧机构的位姿。
-2. DockAdjustment
-   根据最新相对位姿生成机身的相对运动指令。
+1. 底部相机感知
+    - 订阅机身底部后置相机的图像；需要时同时订阅相机内参。
+    - 从图像中识别AprilTag或插销，持续估计插销相对相机的位姿。
+    - 相机不在机身中心，卡紧机构位于机身底部中心，因此必须结合标定外参，
+      把相机观测转换成“插销相对卡紧机构”的位姿，不能直接使用图像误差。
+    - 保存时间戳、置信度和是否有效；图像过期、识别失败时不得继续累积运动。
+    - 仿真和实机应使用相同的感知输出定义，图像来源由各自启动端配置。
 
-DockMode还负责记录进入对接时的六个固定足端，并把机身相对运动反变换为
-六个base_link足端目标。工作空间、碰撞、DLS和关节执行仍由control.py负责。
+2. 相对移动目标输出
+    - 根据最新相对位姿计算机身本周期需要平移和旋转的微小增量。
+    - 进入DOCK时记录六个足端支撑位置；机身移动期间足端在环境中保持不动。
+    - 对接模式所需的机身运动解算在本文件中实现：把视觉误差转换为目标机身
+      位姿，再在六个足端固定的条件下反求新base_link坐标系中的足端坐标。
+    - 可以调用kinematics.py已有的坐标变换、正运动学和雅可比等基础函数；
+      对接专用的刚体反变换和误差控制函数由协作者继续在本文件中补充。
+    - 根据位置和姿态误差判断继续调整、请求锁紧、成功或失败。
+    - control.py拒绝候选时保持上一次已接受目标，不能在错误目标上继续积分。
 
-坐标与单位
-----------
-项目统一使用+x向右、+y向前、+z向上，长度单位m，角度单位rad。
-齐次变换命名A_from_B表示把B坐标转换到A坐标：
 
-    point_A = A_from_B @ point_B
+    +x向右、+y向前、+z向上；位置单位m，角度单位rad。
+    A_from_B表示把B坐标系中的量转换到A坐标系。
+    视觉链路应明确包含相机、AprilTag、插销和卡紧机构之间的标定变换。
 
-底部相机后置安装，卡紧机构位于机身底部中心，两者不是同一个坐标系。
-感知模块必须考虑相机、AprilTag、插销和卡紧机构之间的固定外参，最终输出
-robot_dock_from_pin，而不能把camera_from_tag直接作为对接误差。
+DockMode.update()必须向control.py提供：
+    foot_positions_base：shape=(6,3)的足端候选，位于base_link坐标系。
+    active、success、failed、request_lock：当前对接状态。
+    reason：识别失效、调整失败或底层拒绝等原因。
 
-协作者需要实现
---------------
-感知模块：
-
-    获取或接收视觉数据
-    检测AprilTag或其他对接目标
-    计算插销相对卡紧机构的位姿
-    持续更新位姿、时间戳、有效性和置信度
-    处理观测丢失、过期和明显异常
-
-调整模块：
-
-    根据相对位姿判断机身需要如何调整
-    输出一次性的机身相对运动变换
-    管理对接任务的运行、成功、失败和卡紧请求
-    根据底层目标接受/拒绝反馈调整后续指令
-
-机身反变换：
-
-    进入DOCK时记录六个固定足端
-    累积调整模块给出的机身相对运动
-    调用项目GraspKinematic提供的坐标变换能力
-    计算六个足端在新base_link中的目标坐标
-    将足端候选交给control.py检查和执行
-
-开发边界
---------
-DockMode负责感知、机身相对运动决策和固定足端反变换，但不得：
-
-    直接修改controller.foot_desired_base
-    计算或发送18个关节角
-    访问舵机ID和舵机SDK
-    绕过control.py的工作空间、碰撞和限位保护
-
-相机采集、ROS订阅或仿真真值可以采用不同适配方式，但都必须转换为相同的
-DockPerceptionResult；仿真和实机必须复用相同的DockAdjustment。
+职责边界：
+    DockMode负责相机订阅、图像处理、相对位姿估计和机身移动目标生成。
+    DockMode输出的是六个足端坐标，而不是关节角；control.py负责工作空间、
+    碰撞、关节限位、DLS关节解算和唯一模式管理。
+    DockMode不直接操作Isaac Gym、舵机SDK或发送关节命令，也不绕过control.py
+    修改最终足端目标。视觉对准后仍需等待卡紧机构反馈才能宣布对接成功。
 """
-
-from dataclasses import dataclass, field
-
-import numpy as np
-
-
-@dataclass
-class DockPerceptionResult:
-    """感知模块输出的最新对接相对位姿。"""
-
-    # 插销相对卡紧机构的4×4齐次变换。
-    robot_dock_from_pin: np.ndarray = field(
-        default_factory=lambda: np.eye(4, dtype=np.float64)
-    )
-    valid: bool = False
-    timestamp: float = 0.0
-    confidence: float = 0.0
-
-
-@dataclass
-class DockMotionCommand:
-    """调整模块输出给control.py的一次性相对运动指令。"""
-
-    # 当前机身目标到下一机身目标的4×4相对变换。
-    # control.py只消费一次，并负责累积、平滑、限速和可行性检查。
-    body_motion: np.ndarray = field(
-        default_factory=lambda: np.eye(4, dtype=np.float64)
-    )
-    active: bool = False
-    success: bool = False
-    failed: bool = False
-    request_lock: bool = False
-    reason: str = ""
-
-
-@dataclass
-class DockTarget:
-    """DockMode完成机身反变换后交给control.py的足端候选。"""
-
-    # 六个固定足端在期望base_link中的位置，shape=(6,3)，单位m。
-    foot_positions_base: np.ndarray = field(
-        default_factory=lambda: np.zeros((6, 3), dtype=np.float64)
-    )
-    active: bool = False
-    success: bool = False
-    failed: bool = False
-    request_lock: bool = False
-    reason: str = ""
-
-
-class DockPerception:
-    """协作者实现的对接视觉感知模块。"""
-
-    def update(self, sensor_input) -> DockPerceptionResult:
-        """读取本周期视觉输入并返回最新相对位姿。"""
-
-        # TODO(collaborator):
-        # 实现视觉检测、坐标变换和观测状态更新。
-        raise NotImplementedError("Dock perception is not implemented yet")
-
-
-class DockAdjustment:
-    """协作者实现的机身相对运动指令生成模块。"""
-
-    def reset(self):
-        """开始新任务时清空内部状态。"""
-
-        # TODO(collaborator): 初始化调整算法内部状态。
-
-    def update(
-        self,
-        perception: DockPerceptionResult,
-        target_accepted: bool,
-        reject_reason: str,
-    ) -> DockMotionCommand:
-        """根据最新对接位姿和底层反馈生成一次相对运动指令。"""
-
-        # TODO(collaborator):
-        # 实现对接调整决策和任务结果判断。
-        raise NotImplementedError("Dock adjustment is not implemented yet")
 
 
 class DockMode:
-    """组合感知、调整和固定足端机身反变换的对接模式入口。"""
+    """最小占位接口；视觉感知和调整逻辑由对接协作者实现。"""
 
     def __init__(self, controller):
-        # 只保留公共运动学对象，不允许通过它绕过control.py的安全检查。
-        self.dt = controller.dt
-        self.kinematic = controller.kinematic
-        self.perception = DockPerception()
-        self.adjustment = DockAdjustment()
+        self.controller = controller
         self.active = False
-        self.foot_anchors_reference = None
-        self.reference_from_body_target = np.eye(
-            4,
-            dtype=np.float64,
-        )
+        self.foot_anchors_base = None
 
     def enter(self, foot_positions_base):
-        """开始新任务，并记录进入DOCK时的六个固定足端。"""
-        self.foot_anchors_reference = np.asarray(
-            foot_positions_base,
-            dtype=np.float64,
-        ).reshape(6, 3).copy()
-        self.reference_from_body_target[:] = np.eye(4)
+        """进入DOCK并记录六个固定足端。"""
+        self.foot_anchors_base = foot_positions_base.copy()
         self.active = True
-        self.adjustment.reset()
-
-    def solve_body_motion(
-        self,
-        body_motion,
-    ) -> np.ndarray:
-        """将一次机身相对运动转换成六个固定足端的base_link目标。
-
-        TODO(collaborator):
-        累积body_motion，并根据foot_anchors_reference完成机身刚体反变换。
-        可以调用self.kinematic中的坐标变换能力，但不得计算或发送关节角。
-        返回值必须是shape=(6,3)、单位m的足端候选。
-        """
-        raise NotImplementedError(
-            "Dock body-motion transform is not implemented yet"
-        )
 
     def update(
         self,
-        sensor_input,
+        robot_state,
         target_accepted=True,
         reject_reason="",
-    ) -> DockTarget:
-        """完成感知和调整，并输出六个固定足端的候选目标。"""
-        perception = self.perception.update(sensor_input)
-        motion_command = self.adjustment.update(
-            perception,
-            target_accepted,
-            reject_reason,
-        )
-        foot_positions_base = self.solve_body_motion(
-            motion_command.body_motion
-        )
-        return DockTarget(
-            foot_positions_base=foot_positions_base,
-            active=motion_command.active,
-            success=motion_command.success,
-            failed=motion_command.failed,
-            request_lock=motion_command.request_lock,
-            reason=motion_command.reason,
-        )
+    ):
+        """读取最新相机结果并输出本周期的固定足端候选。"""
+        raise NotImplementedError("DockMode is not implemented yet")
 
     def exit(self):
-        """结束或取消当前对接任务。"""
+        """退出DOCK并清空固定足端。"""
         self.active = False
-        self.foot_anchors_reference = None
+        self.foot_anchors_base = None

@@ -76,6 +76,19 @@ STAND_GEOMETRIC_ANGLES = np.tile(
 )
 Q_STAND = STAND_GEOMETRIC_ANGLES / JOINT_AXIS_SIGNS
 
+# 控制器顺序的URDF机械限位；公共控制层和Isaac Gym使用同一组边界。
+JOINT_LOWER = np.tile(
+    np.array([-2.094, -2.094, -2.094], dtype=np.float64),
+    (6, 1),
+)
+JOINT_UPPER = np.tile(
+    np.array([2.094, 2.094, 2.094], dtype=np.float64),
+    (6, 1),
+)
+JOINT_LOWER[:, 0] = [-0.698, -1.571, -0.698, -1.571, -0.698, -0.698]
+JOINT_UPPER[:, 0] = [1.571, 0.698, 0.698, 0.698, 1.571, 0.698]
+JOINT_VELOCITY_LIMIT = np.full((6, 3), 4.0, dtype=np.float64)
+
 
 def translation(x, y, z):
     """生成平移齐次变换矩阵。"""

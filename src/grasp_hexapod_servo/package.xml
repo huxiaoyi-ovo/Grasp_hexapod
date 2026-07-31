@@ -1,15 +1,17 @@
 <?xml version="1.0"?>
 <package format="2">
   <name>grasp_hexapod_servo</name>
-  <version>0.1.0</version>
-  <description>ROS driver and verified communication code for the grasp hexapod LX-15D servos.</description>
-
-  <maintainer email="huxiaoyi-ovo@users.noreply.github.com">huxiaoyi-ovo</maintainer>
-  <license>BSD-3-Clause</license>
+  <version>0.0.0</version>
+  <description>LX-15D servo driver for Grasp Hexapod</description>
+  <maintainer email="artrc@todo.todo">artrc</maintainer>
+  <license>TODO</license>
 
   <buildtool_depend>catkin</buildtool_depend>
-
-  <depend>rospy</depend>
-  <depend>std_msgs</depend>
+  <build_depend>rospy</build_depend>
+  <build_depend>std_msgs</build_depend>
+  <build_export_depend>rospy</build_export_depend>
+  <build_export_depend>std_msgs</build_export_depend>
+  <exec_depend>rospy</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
   <exec_depend>python3-serial</exec_depend>
 </package>

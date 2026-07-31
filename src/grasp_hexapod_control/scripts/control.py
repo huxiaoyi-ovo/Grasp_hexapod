@@ -75,8 +75,11 @@ class GraspController:
     CLIMB = "climb"
     DOCK = "dock"
 
-    def __init__(self, dt):
+    def __init__(self, dt, enable_link_collision_check=True):
         self.dt = dt
+        self.enable_link_collision_check = bool(
+            enable_link_collision_check
+        )
         self.kinematic = GraspKinematic()
         self.workspace_boundary = np.loadtxt(
             WORKSPACE_BOUNDARY_PATH,
@@ -366,6 +369,12 @@ class GraspController:
             q_current,
             dtype=np.float64,
         ).reshape(6, 3)
+        if not self.enable_link_collision_check:
+            # 仅绕过耗时的整机连杆胶囊碰撞检查。候选姿态在到达这里前
+            # 仍经过工作空间、足端间距和关节限位约束。
+            self.last_link_collision_free[:] = True
+            return q_candidate
+
         self.last_link_collision_free = self._link_collision_free(
             q_candidate
         )

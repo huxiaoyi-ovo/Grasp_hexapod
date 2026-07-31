@@ -52,6 +52,9 @@ class RosControlNode:
                 "~controller_rate_hz", 60.0
             )
         self.rate_hz = float(controller_rate_hz)
+        self.enable_link_collision_check = bool(
+            rospy.get_param("~enable_link_collision_check", True)
+        )
         self.max_feedback_age = float(
             rospy.get_param("~max_feedback_age", 0.15)
         )
@@ -64,8 +67,16 @@ class RosControlNode:
         if self.control_source not in ("teleop", "navigation"):
             raise ValueError("~control_source must be teleop or navigation")
 
-        self.controller = GraspController(1.0 / self.rate_hz)
+        self.controller = GraspController(
+            1.0 / self.rate_hz,
+            enable_link_collision_check=self.enable_link_collision_check,
+        )
         self.lock = Lock()
+        if not self.enable_link_collision_check:
+            rospy.logwarn(
+                "LINK COLLISION CHECK DISABLED: joint limits, workspace "
+                "projection, and inter-foot clearance checks remain enabled"
+            )
 
         # q_cur的行顺序与GraspController一致：lb、lf、lm、rb、rf、rm。
         self.q_cur = np.full((6, 3), np.nan, dtype=np.float64)

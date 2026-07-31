@@ -103,6 +103,17 @@ roslaunch grasp_hexapod_control run_real.launch \
   max_vertical_speed:=0.003
 ```
 
+工控机算力不足导致控制卡顿时，可在架空且周围无障碍的测试中临时绕过
+整机连杆自碰撞检查：
+
+```bash
+roslaunch grasp_hexapod_control run_real.launch \
+  enable_link_collision_check:=false
+```
+
+该开关默认启用。关闭后仍保留关节限位、足端工作空间投影和足端间距检查，
+但连杆之间及连杆与机身之间的自碰撞不再受保护。
+
 工控机部署时应把三个串口参数替换为稳定的
 `/dev/serial/by-id/...`路径。
 

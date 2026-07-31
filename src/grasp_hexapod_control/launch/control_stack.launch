@@ -3,6 +3,7 @@
   <arg name="control_source" default="teleop"/>
   <arg name="joy_dev" default="/dev/input/js0"/>
   <arg name="controller_rate_hz" default="60.0"/>
+  <arg name="enable_link_collision_check" default="true"/>
   <arg name="max_feedback_age" default="0.15"/>
   <arg name="max_joy_age" default="0.2"/>
   <arg name="joy_deadzone" default="0.20"/>
@@ -51,6 +52,9 @@
     required="true">
     <param name="control_source" value="$(arg control_source)"/>
     <param name="controller_rate_hz" value="$(arg controller_rate_hz)"/>
+    <param
+      name="enable_link_collision_check"
+      value="$(arg enable_link_collision_check)"/>
     <param name="max_feedback_age" value="$(arg max_feedback_age)"/>
     <param name="max_joy_age" value="$(arg max_joy_age)"/>
     <param name="button_a" value="$(arg button_a)"/>

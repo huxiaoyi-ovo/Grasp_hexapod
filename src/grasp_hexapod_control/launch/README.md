@@ -45,6 +45,24 @@ roslaunch grasp_hexapod_control run_real.launch \
   max_vertical_speed:=0.003
 ```
 
+当前工控机上三块板依次为`left=/dev/ttyUSB1`、`right=/dev/ttyUSB2`、
+`mid=/dev/ttyUSB0`。如果无法在60 Hz内完成整机连杆碰撞计算，使用下面的
+完整指令临时关闭这一项：
+
+```bash
+roslaunch grasp_hexapod_control run_real.launch \
+  joy_dev:=/dev/input/js0 \
+  left_port:=/dev/ttyUSB1 \
+  right_port:=/dev/ttyUSB2 \
+  mid_port:=/dev/ttyUSB0 \
+  enable_link_collision_check:=false
+```
+
+该参数默认是`true`。关闭后仍保留关节限位、足端工作空间投影和足端间距
+检查，但不再阻止连杆之间或连杆与机身之间的自碰撞。只能在机器人架空、
+周围无障碍且已确认运动方向正确时使用。需要恢复连杆碰撞检查时，删除
+`enable_link_collision_check:=false`或将其改成`true`。
+
 ## ROS仿真
 
 带界面的手柄模式：

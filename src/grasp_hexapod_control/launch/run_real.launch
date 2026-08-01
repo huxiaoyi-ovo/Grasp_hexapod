@@ -7,10 +7,13 @@
   <arg name="right_port" default="/dev/ttyUSB1"/>
   <arg name="mid_port" default="/dev/ttyUSB2"/>
 
-  <arg name="control_rate_hz" default="30.0"/>
+  <arg name="controller_rate_hz" default="60.0"/>
+  <arg name="enable_link_collision_check" default="true"/>
+  <arg name="servo_rate_hz" default="30.0"/>
   <arg name="command_duration_ms" default="33"/>
-  <arg name="max_feedback_age" default="0.5"/>
-  <arg name="max_joy_age" default="0.5"/>
+  <arg name="max_feedback_age" default="0.15"/>
+  <arg name="max_joy_age" default="0.2"/>
+  <arg name="joy_deadzone" default="0.20"/>
 
   <arg name="button_a" default="0"/>
   <arg name="button_b" default="1"/>
@@ -21,18 +24,26 @@
   <arg name="axis_yaw" default="3"/>
   <arg name="axis_body_down" default="4"/>
   <arg name="axis_body_up" default="5"/>
+  <arg name="axis_right_scale" default="-1.0"/>
+  <arg name="axis_forward_scale" default="1.0"/>
+  <arg name="axis_yaw_scale" default="1.0"/>
+  <arg name="axis_body_scale" default="-1.0"/>
 
-  <arg name="max_linear_speed" default="0.02"/>
-  <arg name="max_vertical_speed" default="0.005"/>
+  <arg name="max_linear_speed" default="0.20"/>
+  <arg name="max_vertical_speed" default="0.02"/>
   <arg name="xiaolan_from_left_base" default="[]"/>
   <arg name="xiaolan_from_right_base" default="[]"/>
 
   <include file="$(find grasp_hexapod_control)/launch/control_stack.launch">
     <arg name="control_source" value="$(arg mode)"/>
     <arg name="joy_dev" value="$(arg joy_dev)"/>
-    <arg name="control_rate_hz" value="$(arg control_rate_hz)"/>
+    <arg name="controller_rate_hz" value="$(arg controller_rate_hz)"/>
+    <arg
+      name="enable_link_collision_check"
+      value="$(arg enable_link_collision_check)"/>
     <arg name="max_feedback_age" value="$(arg max_feedback_age)"/>
     <arg name="max_joy_age" value="$(arg max_joy_age)"/>
+    <arg name="joy_deadzone" value="$(arg joy_deadzone)"/>
     <arg name="button_a" value="$(arg button_a)"/>
     <arg name="button_b" value="$(arg button_b)"/>
     <arg name="button_x" value="$(arg button_x)"/>
@@ -42,6 +53,10 @@
     <arg name="axis_yaw" value="$(arg axis_yaw)"/>
     <arg name="axis_body_down" value="$(arg axis_body_down)"/>
     <arg name="axis_body_up" value="$(arg axis_body_up)"/>
+    <arg name="axis_right_scale" value="$(arg axis_right_scale)"/>
+    <arg name="axis_forward_scale" value="$(arg axis_forward_scale)"/>
+    <arg name="axis_yaw_scale" value="$(arg axis_yaw_scale)"/>
+    <arg name="axis_body_scale" value="$(arg axis_body_scale)"/>
     <arg name="max_linear_speed" value="$(arg max_linear_speed)"/>
     <arg name="max_vertical_speed" value="$(arg max_vertical_speed)"/>
     <arg
@@ -56,7 +71,7 @@
     <arg name="left_port" value="$(arg left_port)"/>
     <arg name="right_port" value="$(arg right_port)"/>
     <arg name="mid_port" value="$(arg mid_port)"/>
-    <arg name="control_rate_hz" value="$(arg control_rate_hz)"/>
+    <arg name="servo_rate_hz" value="$(arg servo_rate_hz)"/>
     <arg name="command_duration_ms" value="$(arg command_duration_ms)"/>
   </include>
 </launch>

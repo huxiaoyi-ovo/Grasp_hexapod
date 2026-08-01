@@ -2,9 +2,11 @@
   <!-- 内部公共链路：joy_node + 唯一高层控制节点。 -->
   <arg name="control_source" default="teleop"/>
   <arg name="joy_dev" default="/dev/input/js0"/>
-  <arg name="control_rate_hz" default="30.0"/>
-  <arg name="max_feedback_age" default="0.5"/>
-  <arg name="max_joy_age" default="0.5"/>
+  <arg name="controller_rate_hz" default="60.0"/>
+  <arg name="enable_link_collision_check" default="true"/>
+  <arg name="max_feedback_age" default="0.15"/>
+  <arg name="max_joy_age" default="0.2"/>
+  <arg name="joy_deadzone" default="0.20"/>
 
   <arg name="button_a" default="0"/>
   <arg name="button_b" default="1"/>
@@ -15,9 +17,13 @@
   <arg name="axis_yaw" default="3"/>
   <arg name="axis_body_down" default="4"/>
   <arg name="axis_body_up" default="5"/>
+  <arg name="axis_right_scale" default="-1.0"/>
+  <arg name="axis_forward_scale" default="1.0"/>
+  <arg name="axis_yaw_scale" default="1.0"/>
+  <arg name="axis_body_scale" default="-1.0"/>
 
-  <arg name="max_linear_speed" default="0.02"/>
-  <arg name="max_vertical_speed" default="0.005"/>
+  <arg name="max_linear_speed" default="0.20"/>
+  <arg name="max_vertical_speed" default="0.02"/>
   <arg name="max_pose_age" default="0.5"/>
   <arg name="base_pose_topic" default="/grasp_hexapod/navigation/base_pose"/>
   <arg name="xiaolan_pose_topic" default="/grasp_hexapod/navigation/xiaolan_pose"/>
@@ -33,9 +39,9 @@
     output="screen"
     required="true">
     <param name="dev" value="$(arg joy_dev)"/>
-    <param name="deadzone" value="0.08"/>
-    <param name="autorepeat_rate" value="30.0"/>
-    <param name="coalesce_interval" value="0.01"/>
+    <param name="deadzone" value="$(arg joy_deadzone)"/>
+    <param name="autorepeat_rate" value="60.0"/>
+    <param name="coalesce_interval" value="0.001"/>
   </node>
 
   <node
@@ -45,7 +51,10 @@
     output="screen"
     required="true">
     <param name="control_source" value="$(arg control_source)"/>
-    <param name="control_rate_hz" value="$(arg control_rate_hz)"/>
+    <param name="controller_rate_hz" value="$(arg controller_rate_hz)"/>
+    <param
+      name="enable_link_collision_check"
+      value="$(arg enable_link_collision_check)"/>
     <param name="max_feedback_age" value="$(arg max_feedback_age)"/>
     <param name="max_joy_age" value="$(arg max_joy_age)"/>
     <param name="button_a" value="$(arg button_a)"/>
@@ -57,6 +66,10 @@
     <param name="axis_yaw" value="$(arg axis_yaw)"/>
     <param name="axis_body_down" value="$(arg axis_body_down)"/>
     <param name="axis_body_up" value="$(arg axis_body_up)"/>
+    <param name="axis_right_scale" value="$(arg axis_right_scale)"/>
+    <param name="axis_forward_scale" value="$(arg axis_forward_scale)"/>
+    <param name="axis_yaw_scale" value="$(arg axis_yaw_scale)"/>
+    <param name="axis_body_scale" value="$(arg axis_body_scale)"/>
     <param name="max_linear_speed" value="$(arg max_linear_speed)"/>
     <param name="max_vertical_speed" value="$(arg max_vertical_speed)"/>
     <param name="navigation_linear_speed" value="$(arg max_linear_speed)"/>

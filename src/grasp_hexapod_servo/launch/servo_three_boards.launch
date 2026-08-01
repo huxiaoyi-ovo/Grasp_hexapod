@@ -1,17 +1,17 @@
 <launch>
   <!-- 三块板分别管理两条腿；ID和方向的唯一默认值在servo.py中。 -->
-  <arg name="left_port" default="/dev/ttyUSB0"/>
-  <arg name="right_port" default="/dev/ttyUSB1"/>
-  <arg name="mid_port" default="/dev/ttyUSB2"/>
+  <arg name="left_port" default="/dev/ttyUSB1"/>
+  <arg name="right_port" default="/dev/ttyUSB2"/>
+  <arg name="mid_port" default="/dev/ttyUSB0"/>
   <arg name="baudrate" default="115200"/>
-  <arg name="control_rate_hz" default="30.0"/>
+  <arg name="servo_rate_hz" default="30.0"/>
   <arg name="command_duration_ms" default="33"/>
 
   <node pkg="grasp_hexapod_servo" type="servo.py" name="servo_left_node" output="screen">
     <param name="side" value="left"/>
     <param name="port" value="$(arg left_port)"/>
     <param name="baudrate" value="$(arg baudrate)"/>
-    <param name="control_rate_hz" value="$(arg control_rate_hz)"/>
+    <param name="servo_rate_hz" value="$(arg servo_rate_hz)"/>
     <param name="command_duration_ms" value="$(arg command_duration_ms)"/>
   </node>
 
@@ -19,7 +19,7 @@
     <param name="side" value="right"/>
     <param name="port" value="$(arg right_port)"/>
     <param name="baudrate" value="$(arg baudrate)"/>
-    <param name="control_rate_hz" value="$(arg control_rate_hz)"/>
+    <param name="servo_rate_hz" value="$(arg servo_rate_hz)"/>
     <param name="command_duration_ms" value="$(arg command_duration_ms)"/>
   </node>
 
@@ -27,7 +27,7 @@
     <param name="side" value="mid"/>
     <param name="port" value="$(arg mid_port)"/>
     <param name="baudrate" value="$(arg baudrate)"/>
-    <param name="control_rate_hz" value="$(arg control_rate_hz)"/>
+    <param name="servo_rate_hz" value="$(arg servo_rate_hz)"/>
     <param name="command_duration_ms" value="$(arg command_duration_ms)"/>
   </node>
 </launch>

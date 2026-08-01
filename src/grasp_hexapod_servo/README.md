@@ -60,19 +60,18 @@
 
 | 话题名 | 类型 | 说明 |
 |--------|------|------|
-| `/<leg>_pos` | `std_msgs/Float64MultiArray` | 第 `<leg>` 条腿三个关节的实时位置反馈 |
+| `/<leg>_pos` | `sensor_msgs/JointState` | 第 `<leg>` 条腿三个关节的带时间戳反馈 |
 
 ### `/<leg>_pos` 数据格式
 
-数组固定长度为 3：
+```text
+header.stamp: 本腿三个关节读取完成时间
+name: [<leg>_thigh_joint, <leg>_knee_joint, <leg>_ankle_joint]
+position: [thigh_pos, knee_pos, ankle_pos]
+```
 
-| 索引 | 字段 | 说明 |
-|------|------|------|
-| 0 | `thigh_pos` | thigh 关节当前位置，单位 **rad** |
-| 1 | `knee_pos` | knee 关节当前位置，单位 **rad** |
-| 2 | `ankle_pos` | ankle 关节当前位置，单位 **rad** |
-
-> 位置由舵机原始脉冲值（0~1000）经中位 500 换算而来，并乘以对应 `~directions` 方向系数。若某舵机读数失败，对应元素为 `nan`。
+位置由舵机原始脉冲值（0~1000）经中位500换算而来，并乘以对应
+`~directions`方向系数。一条腿三个关节全部读取成功时才发布新反馈。
 
 ---
 
@@ -92,7 +91,7 @@
 | `~side` | `string` | `left` | 驱动板标识：`left`、`right` 或 `mid` |
 | `~port` | `string` | 见上表 | 串口设备路径，按 `side` 自动选择默认值 |
 | `~baudrate` | `int` | `115200` | 串口波特率 |
-| `~control_rate_hz` | `float` | `30.0` | 控制循环频率（Hz），决定读/写舵机的周期 |
+| `~servo_rate_hz` | `float` | `30.0` | Servo串口读写频率（Hz） |
 | `~command_duration_ms` | `int` | `33` | 舵机单次转动指令的目标耗时（ms），传给 LX-15D 的 `MOVE_TIME_WRITE` |
 | `~directions` | `list<int>` | 按板配置 | 可选覆盖值；顺序与该板舵机 ID 顺序一致 |
 
@@ -161,5 +160,6 @@ grasp_hexapod_servo/
 
 1. 本板两条腿必须都收到完整目标且都请求加载，整块板才开始写入位置。
 2. 任一腿的`power_status=0`都会卸载该板全部六个舵机。
-3. 若某舵机读数超时，对应 `/<leg>_pos` 元素为 `nan`，不影响其他舵机。
-4. 串口设备名（`/dev/ttyUSB*`）可能因插拔顺序变化，建议在系统层用 `udev` 规则固定别名。
+3. 每周期先写最新目标，再读取反馈；旧目标不会排队补发。
+4. 舵机读取失败最多即时重试一次，仍失败时跳过本腿本周期反馈。
+5. 串口设备名（`/dev/ttyUSB*`）可能因插拔顺序变化，建议在系统层用 `udev` 规则固定别名。

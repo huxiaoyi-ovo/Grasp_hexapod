@@ -94,20 +94,14 @@ class HiwonderServoController:
         # packet: 0x55  0x55  ID LENGTH INSTRUCTION PARAM_1 ... CHECKSUM
         packet = [0x55, 0x55, servo_id, length, cmd, checksum]
         
-        data = []
         with self.serial_mutex:
-            for i in range(10):
-                try:
-                    self.__write_serial(packet)
-                    # wait for response packet from the motor
-                    # read response
-                    data = self.__read_response(servo_id)
-                    timestamp = time.time()
-                    data.append(timestamp)
-                    break
-                except Exception as e:
-                    if i == 49:
-                        raise e
+            try:
+                self.__write_serial(packet)
+                data = self.__read_response(servo_id)
+            except (DroppedPacketError, ChecksumError):
+                return []
+
+        data.append(time.time())
         return data
 
     def write(self, servo_id, cmd, params):

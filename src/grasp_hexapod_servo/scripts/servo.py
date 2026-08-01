@@ -13,7 +13,7 @@
 
 发布：
     /<leg>_pos
-    [thigh_pos, knee_pos, ankle_pos]
+    sensor_msgs/JointState，包含时间戳和三个关节位置。
 
 ROS侧角度单位统一为rad。
 """
@@ -27,7 +27,8 @@ from threading import Lock
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import rospy
-from std_msgs.msg import Float64MultiArray
+from sensor_msgs.msg import JointState
+from std_msgs.msg import Float64MultiArray, Header
 
 import hiwonder_servo_controller
 
@@ -87,8 +88,8 @@ class ServoSideNode:
         self.baudrate = int(
             rospy.get_param("~baudrate", 115200) # pyright: ignore[reportArgumentType]
         )
-        self.control_rate_hz = float(
-            rospy.get_param("~control_rate_hz", 30.0) # type: ignore
+        self.servo_rate_hz = float(
+            rospy.get_param("~servo_rate_hz", 30.0)
         )
         self.command_duration_ms = int(
             rospy.get_param("~command_duration_ms", 33) # pyright: ignore[reportArgumentType]
@@ -154,13 +155,13 @@ class ServoSideNode:
 
             self.pos_pubs[leg] = rospy.Publisher(
                 f"/{leg}_pos",
-                Float64MultiArray,
+                JointState,
                 queue_size=1,
             )
 
         self.timer = rospy.Timer(
             rospy.Duration(
-                1.0 / self.control_rate_hz
+                1.0 / self.servo_rate_hz
             ),
             self.control_loop,
         )
@@ -172,7 +173,7 @@ class ServoSideNode:
             self.port,
             ",".join(self.legs),
             self.servo_ids,
-            self.control_rate_hz,
+            self.servo_rate_hz,
         )
 
     def _load_directions(self):
@@ -316,46 +317,18 @@ class ServoSideNode:
             / self.resolution
         )
 
+    def _read_position(self, servo_id):
+        """读取一次位置；失败时只追加一次即时重试。"""
+        position = self.control.get_servo_position(servo_id)
+        if position is None:
+            position = self.control.get_servo_position(servo_id)
+        return position
+
     def control_loop(self, _event):
-        """顺序完成反馈读取、板级加载切换和目标写入。"""
+        """执行最新目标，再读取并发布本周期有效反馈。"""
 
-        if not self.lock.acquire(False):
-            return
-
-        try:
-            # 一、始终读取并发布六个舵机的位置。
-            for leg in self.legs:
-                read_position = []
-
-                for servo_id in self.id_map[leg]:
-                    raw_position = (
-                        self.control.get_servo_position(
-                            servo_id
-                        )
-                    )
-
-                    if raw_position is None:
-                        read_position.append(
-                            float("nan")
-                        )
-                    else:
-                        read_position.append(
-                            self.servo_to_rad(
-                                raw_position,
-                                self.directions[
-                                    servo_id
-                                ],
-                            )
-                        )
-
-                self.pos_pubs[leg].publish(
-                    Float64MultiArray(
-                        data=read_position
-                    )
-                )
-
-            # 二、两条腿都收到目标并且都请求加载时，
-            # 才统一加载这块板的六个舵机。
+        # 回调只更新缓存；串口操作期间不持有缓存锁。
+        with self.lock:
             targets_ready = all(
                 self.received_des.values()
             )
@@ -363,31 +336,64 @@ class ServoSideNode:
                 targets_ready
                 and all(self.power_request.values())
             )
+            target_snapshot = {
+                leg: tuple(self.des_pos[leg])
+                for leg in self.legs
+            }
 
-            if requested_on != self.power_on:
-                self._set_board_power(requested_on)
+        if requested_on != self.power_on:
+            self._set_board_power(requested_on)
 
-            # 三、只有整块板加载后才写入目标。
-            if not self.power_on:
-                return
-
+        # 一、优先写入最新目标，避免反馈读取占用本周期命令延迟。
+        if self.power_on:
             for leg in self.legs:
                 for joint_index, servo_id in enumerate(
                     self.id_map[leg]
                 ):
                     servo_position = self.rad_to_servo(
-                        self.des_pos[leg][joint_index],
+                        target_snapshot[leg][joint_index],
                         self.directions[servo_id],
                     )
-
                     self.control.set_servo_position(
                         servo_id,
                         servo_position,
                         self.command_duration_ms,
                     )
 
-        finally:
-            self.lock.release()
+        # 二、一条腿三个位置都有效时才发布一帧带时间戳的反馈。
+        for leg in self.legs:
+            read_position = []
+            for servo_id in self.id_map[leg]:
+                raw_position = self._read_position(servo_id)
+                if raw_position is None:
+                    read_position = []
+                    break
+                read_position.append(
+                    self.servo_to_rad(
+                        raw_position,
+                        self.directions[servo_id],
+                    )
+                )
+
+            if not read_position:
+                rospy.logwarn_throttle(
+                    1.0,
+                    "Servo feedback unavailable: %s",
+                    leg,
+                )
+                continue
+
+            self.pos_pubs[leg].publish(
+                JointState(
+                    header=Header(stamp=rospy.Time.now()),
+                    name=[
+                        f"{leg}_thigh_joint",
+                        f"{leg}_knee_joint",
+                        f"{leg}_ankle_joint",
+                    ],
+                    position=read_position,
+                )
+            )
 
 
 if __name__ == "__main__":

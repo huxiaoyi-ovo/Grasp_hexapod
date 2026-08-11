@@ -87,7 +87,32 @@ JOINT_UPPER = np.tile(
 )
 JOINT_LOWER[:, 0] = [-0.698, -1.571, -0.698, -1.571, -0.698, -0.698]
 JOINT_UPPER[:, 0] = [1.571, 0.698, 0.698, 0.698, 1.571, 0.698]
-JOINT_VELOCITY_LIMIT = np.full((6, 3), 4.0, dtype=np.float64)
+# LX-15D空载6.5~10.5 rad/s(0.16s/60°@5V ~ 0.10s/60°@6V)；0.4m/s需7.65，取6V档76%。
+JOINT_VELOCITY_LIMIT = np.full((6, 3), 8.0, dtype=np.float64)
+
+# M1A 估计惯性/几何模型，来自 hexapod_isaacgym_view.urdf。它们是模型估计，
+# 不是实机测量真值。连杆顺序为 thigh/knee/ankle/foot；腿顺序采用
+# LEG_NAMES 的稳定控制器顺序。位置单位 m，质量单位 kg。
+ESTIMATED_MODEL_LINK_NAMES = ("thigh", "knee", "ankle", "foot")
+ESTIMATED_BASE_MASS = np.float64(3.0)
+ESTIMATED_BASE_COM = np.array(
+    [0.00048381, 0.0032191, 0.050559],
+    dtype=np.float64,
+)
+ESTIMATED_LEG_LINK_MASSES = np.array(
+    [0.071, 0.079, 0.092, 0.005],
+    dtype=np.float64,
+)
+ESTIMATED_LEG_LINK_COMS = np.array(
+    [
+        [0.019013, 0.00032996, 0.00086404],
+        [0.024, 0.00029496, 0.00084694],
+        [0.037761, -0.014128, 0.0005094],
+        [0.0, 0.0, 0.0],
+    ],
+    dtype=np.float64,
+)
+ESTIMATED_TOTAL_MASS = np.float64(4.482)
 
 
 def translation(x, y, z):
@@ -330,3 +355,95 @@ class GraspKinematic:
     def forward_base(self, joint_angles):
         """计算六个足端球心在base_link中的位置。"""
         return self.hip_to_base(self.forward(joint_angles))
+
+    def link_transforms_base(self, joint_angles):
+        """返回 base 到各连杆的变换，shape=(6,4,4,4)。"""
+        joint_angles = np.asarray(
+            joint_angles,
+            dtype=np.float64,
+        ).reshape(6, 3)
+        transforms = np.empty((6, 4, 4, 4), dtype=np.float64)
+
+        for leg_index in range(6):
+            theta = JOINT_AXIS_SIGNS[leg_index] * joint_angles[leg_index]
+            thigh = self.base_from_hip[leg_index] @ rotation_z(theta[0])
+            knee = thigh @ self.thigh_to_knee_origin @ rotation_z(theta[1])
+            ankle = (
+                knee
+                @ self.knee_to_ankle_origin
+                @ rotation_z(theta[2])
+            )
+            foot = ankle @ self.ankle_to_foot
+            transforms[leg_index, 0] = thigh
+            transforms[leg_index, 1] = knee
+            transforms[leg_index, 2] = ankle
+            transforms[leg_index, 3] = foot
+
+        return transforms
+
+    def link_com_positions_base(self, joint_angles):
+        """返回模型估计的连杆 COM，shape=(6,4,3)，坐标在 base_link、单位 m。"""
+        joint_angles = np.asarray(
+            joint_angles,
+            dtype=np.float64,
+        ).reshape(6, 3)
+        transforms = self.link_transforms_base(joint_angles)
+        com_positions = np.empty((6, 4, 3), dtype=np.float64)
+
+        for leg_index in range(6):
+            for link_index in range(4):
+                local_com = np.append(
+                    ESTIMATED_LEG_LINK_COMS[link_index],
+                    1.0,
+                )
+                com_positions[leg_index, link_index] = (
+                    transforms[leg_index, link_index] @ local_com
+                )[:3]
+
+        return com_positions
+
+    def center_of_mass_base(self, joint_angles):
+        """返回模型估计的整机 COM，shape=(3,)，坐标在 base_link、单位 m。"""
+        joint_angles = np.asarray(
+            joint_angles,
+            dtype=np.float64,
+        ).reshape(6, 3)
+        weighted_com = ESTIMATED_BASE_MASS * ESTIMATED_BASE_COM
+        link_coms = self.link_com_positions_base(joint_angles)
+        weighted_com += np.sum(
+            link_coms * ESTIMATED_LEG_LINK_MASSES[np.newaxis, :, np.newaxis],
+            axis=(0, 1),
+        )
+        return weighted_com / ESTIMATED_TOTAL_MASS
+
+    def terminal_axes_base(self, joint_angles):
+        """返回归一化 ankle 到足端轴，shape=(6,3)，坐标在 base_link。非接触/承载证据。"""
+        joint_angles = np.asarray(
+            joint_angles,
+            dtype=np.float64,
+        ).reshape(6, 3)
+        transforms = self.link_transforms_base(joint_angles)
+        vectors = transforms[:, 3, :3, 3] - transforms[:, 2, :3, 3]
+        norms = np.linalg.norm(vectors, axis=1)
+        if not np.all(np.isfinite(vectors)) or np.any(norms <= 0.0):
+            raise ValueError("terminal axis has zero or non-finite length")
+        return vectors / norms[:, np.newaxis]
+
+    def jacobian_min_singular_values(self, joint_angles):
+        """返回解析足端雅可比的每腿最小奇异值，shape=(6,)，单位 m/rad。"""
+        singular_values = np.linalg.svd(
+            self.jacobian(joint_angles),
+            compute_uv=False,
+        )
+        return np.min(singular_values, axis=1)
+
+    def joint_limit_margins(self, joint_angles):
+        """返回每关节 min(q-lower, upper-q)，shape=(6,3)，单位 rad；越限时为负。"""
+        joint_angles = np.asarray(
+            joint_angles,
+            dtype=np.float64,
+        ).reshape(6, 3)
+        return np.minimum(
+            joint_angles - JOINT_LOWER,
+            JOINT_UPPER - joint_angles,
+        )

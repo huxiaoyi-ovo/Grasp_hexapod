@@ -10,8 +10,6 @@
 
   <arg name="button_a" default="0"/>
   <arg name="button_b" default="1"/>
-  <arg name="button_x" default="2"/>
-  <arg name="button_y" default="3"/>
   <arg name="axis_right" default="0"/>
   <arg name="axis_forward" default="1"/>
   <arg name="axis_yaw" default="3"/>
@@ -59,8 +57,6 @@
     <param name="max_joy_age" value="$(arg max_joy_age)"/>
     <param name="button_a" value="$(arg button_a)"/>
     <param name="button_b" value="$(arg button_b)"/>
-    <param name="button_x" value="$(arg button_x)"/>
-    <param name="button_y" value="$(arg button_y)"/>
     <param name="axis_right" value="$(arg axis_right)"/>
     <param name="axis_forward" value="$(arg axis_forward)"/>
     <param name="axis_yaw" value="$(arg axis_yaw)"/>

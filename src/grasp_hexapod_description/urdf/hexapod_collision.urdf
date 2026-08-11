@@ -105,7 +105,7 @@
     <collision>
       <origin xyz="0.05830 -0.040075 -0.000125" rpy="0 0 -0.6024"/>
       <geometry>
-        <box size="0.130 0.022 0.022"/>
+        <box size="0.130 0.006 0.006"/>
       </geometry>
     </collision>
   </link>
@@ -220,7 +220,7 @@
     <collision>
       <origin xyz="0.05830 -0.040075 -0.000125" rpy="0 0 -0.6024"/>
       <geometry>
-        <box size="0.130 0.022 0.022"/>
+        <box size="0.130 0.006 0.006"/>
       </geometry>
     </collision>
   </link>
@@ -335,7 +335,7 @@
     <collision>
       <origin xyz="0.05830 -0.040075 -0.000125" rpy="0 0 -0.6024"/>
       <geometry>
-        <box size="0.130 0.022 0.022"/>
+        <box size="0.130 0.006 0.006"/>
       </geometry>
     </collision>
   </link>
@@ -450,7 +450,7 @@
     <collision>
       <origin xyz="0.05830 -0.040075 -0.000125" rpy="0 0 -0.6024"/>
       <geometry>
-        <box size="0.130 0.022 0.022"/>
+        <box size="0.130 0.006 0.006"/>
       </geometry>
     </collision>
   </link>
@@ -565,7 +565,7 @@
     <collision>
       <origin xyz="0.05830 -0.040075 -0.000125" rpy="0 0 -0.6024"/>
       <geometry>
-        <box size="0.130 0.022 0.022"/>
+        <box size="0.130 0.006 0.006"/>
       </geometry>
     </collision>
   </link>
@@ -680,7 +680,7 @@
     <collision>
       <origin xyz="0.05830 -0.040075 -0.000125" rpy="0 0 -0.6024"/>
       <geometry>
-        <box size="0.130 0.022 0.022"/>
+        <box size="0.130 0.006 0.006"/>
       </geometry>
     </collision>
   </link>

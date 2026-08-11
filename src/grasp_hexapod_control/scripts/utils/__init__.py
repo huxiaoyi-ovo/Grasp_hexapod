@@ -6,10 +6,30 @@
 """
 
 from dataclasses import dataclass, field
+from pathlib import Path
 
 import numpy as np
 
 from kinematics import JOINT_NAMES, LEG_NAMES
+
+
+def package_config_path(filename):
+    """从源码或 ROS 包共享目录返回控制包配置文件。"""
+
+    source_path = Path(__file__).resolve().parents[2] / "config" / filename
+    if source_path.is_file():
+        return source_path
+
+    import rospkg
+
+    package_path = (
+        Path(rospkg.RosPack().get_path("grasp_hexapod_control"))
+        / "config"
+        / filename
+    )
+    if package_path.is_file():
+        return package_path
+    raise FileNotFoundError("control config not found: " + str(filename))
 
 
 @dataclass
@@ -49,6 +69,49 @@ class NavigationState:
                 dtype=np.float64,
             ).reshape(-1, 2).copy(),
         )
+
+
+def pose_to_transform(pose):
+    """把ROS Pose转换为齐次变换；无效四元数返回None。"""
+
+    quaternion = np.array(
+        [
+            pose.orientation.x,
+            pose.orientation.y,
+            pose.orientation.z,
+            pose.orientation.w,
+        ],
+        dtype=np.float64,
+    )
+    norm = np.linalg.norm(quaternion)
+    if norm == 0.0:
+        return None
+    x, y, z, w = quaternion / norm
+
+    transform = np.eye(4, dtype=np.float64)
+    transform[:3, :3] = [
+        [
+            1.0 - 2.0 * (y * y + z * z),
+            2.0 * (x * y - z * w),
+            2.0 * (x * z + y * w),
+        ],
+        [
+            2.0 * (x * y + z * w),
+            1.0 - 2.0 * (x * x + z * z),
+            2.0 * (y * z - x * w),
+        ],
+        [
+            2.0 * (x * z - y * w),
+            2.0 * (y * z + x * w),
+            1.0 - 2.0 * (x * x + y * y),
+        ],
+    ]
+    transform[:3, 3] = [
+        pose.position.x,
+        pose.position.y,
+        pose.position.z,
+    ]
+    return transform if np.isfinite(transform).all() else None
 
 
 CONTROL_DOF_NAMES = tuple(
@@ -99,32 +162,11 @@ def wrap_angle(angle):
     return (angle + np.pi) % (2.0 * np.pi) - np.pi
 
 
-def transform_from_xy_yaw(x, y, yaw):
-    """生成只包含平面位置和偏航角的4×4齐次变换。"""
-
-    cosine = np.cos(yaw)
-    sine = np.sin(yaw)
-    transform = np.eye(4, dtype=np.float64)
-    transform[:2, :2] = [[cosine, -sine], [sine, cosine]]
-    transform[:2, 3] = [x, y]
-    return transform
-
-
 def yaw_from_transform(transform):
     """读取4×4齐次变换中的偏航角，单位rad。"""
 
     transform = np.asarray(transform, dtype=np.float64).reshape(4, 4)
     return np.arctan2(transform[1, 0], transform[0, 0])
-
-
-def invert_transform(transform):
-    """计算刚体齐次变换的逆。"""
-
-    transform = np.asarray(transform, dtype=np.float64).reshape(4, 4)
-    inverse = np.eye(4, dtype=np.float64)
-    inverse[:3, :3] = transform[:3, :3].T
-    inverse[:3, 3] = -inverse[:3, :3] @ transform[:3, 3]
-    return inverse
 
 
 def transform_points(transform, points):

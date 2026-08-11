@@ -86,13 +86,13 @@ class ServoSideNode:
             config["port"],
         )
         self.baudrate = int(
-            rospy.get_param("~baudrate", 115200) # pyright: ignore[reportArgumentType]
+            rospy.get_param("~baudrate", 115200)
         )
         self.servo_rate_hz = float(
             rospy.get_param("~servo_rate_hz", 30.0)
         )
         self.command_duration_ms = int(
-            rospy.get_param("~command_duration_ms", 33) # pyright: ignore[reportArgumentType]
+            rospy.get_param("~command_duration_ms", 33)
         )
 
         # 一块板固定管理六个舵机。

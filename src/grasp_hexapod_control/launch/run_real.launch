@@ -17,8 +17,6 @@
 
   <arg name="button_a" default="0"/>
   <arg name="button_b" default="1"/>
-  <arg name="button_x" default="2"/>
-  <arg name="button_y" default="3"/>
   <arg name="axis_right" default="0"/>
   <arg name="axis_forward" default="1"/>
   <arg name="axis_yaw" default="3"/>
@@ -46,8 +44,6 @@
     <arg name="joy_deadzone" value="$(arg joy_deadzone)"/>
     <arg name="button_a" value="$(arg button_a)"/>
     <arg name="button_b" value="$(arg button_b)"/>
-    <arg name="button_x" value="$(arg button_x)"/>
-    <arg name="button_y" value="$(arg button_y)"/>
     <arg name="axis_right" value="$(arg axis_right)"/>
     <arg name="axis_forward" value="$(arg axis_forward)"/>
     <arg name="axis_yaw" value="$(arg axis_yaw)"/>

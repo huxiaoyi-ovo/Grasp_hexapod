@@ -2,7 +2,7 @@
 <package format="2">
   <name>grasp_hexapod_servo</name>
   <version>0.0.0</version>
-  <description>LX-15D servo driver for Grasp Hexapod</description>
+  <description>Grasp Hexapod 的 LX-15D 舵机驱动。</description>
   <maintainer email="artrc@todo.todo">artrc</maintainer>
   <license>TODO</license>
 

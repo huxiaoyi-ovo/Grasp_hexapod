@@ -78,9 +78,8 @@ class ApproachMode:
         self.gaits[TRIPOD_A_INDICES] = True
         self.stance_group_index = 0
 
-        # 每个摆动相固定为0.30 s；0.20 m/s满杆时，
-        # 单相机身位移约60 mm。
-        self.phase_duration = 0.30
+        # 摆动相0.45 s；0.20 m/s满杆时单相机身位移约100 mm。
+        self.phase_duration = 0.45
         self.phase_time = 0.0
 
         # 共同支撑目标为50 ms，并量化到最接近的整数控制帧：
@@ -93,7 +92,9 @@ class ApproachMode:
         self.transfer_time = 0.0
         self.transfer_active = False
 
-        self.step_height = 0.020
+        self.step_height = 0.030
+        # 梯形剖面加减速段占比, 峰值速度 = step_height/(0.5*T*(1-a))
+        self.lift_accel_fraction = 0.15
         self.phase_command = np.zeros(4, dtype=np.float64)
         self.stop_requested = False
 
@@ -366,6 +367,18 @@ class ApproachMode:
     def _smooth_step(phase):
         return 10.0 * phase**3 - 15.0 * phase**4 + 6.0 * phase**5
 
+    def _trapezoid_rise(self, u):
+        """梯形升起剖面(归一化0→1): smoothstep加速-匀速-减速, 峰值速度=1/(T_rise·(1-a))。"""
+        a = self.lift_accel_fraction
+        v = 1.0 / (1.0 - a)
+        if u <= a:
+            return v * a * 0.5 * self._smooth_step(u / a)
+        if u <= 1.0 - a:
+            return v * (a * 0.5 + (u - a))
+        return v * (
+            1.0 - 1.5 * a + 0.5 * a * self._smooth_step((u - 1.0 + a) / a)
+        )
+
     @staticmethod
     def _quintic_segment(
         start,
@@ -477,7 +490,7 @@ class ApproachMode:
         target_feasible = controller._workspace_feasible(
             self.swing_target_base
         )
-        if not target_feasible[swing_indices].all():
+        if controller.enable_workspace_check and not target_feasible[swing_indices].all():
             projected_target = controller._project_workspace(
                 self.swing_target_base
             )
@@ -641,14 +654,9 @@ class ApproachMode:
         self.foot_velocity_xy[swing_indices] = swing_velocity
 
         if phase < 0.5:
-            lift_height = (
-                self.step_height * self._smooth_step(2.0 * phase)
-            )
+            lift_height = self.step_height * self._trapezoid_rise(2.0 * phase)
         else:
-            lift_height = (
-                self.step_height
-                * self._smooth_step(2.0 * (1.0 - phase))
-            )
+            lift_height = self.step_height * self._trapezoid_rise(2.0 * (1.0 - phase))
         candidate_base[swing_indices, 2] = (
             ground_z[swing_indices] + lift_height
         )

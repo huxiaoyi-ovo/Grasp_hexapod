@@ -18,6 +18,7 @@
 
 import argparse
 import csv
+import json
 from pathlib import Path
 import struct
 import sys
@@ -39,13 +40,16 @@ if not (scripts_dir / "control.py").exists():
 sys.path.insert(0, str(scripts_dir))
 
 from control import GraspController
+from climb_mode import ClimbMode
 from kinematics import LEG_NAMES
 from utils import (
     CONTROL_DOF_NAMES,
     build_dof_indices,
     control_to_external,
     external_to_control,
+    package_config_path,
 )
+from utils.climb import resolve_compact_stage_range
 
 # Isaac Gym的C扩展没有完整类型声明，编辑器无法静态识别其动态属性。
 gymapi: Any = _gymapi
@@ -184,49 +188,84 @@ def parse_arguments():
         nargs="?",
         const=DEFAULT_TRACE_PATH,
         type=Path,
-        help="run the fixed motion sequence and write its CSV trace",
+        help="执行固定动作序列并写入 CSV 轨迹",
     )
     parser.add_argument(
         "--headless",
         action="store_true",
-        help="run trace recording or ROS simulation without the viewer",
+        help="无 viewer 运行轨迹记录或 ROS 仿真",
     )
     parser.add_argument(
         "--ros",
         action="store_true",
-        help="use ROS Joy/navigation input with synchronous simulation control",
+        help="使用 ROS Joy/导航输入及同步仿真控制",
     )
     parser.add_argument(
         "--control-rate",
         type=float,
         choices=(30.0, 60.0),
         default=60.0,
-        help="controller update rate",
+        help="控制器更新频率",
     )
     parser.add_argument(
         "--actuator-rate",
         type=float,
         choices=(30.0, 60.0),
         default=60.0,
-        help="rate at which joint targets are applied to Isaac Gym",
+        help="向 Isaac Gym 写入关节目标的频率",
     )
     parser.add_argument(
         "--physics-rate",
         type=float,
         default=240.0,
-        help="fixed Isaac Gym physics rate",
+        help="固定的 Isaac Gym 物理频率",
     )
     parser.add_argument(
         "--max-linear-speed",
         type=float,
-        default=0.20,
-        help="direct-control and trace planar speed in m/s",
+        default=0.22,
+        help="直接控制与轨迹的平面速度，单位 m/s",
+    )
+    parser.add_argument(
+        "--climb-start",
+        action="store_true",
+        help="加载 compact 攀爬场景并立即回放",
+    )
+    parser.add_argument(
+        "--climb-scene",
+        action="store_true",
+        help="加载 compact 所选起点与小蓝场景，等待 X 启动",
+    )
+    parser.add_argument(
+        "--climb-speed",
+        type=float,
+        default=4.0,
+        help="compact 攀爬回放速度倍率，默认 4.0",
+    )
+    parser.add_argument(
+        "--climb-joint-speed",
+        type=float,
+        default=1.5,
+        help="compact 攀爬关节驱动响应倍率，默认 1.5",
+    )
+    parser.add_argument(
+        "--climb-from",
+        help="compact 闭区间起点（C1..C35 或运行时阶段名）",
+    )
+    parser.add_argument(
+        "--climb-to",
+        help="compact 闭区间终点（C1..C35 或运行时阶段名）",
+    )
+    parser.add_argument(
+        "--climb-metrics",
+        type=Path,
+        help="把 simulation-only compact 诊断指标写为 JSON",
     )
     parser.add_argument(
         "--max-vertical-speed",
         type=float,
         default=0.02,
-        help="direct-control body-height speed in m/s",
+        help="直接控制的机身升降速度，单位 m/s",
     )
     # roslaunch会附加__name:=和__log:=；普通命令行参数仍严格检查。
     argv = [
@@ -235,6 +274,121 @@ def parse_arguments():
         if not argument.startswith("__")
     ]
     return parser.parse_args(argv)
+
+
+def _compact_root_quaternion(base):
+    """返回与 ClimbMode._world_from_base 的 Ry(pitch) @ Rx(roll) 一致的四元数。"""
+
+    _, _, _, roll, pitch = np.asarray(base, dtype=np.float64)
+    half_roll, half_pitch = roll / 2.0, pitch / 2.0
+    sx, cx = np.sin(half_roll), np.cos(half_roll)
+    sy, cy = np.sin(half_pitch), np.cos(half_pitch)
+    return gymapi.Quat(
+        float(cy * sx), float(sy * cx), float(-sy * sx), float(cy * cx)
+    )
+
+
+def prepare_compact_stage_entry(compact, start_stage_index, end_stage_index, dt):
+    """CPU 理想回放到区间入口，保留共同 DLS/碰撞保护产生的连续 IK 分支。"""
+
+    if start_stage_index == 0:
+        return (
+            np.asarray(compact["p0"]["q_rad"], dtype=np.float64).copy(),
+            np.array(
+                (*compact["p0"]["base"][:3], 0.0, compact["p0"]["base"][3]),
+                dtype=np.float64,
+            ),
+        )
+
+    warmup = GraspController(dt=dt)
+    q_snapshot = np.asarray(compact["p0"]["q_rad"], dtype=np.float64).copy()
+    q_snapshot = warmup.replay_climb_prefix(
+        q_snapshot,
+        compact,
+        start_stage_index - 1,
+        max_ticks=200000,
+    )
+    stage = compact["stages"][start_stage_index]
+    pose = np.asarray(stage["pose_start"], dtype=np.float64).copy()
+    # 独立入口检查让 selected pose/anchors 和快照 q 走同一 ClimbMode 门限。
+    entry_check = GraspController(dt=dt)
+    entry_check.enter_climb(
+        q_snapshot,
+        compact,
+        start_stage_index,
+        end_stage_index,
+    )
+    return q_snapshot, pose
+
+
+def _new_climb_metric(index, name):
+    return {
+        "stage_index": index,
+        "alias": f"C{index + 1}",
+        "runtime_name": name,
+        "simulated_duration_s": 0.0,
+        "max_joint_target_tracking_error_rad": 0.0,
+        "max_kinematic_foot_target_error_m": 0.0,
+        "min_joint_limit_margin_rad": None,
+    }
+
+
+def _update_climb_metric(metric, climb_mode, controller, q_current, dt):
+    metric["simulated_duration_s"] += dt
+    metric["max_joint_target_tracking_error_rad"] = max(
+        metric["max_joint_target_tracking_error_rad"],
+        float(climb_mode.last_tracking_error_rad),
+    )
+    metric["max_kinematic_foot_target_error_m"] = max(
+        metric["max_kinematic_foot_target_error_m"],
+        float(climb_mode.last_foot_target_error_m),
+    )
+    margin = float(np.min(controller.kinematic.joint_limit_margins(q_current)))
+    previous_margin = metric["min_joint_limit_margin_rad"]
+    metric["min_joint_limit_margin_rad"] = (
+        margin if previous_margin is None else min(previous_margin, margin)
+    )
+
+
+def _write_climb_metrics(
+    path,
+    compact,
+    start_index,
+    end_index,
+    climb_speed,
+    joint_speed,
+    climb_mode,
+    metrics_by_stage,
+):
+    """写出不参与控制或阶段门限的 simulation-only 诊断。"""
+
+    result = {
+        "schema": "SIMULATION_ONLY_CLIMB_PREVIEW_METRICS_V1",
+        "simulation_only": True,
+        "diagnostics_only_not_contact_or_stability_proof": True,
+        "resolved_range": {
+            "from": {
+                "alias": f"C{start_index + 1}",
+                "runtime_name": compact["stages"][start_index]["name"],
+            },
+            "to": {
+                "alias": f"C{end_index + 1}",
+                "runtime_name": compact["stages"][end_index]["name"],
+            },
+        },
+        "climb_speed": climb_speed,
+        "climb_joint_speed": joint_speed,
+        "final_state": climb_mode.state,
+        "final_reason": climb_mode.failure_reason or "none",
+        "per_stage": [
+            metrics_by_stage[index]
+            for index in sorted(metrics_by_stage)
+        ],
+    }
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", encoding="utf-8") as file:
+        json.dump(result, file, indent=2, allow_nan=False)
+    print(f"[climb] diagnostics-only metrics: {path}")
 
 
 def build_servo_trace_script(controller, linear_speed, yaw_rate):
@@ -363,16 +517,35 @@ def print_model_info(gym, env, actor) :
 
 def main() -> None:
     args = parse_arguments()
-    if args.ros and args.record_servo_trace is not None:
-        raise ValueError("--ros and --record-servo-trace cannot be combined")
-    if args.headless and not args.ros and args.record_servo_trace is None:
+    climb_scene = args.climb_start or args.climb_scene
+    if (args.climb_from is not None or args.climb_to is not None
+            or args.climb_metrics is not None) and not climb_scene:
         raise ValueError(
-            "--headless is only used with --ros or --record-servo-trace"
+            "--climb-from, --climb-to and --climb-metrics require "
+            "--climb-start or --climb-scene"
+        )
+    if args.ros and (args.record_servo_trace is not None or climb_scene):
+        raise ValueError("--ros cannot be combined with trace recording or compact climb")
+    if climb_scene and args.record_servo_trace is not None:
+        raise ValueError("compact climb cannot be combined with --record-servo-trace")
+    if args.headless and not args.ros and args.record_servo_trace is None \
+            and not args.climb_start:
+        raise ValueError(
+            "--headless is only used with --ros, --record-servo-trace "
+            "or --climb-start"
         )
     if args.ros:
         import rospy
 
         rospy.init_node("grasp_hexapod_sim")
+
+    if not np.isfinite(args.climb_speed) or not 0.25 <= args.climb_speed <= 4.0:
+        raise ValueError("--climb-speed must be between 0.25 and 4.0")
+    if (
+        not np.isfinite(args.climb_joint_speed)
+        or not 0.5 <= args.climb_joint_speed <= 3.0
+    ):
+        raise ValueError("--climb-joint-speed must be between 0.5 and 3.0")
 
     rate_ratio = args.physics_rate / args.control_rate
     if abs(rate_ratio - round(rate_ratio)) > 1e-9:
@@ -398,22 +571,22 @@ def main() -> None:
             rospkg.RosPack().get_path("grasp_hexapod_description")
         )
     gym = gymapi.acquire_gym()
-    # create a simulator
-    sim_params = gymapi.SimParams() # create a sim params object
+    # 创建仿真器参数。
+    sim_params = gymapi.SimParams()
 
     sim_params.dt = 1.0 / args.physics_rate
-    sim_params.substeps = 2 # set the number of substeps to 2
+    sim_params.substeps = 2  # 每个物理步的子步数。
     # PhysX明确使用cuda:0计算；控制器仍使用NumPy，因此保留CPU数据管线。
     sim_params.use_gpu_pipeline = False
     sim_params.up_axis = gymapi.UP_AXIS_Z
     sim_params.gravity = gymapi.Vec3(0.0, 0.0, -9.81)
-    # TGS求解器， 0: PGS, 1: TGS, 2: TGS with warm start
+    # TGS 求解器：0 为 PGS，1 为 TGS，2 为带热启动的 TGS。
     sim_params.physx.use_gpu = True
     sim_params.physx.solver_type = 1
     sim_params.physx.num_position_iterations = 8
     sim_params.physx.num_velocity_iterations = 2
 
-    # create the simulation
+    # 创建仿真。
     compute_device_id = 0
     graphics_device_id = -1 if args.headless else 0
     sim = gym.create_sim(
@@ -432,11 +605,6 @@ def main() -> None:
 
     gym.add_ground(sim, plane)
 
-    viewer = None
-    if not args.headless:
-        viewer = gym.create_viewer(sim, gymapi.CameraProperties())
-        if viewer is None:
-            raise RuntimeError("Failed to create Isaac Gym viewer.")
     #加载urdf
     asset_root = str(description_root)
     asset_file = "urdf/hexapod_isaacgym_view.urdf"
@@ -449,7 +617,49 @@ def main() -> None:
     if robot_asset is None:
         raise RuntimeError("Failed to load robot asset.")
 
-    # 小蓝固定在六足的+y前方，直接使用原始三角面而不是凸包近似。
+    compact = None
+    climb_start_index = 0
+    climb_end_index = None
+    if climb_scene:
+        compact_path = package_config_path("climb_compact.json")
+        with compact_path.open() as compact_file:
+            compact = json.load(compact_file)
+        if (
+            compact.get("schema") != "SIMULATION_ONLY_CLIMB_COMPACT_V2"
+            or compact.get("simulation_only") is not True
+            or compact.get("simulation_candidate_only") is not True
+            or compact.get("stage_count") != len(compact.get("stages", ()))
+        ):
+            raise ValueError("invalid compact climb scene config")
+        ClimbMode(None)._validate_config(compact)
+        climb_start_index, climb_end_index = resolve_compact_stage_range(
+            compact, args.climb_from, args.climb_to
+        )
+        for stage in compact["stages"]:
+            stage["segment_durations_s"] = [
+                duration / args.climb_speed
+                for duration in stage["segment_durations_s"]
+            ]
+            stage["settle_s"] /= args.climb_speed
+        selected_stages = compact["stages"][climb_start_index:climb_end_index + 1]
+        playback_duration = sum(
+            sum(stage["segment_durations_s"]) + stage["settle_s"]
+            for stage in selected_stages
+        )
+        print(
+            "Compact climb scene loaded (C{}:{} -> C{}:{}, {:.2g}x, {:.1f}s)".format(
+                climb_start_index + 1, compact["stages"][climb_start_index]["name"],
+                climb_end_index + 1, compact["stages"][climb_end_index]["name"],
+                args.climb_speed, playback_duration
+            )
+        )
+
+    # 仅显式攀爬参数会改变普通仿真场景。
+    if compact is not None:
+        xiaolan_position = gymapi.Vec3(*compact["xiaolan_translation"])
+    else:
+        xiaolan_position = gymapi.Vec3(0.0, 0.8, 0.0)
+    # 直接使用原始三角面而不是凸包近似。
     # PhysX只允许静态物体使用这种凹三角网格，正适合当前固定的对接目标。
     add_static_stl_triangle_mesh(
         gym,
@@ -458,7 +668,7 @@ def main() -> None:
         / "meshes"
         / "xiaolan"
         / "base_link_xiaolan.STL",
-        gymapi.Vec3(0.0, 0.8, 0.0),
+        xiaolan_position,
     )
 
     lower = gymapi.Vec3(-1.0, -1.0, 0.0)
@@ -479,6 +689,7 @@ def main() -> None:
         controller = ros_controller.controller
     else:
         controller = GraspController(dt=1.0 / args.control_rate)
+
     print(
         f"Physics: {args.physics_rate:.0f} Hz, controller: "
         f"{args.control_rate:.0f} Hz, actuator: "
@@ -487,13 +698,22 @@ def main() -> None:
     #创建环境和actor
     env = gym.create_env(sim, lower, upper, num_per_row)
 
+    if compact is not None:
+        q_init_control, compact_entry_pose = prepare_compact_stage_entry(
+            compact, climb_start_index, climb_end_index, 1.0 / args.control_rate
+        )
+
     pose = gymapi.Transform()
-    pose.p = gymapi.Vec3(
-        0.0,
-        0.0,
-        # 直接按标准站姿的足端球半径落在地面上，不再额外悬空25 mm。
-        float(controller.base_height_at_stand),
-    )
+    if compact is not None:
+        pose.p = gymapi.Vec3(*compact_entry_pose[:3])
+        pose.r = _compact_root_quaternion(compact_entry_pose)
+    else:
+        pose.p = gymapi.Vec3(
+            0.0,
+            0.0,
+            # 直接按标准站姿的足端球半径落在地面上，不再额外悬空25 mm。
+            float(controller.base_height_at_stand),
+        )
 
     actor = gym.create_actor(env, robot_asset, pose, "grasp_hexapod", 0, 1)
 
@@ -502,9 +722,16 @@ def main() -> None:
     print(f"Control DOF mapping ready: {len(dof_indices)} joints")
 
     dof_properties = gym.get_actor_dof_properties(env, actor)
+    joint_speed = args.climb_joint_speed if compact is not None else 1.0
     dof_properties["driveMode"].fill(int(gymapi.DOF_MODE_POS))
-    dof_properties["stiffness"].fill(100.0) #kp
-    dof_properties["damping"].fill(0.8) #kd
+    dof_properties["stiffness"].fill(100.0 * joint_speed ** 2) #kp
+    dof_properties["damping"].fill(0.8 * joint_speed) #kd
+    if compact is not None:
+        dof_properties["velocity"] *= joint_speed
+        dof_properties["effort"] *= joint_speed ** 2
+        print(
+            "Compact climb joint response: {:.2g}x".format(joint_speed)
+        )
 
     gym.set_actor_dof_properties(
         env,
@@ -520,8 +747,16 @@ def main() -> None:
         dof_properties["upper"],
         dof_indices,
     )
+    if compact is not None:
+        print(
+            "Compact climb: initialized at C{}:{} entry snapshot".format(
+                climb_start_index + 1, compact["stages"][climb_start_index]["name"]
+            )
+        )
+    else:
+        q_init_control = controller.q_init
     q_init_isaac = control_to_external(
-        controller.q_init,
+        q_init_control,
         dof_indices
     )
     dof_states = gym.get_actor_dof_states(env, actor, gymapi.STATE_ALL)
@@ -541,14 +776,23 @@ def main() -> None:
         q_init_isaac,
     )
 
+    # 所有资产与场景加载完成后再创建 viewer, 避免加载期窗口黑屏无响应。
+    viewer = None
+    if not args.headless:
+        viewer = gym.create_viewer(sim, gymapi.CameraProperties())
+        if viewer is None:
+            raise RuntimeError("Failed to create Isaac Gym viewer.")
+
     # 镜头中心放在两个机器人之间，初始画面可以同时观察六足和小蓝。
     if viewer is not None:
-        gym.viewer_camera_look_at(
-            viewer,
-            None,
-            gymapi.Vec3(0.75, -0.75, 0.5),
-            gymapi.Vec3(0.0, 0.38, 0.10),
-        )
+        # 攀爬模式相机对准机器人与小蓝之间, 默认视角常看不到机器人
+        if compact is not None:
+            cam_eye = gymapi.Vec3(0.45, -1.2, 0.5)
+            cam_target = gymapi.Vec3(0.25, 0.0, 0.12)
+        else:
+            cam_eye = gymapi.Vec3(0.75, -0.75, 0.5)
+            cam_target = gymapi.Vec3(0.0, 0.38, 0.10)
+        gym.viewer_camera_look_at(viewer, None, cam_eye, cam_target)
 
     # 直接仿真、轨迹录制和ROS实机默认使用同一速度上限。
     max_linear_speed = args.max_linear_speed
@@ -573,26 +817,43 @@ def main() -> None:
             "initialize -> forward -> right -> rotate"
         )
     else:
-        if ros_controller is None:
+        if ros_controller is None and not args.climb_start:
             joystick = JoyStick()
 
     command = np.zeros(
         4,
         dtype=np.float64,
     )
-    motion_state = "HOLD" if trace_script is not None else "WAIT_B"
+    motion_state = "WAIT_B"
+    if args.climb_start:
+        motion_state = "RUNNING"
+    elif trace_script is not None:
+        motion_state = "HOLD"
+    mode = "CLIMB" if args.climb_start else "APPROACH"
+    if args.climb_start:
+        controller.enter_climb(
+            q_init_control,
+            compact,
+            climb_start_index,
+            climb_end_index,
+        )
+        print("Compact climb started (--climb-start)")
     button_a_was_down = False
     button_b_was_down = False
     button_x_was_down = False
-    button_y_was_down = False
-    q_des_control = controller.q_init.copy()
+    climb_report_stage = 0
+    climb_report_t0 = 0.0
+    climb_report_q_ref = None
+    climb_phase_reported = None
+    climb_entered = bool(args.climb_start)
+    climb_metrics_by_stage = {}
+    climb_metrics_written = False
+    q_des_control = q_init_control.copy()
     if trace_script is None and ros_controller is None:
-        print(
-            "A: enable/pause motion | B: reset to stand | "
-            "X: climb(reserved) | Y: dock(reserved)"
-        )
+        print("A: enable/pause motion | B: reset to stand | X: compact climb")
 
     physics_frame = 0
+    t_render_prev = time.time()
     control_frame = 0
 
     # PhysX固定高频运行，控制器只在自己的更新帧读取状态并生成新目标。
@@ -635,6 +896,9 @@ def main() -> None:
             elif trace_script is not None:
                 stage, scripted_command = trace_script[script_frame]
                 command[:] = scripted_command
+            elif args.climb_start:
+                # 攀爬轨迹自驱, 无手柄输入
+                command[:] = 0.0
             else:
                 (
                     axis_right,
@@ -656,7 +920,6 @@ def main() -> None:
                 button_a_down = bool(joystick.joystick.get_button(0))
                 button_b_down = bool(joystick.joystick.get_button(1))
                 button_x_down = bool(joystick.joystick.get_button(2))
-                button_y_down = bool(joystick.joystick.get_button(3))
                 button_a_pressed = (
                     button_a_down and not button_a_was_down
                 )
@@ -666,25 +929,48 @@ def main() -> None:
                 button_x_pressed = (
                     button_x_down and not button_x_was_down
                 )
-                button_y_pressed = (
-                    button_y_down and not button_y_was_down
-                )
                 button_a_was_down = button_a_down
                 button_b_was_down = button_b_down
                 button_x_was_down = button_x_down
-                button_y_was_down = button_y_down
 
                 if button_b_pressed:
-                    motion_state = "RESETTING"
-                    controller.reset_to_stand(q_control)
-                    print("Controller returning to stand")
-                elif button_x_pressed or button_y_pressed:
-                    if motion_state == "RUNNING":
+                    if controller.mode == controller.CLIMB:
+                        controller.hold_climb()
                         motion_state = "HOLD"
-                    mode = "CLIMB" if button_x_pressed else "DOCK"
-                    print(f"{mode} is reserved but not implemented")
+                        print("Compact climb: HOLD")
+                    else:
+                        motion_state = "RESETTING"
+                        controller.reset_to_stand(q_control)
+                        print("Controller returning to stand")
+                elif button_x_pressed:
+                    if compact is not None and not climb_entered:
+                        climb_entered = True
+                        controller.enter_climb(
+                            q_control,
+                            compact,
+                            climb_start_index,
+                            climb_end_index,
+                        )
+                        motion_state = "RUNNING"
+                        print("Compact climb started (X)")
+                    elif compact is None:
+                        print("X rejected: start with --climb-scene")
+                    else:
+                        print("Compact climb already active")
                 elif button_a_pressed:
-                    if motion_state == "HOLD":
+                    if (
+                        controller.mode == controller.CLIMB
+                        and (
+                            controller.climb_mode.state
+                            == controller.climb_mode.HOLD
+                        )
+                    ):
+                        controller.resume_climb()
+                        motion_state = "RUNNING"
+                        print("Compact climb: RESUME")
+                    elif controller.mode == controller.CLIMB:
+                        print("A ignored: compact climb is already running")
+                    elif motion_state == "HOLD":
                         motion_state = "RUNNING"
                         print("Motion control: ENABLED")
                     elif motion_state == "RUNNING":
@@ -712,7 +998,19 @@ def main() -> None:
                     # 暂停时让当前摆动腿先落地再停止。
                     command[:] = 0.0
 
-            if ros_controller is None:
+            metric_stage_index = None
+            metric_stage_name = None
+            if controller.mode == controller.CLIMB:
+                # update() 内可能切换阶段；本 tick 的 diagnostics
+                # 仍属于切换前阶段。
+                metric_stage_index = controller.climb_mode.stage_index
+                metric_stage_name = controller.climb_mode.phase
+
+            if ros_controller is None and compact is not None and not climb_entered:
+                # --climb-scene 的入口已是 selected snapshot；等待 X 时不能让
+                # APPROACH 的足端参考把它重新拉向 Q_STAND。
+                q_des_control = q_init_control.copy()
+            elif ros_controller is None:
                 # 直接模式仍由本文件读取手柄、规划足端并执行DLS。
                 q_des_control = controller.update(q_control, command)
                 if (
@@ -722,6 +1020,122 @@ def main() -> None:
                 ):
                     motion_state = "HOLD"
                     print("Stand initialization complete; press A to move")
+
+            if metric_stage_index is not None:
+                metric = climb_metrics_by_stage.setdefault(
+                    metric_stage_index,
+                    _new_climb_metric(metric_stage_index, metric_stage_name),
+                )
+                _update_climb_metric(
+                    metric, controller.climb_mode, controller, q_control,
+                    1.0 / args.control_rate,
+                )
+
+            if controller.mode == controller.CLIMB:
+                phase_key = (
+                    controller.climb_mode.state,
+                    controller.climb_mode.phase,
+                    controller.climb_mode.stage_index,
+                )
+                if phase_key != climb_phase_reported:
+                    if (
+                        climb_phase_reported is not None
+                        and metric_stage_index is not None
+                        and (
+                            controller.climb_mode.stage_index != metric_stage_index
+                            or controller.climb_mode.state in (
+                                controller.climb_mode.DONE,
+                                controller.climb_mode.FAILED,
+                            )
+                        )
+                    ):
+                        finished = climb_metrics_by_stage[metric_stage_index]
+                        print(
+                            "[climb] C{} {} metrics: t={:.2f}s track={:.4g}rad "
+                            "foot={:.4g}m limit_margin={:.4g}rad".format(
+                                metric_stage_index + 1, metric_stage_name,
+                                finished["simulated_duration_s"],
+                                finished["max_joint_target_tracking_error_rad"],
+                                finished["max_kinematic_foot_target_error_m"],
+                                finished["min_joint_limit_margin_rad"],
+                            )
+                        )
+                    climb_phase_reported = phase_key
+                    stage_number = (
+                        controller.climb_mode.stage_index + 1
+                        if controller.climb_mode.stage_index is not None
+                        else 0
+                    )
+                    print(
+                        "[climb] state={} stage={}/{} phase={} "
+                        "prior_tracking_error={:.6g}rad "
+                        "prior_foot_target_error={:.6g}m".format(
+                            controller.climb_mode.state,
+                            stage_number,
+                            len(controller.climb_mode.stage_names),
+                            controller.climb_mode.phase,
+                            controller.climb_mode.last_tracking_error_rad,
+                            controller.climb_mode.last_foot_target_error_m,
+                        )
+                    )
+
+            if (
+                args.climb_metrics is not None
+                and climb_entered
+                and not climb_metrics_written
+                and controller.climb_mode.state in (
+                    controller.climb_mode.DONE,
+                    controller.climb_mode.FAILED,
+                )
+            ):
+                _write_climb_metrics(
+                    args.climb_metrics,
+                    compact,
+                    climb_start_index,
+                    climb_end_index,
+                    args.climb_speed,
+                    args.climb_joint_speed,
+                    controller.climb_mode,
+                    climb_metrics_by_stage,
+                )
+                climb_metrics_written = True
+
+            # headless 验证: 攀爬完成后保持 2 秒, 检查姿态维持稳定性。
+            if args.climb_start and controller.climb_mode.state in (
+                    controller.climb_mode.DONE,
+                    controller.climb_mode.FAILED):
+                if climb_report_stage == 0:
+                    climb_report_stage = 1
+                    climb_report_t0 = physics_frame * sim_params.dt
+                    climb_report_q_ref = q_control.copy()
+                    failure_reason = (
+                        controller.climb_mode.failure_reason or "none"
+                    )
+                    print(
+                        f"[climb] {controller.climb_mode.state} at t="
+                        f"{physics_frame * sim_params.dt:.1f}s, "
+                        "tracking_error="
+                        f"{controller.climb_mode.last_tracking_error_rad:.6g}rad, "
+                        "foot_target_error="
+                        f"{controller.climb_mode.last_foot_target_error_m:.6g}m, "
+                        f"reason={failure_reason}, "
+                        "holding final pose for 2s"
+                    )
+                elif climb_report_stage == 1 and \
+                        physics_frame * sim_params.dt - climb_report_t0 >= 2.0:
+                    climb_report_stage = 2
+                    q_drift = np.abs(q_control - climb_report_q_ref).max() * 1000
+                    track_err = np.abs(q_des_control - q_control).max() * 1000
+                    print(
+                        f"[climb] hold check: joint drift over 2s "
+                        f"{q_drift:.1f}mrad (stable if small), "
+                        f"joint tracking error {track_err:.1f}mrad"
+                    )
+                    print(
+                        "[climb] VERDICT: " +
+                        ("STABLE" if q_drift < 20.0 else "UNSTABLE")
+                    )
+                    break
 
             q_target_control = np.clip(
                 q_des_control,
@@ -763,6 +1177,11 @@ def main() -> None:
                 script_frame += 1
             control_frame += 1
 
+        t_render = time.time()
+        if physics_frame % 240 == 0:
+            print(f"[render] frame={physics_frame} fps={240/(time.time()-t_render_prev+1e-9):.1f}",
+                  flush=True)
+            t_render_prev = time.time()
         gym.simulate(sim)
         gym.fetch_results(sim, True)
         physics_frame += 1
@@ -778,6 +1197,21 @@ def main() -> None:
 
     if args.record_servo_trace is not None:
         write_servo_trace(args.record_servo_trace, trace_rows)
+    if (
+        args.climb_metrics is not None
+        and climb_entered
+        and not climb_metrics_written
+    ):
+        _write_climb_metrics(
+            args.climb_metrics,
+            compact,
+            climb_start_index,
+            climb_end_index,
+            args.climb_speed,
+            args.climb_joint_speed,
+            controller.climb_mode,
+            climb_metrics_by_stage,
+        )
     if viewer is not None:
         gym.destroy_viewer(viewer)
     gym.destroy_sim(sim)

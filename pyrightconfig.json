@@ -1,5 +1,25 @@
 {
-  "include": ["src"],
+  "include": [
+    "src/grasp_hexapod_control/scripts",
+    "src/grasp_hexapod_servo/scripts"
+  ],
+  "exclude": [
+    "build",
+    "devel",
+    "src/reference"
+  ],
+  "extraPaths": [
+    "/opt/ros/noetic/lib/python3/dist-packages",
+    "/usr/lib/python3/dist-packages",
+    "/home/artrc/isaacgym/python",
+    "src/grasp_hexapod_control/scripts",
+    "src/grasp_hexapod_servo/scripts"
+  ],
+  "pythonVersion": "3.8",
+  "pythonPlatform": "Linux",
   "typeCheckingMode": "off",
-  "diagnosticMode": "openFilesOnly"
+  "diagnosticMode": "openFilesOnly",
+  "reportMissingImports": "none",
+  "reportMissingModuleSource": "none",
+  "reportMissingTypeStubs": "none"
 }

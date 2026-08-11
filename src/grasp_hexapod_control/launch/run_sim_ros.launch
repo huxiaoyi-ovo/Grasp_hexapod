@@ -18,8 +18,6 @@
 
   <arg name="button_a" default="0"/>
   <arg name="button_b" default="1"/>
-  <arg name="button_x" default="2"/>
-  <arg name="button_y" default="3"/>
   <arg name="axis_right" default="0"/>
   <arg name="axis_forward" default="1"/>
   <arg name="axis_yaw" default="3"/>
@@ -55,8 +53,6 @@
     value="$(arg max_joy_age)"/>
   <param name="grasp_hexapod_sim/button_a" value="$(arg button_a)"/>
   <param name="grasp_hexapod_sim/button_b" value="$(arg button_b)"/>
-  <param name="grasp_hexapod_sim/button_x" value="$(arg button_x)"/>
-  <param name="grasp_hexapod_sim/button_y" value="$(arg button_y)"/>
   <param name="grasp_hexapod_sim/axis_right" value="$(arg axis_right)"/>
   <param name="grasp_hexapod_sim/axis_forward" value="$(arg axis_forward)"/>
   <param name="grasp_hexapod_sim/axis_yaw" value="$(arg axis_yaw)"/>

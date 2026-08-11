@@ -15,12 +15,17 @@
 """
 
 from pathlib import Path
+import sys
 import xml.etree.ElementTree as ET
 
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 import numpy as np
 import rospkg
+
+
+SCRIPTS_DIR = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(SCRIPTS_DIR))
 
 from kinematics import (
     FOOT_RADIUS,
@@ -34,7 +39,7 @@ from kinematics import (
 from utils import CONTROL_DOF_NAMES, transform_points
 
 
-# 必须分析当前仿真实际使用的URDF，不能照抄reference里的工作空间常数。
+# 使用当前仿真 URDF 的关节限位。
 ROS_PACKAGES = rospkg.RosPack()
 URDF_PATH = (
     Path(ROS_PACKAGES.get_path("grasp_hexapod_description"))
@@ -63,7 +68,11 @@ BODY_ORDER = np.array([5, 4, 1, 2, 0, 3], dtype=np.int64)
 
 
 def read_joint_limits():
-    """按控制器顺序读取URDF限位，shape=(6, 3, 2)。"""
+    """按控制器顺序读取 URDF 关节限位。
+
+    返回:
+        六条腿的关节上下限，shape 为 `(6, 3, 2)`。
+    """
 
     root = ET.parse(URDF_PATH).getroot()
     limits = []
@@ -79,13 +88,23 @@ def read_joint_limits():
 
 
 def sample_leg_workspace(kinematic, leg_index, limits, rng):
-    """从全部数学可达姿态中提取Q_STAND所在的地面步态分支。"""
+    """采样一条腿在站立分支上的可用工作空间。
+
+    参数:
+        kinematic: 运动学模型。
+        leg_index: 腿索引。
+        limits: 三个关节的上下限。
+        rng: 随机数生成器。
+
+    返回:
+        可用足端位置、对应奇异值和可达样本数。
+    """
 
     lower = limits[:, 0] + JOINT_MARGIN
     upper = limits[:, 1] - JOINT_MARGIN
     q_samples = rng.uniform(lower, upper, size=(SAMPLES_PER_LEG, 3))
 
-    # 直接复用现有FK和雅可比，使分析模型与控制器完全一致。
+    # 复用控制器的正运动学和雅可比。
     positions = np.stack(
         [kinematic.forward_leg(leg_index, q) for q in q_samples]
     )
@@ -95,8 +114,7 @@ def sample_leg_workspace(kinematic, leg_index, limits, rng):
     sigma_min = np.linalg.svd(jacobians, compute_uv=False)[:, -1]
     reachable = sigma_min >= MIN_SIGMA
 
-    # URDF全限位中包含膝踝反折的其他逆解分支。
-    # 只有与Q_STAND弯曲方向相同的分支才属于正常步态候选空间。
+    # 只保留与 Q_STAND 弯曲方向相同的分支。
     theta = JOINT_AXIS_SIGNS[leg_index] * q_samples
     theta_stand = JOINT_AXIS_SIGNS[leg_index] * Q_STAND[leg_index]
     same_branch = (
@@ -122,13 +140,29 @@ def sample_leg_workspace(kinematic, leg_index, limits, rng):
 
 
 def get_leg_chain_base(kinematic, leg_index):
-    """得到Q_STAND时髋、膝、踝、足端球心在base_link中的位置。"""
+    """获取站立时一条腿各关节在 `base_link` 中的位置。
+
+    参数:
+        kinematic: 运动学模型。
+        leg_index: 腿索引。
+
+    返回:
+        髋、膝、踝和足端球心的位置。
+    """
 
     return kinematic.link_points_base(Q_STAND)[leg_index]
 
 
 def workspace_envelope(workspaces_hip, bin_count=55):
-    """生成便于观察的rho_min(z)、rho_max(z)采样包络。"""
+    """计算不同高度上的径向工作空间边界。
+
+    参数:
+        workspaces_hip: 各腿在髋关节坐标中的足端样本。
+        bin_count: 高度分箱数量。
+
+    返回:
+        高度、最小半径和最大半径。
+    """
 
     points = np.concatenate(workspaces_hip)
     rho = np.linalg.norm(points[:, :2], axis=1)
@@ -141,8 +175,7 @@ def workspace_envelope(workspaces_hip, bin_count=55):
         if mask.sum() < 20:
             continue
 
-        # 1%/99%分位数去掉少量随机采样毛刺；这里只用于看形状，
-        # 最终在线边界还要向内收缩并经过碰撞验证。
+        # 用分位数去掉少量随机采样的离群点。
         z_values.append(0.5 * (lower + upper))
         rho_min.append(np.percentile(rho[mask], 1.0))
         rho_max.append(np.percentile(rho[mask], 99.0))
@@ -151,13 +184,20 @@ def workspace_envelope(workspaces_hip, bin_count=55):
 
 
 def save_workspace_boundary(workspaces_hip):
-    """保存在线_FeasiCheck使用的z-rho安全边界。"""
+    """保存在线检查使用的高度和半径边界。
+
+    参数:
+        workspaces_hip: 各腿在髋关节坐标中的足端样本。
+
+    返回:
+        无。
+    """
 
     z, rho_min, rho_max = workspace_envelope(workspaces_hip)
     rho_min += WORKSPACE_RHO_MARGIN
     rho_max -= WORKSPACE_RHO_MARGIN
 
-    # 上下尖端收缩后可能没有剩余宽度，这些高度不能用于在线控制。
+    # 收缩后没有可用宽度的高度不写入文件。
     valid = rho_min < rho_max
     boundary = np.column_stack((z[valid], rho_min[valid], rho_max[valid]))
 
@@ -174,20 +214,38 @@ def save_workspace_boundary(workspaces_hip):
 
 
 def set_equal_3d_axes(axis, points):
-    """让x/y/z按真实比例显示。"""
+    """让三维图的三个坐标轴按相同比例显示。
+
+    参数:
+        axis: 三维绘图坐标轴。
+        points: 用于确定显示范围的点。
+
+    返回:
+        无。
+    """
 
     center = 0.5 * (points.min(axis=0) + points.max(axis=0))
     half_range = 0.52 * np.ptp(points, axis=0).max()
     axis.set_xlim(center[0] - half_range, center[0] + half_range)
     axis.set_ylim(center[1] - half_range, center[1] + half_range)
     axis.set_zlim(center[2] - half_range, center[2] + half_range)
-    # Ubuntu 20.04系统Matplotlib较旧；等范围已保证比例，较新版本再设盒比例。
+    # 较新的 Matplotlib 支持设置三维绘图区比例。
     if hasattr(axis, "set_box_aspect"):
         axis.set_box_aspect((1.0, 1.0, 1.0))
 
 
 def print_summary(name, points, sigma_min, reachable_count):
-    """打印后续设计在线_FeasiCheck需要的局部范围。"""
+    """打印一条腿的工作空间统计信息。
+
+    参数:
+        name: 腿名称。
+        points: 可用足端位置。
+        sigma_min: 对应的最小奇异值。
+        reachable_count: 可达样本数。
+
+    返回:
+        无。
+    """
 
     rho = np.linalg.norm(points[:, :2], axis=1)
     beta = np.rad2deg(np.arctan2(points[:, 1], points[:, 0]))
@@ -202,7 +260,15 @@ def print_summary(name, points, sigma_min, reachable_count):
 
 
 def visualize_workspace(kinematic, workspaces_hip):
-    """画整机三维空间、俯视扇区和局部rho-z包络。"""
+    """绘制整机工作空间、俯视图和径向边界图。
+
+    参数:
+        kinematic: 运动学模型。
+        workspaces_hip: 各腿在髋关节坐标中的足端样本。
+
+    返回:
+        无。
+    """
 
     plt.rcParams.update(
         {
@@ -234,7 +300,7 @@ def visualize_workspace(kinematic, workspaces_hip):
         workspaces_base.append(points_base)
         chain = get_leg_chain_base(kinematic, leg_index)
 
-        # 半透明点云表达候选空间，实线表达Q_STAND实际连杆。
+        # 点云表示工作空间，实线表示站立姿态的连杆。
         axis_3d.scatter(
             *points_base.T,
             s=1.4,
@@ -283,7 +349,7 @@ def visualize_workspace(kinematic, workspaces_hip):
             weight="bold",
         )
 
-    # 用真实髋关节位置画机身结构示意；精确机身碰撞仍由碰撞模型负责。
+    # 用髋关节位置画出机身轮廓。
     body = HIP_XYZ[BODY_ORDER]
     axis_3d.add_collection3d(
         Poly3DCollection(
@@ -318,7 +384,7 @@ def visualize_workspace(kinematic, workspaces_hip):
         zorder=6,
     )
 
-    # 足球最低点给出Q_STAND对应的相对地面。
+    # 足端球的最低点确定站立时的地面高度。
     stand_feet = kinematic.forward_base(Q_STAND)
     ground_z = stand_feet[:, 2].mean() - FOOT_RADIUS
     ground_x, ground_y = np.meshgrid(
@@ -336,7 +402,7 @@ def visualize_workspace(kinematic, workspaces_hip):
         shade=False,
     )
 
-    # 项目硬约定：+x向右，+y向前，+z向上。
+    # 显示项目统一使用的坐标方向。
     arrow = 0.065
     for vector, color, label in (
         ((arrow, 0.0, 0.0), "#DC2626", "+x"),
@@ -366,7 +432,7 @@ def visualize_workspace(kinematic, workspaces_hip):
     axis_3d.view_init(elev=27, azim=-52)
     axis_3d.legend(loc="upper left", ncol=2, framealpha=0.92)
 
-    # 俯视图直接显示六个向外扇区及相邻腿空间是否重叠。
+    # 俯视图显示各腿工作空间是否重叠。
     margin = 0.02
     axis_top.set_xlim(all_base[:, 0].min() - margin, all_base[:, 0].max() + margin)
     axis_top.set_ylim(all_base[:, 1].min() - margin, all_base[:, 1].max() + margin)
@@ -377,7 +443,7 @@ def visualize_workspace(kinematic, workspaces_hip):
         title="Top View — Six Outward Sectors",
     )
 
-    # rho-z图去掉thigh绕z旋转的影响，突出不同高度下的径向余量。
+    # 径向图突出不同高度下的伸展范围。
     all_hip = np.concatenate(workspaces_hip)
     all_rho = np.linalg.norm(all_hip[:, :2], axis=1)
     axis_rz.scatter(

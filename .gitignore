@@ -1,14 +1,46 @@
-# Local editor and AI-agent configuration
+# 本地编辑器配置
 .vscode/
+.idea/
+*.code-workspace
+
+# 本地 AI 智能体配置、状态和交接文件
+.claude/
 .codex/
 .serena/
 .agents/
 .agent/
 .mcp/
 .mcp.json
-AGENTS.md
+.cursor/
+.continue/
+.cline/
+.roo/
+.windsurf/
+.gemini/
+.aider*
+.cursorrules
+.windsurfrules
+CLAUDE.md
+GEMINI.md
+CLAUDE_CODE_HANDOFF.md
 
-# Catkin build outputs
+# 本地环境和 Python 工具
+.env
+.env.*
+!.env.example
+!.env.template
+.envrc
+.direnv/
+.venv/
+venv/
+env/
+.python-version
+.tool-versions
+pyrightconfig.json
+pyproject.toml
+uv.lock
+
+# Catkin 构建产物
 .catkin_workspace
 .catkin_tools/
 build/
@@ -16,9 +48,13 @@ devel/
 install/
 logs/
 
-# Python caches
+# Python 缓存
 __pycache__/
 *.py[cod]
 
-# Local export and runtime logs
+# 本地导出文件和运行日志
 *.log
+
+# 只跟踪 README Markdown 文档。
+*.md
+!README.md

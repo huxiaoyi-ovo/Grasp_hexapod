@@ -106,6 +106,22 @@ roslaunch grasp_hexapod_control run_sim_ros.launch actuator_rate_hz:=30.0
 python src/grasp_hexapod_control/scripts/run_sim.py
 ```
 
+## Isaac 攀爬区间回放
+
+仅 Python/Isaac 的 compact 攀爬预览支持闭区间参数，`C1` 到 `C35` 是固定数组
+别名，亦可传运行时阶段名：
+
+```bash
+python src/grasp_hexapod_control/scripts/run_sim.py \
+  --climb-scene --climb-from C13 --climb-to C15 \
+  --climb-speed 4 --climb-joint-speed 3
+```
+
+场景会在 C13 精确入口等待 X；等待期间保持该入口快照，不运行普通 APPROACH。
+`--climb-metrics path.json` 可输出逐阶段 simulation-only 指标。这些指标不参与
+阶段门限，且不构成接触、承载或稳定性证明。上述三个参数不属于 ROS launch 或
+实机攀爬接口。
+
 ## 导航模式参数
 
 导航模式需要经过实测的左右接近位姿，每个位姿都是按行展开的4×4矩阵：
@@ -128,8 +144,7 @@ B -> 等待回到标准站姿 -> A -> 接受运动指令
 
 - B：最高优先级，停止当前行为并回到站姿。
 - A：站姿初始化完成后启用或暂停运动。
-- X：预留攀爬模式，当前只暂停。
-- Y：预留对接模式，当前只暂停。
+- X：仅在 Isaac `--climb-scene` 中启动 compact 攀爬预览；`--climb-start` 会自动启动。ROS与实机仍禁止攀爬启动。
 - 导航运行时推动任一运动摇杆会取消导航并锁存为手柄控制。
 - 松开摇杆不会恢复导航；按B重新初始化，再按A才会重新规划。
 

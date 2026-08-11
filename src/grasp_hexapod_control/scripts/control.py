@@ -1,7 +1,7 @@
 """六足总控制器与公共安全执行层。
 
 功能：
-    管理APPROACH、CLIMB、DOCK三种模式，维护公共足端目标，执行工作空间、
+    管理APPROACH和CLIMB两种模式，维护公共足端目标，执行工作空间、
     足端/连杆碰撞检查，并用DLS将笛卡尔足端误差转换为关节目标。
 输入：
     q_cur.shape=(6,3)，单位rad；当前模式指令或观测数据。
@@ -13,20 +13,19 @@
     不直接调用Isaac Gym、ROS或舵机SDK；仿真和实机共用本控制逻辑。
 """
 
-from pathlib import Path
-
 import numpy as np
 
 from approach_mode import ApproachMode
 from climb_mode import ClimbMode
-from dock_mode import DockMode
 from kinematics import (
     FOOT_RADIUS,
     JOINT_LOWER,
     JOINT_UPPER,
+    JOINT_VELOCITY_LIMIT,
     Q_STAND,
     GraspKinematic,
 )
+from utils import package_config_path
 
 
 # 当前简化URDF碰撞盒对应的控制器碰撞模型。
@@ -44,21 +43,7 @@ BODY_COLLISION_Z_MIN = 0.0
 BODY_COLLISION_Z_MAX = 0.121
 MIN_FOOT_CLEARANCE = 2.0 * FOOT_RADIUS + COLLISION_MARGIN
 
-LOCAL_WORKSPACE_BOUNDARY_PATH = (
-    Path(__file__).resolve().parents[1]
-    / "config"
-    / "workspace_bounds.csv"
-)
-if LOCAL_WORKSPACE_BOUNDARY_PATH.is_file():
-    WORKSPACE_BOUNDARY_PATH = LOCAL_WORKSPACE_BOUNDARY_PATH
-else:
-    import rospkg
-
-    WORKSPACE_BOUNDARY_PATH = (
-        Path(rospkg.RosPack().get_path("grasp_hexapod_control"))
-        / "config"
-        / "workspace_bounds.csv"
-    )
+WORKSPACE_BOUNDARY_PATH = package_config_path("workspace_bounds.csv")
 WORKSPACE_BETA_LIMIT = np.deg2rad(30.0)
 WORKSPACE_NUMERICAL_TOLERANCE = 1e-9
 
@@ -73,9 +58,8 @@ class GraspController:
 
     APPROACH = "approach"
     CLIMB = "climb"
-    DOCK = "dock"
 
-    def __init__(self, dt, enable_link_collision_check=True):
+    def __init__(self, dt, enable_link_collision_check=False):
         self.dt = dt
         self.enable_link_collision_check = bool(
             enable_link_collision_check
@@ -92,9 +76,11 @@ class GraspController:
         self.foot_init_hip = self.kinematic.forward(self.q_init)  # shape == (6, 3)
         self.foot_init_base = self.kinematic.hip_to_base(self.foot_init_hip)
 
-        self.foot_current_hip = self.foot_init_hip.copy()  # shape == (6, 3)    
+        self.foot_current_hip = self.foot_init_hip.copy()  # shape == (6, 3)
 
         self.foot_desired_base = self.foot_init_base.copy()
+        self.foot_desired_base_prev = self.foot_desired_base.copy()  # 前馈差分用
+        self.enable_workspace_check = False  # 越界足端直接提交, 不投影
         self.foot_desired_hip = self.foot_init_hip.copy()  # shape == (6, 3)
 
         self.base_height_at_stand = (
@@ -112,11 +98,8 @@ class GraspController:
 
         self.approach_mode = ApproachMode(self)
         self.climb_mode = ClimbMode(self)
-        self.dock_mode = DockMode(self)
         self.mode = self.APPROACH
         self.last_mode_result = None
-        self.dock_target_accepted = True
-        self.dock_reject_reason = ""
 
         if not self._workspace_feasible(self.foot_init_base).all():
             raise ValueError("Q_STAND is outside the safe workspace")
@@ -125,7 +108,7 @@ class GraspController:
 
     @staticmethod
     def _smooth_step(phase):
-        return(10.0 * phase**3 - 15.0 * phase**4 + 6.0 * phase**5)
+        return 10.0 * phase**3 - 15.0 * phase**4 + 6.0 * phase**5
 
     def _workspace_feasible(self, foot_positions_base):
         """判断六个候选足端是否位于离线生成的安全工作空间。"""
@@ -393,30 +376,18 @@ class GraspController:
         # 可行候选直接使用；只有越界时才做连续投影，
         # 避免每帧重复执行无意义的坐标裁剪。
         safe_candidate = candidate_base
-        if not self._workspace_feasible(candidate_base).all():
+        if (
+            self.enable_workspace_check
+            and not self._workspace_feasible(candidate_base).all()
+        ):
             safe_candidate = self._project_workspace(candidate_base)
 
         if self._foot_collision_free(safe_candidate).all():
             self.foot_desired_base[:] = safe_candidate
 
-    def _commit_dock_candidate(self, candidate_base):
-        """严格接受或拒绝固定足端候选，不允许投影破坏刚体关系。"""
-
-        candidate_base = np.asarray(
-            candidate_base,
-            dtype=np.float64,
-        ).reshape(6, 3)
-        if not self._workspace_feasible(candidate_base).all():
-            return False, "dock target is outside workspace"
-        if not self._foot_collision_free(candidate_base).all():
-            return False, "dock target contains foot collision"
-
-        self.foot_desired_base[:] = candidate_base
-        return True, ""
-
     def reset_to_stand(self, q_cur):
         """从当前关节角平滑回到标准站姿。"""
-        # B是全局恢复动作，必须退出攀爬/对接状态再执行站立轨迹。
+        # B是全局恢复动作，必须退出攀爬状态再执行站立轨迹。
         self.set_mode(self.APPROACH)
         self.reset_start_q = np.asarray(
             q_cur,
@@ -439,77 +410,79 @@ class GraspController:
         )
 
     def set_mode(self, mode):
-        """切换唯一活动模式，并完成DOCK进入/退出处理。"""
+        """切换唯一活动模式。"""
 
-        if mode not in (self.APPROACH, self.CLIMB, self.DOCK):
+        if mode not in (self.APPROACH, self.CLIMB):
             raise ValueError(f"Unknown control mode: {mode}")
-        if mode == self.mode:
-            return
-
-        if self.mode == self.DOCK:
-            self.dock_mode.exit()
-        if mode == self.DOCK:
-            self.dock_mode.enter(self.foot_desired_base)
-            self.dock_target_accepted = True
-            self.dock_reject_reason = ""
         self.mode = mode
+
+    def enter_climb(
+        self,
+        q_cur,
+        config=None,
+        start_stage_index=0,
+        end_stage_index=None,
+    ):
+        """通过唯一入口进入仅仿真的 compact 攀爬。"""
+        self.reset_active = False
+        self.set_mode(self.CLIMB)
+        self.climb_mode.enter(
+            q_cur,
+            config,
+            start_stage_index=start_stage_index,
+            end_stage_index=end_stage_index,
+        )
+
+    def replay_climb_prefix(
+        self,
+        q_cur,
+        config,
+        end_stage_index,
+        max_ticks,
+    ):
+        """用同一DLS控制链连续回放 compact 前缀并返回关节快照。"""
+
+        self.enter_climb(q_cur, config, 0, end_stage_index)
+        command = np.zeros(4, dtype=np.float64)
+        for _ in range(max_ticks):
+            if self.climb_mode.state != ClimbMode.RUNNING:
+                break
+            q_cur = self.update(q_cur, command)
+        if self.climb_mode.state != ClimbMode.DONE:
+            raise RuntimeError(
+                "compact CPU prefix replay failed: "
+                + self.climb_mode.failure_reason
+            )
+        return q_cur
+
+    def hold_climb(self):
+        if self.mode == self.CLIMB:
+            self.climb_mode.hold()
+
+    def resume_climb(self):
+        if self.mode == self.CLIMB:
+            self.climb_mode.resume()
 
     def update(self, q_cur, command, navigation_state=None):
         """执行当前任务模式并输出本周期关节目标。"""
-        dock_previous_target = None
-        dock_candidate_submitted = False
-
         if self.mode == self.APPROACH:
             self.last_mode_result = self.approach_mode.update(
                 command,
                 navigation_state,
             )
         elif self.mode == self.CLIMB:
-            self.last_mode_result = self.climb_mode.update(command)
-        elif self.mode == self.DOCK:
-            if not self.dock_mode.active:
-                raise RuntimeError("Enter DOCK with controller.set_mode()")
-
-            self.last_mode_result = self.dock_mode.update(
-                command,
-                self.dock_target_accepted,
-                self.dock_reject_reason,
-            )
-            self.dock_target_accepted = True
-            self.dock_reject_reason = ""
-
-            if (
-                self.last_mode_result.active
-                and not self.last_mode_result.failed
-            ):
-                dock_previous_target = self.foot_desired_base.copy()
-                dock_candidate_submitted = True
-                (
-                    self.dock_target_accepted,
-                    self.dock_reject_reason,
-                ) = self._commit_dock_candidate(
-                    self.last_mode_result.foot_positions_base
-                )
+            self.last_mode_result = self.climb_mode.update(command, q_cur)
         else:
             raise ValueError(f"Unknown control mode: {self.mode}")
 
-        q_des = self.cal_joint_poses(q_cur)
-        if (
-            dock_candidate_submitted
-            and self.dock_target_accepted
-            and not self.last_link_collision_free.all()
-        ):
-            self.foot_desired_base[:] = dock_previous_target
-            self.dock_target_accepted = False
-            self.dock_reject_reason = "dock target contains link collision"
-        return q_des
+        return self.cal_joint_poses(q_cur)
 
     def cal_joint_poses(self, q_cur):
         """根据足端目标计算下一周期关节目标"""
 
-        q_cur = np.asarray(q_cur, dtype=np.float64).reshape(6,3)
+        q_cur = np.asarray(q_cur, dtype=np.float64).reshape(6, 3)
 
-        #每个控制周期更新
+        # 每个控制周期更新。
         self.foot_current_hip = self.kinematic.forward(q_cur)
 
         if self.reset_active:
@@ -549,16 +522,29 @@ class GraspController:
         position_error = (self.foot_desired_hip - self.foot_current_hip)
 
         damped_inverse = (self.kinematic.damped_inverse_jacobian(q_cur))
-        #每条腿
+        # 每条腿。
         joint_correction = (
-            damped_inverse @ position_error[..., np.newaxis]        
+            damped_inverse @ position_error[..., np.newaxis]
+        ).squeeze(-1)
+
+        # 前馈: 足端目标速度(差分)转关节速度, 消除P控制追赶滞后
+        vel_ff = (
+            self.foot_desired_base - self.foot_desired_base_prev
+        ) / self.dt
+        self.foot_desired_base_prev = self.foot_desired_base.copy()
+        joint_ff = (
+            damped_inverse @ vel_ff[..., np.newaxis]
         ).squeeze(-1)
 
         q_candidate = np.clip(
-            q_cur + 32.0 * joint_correction * self.dt,
+            q_cur + 32.0 * joint_correction * self.dt + joint_ff * self.dt,
             JOINT_LOWER,
             JOINT_UPPER,
         )
+
+        # 舵机能力兜底: 单帧关节增量限幅
+        step = JOINT_VELOCITY_LIMIT * self.dt
+        q_candidate = np.clip(q_candidate, q_cur - step, q_cur + step)
 
         # 关节目标下发前检查完整连杆胶囊；
         # 一旦候选姿态碰撞，整机本周期保持当前位置。

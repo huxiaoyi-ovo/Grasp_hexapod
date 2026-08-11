@@ -2,7 +2,7 @@
 <package format="2">
   <name>grasp_hexapod_control</name>
   <version>0.1.0</version>
-  <description>Traditional gait, mission-mode, and safety controller for the grasp hexapod.</description>
+  <description>Grasp 六足机器人的步态、任务模式和安全控制器。</description>
 
   <maintainer email="huxiaoyi-ovo@users.noreply.github.com">huxiaoyi-ovo</maintainer>
   <license>BSD-3-Clause</license>

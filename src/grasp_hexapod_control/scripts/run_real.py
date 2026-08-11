@@ -19,8 +19,9 @@ from threading import Lock
 
 import numpy as np
 import rospy
+from geometry_msgs.msg import PolygonStamped, PoseStamped
 from sensor_msgs.msg import JointState, Joy
-from std_msgs.msg import Float64MultiArray
+from std_msgs.msg import Bool, Float64MultiArray
 
 # 源码直启时使用当前目录；rosrun/roslaunch时从ROS包路径找到scripts。
 scripts_dir = Path(__file__).resolve().parent
@@ -35,6 +36,132 @@ sys.path.insert(0, str(scripts_dir))
 
 from control import GraspController
 from kinematics import LEG_NAMES
+from utils import NavigationState, pose_to_transform
+
+
+class NavigationInput:
+    """把ROS导航话题缓存为控制器每帧读取的NavigationState。"""
+
+    FRAME = "pv_map"
+
+    def __init__(self):
+        self.max_age = float(rospy.get_param("~max_pose_age", 0.5))
+        self.lock = Lock()
+        self.base_stamp = 0.0
+        self.xiaolan_stamp = 0.0
+        self.pv_from_base = None
+        self.pv_from_xiaolan = None
+        self.pv_boundary = np.empty((0, 2), dtype=np.float64)
+        self.landing_confirmed = False
+
+        self.subscribers = [
+            rospy.Subscriber(
+                rospy.get_param(
+                    "~base_pose_topic",
+                    "/grasp_hexapod/navigation/base_pose",
+                ),
+                PoseStamped,
+                self._base_callback,
+                queue_size=1,
+            ),
+            rospy.Subscriber(
+                rospy.get_param(
+                    "~xiaolan_pose_topic",
+                    "/grasp_hexapod/navigation/xiaolan_pose",
+                ),
+                PoseStamped,
+                self._xiaolan_callback,
+                queue_size=1,
+            ),
+            rospy.Subscriber(
+                rospy.get_param(
+                    "~pv_boundary_topic",
+                    "/grasp_hexapod/navigation/pv_boundary",
+                ),
+                PolygonStamped,
+                self._boundary_callback,
+                queue_size=1,
+            ),
+            rospy.Subscriber(
+                rospy.get_param(
+                    "~landing_topic",
+                    "/grasp_hexapod/landing_confirmed",
+                ),
+                Bool,
+                self._landing_callback,
+                queue_size=1,
+            ),
+        ]
+
+    @classmethod
+    def _valid_frame(cls, message):
+        if message.header.frame_id.lstrip("/") == cls.FRAME:
+            return True
+        rospy.logwarn_throttle(2.0, "Navigation frame must be pv_map")
+        return False
+
+    def _base_callback(self, message):
+        if not self._valid_frame(message):
+            return
+        transform = pose_to_transform(message.pose)
+        if transform is not None:
+            with self.lock:
+                self.pv_from_base = transform
+                self.base_stamp = message.header.stamp.to_sec()
+
+    def _xiaolan_callback(self, message):
+        if not self._valid_frame(message):
+            return
+        transform = pose_to_transform(message.pose)
+        if transform is not None:
+            with self.lock:
+                self.pv_from_xiaolan = transform
+                self.xiaolan_stamp = message.header.stamp.to_sec()
+
+    def _boundary_callback(self, message):
+        if not self._valid_frame(message):
+            return
+        boundary = np.array(
+            [[point.x, point.y] for point in message.polygon.points],
+            dtype=np.float64,
+        ).reshape(-1, 2)
+        if np.isfinite(boundary).all():
+            with self.lock:
+                self.pv_boundary = boundary
+
+    def _landing_callback(self, message):
+        with self.lock:
+            self.landing_confirmed = bool(message.data)
+
+    def snapshot(self):
+        """返回同一时刻的导航快照；位姿过期时valid=False。"""
+
+        now = rospy.Time.now().to_sec()
+        with self.lock:
+            stamp = min(self.base_stamp, self.xiaolan_stamp)
+            valid = (
+                self.pv_from_base is not None
+                and self.pv_from_xiaolan is not None
+                and len(self.pv_boundary) >= 3
+                and stamp > 0.0
+                and 0.0 <= now - stamp <= self.max_age
+            )
+            return NavigationState(
+                stamp=stamp,
+                valid=valid,
+                landing_confirmed=self.landing_confirmed,
+                pv_from_base=(
+                    np.eye(4)
+                    if self.pv_from_base is None
+                    else self.pv_from_base.copy()
+                ),
+                pv_from_xiaolan=(
+                    np.eye(4)
+                    if self.pv_from_xiaolan is None
+                    else self.pv_from_xiaolan.copy()
+                ),
+                pv_boundary=self.pv_boundary.copy(),
+            )
 
 
 class RosControlNode:
@@ -88,8 +215,6 @@ class RosControlNode:
 
         self.button_a = int(rospy.get_param("~button_a", 0))
         self.button_b = int(rospy.get_param("~button_b", 1))
-        self.button_x = int(rospy.get_param("~button_x", 2))
-        self.button_y = int(rospy.get_param("~button_y", 3))
         self.axis_right = int(rospy.get_param("~axis_right", 0))
         self.axis_forward = int(rospy.get_param("~axis_forward", 1))
         self.axis_yaw = int(rospy.get_param("~axis_yaw", 3))
@@ -135,9 +260,7 @@ class RosControlNode:
 
         self.navigation = None
         if self.control_source == "navigation":
-            from navigation_ros import NavigationRosInput
-
-            self.navigation = NavigationRosInput()
+            self.navigation = NavigationInput()
             left_pose = rospy.get_param(
                 "~xiaolan_from_left_base",
                 [],
@@ -345,9 +468,6 @@ class RosControlNode:
         """处理一次按钮事件；B不依赖Joy或关节反馈是否有效。"""
         a_pressed = bool(self._read(button_presses, self.button_a))
         b_pressed = bool(self._read(button_presses, self.button_b))
-        x_pressed = bool(self._read(button_presses, self.button_x))
-        y_pressed = bool(self._read(button_presses, self.button_y))
-
         if b_pressed:
             self.state = self.RESETTING
             self.controller.reset_active = False
@@ -357,12 +477,6 @@ class RosControlNode:
             self.manual_override = False
             self.command[:] = 0.0
             rospy.loginfo("B pressed: returning to stand")
-            return
-
-        if x_pressed or y_pressed:
-            self._hold_motion("reserved mode button pressed", log=False)
-            mode = "CLIMB" if x_pressed else "DOCK"
-            rospy.logwarn("%s is reserved but not implemented", mode)
             return
 
         if not a_pressed:

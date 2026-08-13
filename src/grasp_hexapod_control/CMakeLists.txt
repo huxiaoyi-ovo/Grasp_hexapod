@@ -17,6 +17,7 @@ catkin_install_python(
   PROGRAMS
     scripts/run_real.py
     scripts/run_sim.py
+    scripts/tag_perception.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 

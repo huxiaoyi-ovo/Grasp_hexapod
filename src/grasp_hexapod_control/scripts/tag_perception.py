@@ -8,11 +8,16 @@ node never sends velocity, gait, joint, or servo commands.
 
 import json
 import math
+import statistics
+from collections import deque
 from dataclasses import dataclass
 from threading import Lock
 
 import rospy
+import cv2
 from apriltag_ros.msg import AprilTagDetectionArray
+from cv_bridge import CvBridge, CvBridgeError
+from sensor_msgs.msg import Image
 from std_msgs.msg import Float64, String
 
 
@@ -23,6 +28,43 @@ SIDE_ROLES = {"left", "right"}
 class TagSpec:
     role: str
     size_m: float
+
+
+class AngleFilter:
+    """Reject pose spikes, then smooth the remaining angle measurements."""
+
+    def __init__(self, window_size=7, alpha=0.25, max_rate_deg_s=120.0,
+                 reset_timeout_s=0.7):
+        if window_size < 1 or window_size % 2 == 0:
+            raise ValueError("angle filter window must be a positive odd number")
+        if not 0.0 < alpha <= 1.0:
+            raise ValueError("angle filter alpha must be in (0, 1]")
+        if max_rate_deg_s <= 0.0 or reset_timeout_s <= 0.0:
+            raise ValueError("angle filter rate and reset timeout must be positive")
+        self.samples = deque(maxlen=window_size)
+        self.alpha = alpha
+        self.max_rate_deg_s = max_rate_deg_s
+        self.reset_timeout_s = reset_timeout_s
+        self.value = None
+        self.last_time_s = None
+
+    def update(self, raw_angle_deg, now_s):
+        if (self.last_time_s is None
+                or now_s - self.last_time_s > self.reset_timeout_s):
+            self.samples.clear()
+            self.value = raw_angle_deg
+            self.last_time_s = now_s
+            self.samples.append(raw_angle_deg)
+            return self.value
+
+        self.samples.append(raw_angle_deg)
+        target = statistics.median(self.samples)
+        smoothed = self.value + self.alpha * (target - self.value)
+        dt = max(1e-3, now_s - self.last_time_s)
+        max_step = self.max_rate_deg_s * dt
+        self.value += max(-max_step, min(max_step, smoothed - self.value))
+        self.last_time_s = now_s
+        return self.value
 
 
 def parse_tag_specs(raw):
@@ -97,6 +139,10 @@ class XiaolanTagNode:
         self.rear_lost_timeout = float(rospy.get_param("~rear_lost_timeout", 0.7))
         self.rear_repeat_cooldown = float(rospy.get_param("~rear_repeat_cooldown", 5.0))
         self.log_side_angles = bool(rospy.get_param("~log_side_angles", True))
+        filter_window = int(rospy.get_param("~angle_filter_window", 7))
+        filter_alpha = float(rospy.get_param("~angle_filter_alpha", 0.25))
+        filter_max_rate = float(rospy.get_param("~angle_filter_max_rate_deg_s", 120.0))
+        filter_reset_timeout = float(rospy.get_param("~angle_filter_reset_timeout", 0.7))
         if self.rear_confirmation_frames < 1:
             raise ValueError("~rear_confirmation_frames must be >= 1")
         if self.rear_lost_timeout <= 0.0 or self.rear_repeat_cooldown < 0.0:
@@ -124,8 +170,22 @@ class XiaolanTagNode:
             rospy.get_param("~event_topic", "/grasp_hexapod/perception/tag_event"),
             String, queue_size=20,
         )
+        self.angle_image_pub = rospy.Publisher(
+            rospy.get_param(
+                "~angle_image_topic",
+                "/grasp_hexapod/perception/angle_image",
+            ),
+            Image, queue_size=1,
+        )
 
         self.lock = Lock()
+        self.bridge = CvBridge()
+        self.latest_side_angles = {}
+        self.angle_filters = {
+            role: AngleFilter(filter_window, filter_alpha, filter_max_rate,
+                              filter_reset_timeout)
+            for role in SIDE_ROLES
+        }
         self.rear_count = 0
         self.rear_confirmed = False
         self.rear_last_seen = rospy.Time(0)
@@ -133,6 +193,10 @@ class XiaolanTagNode:
         self.subscriber = rospy.Subscriber(
             rospy.get_param("~detections_topic", "/tag_detections"),
             AprilTagDetectionArray, self._callback, queue_size=1, tcp_nodelay=True,
+        )
+        self.image_subscriber = rospy.Subscriber(
+            rospy.get_param("~debug_image_topic", "/tag_detections_image"),
+            Image, self._image_callback, queue_size=1, buff_size=2 ** 24,
         )
         self.timer = rospy.Timer(rospy.Duration(0.1), self._check_rear_lost)
         rospy.loginfo("Xiaolan three-tag node ready: %s", {
@@ -149,20 +213,61 @@ class XiaolanTagNode:
 
     def _publish_side(self, detection, stamp, spec):
         try:
-            angle = camera_normal_to_tag_x_angle_deg(
+            raw_angle = camera_normal_to_tag_x_angle_deg(
                 detection.pose.pose.pose.orientation
             )
         except ValueError as error:
             rospy.logwarn_throttle(2.0, "Invalid pose for tag %d: %s", detection.id[0], error)
             return
+        now = rospy.Time.now()
+        angle = self.angle_filters[spec.role].update(raw_angle, now.to_sec())
         payload = detection_payload(detection, stamp, spec, angle)
+        payload["raw_angle_deg"] = raw_angle
+        payload["angle_filter"] = "median_ema_slew_limit"
+        with self.lock:
+            self.latest_side_angles[spec.role] = (
+                int(detection.id[0]), angle, now
+            )
         self.side_pub.publish(String(data=self._json(payload)))
         self.angle_pubs[spec.role].publish(Float64(data=angle))
         if self.log_side_angles:
             rospy.loginfo_throttle(
-                0.2, "%s tag ID=%d | camera +Z to tag +X = %.2f deg",
-                spec.role, detection.id[0], angle,
+                0.2, "%s tag ID=%d | angle = %.2f deg (raw %.2f)",
+                spec.role, detection.id[0], angle, raw_angle,
             )
+
+    def _image_callback(self, message):
+        try:
+            image = self.bridge.imgmsg_to_cv2(message, desired_encoding="bgr8")
+        except CvBridgeError as error:
+            rospy.logwarn_throttle(2.0, "Cannot convert tag debug image: %s", error)
+            return
+        now = rospy.Time.now()
+        with self.lock:
+            angles = dict(self.latest_side_angles)
+        lines = []
+        for role in ("left", "right"):
+            value = angles.get(role)
+            if value is not None and (now - value[2]).to_sec() <= 0.5:
+                lines.append("%s ID %d: %.2f deg" % (
+                    role.upper(), value[0], value[1]
+                ))
+        if not lines:
+            lines.append("NO SIDE TAG")
+        for index, line in enumerate(lines):
+            origin = (16, 34 + index * 34)
+            cv2.putText(image, line, origin, cv2.FONT_HERSHEY_SIMPLEX,
+                        0.85, (0, 0, 0), 5, cv2.LINE_AA)
+            cv2.putText(image, line, origin, cv2.FONT_HERSHEY_SIMPLEX,
+                        0.85, (0, 255, 255), 2, cv2.LINE_AA)
+        output = Image()
+        output.header = message.header
+        output.height, output.width = image.shape[:2]
+        output.encoding = "bgr8"
+        output.is_bigendian = False
+        output.step = output.width * 3
+        output.data = image.tobytes()
+        self.angle_image_pub.publish(output)
 
     def _handle_rear(self, detection, stamp, spec):
         publish_request = False

@@ -3,6 +3,7 @@ project(grasp_hexapod_control)
 
 find_package(
   catkin REQUIRED COMPONENTS
+  cv_bridge
   geometry_msgs
   rospy
   sensor_msgs
@@ -10,13 +11,14 @@ find_package(
 )
 
 catkin_package(
-  CATKIN_DEPENDS geometry_msgs rospy sensor_msgs std_msgs
+  CATKIN_DEPENDS cv_bridge geometry_msgs rospy sensor_msgs std_msgs
 )
 
 catkin_install_python(
   PROGRAMS
     scripts/run_real.py
     scripts/run_sim.py
+    scripts/tag_perception.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 

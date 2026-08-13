@@ -22,7 +22,7 @@
     <param name="publish_tf" value="true"/>
     <param name="transport_hint" value="raw"/>
     <rosparam param="standalone_tags">
-      - {id: 0, size: 0.060, name: xiaolan_left_tag}
+      - {id: 4, size: 0.060, name: xiaolan_left_tag}
       - {id: 5, size: 0.060, name: xiaolan_right_tag}
       - {id: 6, size: 0.060, name: xiaolan_rear_tag}
     </rosparam>
@@ -36,17 +36,12 @@
   <node pkg="grasp_hexapod_control" type="tag_perception.py"
         name="xiaolan_tag_perception" output="screen" required="true">
     <rosparam param="tags">
-      "0": {role: left, size_m: 0.060}
+      "4": {role: left, size_m: 0.060}
       "5": {role: right, size_m: 0.060}
       "6": {role: rear, size_m: 0.060}
     </rosparam>
     <param name="rear_confirmation_frames" value="5"/>
     <param name="rear_lost_timeout" value="0.7"/>
     <param name="rear_repeat_cooldown" value="5.0"/>
-    <!-- Median removes pose-solver spikes; EMA and slew limit stabilize 90 deg. -->
-    <param name="angle_filter_window" value="7"/>
-    <param name="angle_filter_alpha" value="0.25"/>
-    <param name="angle_filter_max_rate_deg_s" value="120.0"/>
-    <param name="angle_filter_reset_timeout" value="0.7"/>
   </node>
 </launch>

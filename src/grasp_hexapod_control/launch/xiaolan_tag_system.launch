@@ -1,0 +1,47 @@
+<launch>
+  <!-- Start the Orbbec camera before this launch file. -->
+  <arg name="camera_ns" default="/camera/color"/>
+  <arg name="publish_debug_image" default="true"/>
+
+  <group ns="$(arg camera_ns)">
+    <node pkg="nodelet" type="nodelet" name="tag_image_proc_manager"
+          args="manager" output="screen"/>
+    <include file="$(find image_proc)/launch/image_proc.launch">
+      <arg name="manager" value="$(arg camera_ns)/tag_image_proc_manager"/>
+    </include>
+  </group>
+
+  <node pkg="apriltag_ros" type="apriltag_ros_continuous_node"
+        name="xiaolan_apriltag_detector" clear_params="true" output="screen">
+    <param name="tag_family" value="tag36h11"/>
+    <param name="tag_threads" value="4"/>
+    <param name="tag_decimate" value="1.0"/>
+    <param name="tag_blur" value="0.0"/>
+    <param name="tag_refine_edges" value="1"/>
+    <param name="max_hamming_dist" value="1"/>
+    <param name="publish_tf" value="true"/>
+    <param name="transport_hint" value="raw"/>
+    <rosparam param="standalone_tags">
+      - {id: 4, size: 0.060, name: xiaolan_left_tag}
+      - {id: 5, size: 0.060, name: xiaolan_right_tag}
+      - {id: 6, size: 0.060, name: xiaolan_rear_tag}
+    </rosparam>
+    <rosparam param="tag_bundles">[]</rosparam>
+    <param name="publish_tag_detections_image" type="bool"
+           value="$(arg publish_debug_image)"/>
+    <remap from="image_rect" to="$(arg camera_ns)/image_rect_color"/>
+    <remap from="camera_info" to="$(arg camera_ns)/camera_info"/>
+  </node>
+
+  <node pkg="grasp_hexapod_control" type="tag_perception.py"
+        name="xiaolan_tag_perception" output="screen" required="true">
+    <rosparam param="tags">
+      "4": {role: left, size_m: 0.060}
+      "5": {role: right, size_m: 0.060}
+      "6": {role: rear, size_m: 0.060}
+    </rosparam>
+    <param name="rear_confirmation_frames" value="5"/>
+    <param name="rear_lost_timeout" value="0.7"/>
+    <param name="rear_repeat_cooldown" value="5.0"/>
+  </node>
+</launch>

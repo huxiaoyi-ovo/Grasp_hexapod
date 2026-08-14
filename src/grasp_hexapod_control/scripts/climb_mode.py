@@ -51,6 +51,7 @@ class ClimbMode:
         self.last_tracking_error_rad = 0.0
         self.last_foot_target_error_m = 0.0
         self.last_settled = False
+        self.hardware_execution = False
 
     @staticmethod
     def _world_from_base(base):
@@ -219,6 +220,7 @@ class ClimbMode:
         config=None,
         start_stage_index=0,
         end_stage_index=None,
+        hardware_execution=False,
     ):
         """进入 compact 攀爬预览。
 
@@ -227,6 +229,7 @@ class ClimbMode:
             config: 可选的 compact 配置；未提供时从文件读取。
             start_stage_index: 绝对 compact 阶段下标，闭区间起点。
             end_stage_index: 绝对 compact 阶段下标，闭区间终点。
+            hardware_execution: 实机执行时必须用反馈稳定门限推进阶段。
         """
 
         config = self._load_config() if config is None else config
@@ -251,6 +254,7 @@ class ClimbMode:
             if entry_error > config["settle_gate"]["entry_max_joint_error_rad"]:
                 raise ValueError("compact entry joint error exceeds simulation gate")
         self.config = config
+        self.hardware_execution = bool(hardware_execution)
         self.stage_index = start_stage_index
         self.end_stage_index = end_stage_index
         self.stage_names = tuple(stage["name"] for stage in config["stages"])
@@ -445,7 +449,11 @@ class ClimbMode:
             self.phase_time = min(duration, self.phase_time + self.controller.dt)
             return None
         gate = self.config["settle_gate"]
-        if gate["preview_time_only_stage_advance"]:
+        preview_time_only = (
+            gate["preview_time_only_stage_advance"]
+            and not self.hardware_execution
+        )
+        if preview_time_only:
             self.settle_time += self.controller.dt
         else:
             self.settle_time = (
@@ -457,7 +465,7 @@ class ClimbMode:
         if self.settle_time >= settle_required:
             self._advance_stage()
         elif (
-            not gate["preview_time_only_stage_advance"]
+            not preview_time_only
             and self.phase_time >= duration + gate["timeout_s"]
         ):
             self.state = self.FAILED

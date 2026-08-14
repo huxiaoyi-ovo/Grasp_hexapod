@@ -36,7 +36,7 @@ roslaunch grasp_hexapod_control run_real.launch \
 工控机部署时再用稳定的`/dev/serial/by-id/...`路径替换三个串口参数。
 
 仿真和实机默认都使用`0.20 m/s`平移、`0.02 m/s`升降。
-实机控制器以60 Hz运行，Servo串口以30 Hz运行并使用33 ms位置插值。
+实机控制器与Servo串口均以30 Hz运行，并使用33 ms位置插值。
 第一次架空测试如需临时降速，可以显式覆盖：
 
 ```bash
@@ -46,7 +46,7 @@ roslaunch grasp_hexapod_control run_real.launch \
 ```
 
 当前工控机上三块板依次为`left=/dev/ttyUSB1`、`right=/dev/ttyUSB2`、
-`mid=/dev/ttyUSB0`。如果无法在60 Hz内完成整机连杆碰撞计算，使用下面的
+`mid=/dev/ttyUSB0`。如果无法在30 Hz内完成整机连杆碰撞计算，使用下面的
 完整指令临时关闭这一项：
 
 ```bash
@@ -139,12 +139,23 @@ B -> 等待回到标准站姿 -> A -> 接受运动指令
 
 - B：最高优先级，停止当前行为并回到站姿。
 - A：站姿初始化完成后启用或暂停运动。
-- X：仅在 Isaac `--climb-scene` 中启动 compact 攀爬预览；`--climb-start` 会自动启动。ROS与实机仍禁止攀爬启动。
+- X（默认索引2）：默认禁用。只有显式传入`enable_real_climb:=true`、已完成B回站、18关节反馈和手柄新鲜、IMU及RTK/LoRa位姿新鲜，并通过compact入口关节门限时，才会从C1进入全C1--C53。实机阶段只依赖实际关节跟踪与FK足端目标误差的连续稳定门限推进；IMU/RTK相对运动偏差、角速度或失鲜会进入`CLIMB HOLD`。这些观察不是接触、承载或稳定性证明。
+- Y（默认索引3）：默认禁用。只有显式传入`enable_real_dock:=true`、已完成B回站、反馈/手柄/IMU新鲜且没有运行中的攀爬时，才进入DockMode。DockMode等待稳定的完整AprilTag输入；它只把18关节候选交给同一个`run_real.py -> GraspController -> /<leg>_des`链路，未另行发布舵机或`JointTrajectory`命令。完成或失败都进入HOLD，B可随时中止。
 - 导航运行时推动任一运动摇杆会取消导航并锁存为手柄控制。
 - 松开摇杆不会恢复导航；按B重新初始化，再按A才会重新规划。
 
 整机状态为`WAIT_B -> RESETTING -> HOLD <-> RUNNING`。`ApproachMode`
 内部的摆动腿、支撑腿和换相状态始终保留。
+
+实机攀爬和对接的传感器话题都必须在启动时明确提供，不会猜测相机设备号、内参或标定。常用参数包括`imu_topic`、`base_pose_topic`、`xiaolan_pose_topic`、`lock_confirmed_topic`、`dock_detections_topic`、`dock_image_topic`和`dock_camera_info_topic`；AprilTag推断与锁紧确认分别由`dock_allow_inference`和`dock_require_lock_confirmation`显式控制，默认均为`false`。例如仅在架空和已完成部署传感器验收后才显式开启：
+
+```bash
+roslaunch grasp_hexapod_control run_real.launch \
+  enable_real_climb:=true \
+  imu_topic:=/your_imu \
+  base_pose_topic:=/your_rtk/base_pose \
+  xiaolan_pose_topic:=/your_lora/xiaolan_pose
+```
 
 ## 常用检查
 

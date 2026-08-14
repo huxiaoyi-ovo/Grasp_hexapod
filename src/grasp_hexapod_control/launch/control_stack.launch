@@ -7,9 +7,13 @@
   <arg name="max_feedback_age" default="0.15"/>
   <arg name="max_joy_age" default="0.2"/>
   <arg name="joy_deadzone" default="0.20"/>
+  <arg name="enable_real_climb" default="false"/>
+  <arg name="enable_real_dock" default="false"/>
 
   <arg name="button_a" default="0"/>
   <arg name="button_b" default="1"/>
+  <arg name="button_x" default="2"/>
+  <arg name="button_y" default="3"/>
   <arg name="axis_right" default="0"/>
   <arg name="axis_forward" default="1"/>
   <arg name="axis_yaw" default="3"/>
@@ -27,6 +31,20 @@
   <arg name="xiaolan_pose_topic" default="/grasp_hexapod/navigation/xiaolan_pose"/>
   <arg name="pv_boundary_topic" default="/grasp_hexapod/navigation/pv_boundary"/>
   <arg name="landing_topic" default="/grasp_hexapod/landing_confirmed"/>
+  <arg name="imu_topic" default="/grasp_hexapod/imu"/>
+  <arg name="real_climb_max_imu_age" default="0.2"/>
+  <arg name="real_climb_max_position_error_m" default="0.05"/>
+  <arg name="real_climb_max_orientation_error_deg" default="10.0"/>
+  <arg name="real_climb_max_angular_speed_deg_s" default="30.0"/>
+  <arg name="real_climb_persistence_frames" default="3"/>
+  <arg name="lock_confirmed_topic" default="/grasp_hexapod/dock/lock_confirmed"/>
+  <arg name="dock_detections_topic" default="/tag_detections"/>
+  <arg name="dock_image_topic" default="/usb_cam/image_raw"/>
+  <arg name="dock_camera_info_topic" default="/usb_cam/camera_info"/>
+  <arg name="dock_allow_inference" default="false"/>
+  <arg name="dock_require_lock_confirmation" default="false"/>
+  <arg name="dock_min_stable_frames" default="10"/>
+  <arg name="dock_max_perception_age" default="0.2"/>
 
   <node
     pkg="joy"
@@ -53,8 +71,12 @@
       value="$(arg enable_link_collision_check)"/>
     <param name="max_feedback_age" value="$(arg max_feedback_age)"/>
     <param name="max_joy_age" value="$(arg max_joy_age)"/>
+    <param name="enable_real_climb" value="$(arg enable_real_climb)"/>
+    <param name="enable_real_dock" value="$(arg enable_real_dock)"/>
     <param name="button_a" value="$(arg button_a)"/>
     <param name="button_b" value="$(arg button_b)"/>
+    <param name="button_x" value="$(arg button_x)"/>
+    <param name="button_y" value="$(arg button_y)"/>
     <param name="axis_right" value="$(arg axis_right)"/>
     <param name="axis_forward" value="$(arg axis_forward)"/>
     <param name="axis_yaw" value="$(arg axis_yaw)"/>
@@ -72,5 +94,19 @@
     <param name="xiaolan_pose_topic" value="$(arg xiaolan_pose_topic)"/>
     <param name="pv_boundary_topic" value="$(arg pv_boundary_topic)"/>
     <param name="landing_topic" value="$(arg landing_topic)"/>
+    <param name="imu_topic" value="$(arg imu_topic)"/>
+    <param name="real_climb_max_imu_age" value="$(arg real_climb_max_imu_age)"/>
+    <param name="real_climb_max_position_error_m" value="$(arg real_climb_max_position_error_m)"/>
+    <param name="real_climb_max_orientation_error_deg" value="$(arg real_climb_max_orientation_error_deg)"/>
+    <param name="real_climb_max_angular_speed_deg_s" value="$(arg real_climb_max_angular_speed_deg_s)"/>
+    <param name="real_climb_persistence_frames" value="$(arg real_climb_persistence_frames)"/>
+    <param name="lock_confirmed_topic" value="$(arg lock_confirmed_topic)"/>
+    <param name="dock_detections_topic" value="$(arg dock_detections_topic)"/>
+    <param name="dock_image_topic" value="$(arg dock_image_topic)"/>
+    <param name="dock_camera_info_topic" value="$(arg dock_camera_info_topic)"/>
+    <param name="dock_allow_inference" value="$(arg dock_allow_inference)"/>
+    <param name="dock_require_lock_confirmation" value="$(arg dock_require_lock_confirmation)"/>
+    <param name="dock_min_stable_frames" value="$(arg dock_min_stable_frames)"/>
+    <param name="dock_max_perception_age" value="$(arg dock_max_perception_age)"/>
   </node>
 </launch>

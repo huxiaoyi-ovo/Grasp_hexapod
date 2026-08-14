@@ -1384,7 +1384,8 @@ class DockMode:
         self, controller, perception=None, allow_inference=False,
         joint_reader=None, planner_config=None, time_scale=1.0, clock=None,
         require_lock_confirmation=False, trajectory_publisher=None,
-        status_publisher=None,
+        status_publisher=None, subscribe_joint_state=True,
+        publish_trajectory=True,
     ):
         self.controller = controller
         self.allow_inference = bool(allow_inference)
@@ -1393,13 +1394,20 @@ class DockMode:
             allow_inference=self.allow_inference
         )
         # 独立ROS入口可读/joint_states；正式实机循环应直接注入反馈。
-        self.joints = joint_reader or body.JointReader()
+        if joint_reader is not None:
+            self.joints = joint_reader
+        elif subscribe_joint_state:
+            self.joints = body.JointReader()
+        else:
+            self.joints = type("InjectedJointState", (), {"values": None})()
         self.motion_planner = DockMotionPlanner(
             planner_config or DockPlannerConfig(), time_scale, clock
         )
-        self.trajectory_publisher = trajectory_publisher or rospy.Publisher(
-            "/dock_mode6/joint_trajectory", JointTrajectory, queue_size=1
-        )
+        self.trajectory_publisher = trajectory_publisher
+        if self.trajectory_publisher is None and publish_trajectory:
+            self.trajectory_publisher = rospy.Publisher(
+                "/dock_mode6/joint_trajectory", JointTrajectory, queue_size=1
+            )
         self.status_publisher = status_publisher or rospy.Publisher(
             "/dock_mode6/status", String, queue_size=1, latch=True
         )
@@ -1513,7 +1521,14 @@ class DockMode:
         self._set_state(self.FAILED, reason)
         return False
 
+    def fail_execution(self, reason):
+        """由公共执行层拒绝目标时明确结束本次对接。"""
+
+        self._terminal_failure(reason)
+
     def _publish_plan(self, elapsed=0.0):
+        if self.trajectory_publisher is None:
+            return
         plan = self.plan if elapsed <= 0.0 else body.remaining_plan(
             self.plan, elapsed, self.joints.values
         )

@@ -8,10 +8,12 @@ find_package(
   rospy
   sensor_msgs
   std_msgs
+  tf
+  trajectory_msgs
 )
 
 catkin_package(
-  CATKIN_DEPENDS cv_bridge geometry_msgs rospy sensor_msgs std_msgs
+  CATKIN_DEPENDS cv_bridge geometry_msgs rospy sensor_msgs std_msgs tf trajectory_msgs
 )
 
 catkin_install_python(
@@ -27,6 +29,7 @@ install(
     scripts/approach_mode.py
     scripts/climb_mode.py
     scripts/control.py
+    scripts/dock_mode.py
     scripts/kinematics.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )

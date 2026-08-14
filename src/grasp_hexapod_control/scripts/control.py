@@ -480,6 +480,7 @@ class GraspController:
 
         self.approach_mode = ApproachMode(self)
         self.climb_mode = ClimbMode(self)
+        self.dock_mode = None
         self.mission = MissionStateMachine(self)
         self.mode = self.APPROACH
         self.last_mode_result = None
@@ -748,6 +749,35 @@ class GraspController:
             return q_candidate
         return q_current.copy()
 
+    def _sync_actual_feet(self, q_cur):
+        """用当前反馈同步模式交接的足端参考。"""
+
+        q_cur = np.asarray(q_cur, dtype=np.float64).reshape(6, 3)
+        feet_base = self.kinematic.hip_to_base(self.kinematic.forward(q_cur))
+        self.foot_desired_base[:] = feet_base
+        self.foot_desired_base_prev[:] = feet_base
+        self.q_des = q_cur.copy()
+        return feet_base
+
+    def _safe_direct_joint_target(self, q_candidate, q_cur):
+        """检查DockMode给出的关节目标，不安全时保持反馈姿态。"""
+
+        q_cur = np.asarray(q_cur, dtype=np.float64).reshape(6, 3)
+        try:
+            q_candidate = np.asarray(q_candidate, dtype=np.float64).reshape(6, 3)
+        except (TypeError, ValueError):
+            return q_cur.copy(), "dock target shape is invalid"
+        if not np.isfinite(q_candidate).all():
+            return q_cur.copy(), "dock target is non-finite"
+        if (q_candidate < JOINT_LOWER).any() or (q_candidate > JOINT_UPPER).any():
+            return q_cur.copy(), "dock target exceeds joint limits"
+        if np.any(np.abs(q_candidate - q_cur) > JOINT_VELOCITY_LIMIT * self.dt):
+            return q_cur.copy(), "dock target exceeds per-cycle joint speed limit"
+        accepted = self.collision_guard(q_candidate, q_cur)
+        if not np.array_equal(accepted, q_candidate):
+            return q_cur.copy(), "dock target rejected by link collision guard"
+        return accepted, ""
+
     def _commit_workspace_candidate(self, candidate_base):
         """连续投影并提交足端候选，碰撞时才保持旧目标。"""
 
@@ -772,6 +802,8 @@ class GraspController:
         """从当前关节角平滑回到标准站姿。"""
         # B是全局恢复动作，必须退出攀爬状态再执行站立轨迹。
         self.mission.cancel("reset to stand")
+        self.abort_climb()
+        self.exit_dock(q_cur)
         self.set_mode(self.APPROACH)
         self.prepare_climb_entry(q_cur)
 
@@ -833,16 +865,45 @@ class GraspController:
         config=None,
         start_stage_index=0,
         end_stage_index=None,
+        hardware_execution=False,
     ):
         """通过唯一入口进入仅仿真的 compact 攀爬。"""
         self.reset_active = False
+        self.exit_dock(q_cur)
         self.set_mode(self.CLIMB)
         self.climb_mode.enter(
             q_cur,
             config,
             start_stage_index=start_stage_index,
             end_stage_index=end_stage_index,
+            hardware_execution=hardware_execution,
         )
+
+    def attach_dock_mode(self, dock_mode):
+        """附接已由ROS入口配置的DockMode。"""
+
+        if dock_mode is None:
+            raise ValueError("dock_mode is required")
+        self.dock_mode = dock_mode
+
+    def enter_dock(self, q_cur):
+        """同步反馈足端并把DockMode设为唯一活动模式。"""
+
+        if self.dock_mode is None:
+            raise RuntimeError("DockMode is not attached")
+        if self.climb_mode.state == ClimbMode.RUNNING:
+            raise ValueError("DockMode cannot enter while climb is running")
+        self.abort_climb()
+        feet_base = self._sync_actual_feet(q_cur)
+        self.set_mode(self.DOCK)
+        self.dock_mode.enter(feet_base)
+
+    def exit_dock(self, q_cur):
+        """结束DockMode并以实际足端作为下一模式入口。"""
+
+        if self.dock_mode is not None and self.dock_mode.active:
+            self.dock_mode.exit()
+        self._sync_actual_feet(q_cur)
 
     def replay_climb_prefix(
         self,
@@ -874,7 +935,19 @@ class GraspController:
         if self.mode == self.CLIMB:
             self.climb_mode.resume()
 
-    def update(self, q_cur, command, navigation_state=None):
+    def abort_climb(self):
+        """停止当前攀爬会话；B复位后只能重新通过入口开始。"""
+
+        self.climb_mode.hold()
+        self.climb_mode.state = ClimbMode.IDLE
+
+    def update(
+        self,
+        q_cur,
+        command,
+        navigation_state=None,
+        dock_robot_state=None,
+    ):
         """执行当前任务模式并输出本周期关节目标。"""
         if self.mission.state != self.mission.IDLE:
             self.last_mode_result = self.mission.update(
@@ -889,8 +962,18 @@ class GraspController:
         elif self.mode == self.CLIMB:
             self.last_mode_result = self.climb_mode.update(command, q_cur)
         elif self.mode == self.DOCK:
-            # 视觉对接器接入前只保持攀爬终点，不生成未经验证的运动。
-            self.last_mode_result = None
+            if self.dock_mode is None:
+                raise RuntimeError("DockMode is not attached")
+            self.last_mode_result = self.dock_mode.update(dock_robot_state)
+            target = self.last_mode_result.joint_positions
+            if target is None:
+                self.q_des = np.asarray(q_cur, dtype=np.float64).reshape(6, 3).copy()
+                return self.q_des
+            self.q_des, reason = self._safe_direct_joint_target(target, q_cur)
+            if reason:
+                self.dock_mode.fail_execution(reason)
+                self.last_mode_result = self.dock_mode.update(dock_robot_state)
+            return self.q_des
         else:
             raise ValueError(f"Unknown control mode: {self.mode}")
 

@@ -21,7 +21,7 @@ from threading import Lock
 import numpy as np
 import rospy
 from geometry_msgs.msg import PolygonStamped, PoseStamped
-from sensor_msgs.msg import JointState, Joy
+from sensor_msgs.msg import Imu, JointState, Joy
 from std_msgs.msg import Bool, Float64MultiArray
 
 # 源码直启时使用当前目录；rosrun/roslaunch时从ROS包路径找到scripts。
@@ -35,6 +35,7 @@ if not (scripts_dir / "control.py").exists():
     )
 sys.path.insert(0, str(scripts_dir))
 
+from climb_mode import ClimbMode
 from control import GraspController
 from kinematics import LEG_NAMES
 from utils import NavigationState, package_config_path, pose_to_transform
@@ -182,6 +183,123 @@ class NavigationInput:
                 pv_boundary=self.pv_boundary.copy(),
             )
 
+    def motion_snapshot(self):
+        """返回实机攀爬用的RTK/LoRa相对位姿快照。"""
+
+        now = rospy.Time.now().to_sec()
+        with self.lock:
+            stamp = min(self.base_stamp, self.xiaolan_stamp)
+            valid = (
+                self.pv_from_base is not None
+                and self.pv_from_xiaolan is not None
+                and stamp > 0.0
+                and 0.0 <= now - stamp <= self.max_age
+            )
+            return NavigationState(
+                stamp=stamp,
+                valid=valid,
+                landing_confirmed=self.landing_confirmed,
+                pv_from_base=(
+                    np.eye(4) if self.pv_from_base is None
+                    else self.pv_from_base.copy()
+                ),
+                pv_from_xiaolan=(
+                    np.eye(4) if self.pv_from_xiaolan is None
+                    else self.pv_from_xiaolan.copy()
+                ),
+                pv_boundary=self.pv_boundary.copy(),
+            )
+
+
+class ImuInput:
+    """缓存实机IMU姿态和角速度，仅为攀爬安全观察提供输入。"""
+
+    def __init__(self):
+        self.max_age = float(rospy.get_param("~real_climb_max_imu_age", 0.2))
+        self.lock = Lock()
+        self.stamp = 0.0
+        self.rotation = None
+        self.angular_velocity = np.full(3, np.nan, dtype=np.float64)
+        self.subscriber = rospy.Subscriber(
+            rospy.get_param("~imu_topic", "/grasp_hexapod/imu"),
+            Imu,
+            self._callback,
+            queue_size=1,
+        )
+
+    def _callback(self, message):
+        """保存有效四元数和角速度。"""
+
+        q = np.array(
+            [
+                message.orientation.x,
+                message.orientation.y,
+                message.orientation.z,
+                message.orientation.w,
+            ],
+            dtype=np.float64,
+        )
+        norm = np.linalg.norm(q)
+        angular_velocity = np.array(
+            [
+                message.angular_velocity.x,
+                message.angular_velocity.y,
+                message.angular_velocity.z,
+            ],
+            dtype=np.float64,
+        )
+        stamp = message.header.stamp.to_sec()
+        if norm <= 0.0 or stamp <= 0.0 or not np.isfinite(angular_velocity).all():
+            return
+        x, y, z, w = q / norm
+        rotation = np.array(
+            [
+                [1.0 - 2.0 * (y * y + z * z), 2.0 * (x * y - z * w), 2.0 * (x * z + y * w)],
+                [2.0 * (x * y + z * w), 1.0 - 2.0 * (x * x + z * z), 2.0 * (y * z - x * w)],
+                [2.0 * (x * z - y * w), 2.0 * (y * z + x * w), 1.0 - 2.0 * (x * x + y * y)],
+            ],
+            dtype=np.float64,
+        )
+        if not np.isfinite(rotation).all():
+            return
+        with self.lock:
+            self.rotation = rotation
+            self.angular_velocity = angular_velocity
+            self.stamp = stamp
+
+    def snapshot(self):
+        """返回新鲜IMU快照。"""
+
+        now = rospy.Time.now().to_sec()
+        with self.lock:
+            valid = (
+                self.rotation is not None
+                and self.stamp > 0.0
+                and 0.0 <= now - self.stamp <= self.max_age
+            )
+            return {
+                "valid": valid,
+                "rotation": np.eye(3) if self.rotation is None else self.rotation.copy(),
+                "angular_velocity": self.angular_velocity.copy(),
+            }
+
+
+class BoolInput:
+    """缓存可选锁紧确认输入。"""
+
+    def __init__(self, topic):
+        self.lock = Lock()
+        self.value = None
+        self.subscriber = rospy.Subscriber(topic, Bool, self._callback, queue_size=1)
+
+    def _callback(self, message):
+        with self.lock:
+            self.value = bool(message.data)
+
+    def snapshot(self):
+        with self.lock:
+            return self.value
+
 
 class RosControlNode:
     """处理ROS输入和整机状态机；实机发布目标，仿真可同步调用。"""
@@ -206,6 +324,12 @@ class RosControlNode:
         )
         self.max_joy_age = float(
             rospy.get_param("~max_joy_age", 0.2)
+        )
+        self.enable_real_climb = bool(
+            rospy.get_param("~enable_real_climb", False)
+        )
+        self.enable_real_dock = bool(
+            rospy.get_param("~enable_real_dock", False)
         )
         self.control_source = str(
             rospy.get_param("~control_source", "teleop")
@@ -234,6 +358,8 @@ class RosControlNode:
 
         self.button_a = int(rospy.get_param("~button_a", 0))
         self.button_b = int(rospy.get_param("~button_b", 1))
+        self.button_x = int(rospy.get_param("~button_x", 2))
+        self.button_y = int(rospy.get_param("~button_y", 3))
         self.axis_right = int(rospy.get_param("~axis_right", 0))
         self.axis_forward = int(rospy.get_param("~axis_forward", 1))
         self.axis_yaw = int(rospy.get_param("~axis_yaw", 3))
@@ -276,10 +402,33 @@ class RosControlNode:
         self.state = self.WAIT_B
         self.manual_override = False
         self.command = np.zeros(4, dtype=np.float64)
+        self.climb_start_navigation = None
+        self.climb_start_imu_rotation = None
+        self.climb_start_planned_pose = None
+        self.climb_bad_frames = 0
+        self.climb_good_frames = 0
+        self.real_climb_persistence_frames = int(
+            rospy.get_param("~real_climb_persistence_frames", 3)
+        )
+        self.real_climb_max_position_error = float(
+            rospy.get_param("~real_climb_max_position_error_m", 0.05)
+        )
+        self.real_climb_max_orientation_error = np.deg2rad(float(
+            rospy.get_param("~real_climb_max_orientation_error_deg", 10.0)
+        ))
+        self.real_climb_max_angular_speed = np.deg2rad(float(
+            rospy.get_param("~real_climb_max_angular_speed_deg_s", 30.0)
+        ))
 
-        self.navigation = None
+        self.navigation = NavigationInput()
+        self.imu = ImuInput()
+        self.lock_confirmation = BoolInput(
+            rospy.get_param(
+                "~lock_confirmed_topic",
+                "/grasp_hexapod/dock/lock_confirmed",
+            )
+        )
         if self.control_source == "navigation":
-            self.navigation = NavigationInput()
             target_side, xiaolan_from_base = load_fixed_approach_config()
             self.controller.approach_mode.configure_fixed_approach(
                 xiaolan_from_base,
@@ -464,31 +613,248 @@ class RosControlNode:
                 )
             )
 
+    def _ensure_dock_mode(self):
+        """按显式实机请求创建DockMode，不给普通控制器增加ROS资源。"""
+
+        if self.controller.dock_mode is not None:
+            return self.controller.dock_mode
+        from dock_mode import DockMode, DockPerception
+
+        allow_inference = bool(rospy.get_param("~dock_allow_inference", False))
+        perception = DockPerception(
+            detections_topic=rospy.get_param(
+                "~dock_detections_topic", "/tag_detections"
+            ),
+            image_topic=rospy.get_param(
+                "~dock_image_topic", "/usb_cam/image_raw"
+            ),
+            camera_info_topic=rospy.get_param(
+                "~dock_camera_info_topic", "/usb_cam/camera_info"
+            ),
+            allow_inference=allow_inference,
+            min_stable_frames=int(rospy.get_param("~dock_min_stable_frames", 10)),
+            max_age=float(rospy.get_param("~dock_max_perception_age", 0.2)),
+        )
+        dock_mode = DockMode(
+            self.controller,
+            perception=perception,
+            allow_inference=allow_inference,
+            require_lock_confirmation=bool(
+                rospy.get_param("~dock_require_lock_confirmation", False)
+            ),
+            subscribe_joint_state=False,
+            publish_trajectory=False,
+        )
+        self.controller.attach_dock_mode(dock_mode)
+        return dock_mode
+
+    @staticmethod
+    def _rotation_angle(rotation):
+        """返回正交旋转矩阵的最小夹角。"""
+
+        cosine = np.clip((np.trace(rotation) - 1.0) / 2.0, -1.0, 1.0)
+        return float(np.arccos(cosine))
+
+    def _real_climb_observation(self):
+        """比较部署传感器相对运动与当前计划机身运动。"""
+
+        navigation = self.navigation.motion_snapshot()
+        imu = self.imu.snapshot()
+        if not navigation.valid:
+            return False, "RTK/LoRa navigation pose is stale or invalid"
+        if not imu["valid"]:
+            return False, "IMU is stale or invalid"
+        if (
+            self.climb_start_navigation is None
+            or self.climb_start_imu_rotation is None
+            or self.climb_start_planned_pose is None
+            or self.controller.climb_mode.base_pose is None
+        ):
+            return False, "climb safety reference is missing"
+        start_xiaolan_from_base = (
+            np.linalg.inv(self.climb_start_navigation.pv_from_xiaolan)
+            @ self.climb_start_navigation.pv_from_base
+        )
+        current_xiaolan_from_base = (
+            np.linalg.inv(navigation.pv_from_xiaolan)
+            @ navigation.pv_from_base
+        )
+        actual_relative = (
+            np.linalg.inv(start_xiaolan_from_base)
+            @ current_xiaolan_from_base
+        )
+        planned_now = ClimbMode._world_from_base(self.controller.climb_mode.base_pose)
+        planned_relative = (
+            np.linalg.inv(self.climb_start_planned_pose) @ planned_now
+        )
+        position_error = float(np.linalg.norm(
+            actual_relative[:3, 3] - planned_relative[:3, 3]
+        ))
+        imu_relative = self.climb_start_imu_rotation.T @ imu["rotation"]
+        orientation_error = self._rotation_angle(
+            planned_relative[:3, :3].T @ imu_relative
+        )
+        angular_speed = float(np.linalg.norm(imu["angular_velocity"]))
+        if position_error > self.real_climb_max_position_error:
+            return False, "relative RTK position error {:.3f} m".format(position_error)
+        if orientation_error > self.real_climb_max_orientation_error:
+            return False, "IMU attitude error {:.1f} deg".format(
+                np.degrees(orientation_error)
+            )
+        if angular_speed > self.real_climb_max_angular_speed:
+            return False, "IMU angular speed {:.1f} deg/s".format(
+                np.degrees(angular_speed)
+            )
+        return True, ""
+
+    def _monitor_real_climb(self):
+        """持续观察实机攀爬；不把计划时间当作接触或承载证据。"""
+
+        if self.controller.mode != self.controller.CLIMB:
+            return
+        okay, reason = self._real_climb_observation()
+        if okay:
+            self.climb_good_frames += 1
+            self.climb_bad_frames = 0
+            return
+        self.climb_good_frames = 0
+        if "stale" in reason or "invalid" in reason or "missing" in reason:
+            self.climb_bad_frames = self.real_climb_persistence_frames
+        else:
+            self.climb_bad_frames += 1
+        if (
+            self.controller.climb_mode.state == ClimbMode.RUNNING
+            and self.climb_bad_frames >= self.real_climb_persistence_frames
+        ):
+            self.controller.hold_climb()
+            self.state = self.HOLD
+            self.command[:] = 0.0
+            rospy.logwarn(
+                "CLIMB HOLD: %s; this is not contact or load evidence",
+                reason,
+            )
+
+    def _start_real_climb(self, q_cur, controls_ready):
+        """在显式使能和全部部署输入通过后进入C1。"""
+
+        if not self.enable_real_climb:
+            rospy.logwarn_throttle(2.0, "X ignored: enable_real_climb is false")
+            return
+        if not controls_ready or self.state != self.HOLD or self.controller.mode != self.controller.APPROACH:
+            rospy.logwarn_throttle(2.0, "X ignored: reset must finish and controls must be fresh")
+            return
+        if not self.navigation.motion_snapshot().valid or not self.imu.snapshot()["valid"]:
+            rospy.logwarn_throttle(2.0, "X ignored: fresh IMU and RTK/LoRa are required")
+            return
+        try:
+            self.controller.enter_climb(q_cur, hardware_execution=True)
+        except ValueError as error:
+            rospy.logwarn("X ignored: compact entry gate failed: %s", error)
+            return
+        self.climb_start_navigation = self.navigation.motion_snapshot()
+        self.climb_start_imu_rotation = self.imu.snapshot()["rotation"]
+        self.climb_start_planned_pose = ClimbMode._world_from_base(
+            self.controller.climb_mode.base_pose
+        )
+        self.climb_bad_frames = 0
+        self.climb_good_frames = 0
+        self.command[:] = 0.0
+        self.state = self.RUNNING
+        rospy.loginfo("X accepted: hardware climb C1-C53 started with feedback gates")
+
+    def _start_real_dock(self, q_cur, controls_ready):
+        """在实机输入新鲜且没有运行中攀爬时进入DockMode。"""
+
+        if not self.enable_real_dock:
+            rospy.logwarn_throttle(2.0, "Y ignored: enable_real_dock is false")
+            return
+        if not controls_ready or self.state != self.HOLD:
+            rospy.logwarn_throttle(2.0, "Y ignored: reset must finish and controls must be fresh")
+            return
+        if not self.imu.snapshot()["valid"]:
+            rospy.logwarn_throttle(2.0, "Y ignored: fresh IMU is required")
+            return
+        if self.controller.climb_mode.state == ClimbMode.RUNNING:
+            rospy.logwarn_throttle(2.0, "Y ignored: climb is running")
+            return
+        try:
+            self._ensure_dock_mode()
+            self.controller.enter_dock(q_cur)
+        except (ImportError, RuntimeError, ValueError) as error:
+            rospy.logwarn("Y ignored: DockMode entry failed: %s", error)
+            return
+        self.command[:] = 0.0
+        self.state = self.RUNNING
+        rospy.loginfo("Y accepted: DockMode waiting for stable complete AprilTag input")
+
     def _hold_motion(self, reason, log=True):
         """停止推进步态并保持上力；再次按A才能恢复。"""
         if self.state == self.RUNNING:
+            if self.controller.mode == self.controller.DOCK:
+                if self.controller.dock_mode is not None:
+                    self.controller.dock_mode.fail_execution(
+                        "DockMode stopped: " + reason
+                    )
+                self.state = self.HOLD
+                self.command[:] = 0.0
+                if log:
+                    rospy.logwarn("DockMode failed into HOLD: %s", reason)
+                return
             self.controller.approach_mode.cancel_autonomous_approach(reason)
+            self.controller.hold_climb()
             self.state = self.HOLD
             self.command[:] = 0.0
             if log:
                 rospy.loginfo("Motion paused: %s", reason)
 
-    def _process_buttons(self, button_presses, controls_ready):
+    def _process_buttons(self, button_presses, controls_ready, q_cur):
         """处理一次按钮事件；B不依赖Joy或关节反馈是否有效。"""
         a_pressed = bool(self._read(button_presses, self.button_a))
         b_pressed = bool(self._read(button_presses, self.button_b))
+        x_pressed = bool(self._read(button_presses, self.button_x))
+        y_pressed = bool(self._read(button_presses, self.button_y))
         if b_pressed:
             self.state = self.RESETTING
             self.controller.reset_active = False
-            self.controller.approach_mode.cancel_autonomous_approach(
-                "reset requested by B"
-            )
+            self.controller.mission.cancel("reset requested by B")
+            self.controller.abort_climb()
+            if self.controller.dock_mode is not None and self.controller.dock_mode.active:
+                self.controller.dock_mode.exit()
             self.manual_override = False
             self.command[:] = 0.0
             rospy.loginfo("B pressed: returning to stand")
             return
 
+        if x_pressed and y_pressed:
+            rospy.logwarn_throttle(2.0, "X/Y ignored: climb and dock requests conflict")
+            return
+        if x_pressed:
+            self._start_real_climb(q_cur, controls_ready)
+            return
+        if y_pressed:
+            self._start_real_dock(q_cur, controls_ready)
+            return
+
         if not a_pressed:
+            return
+
+        if self.controller.mode == self.controller.DOCK:
+            rospy.logwarn_throttle(2.0, "A ignored while DockMode is active")
+            return
+        if self.controller.mode == self.controller.CLIMB:
+            if self.state == self.HOLD:
+                okay, reason = self._real_climb_observation()
+                if okay and self.climb_good_frames >= self.real_climb_persistence_frames:
+                    self.controller.resume_climb()
+                    self.state = self.RUNNING
+                    rospy.loginfo("CLIMB resumed after fresh IMU/RTK persistence")
+                else:
+                    rospy.logwarn("A ignored: CLIMB HOLD persists: %s", reason)
+            elif self.state == self.RUNNING:
+                self.controller.hold_climb()
+                self.state = self.HOLD
+                self.command[:] = 0.0
+                rospy.loginfo("CLIMB paused by A")
             return
 
         if not controls_ready:
@@ -526,13 +892,18 @@ class RosControlNode:
         button_presses,
         joy_stamp,
         now,
+        feedback_ready=True,
     ):
         """用一帧完整反馈处理B/A和运动指令，返回18关节目标。"""
         joy_fresh = (
             joy_stamp > 0.0
             and 0.0 <= now - joy_stamp <= self.max_joy_age
         )
-        self._process_buttons(button_presses, joy_fresh)
+        self._process_buttons(
+            button_presses,
+            joy_fresh and feedback_ready,
+            q_cur,
+        )
 
         if not joy_fresh:
             self._hold_motion("joystick lost")
@@ -554,8 +925,15 @@ class RosControlNode:
             return q_des
 
         navigation_state = None
+        dock_robot_state = None
         if self.state == self.RUNNING:
-            if (
+            if self.controller.mode == self.controller.DOCK:
+                self.command[:] = 0.0
+                dock_robot_state = {
+                    "joints": q_cur,
+                    "lock_confirmed": self.lock_confirmation.snapshot(),
+                }
+            elif (
                 self.control_source == "navigation"
                 and not self.manual_override
                 and self._manual_command_active(axes)
@@ -581,7 +959,31 @@ class RosControlNode:
             q_cur,
             self.command,
             navigation_state,
+            dock_robot_state,
         )
+        if (
+            self.controller.mode == self.controller.DOCK
+            and self.controller.dock_mode is not None
+            and self.controller.dock_mode.state
+            in self.controller.dock_mode.TERMINAL_STATES
+        ):
+            self.state = self.HOLD
+            rospy.loginfo("DockMode terminal HOLD: %s", self.controller.dock_mode.reason)
+        if self.controller.mode == self.controller.CLIMB:
+            if self.controller.climb_mode.state in (
+                ClimbMode.DONE,
+                ClimbMode.FAILED,
+            ):
+                self.state = self.HOLD
+                self.command[:] = 0.0
+                if self.controller.climb_mode.state == ClimbMode.DONE:
+                    rospy.loginfo("CLIMB DONE: HOLD; press Y to request docking")
+                else:
+                    rospy.logwarn(
+                        "CLIMB FAILED: HOLD: %s",
+                        self.controller.climb_mode.failure_reason,
+                    )
+            self._monitor_real_climb()
         return q_des
 
     def update_from_feedback(self, q_cur):
@@ -599,6 +1001,7 @@ class RosControlNode:
             button_presses,
             joy_stamp,
             now,
+            feedback_ready=True,
         )
 
     def step(self):
@@ -620,7 +1023,11 @@ class RosControlNode:
         )
         if not feedback_ready:
             # B已经被转换为RESETTING状态，即使反馈暂时不可用也不会丢失。
-            self._process_buttons(button_presses, controls_ready=False)
+            self._process_buttons(
+                button_presses,
+                controls_ready=False,
+                q_cur=q_cur,
+            )
             self._hold_motion("joint feedback lost")
             rospy.logwarn_throttle(1.0, "Waiting for valid 18-DOF feedback")
             return
@@ -631,6 +1038,7 @@ class RosControlNode:
             button_presses,
             joy_stamp,
             now,
+            feedback_ready=feedback_ready,
         )
         if q_des is not None:
             # 初始化、暂停和行走都保持舵机上力；暂停不等于卸力。

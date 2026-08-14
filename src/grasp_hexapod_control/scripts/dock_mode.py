@@ -32,12 +32,34 @@ from kinematics import (
 )
 from utils import (
     CONTROL_DOF_NAMES,
-    invert_transform,
     pose_to_transform,
-    rigid_transform,
     transform_points,
     yaw_from_transform,
 )
+
+
+def rigid_transform(translation=(0.0, 0.0, 0.0), rotation=None):
+    """构造4×4刚体变换；平移单位为m，旋转为3×3正交矩阵。"""
+    result = np.eye(4, dtype=np.float64)
+    if rotation is not None:
+        result[:3, :3] = np.asarray(
+            rotation, dtype=np.float64
+        ).reshape(3, 3)
+    result[:3, 3] = np.asarray(
+        translation, dtype=np.float64
+    ).reshape(3)
+    return result
+
+
+def invert_transform(transform):
+    """解析求取刚体变换的逆，避免通用矩阵求逆引入数值噪声。"""
+    transform = np.asarray(transform, dtype=np.float64).reshape(4, 4)
+    rotation = transform[:3, :3]
+    result = np.eye(4, dtype=np.float64)
+    result[:3, :3] = rotation.T
+    result[:3, 3] = -rotation.T @ transform[:3, 3]
+    return result
+
 
 # =============================================================================
 # 感知：完整ID融合与不完整ID标签板补全
@@ -50,7 +72,7 @@ MAX_POSITION_ERROR = 0.03
 MAX_ANGLE_ERROR = np.deg2rad(15.0)
 
 
-# 保留旧仿真脚本使用的名称；实际实现统一放在utils。
+# 保留旧仿真脚本使用的名称；正式实现已内置在本文件。
 transform = rigid_transform
 
 
@@ -514,8 +536,6 @@ joint_names = CONTROL_DOF_NAMES
 docked_pin_in_lock = np.zeros(3)
 camera_position_in_lock = np.array((0.0, -0.065, -0.0325))
 
-# 兼容现有仿真脚本中的旧名称；唯一真值来自公共运动学模块。
-transform = rigid_transform
 joint_lower = JOINT_LOWER
 joint_upper = JOINT_UPPER
 

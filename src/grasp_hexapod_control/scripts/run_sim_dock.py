@@ -2,12 +2,15 @@
 """六足、小蓝、底部相机与正式DockMode的单文件Isaac Gym联合仿真。
 
 只复用工程公共的dock_mode、control、kinematics和utils；不再依赖任何
-run_sim_dock_mode*或isaacgym_apriltag_camera仿真脚本。
+run_sim_dock_mode*或isaacgym_apriltag_camera仿真脚本。启动状态由compact
+攀爬终态重建，确保对接首帧连续承接攀爬末帧。
 """
 
-from pathlib import Path
 import csv
+from dataclasses import dataclass
+import json
 import os
+from pathlib import Path
 import struct
 import sys
 import time
@@ -44,7 +47,12 @@ from approach_mode import ApproachMode
 from control import GraspController
 from dock_mode import PerceptionResult, TAG_IDS
 from kinematics import FOOT_RADIUS, Q_STAND
-from utils import build_dof_indices, control_to_external, external_to_control
+from utils import (
+    build_dof_indices,
+    control_to_external,
+    external_to_control,
+    package_config_path,
+)
 
 # 单文件仿真配置。路径可用上面的环境变量覆盖。
 dt = 1.0 / 60.0
@@ -52,13 +60,6 @@ control_interval = 2
 camera_width, camera_height = 1920, 1080
 # 图像发布由30 Hz降为20 Hz，AprilTag仍按10 Hz检测，降低GPU/ROS负载。
 camera_fov, camera_interval = 120.0, 3
-spawn_clearance = 0.0
-initial_camera = np.array((-0.085, -0.028, 0.260))
-initial_yaw = np.deg2rad(285.0)
-initial_foot_xy = np.array([
-    (-0.0988, -0.1710), (-0.0675, 0.1604), (-0.1742, -0.0117),
-    (0.0987, -0.1710), (0.0987, 0.1710), (0.1525, 0.0115),
-])
 dock_time_scale = 3.0
 
 # 当前联合仿真实际使用的底部相机与AprilTag几何。
@@ -76,6 +77,13 @@ PIN_FROM_TAG = {
     3: np.array((-0.100, 0.0, -0.037)),
 }
 PIN_FROM_OPENCV_TAG_ROTATION = np.diag((-1.0, -1.0, 1.0))
+# 攀爬终态相机距标签面约38 mm，16:9画面的垂直视野无法容纳偏离光轴
+# 35 mm的完整40 mm标签。对接请求后先把相机升到旧版已验证的260 mm，
+# 对应标签面上方约69 mm；只有真实图像完整解码后才允许进入DockMode。
+TAG_REACQUIRE_CAMERA_HEIGHT_M = 0.260
+TAG_REACQUIRE_FRESH_S = 1.0
+TAG_REACQUIRE_MIN_RAISE_M = 0.002
+TAG_REACQUIRE_MAX_IK_ERROR_M = 0.001
 
 
 def create_apriltag_detector():
@@ -94,13 +102,6 @@ def calculate_intrinsics(width, height, horizontal_fov):
     return (
         np.array(((focal, 0.0, cx), (0.0, focal, cy), (0.0, 0.0, 1.0))),
         np.zeros(5),
-    )
-
-
-def rotation_z(angle):
-    cosine, sine = np.cos(angle), np.sin(angle)
-    return np.array(
-        ((cosine, -sine, 0.0), (sine, cosine, 0.0), (0.0, 0.0, 1.0))
     )
 
 
@@ -140,6 +141,242 @@ def quaternion_from_rotation(rotation):
         ) / (4.0 * component)
         quaternion[3] = differences[axis] / (4.0 * component)
     return quaternion / np.linalg.norm(quaternion)
+
+
+@dataclass(frozen=True)
+class ClimbTerminalState:
+    """从compact完整攀爬末端重建的仿真对接交接状态。"""
+
+    stage_name: str
+    base_position: np.ndarray
+    base_rotation: np.ndarray
+    joints: np.ndarray
+    feet_base: np.ndarray
+    feet_xiaolan: np.ndarray
+    camera_position: np.ndarray
+    max_fk_error_m: float
+
+
+def _transform_points(transform, points):
+    """用4x4齐次矩阵变换一组行向量点。"""
+    matrix = np.asarray(transform, dtype=np.float64).reshape(4, 4)
+    values = np.asarray(points, dtype=np.float64).reshape(-1, 3)
+    return values @ matrix[:3, :3].T + matrix[:3, 3]
+
+
+def load_climb_terminal_state(controller):
+    """读取攀爬配置，并通过正式ClimbMode回放得到终态关节分支。
+
+    对接仿真中的小蓝位于世界原点，而compact使用自己的世界平移；这里
+    统一转换到小蓝坐标系，使攀爬末帧和对接首帧使用同一相对几何。
+    """
+    compact_path = package_config_path("climb_compact.json")
+    with compact_path.open(encoding="utf-8") as compact_file:
+        compact = json.load(compact_file)
+    controller.climb_mode._validate_config(compact)
+    stages = compact["stages"]
+    final_stage = stages[-1]
+
+    p0_joints = np.asarray(compact["p0"]["q_rad"], dtype=np.float64)
+    terminal_joints = controller.replay_climb_prefix(
+        p0_joints,
+        compact,
+        len(stages) - 1,
+        max_ticks=200000,
+    )
+    terminal_joints = np.asarray(
+        terminal_joints, dtype=np.float64
+    ).reshape(6, 3)
+
+    world_from_base = controller.climb_mode._world_from_base(
+        np.asarray(final_stage["pose_end"], dtype=np.float64)
+    )
+    world_from_xiaolan = np.eye(4, dtype=np.float64)
+    world_from_xiaolan[:3, 3] = np.asarray(
+        compact["xiaolan_translation"], dtype=np.float64
+    )
+    xiaolan_from_world = np.linalg.inv(world_from_xiaolan)
+    xiaolan_from_base = xiaolan_from_world @ world_from_base
+
+    terminal_feet_world = np.asarray(
+        final_stage["anchor_knots"][-1], dtype=np.float64
+    ).reshape(6, 3)
+    terminal_feet_xiaolan = _transform_points(
+        xiaolan_from_world, terminal_feet_world
+    )
+    target_feet_base = _transform_points(
+        np.linalg.inv(xiaolan_from_base), terminal_feet_xiaolan
+    )
+    actual_feet_base = controller.kinematic.forward_base(terminal_joints)
+    max_fk_error = float(np.max(np.linalg.norm(
+        actual_feet_base - target_feet_base, axis=1
+    )))
+    max_allowed_error = float(
+        compact["settle_gate"]["max_foot_target_error_m"]
+    )
+    if max_fk_error > max_allowed_error:
+        raise RuntimeError(
+            "攀爬终态回放与最终足端不连续：{:.3f} mm > {:.3f} mm".format(
+                max_fk_error * 1000.0,
+                max_allowed_error * 1000.0,
+            )
+        )
+
+    base_position = xiaolan_from_base[:3, 3].copy()
+    base_rotation = xiaolan_from_base[:3, :3].copy()
+    camera_position = (
+        base_position + base_rotation @ CAMERA_POSITION_IN_LOCK
+    )
+    values = (
+        base_position,
+        base_rotation,
+        terminal_joints,
+        actual_feet_base,
+        terminal_feet_xiaolan,
+        camera_position,
+    )
+    if not all(np.isfinite(value).all() for value in values):
+        raise RuntimeError("攀爬终态包含非有限数值")
+    return ClimbTerminalState(
+        stage_name=final_stage["name"],
+        base_position=base_position,
+        base_rotation=base_rotation,
+        joints=terminal_joints.copy(),
+        feet_base=actual_feet_base.copy(),
+        feet_xiaolan=terminal_feet_xiaolan.copy(),
+        camera_position=camera_position,
+        max_fk_error_m=max_fk_error,
+    )
+
+
+def initialize_from_climb_terminal(controller, terminal, surface):
+    """把控制器基准同步为攀爬终态，避免对接首帧关节或足端跳变。"""
+    surface_z = surface.heights(terminal.feet_xiaolan[:, :2])
+    if not np.isfinite(surface_z).all():
+        raise RuntimeError("攀爬终态有足端落在对接STL背部范围外")
+    clearance = terminal.feet_xiaolan[:, 2] - surface_z
+    clearance_error = np.abs(clearance - FOOT_RADIUS)
+    if float(np.max(clearance_error)) > 0.002:
+        raise RuntimeError(
+            "攀爬终态与对接STL表面不连续：最大间隙误差{:.3f} mm".format(
+                float(np.max(clearance_error)) * 1000.0
+            )
+        )
+
+    joints = terminal.joints.copy()
+    feet = terminal.feet_base.copy()
+    controller.mission.cancel("simulation climb-to-dock handoff")
+    controller.set_mode(controller.APPROACH)
+    controller.reset_active = False
+    controller.q_init = joints.copy()
+    controller.q_des = joints.copy()
+    controller.reset_start_q = joints.copy()
+    controller.foot_init_base = feet.copy()
+    controller.foot_desired_base = feet.copy()
+    controller.foot_desired_base_prev = feet.copy()
+    controller.foot_init_hip = controller.kinematic.base_to_hip(feet)
+    controller.foot_desired_hip = controller.foot_init_hip.copy()
+    controller.foot_current_hip = controller.kinematic.forward(joints)
+    controller.base_height_at_stand = FOOT_RADIUS - np.mean(feet[:, 2])
+    controller.actual_joints = joints.copy()
+    controller.actual_feet_base = feet.copy()
+    configure_workspace = getattr(
+        controller, "configure_terrain_workspace", None
+    )
+    if configure_workspace is not None:
+        configure_workspace(feet)
+    controller.approach_mode.finish_reset()
+    return joints, clearance_error
+
+
+def start_tag_reacquisition_raise(
+    controller,
+    q_current,
+    base_position,
+    base_rotation,
+):
+    """锁定实际足端，并用五次关节曲线把相机平滑升到重捕获高度。"""
+    q_current = np.asarray(q_current, dtype=np.float64).reshape(6, 3)
+    base_position = np.asarray(
+        base_position, dtype=np.float64
+    ).reshape(3)
+    base_rotation = np.asarray(
+        base_rotation, dtype=np.float64
+    ).reshape(3, 3)
+    camera_position = (
+        base_position + base_rotation @ CAMERA_POSITION_IN_LOCK
+    )
+    raise_distance = max(
+        0.0,
+        TAG_REACQUIRE_CAMERA_HEIGHT_M - float(camera_position[2]),
+    )
+    if raise_distance < TAG_REACQUIRE_MIN_RAISE_M:
+        return 0.0
+
+    actual_feet_base = controller.kinematic.forward_base(q_current)
+    feet_world = (
+        actual_feet_base @ base_rotation.T + base_position
+    )
+    target_position = base_position.copy()
+    target_position[2] += raise_distance
+    target_feet_base = (
+        feet_world - target_position
+    ) @ base_rotation
+    target_joints, max_error = body.solve_joints(
+        controller.kinematic,
+        target_feet_base,
+        q_current,
+    )
+    if max_error > TAG_REACQUIRE_MAX_IK_ERROR_M:
+        raise RuntimeError(
+            "标签重捕获升高IK误差过大：{:.3f} mm".format(
+                max_error * 1000.0
+            )
+        )
+    joint_margin = np.minimum(
+        target_joints - body.joint_lower,
+        body.joint_upper - target_joints,
+    )
+    if float(np.min(joint_margin)) <= 0.0:
+        raise RuntimeError("标签重捕获升高目标超出关节限位")
+    if not controller._foot_collision_free(target_feet_base).all():
+        raise RuntimeError("标签重捕获升高目标存在足端碰撞")
+    for phase in np.linspace(0.0, 1.0, 21):
+        sample = (1.0 - phase) * q_current + phase * target_joints
+        if not controller._link_collision_free(sample).all():
+            raise RuntimeError("标签重捕获升高路径存在连杆碰撞")
+
+    controller.q_init = target_joints.copy()
+    controller.q_des = q_current.copy()
+    controller.reset_start_q = q_current.copy()
+    controller.reset_time = 0.0
+    controller.foot_init_base = target_feet_base.copy()
+    controller.foot_desired_base = actual_feet_base.copy()
+    controller.foot_desired_base_prev = actual_feet_base.copy()
+    controller.foot_init_hip = controller.kinematic.base_to_hip(
+        target_feet_base
+    )
+    controller.foot_desired_hip = controller.kinematic.base_to_hip(
+        actual_feet_base
+    )
+    controller.foot_current_hip = controller.kinematic.forward(q_current)
+    controller.base_height_at_stand = (
+        FOOT_RADIUS - np.mean(target_feet_base[:, 2])
+    )
+    configure_workspace = getattr(
+        controller, "configure_terrain_workspace", None
+    )
+    if configure_workspace is not None:
+        configure_workspace(target_feet_base)
+    if hasattr(controller, "_dock_nominal_body_clearance"):
+        controller._dock_nominal_body_clearance = float(
+            controller.base_height_at_stand
+        )
+    controller._dock_entry_hold_active = False
+    controller._reset_entry_settle_monitor()
+    controller.reset_active = True
+    return raise_distance
+
 
 class RosCameraPublisher:
     """Publish Isaac Gym camera frames for apriltag_ros and rqt_image_view."""
@@ -436,35 +673,6 @@ def _base_set_contact_friction(gym, env, actor, friction):
     gym.set_actor_rigid_shape_properties(env, actor, properties)
 
 
-def initial_stance(controller, base_position, base_rotation, surface):
-    """反算六足接触小蓝真实背部时的稳定初始关节角。"""
-    feet = controller.foot_init_base.copy()
-    feet[:, :2] = initial_foot_xy
-    world_xy = base_position[:2] + feet[:, :2] @ base_rotation[:2, :2].T
-    surface_z = surface.heights(world_xy)
-    if not np.isfinite(surface_z).all():
-        raise RuntimeError("初始足端超出小蓝STL背部")
-    feet[:, 2] = surface_z + FOOT_RADIUS - base_position[2]
-    joints, _ = body.solve_joints(
-        controller.kinematic, feet, controller.q_init
-    )
-    controller.q_init = joints.copy()
-    controller.q_des = joints.copy()
-    controller.foot_init_base = feet.copy()
-    controller.foot_desired_base = feet.copy()
-    controller.foot_init_hip = controller.kinematic.base_to_hip(feet)
-    controller.foot_desired_hip = controller.foot_init_hip.copy()
-    controller.foot_current_hip = controller.foot_init_hip.copy()
-    controller.base_height_at_stand = FOOT_RADIUS - np.mean(feet[:, 2])
-    configure_workspace = getattr(
-        controller, "configure_terrain_workspace", None
-    )
-    if configure_workspace is not None:
-        configure_workspace(feet)
-    controller.approach_mode.finish_reset()
-    return joints, surface_z
-
-
 def _base_tf_message(parent, child, position, rotation, stamp):
     message = TransformStamped()
     message.header.stamp, message.header.frame_id = stamp, parent
@@ -627,12 +835,13 @@ def _run_simulation(resources):
     controller = GraspController(dt=dt * control_interval)
     controller.approach_mode.step_height = 0.008
     controller.approach_mode.phase_duration = 0.45
-    initial_rotation = rotation_z(initial_yaw)
-    base_position = (
-        initial_camera
-        - initial_rotation @ CAMERA_POSITION_IN_LOCK
+    print("读取compact攀爬终态并重建对接初始关节分支...")
+    climb_terminal = load_climb_terminal_state(controller)
+    q_start, terminal_clearance_error = initialize_from_climb_terminal(
+        controller, climb_terminal, back_surface
     )
-    base_position[2] += spawn_clearance
+    initial_rotation = climb_terminal.base_rotation
+    base_position = climb_terminal.base_position
     robot_pose = gymapi.Transform()
     robot_pose.p = gymapi.Vec3(*base_position)
     robot_pose.r = gymapi.Quat(
@@ -662,9 +871,11 @@ def _run_simulation(resources):
     lower = external_to_control(properties["lower"], dof_indices)
     upper = external_to_control(properties["upper"], dof_indices)
 
-    q_start, _ = initial_stance(
-        controller, base_position, initial_rotation, back_surface
-    )
+    if (
+        np.any(q_start < lower - 1e-9)
+        or np.any(q_start > upper + 1e-9)
+    ):
+        raise RuntimeError("攀爬终态关节角超出对接模型关节限位")
     states = gym.get_actor_dof_states(env, robot, gymapi.STATE_ALL)
     states["pos"][:] = control_to_external(q_start, dof_indices)
     states["vel"][:] = 0.0
@@ -729,7 +940,20 @@ def _run_simulation(resources):
     )
     joystick = JoyStick()
     print("手柄移动默认暂停；A：启用原三角步态  B：回到站姿  X：进入对接")
-    print("初始相机坐标 [mm]：", np.round(initial_camera * 1000.0, 1).tolist())
+    print(
+        "攀爬终态已交接：阶段={}，底盘相对小蓝[mm]={}".format(
+            climb_terminal.stage_name,
+            np.round(base_position * 1000.0, 2).tolist(),
+        )
+    )
+    print(
+        "交接相机坐标 [mm]：{}，FK连续误差={:.6f} mm，"
+        "STL间隙最大误差={:.3f} mm".format(
+            np.round(climb_terminal.camera_position * 1000.0, 2).tolist(),
+            climb_terminal.max_fk_error_m * 1000.0,
+            float(np.max(terminal_clearance_error)) * 1000.0,
+        )
+    )
 
     max_linear_speed, max_vertical_speed = 0.05, 0.01
     foot_radius = np.mean(np.linalg.norm(controller.foot_init_base[:, :2], axis=1))
@@ -740,6 +964,8 @@ def _run_simulation(resources):
     previous_a = previous_b = previous_x = False
     x_armed = False
     pending_dock_entry = None
+    tag_reacquire_attempted = False
+    tag_reacquire_wait_reported = False
     dock_plan, dock_start_step, step = None, 0, 0
     support_settle_announced = False
     q_target = q_start.copy()
@@ -801,6 +1027,8 @@ def _run_simulation(resources):
             enabled = False
             if manual_press_x:
                 getattr(controller, "reset_dock_reposition", lambda: None)()
+                tag_reacquire_attempted = False
+                tag_reacquire_wait_reported = False
             else:
                 print("自主小步移动完成，等待步态结束并锁定真实足端")
             if (
@@ -809,7 +1037,7 @@ def _run_simulation(resources):
             ):
                 print("对接请求已接收：先完成当前摆腿并保持实际落脚状态")
 
-        dock_entry_ready = bool(
+        dock_entry_stable = bool(
             pending_dock_entry is not None
             and getattr(controller, "dock_entry_ready", lambda: (
                 not controller.reset_active
@@ -817,11 +1045,50 @@ def _run_simulation(resources):
                 and not controller.approach_mode.transfer_active
             ))()
         )
-        press_x = dock_entry_ready
+        complete_tag_ready = bool(
+            local_pin_pose is not None
+            and bool(local_pin_ids)
+            and time.monotonic() - local_pin_stamp
+            <= TAG_REACQUIRE_FRESH_S
+        )
+        press_x = bool(dock_entry_stable and complete_tag_ready)
+        if dock_entry_stable and not complete_tag_ready:
+            if not tag_reacquire_attempted:
+                raise_distance = start_tag_reacquisition_raise(
+                    controller,
+                    q_current,
+                    body_position,
+                    body_rotation,
+                )
+                tag_reacquire_attempted = True
+                tag_reacquire_wait_reported = False
+                if raise_distance > 0.0:
+                    print(
+                        "未识别到完整AprilTag：保持六足落点，先将相机"
+                        "平滑升高{:.1f} mm至约{:.1f} mm".format(
+                            raise_distance * 1000.0,
+                            TAG_REACQUIRE_CAMERA_HEIGHT_M * 1000.0,
+                        )
+                    )
+                else:
+                    print(
+                        "相机已经达到标签重捕获高度，等待完整AprilTag"
+                    )
+            elif not controller.reset_active and not tag_reacquire_wait_reported:
+                print(
+                    "相机升高并已稳定：继续等待真实图像完整解码；"
+                    "禁止使用仿真位姿补全直接进入对接"
+                )
+                tag_reacquire_wait_reported = True
         manual_dock_entry = press_x and pending_dock_entry == "manual"
         auto_dock_entry = press_x and pending_dock_entry == "auto"
         if press_x:
             pending_dock_entry = None
+            print(
+                "完整AprilTag已确认：ID={}，允许进入对接".format(
+                    list(local_pin_ids)
+                )
+            )
         previous_a, previous_b, previous_x = a, b, x
 
         if press_a and controller.mode != controller.DOCK:
@@ -831,6 +1098,8 @@ def _run_simulation(resources):
                 controller.reset_to_stand(q_current)
         if press_b:
             pending_dock_entry = None
+            tag_reacquire_attempted = False
+            tag_reacquire_wait_reported = False
             getattr(controller, "cancel_dock_reposition", lambda: None)()
             if controller.mode == controller.DOCK:
                 controller.set_mode(controller.APPROACH)
@@ -847,12 +1116,18 @@ def _run_simulation(resources):
             controller.foot_desired_base = controller.kinematic.forward_base(q_current)
             controller.set_mode(controller.DOCK)
             controller.dock_mode.joints.values = q_current.copy()
-            pin = controller.dock_mode.perception.latest()
-            if pin is None and time.monotonic() - local_pin_stamp <= 1.0:
-                pin = local_pin_pose.copy()
-                controller.dock_mode.pin_pose = pin.copy()
-                controller.dock_mode.perception.used_ids = local_pin_ids
-                print("ROS标签位姿暂不可用，使用仿真相机本地识别结果")
+            # press_x已由新鲜的完整本地解码门控；这里禁止调用latest()，
+            # 因为SimPerception.latest()允许使用已知小蓝位姿补全残缺标签。
+            pin = local_pin_pose.copy()
+            controller.dock_mode.pin_pose = pin.copy()
+            controller.dock_mode.perception.used_ids = local_pin_ids
+            inject = getattr(
+                controller.dock_mode.perception,
+                "inject_complete",
+                None,
+            )
+            if inject is not None:
+                inject(pin, local_pin_ids)
             if pin is not None:
                 print("识别标签ID：", controller.dock_mode.perception.used_ids)
                 print("插销相对卡紧机构 [mm]：", np.round(pin[:3, 3] * 1000.0, 2).tolist())
@@ -916,6 +1191,8 @@ def _run_simulation(resources):
             dock_finished = True
             dock_plan = None
             pending_dock_entry = None
+            tag_reacquire_attempted = False
+            tag_reacquire_wait_reported = False
             support_settle_announced = False
             enabled = False
             getattr(controller, "cancel_dock_reposition", lambda: None)()
@@ -3169,8 +3446,8 @@ class TerrainGraspController(GraspController):
 
     def observe_actual_state(self, q_current):
         """无论当前处于步态或DOCK轨迹，都刷新真实关节和足端状态。"""
-        # initial_stance在控制循环开始前写入真实稳定站姿高度；只记录
-        # 第一次值，避免手柄升降后的姿态覆盖自主恢复基准。
+        # 攀爬终态交接在控制循环开始前写入稳定站姿高度；只记录第一次值，
+        # 避免手柄升降后的姿态覆盖自主恢复基准。
         if self._dock_nominal_body_clearance is None:
             self._dock_nominal_body_clearance = float(
                 self.base_height_at_stand
@@ -3267,9 +3544,7 @@ def simulation_print(*values, **kwargs):
         and values[0].startswith(periodic)
     ):
         return
-    if values and values[0] == "初始相机坐标 [mm]：":
-        values = ("相机出生设定坐标 [mm]（非实时值）：",) + values[1:]
-    elif values and values[0].startswith("手柄移动默认暂停"):
+    if values and values[0].startswith("手柄移动默认暂停"):
         values = ("A：启用三足步态  RT：升高  LT：下降  X：结束步态并锁定真实足端后对接",)
     elif values and values[0] == "识别标签ID：":
         values = ("位姿计算使用ID（含推断）：",) + values[1:]

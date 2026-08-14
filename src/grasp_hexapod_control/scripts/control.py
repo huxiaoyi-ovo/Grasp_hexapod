@@ -25,7 +25,12 @@ from kinematics import (
     Q_STAND,
     GraspKinematic,
 )
-from utils import package_config_path
+from utils import (
+    package_config_path,
+    transform_points,
+    wrap_angle,
+    yaw_from_transform,
+)
 
 
 # 当前简化URDF碰撞盒对应的控制器碰撞模型。
@@ -48,6 +53,382 @@ WORKSPACE_BETA_LIMIT = np.deg2rad(30.0)
 WORKSPACE_NUMERICAL_TOLERANCE = 1e-9
 
 
+class MissionStateMachine:
+    """调度自动接近、攀爬和对接交接状态。"""
+
+    IDLE, APPROACH, PREPARE_CLIMB, CLIMB, DOCK, FAILED = (
+        "IDLE",
+        "APPROACH",
+        "PREPARE_CLIMB",
+        "CLIMB",
+        "DOCK",
+        "FAILED",
+    )
+
+    def __init__(self, controller):
+        self.controller = controller
+        self.state = self.IDLE
+        self.reason = ""
+        self.climb_config = None
+        self.climb_start_stage_index = 0
+        self.climb_end_stage_index = None
+        self.approach_elapsed_s = 0.0
+        self.approach_timeout_s = 60.0
+        self.prepare_elapsed_s = 0.0
+        self.prepare_settle_s = 0.0
+        self.last_prepare_joint_error_rad = np.inf
+        self.last_prepare_world_foot_error_m = np.inf
+        self.last_prepare_position_error_m = np.inf
+        self.last_prepare_yaw_error_rad = np.inf
+        self.approach_target_pose_pv = None
+        self.approach_position_tolerance_m = 0.01
+        self.approach_yaw_tolerance_rad = np.deg2rad(1.0)
+        self.prepare_retry_count = 0
+        self.max_prepare_retries = 3
+        self.posture_prepared = False
+        self.prepare_previous_pose_pv = None
+        self.last_prepare_linear_speed_m_s = np.inf
+        self.last_prepare_angular_speed_rad_s = np.inf
+        self.prepare_linear_speed_limit_m_s = 0.01
+        self.prepare_angular_speed_limit_rad_s = np.deg2rad(1.0)
+        self.final_position_error_m = np.inf
+        self.final_orientation_error_rad = np.inf
+        self.final_world_foot_error_m = np.inf
+        self.final_position_tolerance_m = 0.03
+        self.final_orientation_tolerance_rad = np.deg2rad(5.0)
+        self.final_world_foot_tolerance_m = 0.03
+
+    def start(
+        self,
+        navigation_state,
+        climb_config,
+        start_stage_index=0,
+        end_stage_index=None,
+        approach_timeout_s=60.0,
+        approach_position_tolerance_m=0.01,
+        approach_yaw_tolerance_rad=np.deg2rad(1.0),
+    ):
+        """规划自动接近并保存后续攀爬任务。"""
+
+        if self.state in (
+            self.APPROACH,
+            self.PREPARE_CLIMB,
+            self.CLIMB,
+        ):
+            raise ValueError("full mission is already running")
+        self.controller.climb_mode._validate_config(climb_config)
+        self.controller.set_mode(self.controller.APPROACH)
+        self.controller.reset_active = False
+        self.climb_config = climb_config
+        self.climb_start_stage_index = int(start_stage_index)
+        self.climb_end_stage_index = (
+            len(climb_config["stages"]) - 1
+            if end_stage_index is None
+            else int(end_stage_index)
+        )
+        self.approach_elapsed_s = 0.0
+        self.approach_timeout_s = float(approach_timeout_s)
+        if self.approach_timeout_s <= 0.0:
+            raise ValueError("approach_timeout_s must be positive")
+        self.approach_position_tolerance_m = float(
+            approach_position_tolerance_m
+        )
+        self.approach_yaw_tolerance_rad = float(
+            approach_yaw_tolerance_rad
+        )
+        if (
+            self.approach_position_tolerance_m <= 0.0
+            or self.approach_yaw_tolerance_rad <= 0.0
+        ):
+            raise ValueError("full mission approach tolerances must be positive")
+        self.controller.approach_mode.position_tolerance = (
+            self.approach_position_tolerance_m
+        )
+        self.controller.approach_mode.yaw_tolerance = (
+            self.approach_yaw_tolerance_rad
+        )
+        self.reason = ""
+        self.prepare_elapsed_s = 0.0
+        self.prepare_settle_s = 0.0
+        self.last_prepare_joint_error_rad = np.inf
+        self.last_prepare_world_foot_error_m = np.inf
+        self.last_prepare_position_error_m = np.inf
+        self.last_prepare_yaw_error_rad = np.inf
+        self.prepare_retry_count = 0
+        self.posture_prepared = False
+        self.prepare_previous_pose_pv = None
+        self.last_prepare_linear_speed_m_s = np.inf
+        self.last_prepare_angular_speed_rad_s = np.inf
+        self.final_position_error_m = np.inf
+        self.final_orientation_error_rad = np.inf
+        self.final_world_foot_error_m = np.inf
+
+        result = self.controller.start_autonomous_approach(
+            navigation_state
+        )
+        if result.failed:
+            self.state = self.FAILED
+            self.reason = result.reason
+        else:
+            self.state = self.APPROACH
+            self.approach_target_pose_pv = (
+                result.target_pose_pv.copy()
+            )
+        return result
+
+    def cancel(self, reason="cancelled"):
+        """取消自动任务并回到空闲调度状态。"""
+
+        if self.state == self.APPROACH:
+            self.controller.approach_mode.cancel_autonomous_approach(
+                reason
+            )
+        self.state = self.IDLE
+        self.reason = reason
+        self.climb_config = None
+
+    def update(self, q_cur, navigation_state):
+        """推进当前任务阶段；成功门槛来自各子模式。"""
+
+        command = np.zeros(4, dtype=np.float64)
+        if self.state == self.APPROACH:
+            self.approach_elapsed_s += self.controller.dt
+            result = self.controller.approach_mode.update(
+                command,
+                navigation_state,
+            )
+            if result.failed:
+                self.state = self.FAILED
+                self.reason = result.reason
+            elif self.approach_elapsed_s >= self.approach_timeout_s:
+                self.controller.approach_mode.cancel_autonomous_approach(
+                    "approach timeout"
+                )
+                self.state = self.FAILED
+                self.reason = "approach timeout"
+            elif result.ready_for_climb:
+                self.approach_target_pose_pv = (
+                    result.target_pose_pv.copy()
+                )
+                self.prepare_elapsed_s = 0.0
+                self.prepare_settle_s = 0.0
+                if not self.posture_prepared:
+                    self.controller.prepare_climb_entry(q_cur)
+                    self.posture_prepared = True
+                self.prepare_previous_pose_pv = (
+                    navigation_state.normalized().pv_from_base
+                )
+                self.state = self.PREPARE_CLIMB
+            return result
+
+        if self.state == self.PREPARE_CLIMB:
+            self.prepare_elapsed_s += self.controller.dt
+            self.last_prepare_joint_error_rad = float(
+                np.max(np.abs(np.asarray(q_cur) - self.controller.q_init))
+            )
+            gate = self.climb_config["settle_gate"]
+            if not self.controller.reset_active:
+                navigation = navigation_state.normalized()
+                if self.prepare_previous_pose_pv is not None:
+                    self.last_prepare_linear_speed_m_s = float(
+                        np.linalg.norm(
+                            navigation.pv_from_base[:3, 3]
+                            - self.prepare_previous_pose_pv[:3, 3]
+                        )
+                        / self.controller.dt
+                    )
+                    relative_rotation = (
+                        self.prepare_previous_pose_pv[:3, :3].T
+                        @ navigation.pv_from_base[:3, :3]
+                    )
+                    rotation_cosine = np.clip(
+                        (np.trace(relative_rotation) - 1.0) / 2.0,
+                        -1.0,
+                        1.0,
+                    )
+                    self.last_prepare_angular_speed_rad_s = float(
+                        np.arccos(rotation_cosine) / self.controller.dt
+                    )
+                self.prepare_previous_pose_pv = (
+                    navigation.pv_from_base.copy()
+                )
+                position_error = float(
+                    np.linalg.norm(
+                        navigation.pv_from_base[:2, 3]
+                        - self.approach_target_pose_pv[:2, 3]
+                    )
+                )
+                yaw_error = abs(
+                    wrap_angle(
+                        yaw_from_transform(self.approach_target_pose_pv)
+                        - yaw_from_transform(navigation.pv_from_base)
+                    )
+                )
+                self.last_prepare_position_error_m = position_error
+                self.last_prepare_yaw_error_rad = yaw_error
+                pose_ready = bool(
+                    navigation.valid
+                    and position_error
+                    <= self.approach_position_tolerance_m
+                    and yaw_error <= self.approach_yaw_tolerance_rad
+                )
+                feet_base = self.controller.kinematic.hip_to_base(
+                    self.controller.kinematic.forward(q_cur)
+                )
+                feet_world = transform_points(
+                    navigation.pv_from_base,
+                    feet_base,
+                )
+                target_anchors = np.asarray(
+                    self.climb_config["p0"]["anchors_world_m"],
+                    dtype=np.float64,
+                )
+                self.last_prepare_world_foot_error_m = float(
+                    np.max(
+                        np.linalg.norm(
+                            feet_world - target_anchors,
+                            axis=1,
+                        )
+                    )
+                )
+                if not pose_ready:
+                    if self.prepare_retry_count >= self.max_prepare_retries:
+                        self.state = self.FAILED
+                        self.reason = (
+                            "climb entry pose changed after posture preparation: "
+                            "position_error_m={:.6g} yaw_error_deg={:.6g} "
+                            "world_foot_error_m={:.6g}".format(
+                                position_error,
+                                np.degrees(yaw_error),
+                                self.last_prepare_world_foot_error_m,
+                            )
+                        )
+                        return None
+                    self.prepare_retry_count += 1
+                    result = self.controller.start_autonomous_approach(
+                        navigation
+                    )
+                    if result.failed:
+                        self.state = self.FAILED
+                        self.reason = result.reason
+                    else:
+                        self.state = self.APPROACH
+                        self.approach_elapsed_s = 0.0
+                        self.approach_target_pose_pv = (
+                            result.target_pose_pv.copy()
+                        )
+                    return result
+                if (
+                    self.last_prepare_joint_error_rad
+                    <= gate["entry_max_joint_error_rad"]
+                    and self.last_prepare_world_foot_error_m
+                    <= gate["max_foot_target_error_m"]
+                    and self.last_prepare_linear_speed_m_s
+                    <= self.prepare_linear_speed_limit_m_s
+                    and self.last_prepare_angular_speed_rad_s
+                    <= self.prepare_angular_speed_limit_rad_s
+                ):
+                    self.prepare_settle_s += self.controller.dt
+                else:
+                    self.prepare_settle_s = 0.0
+                if self.prepare_settle_s >= gate["persistence_s"]:
+                    self.controller.enter_climb(
+                        q_cur,
+                        self.climb_config,
+                        self.climb_start_stage_index,
+                        self.climb_end_stage_index,
+                    )
+                    self.state = self.CLIMB
+            if (
+                self.state == self.PREPARE_CLIMB
+                and self.prepare_elapsed_s
+                >= self.controller.reset_duration + 8.0
+            ):
+                self.state = self.FAILED
+                self.reason = (
+                    "climb entry posture timeout: joint_error_rad="
+                    + "{:.6g}".format(self.last_prepare_joint_error_rad)
+                )
+            return None
+
+        if self.state == self.CLIMB:
+            result = self.controller.climb_mode.update(command, q_cur)
+            if self.controller.climb_mode.state == ClimbMode.DONE:
+                if self._climb_terminal_ready(q_cur, navigation_state):
+                    # 当前仓库尚无可执行的视觉对接器；DOCK先作为终端保持与
+                    # 后续DockMode的明确接管点，不能解释为已经完成物理对接。
+                    self.controller.set_mode(self.controller.DOCK)
+                    self.state = self.DOCK
+                else:
+                    self.state = self.FAILED
+                    self.reason = (
+                        "climb terminal observation gate failed: "
+                        "position_error_m={:.6g} orientation_error_deg={:.6g} "
+                        "world_foot_error_m={:.6g}".format(
+                            self.final_position_error_m,
+                            np.degrees(self.final_orientation_error_rad),
+                            self.final_world_foot_error_m,
+                        )
+                    )
+            elif self.controller.climb_mode.state == ClimbMode.FAILED:
+                self.state = self.FAILED
+                self.reason = self.controller.climb_mode.failure_reason
+            return result
+
+        return None
+
+    def _climb_terminal_ready(self, q_cur, navigation_state):
+        """用RTK/IMU位姿与关节FK检查C30几何终态。"""
+
+        if navigation_state is None:
+            return False
+        navigation = navigation_state.normalized()
+        if not navigation.valid:
+            return False
+        final_stage = self.climb_config["stages"][
+            self.climb_end_stage_index
+        ]
+        target_pose = ClimbMode._world_from_base(
+            np.asarray(final_stage["pose_end"], dtype=np.float64)
+        )
+        actual_pose = navigation.pv_from_base
+        self.final_position_error_m = float(
+            np.linalg.norm(actual_pose[:3, 3] - target_pose[:3, 3])
+        )
+        relative_rotation = target_pose[:3, :3].T @ actual_pose[:3, :3]
+        rotation_cosine = np.clip(
+            (np.trace(relative_rotation) - 1.0) / 2.0,
+            -1.0,
+            1.0,
+        )
+        self.final_orientation_error_rad = float(
+            np.arccos(rotation_cosine)
+        )
+        feet_base = self.controller.kinematic.hip_to_base(
+            self.controller.kinematic.forward(q_cur)
+        )
+        feet_world = transform_points(actual_pose, feet_base)
+        target_feet_world = np.asarray(
+            final_stage["anchor_knots"][-1],
+            dtype=np.float64,
+        )
+        self.final_world_foot_error_m = float(
+            np.max(
+                np.linalg.norm(
+                    feet_world - target_feet_world,
+                    axis=1,
+                )
+            )
+        )
+        return bool(
+            self.final_position_error_m <= self.final_position_tolerance_m
+            and self.final_orientation_error_rad
+            <= self.final_orientation_tolerance_rad
+            and self.final_world_foot_error_m
+            <= self.final_world_foot_tolerance_m
+        )
+
+
 class GraspController:
     """六足控制器
     速度指令
@@ -58,6 +439,7 @@ class GraspController:
 
     APPROACH = "approach"
     CLIMB = "climb"
+    DOCK = "dock"
 
     def __init__(self, dt, enable_link_collision_check=False):
         self.dt = dt
@@ -98,6 +480,7 @@ class GraspController:
 
         self.approach_mode = ApproachMode(self)
         self.climb_mode = ClimbMode(self)
+        self.mission = MissionStateMachine(self)
         self.mode = self.APPROACH
         self.last_mode_result = None
 
@@ -388,7 +771,13 @@ class GraspController:
     def reset_to_stand(self, q_cur):
         """从当前关节角平滑回到标准站姿。"""
         # B是全局恢复动作，必须退出攀爬状态再执行站立轨迹。
+        self.mission.cancel("reset to stand")
         self.set_mode(self.APPROACH)
+        self.prepare_climb_entry(q_cur)
+
+    def prepare_climb_entry(self, q_cur):
+        """从当前关节角平滑整理到compact要求的标准站姿。"""
+
         self.reset_start_q = np.asarray(
             q_cur,
             dtype=np.float64,
@@ -409,10 +798,32 @@ class GraspController:
             navigation_state
         )
 
+    def start_full_mission(
+        self,
+        navigation_state,
+        climb_config,
+        start_stage_index=0,
+        end_stage_index=None,
+        approach_timeout_s=60.0,
+        approach_position_tolerance_m=0.01,
+        approach_yaw_tolerance_rad=np.deg2rad(1.0),
+    ):
+        """启动APPROACH到CLIMB再到DOCK的自动调度。"""
+
+        return self.mission.start(
+            navigation_state,
+            climb_config,
+            start_stage_index,
+            end_stage_index,
+            approach_timeout_s,
+            approach_position_tolerance_m,
+            approach_yaw_tolerance_rad,
+        )
+
     def set_mode(self, mode):
         """切换唯一活动模式。"""
 
-        if mode not in (self.APPROACH, self.CLIMB):
+        if mode not in (self.APPROACH, self.CLIMB, self.DOCK):
             raise ValueError(f"Unknown control mode: {mode}")
         self.mode = mode
 
@@ -465,13 +876,21 @@ class GraspController:
 
     def update(self, q_cur, command, navigation_state=None):
         """执行当前任务模式并输出本周期关节目标。"""
-        if self.mode == self.APPROACH:
+        if self.mission.state != self.mission.IDLE:
+            self.last_mode_result = self.mission.update(
+                q_cur,
+                navigation_state,
+            )
+        elif self.mode == self.APPROACH:
             self.last_mode_result = self.approach_mode.update(
                 command,
                 navigation_state,
             )
         elif self.mode == self.CLIMB:
             self.last_mode_result = self.climb_mode.update(command, q_cur)
+        elif self.mode == self.DOCK:
+            # 视觉对接器接入前只保持攀爬终点，不生成未经验证的运动。
+            self.last_mode_result = None
         else:
             raise ValueError(f"Unknown control mode: {self.mode}")
 
@@ -537,7 +956,9 @@ class GraspController:
         ).squeeze(-1)
 
         q_candidate = np.clip(
-            q_cur + 32.0 * joint_correction * self.dt + joint_ff * self.dt,
+            q_cur
+            + 16.0 * joint_correction * self.dt
+            + joint_ff * self.dt,
             JOINT_LOWER,
             JOINT_UPPER,
         )

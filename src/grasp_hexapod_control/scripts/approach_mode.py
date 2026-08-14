@@ -22,7 +22,6 @@ import numpy as np
 
 from utils import (
     NavigationState,
-    circular_path_feasible,
     distance_to_polygon_boundary,
     points_in_polygon,
     transform_points,
@@ -45,7 +44,10 @@ class ApproachPlan:
     target_pose_pv: np.ndarray = field(
         default_factory=lambda: np.eye(4, dtype=np.float64)
     )
-    score: float = np.inf
+    waypoints_pv: np.ndarray = field(
+        default_factory=lambda: np.empty((0, 2), dtype=np.float64)
+    )
+    waypoint_index: int = 0
     minimum_clearance: float = 0.0
     ready_for_climb: bool = False
     failed: bool = False
@@ -59,8 +61,8 @@ class ApproachMode:
         self.controller = controller
         self.dt = controller.dt
 
-        # 自动接近参数只有在左右标准位姿完成测量后才会启用。
-        self.xiaolan_from_approach = {}
+        # 自动接近只使用由compact P0导出的固定左侧基准位姿。
+        self.xiaolan_from_fixed_approach = None
         self.approach_plan = ApproachPlan()
         self.navigation_state = None
         self.boundary_margin = 0.03
@@ -117,36 +119,32 @@ class ApproachMode:
             dtype=np.float64,
         )
 
-    def configure_autonomous_approach(
+    def configure_fixed_approach(
         self,
-        xiaolan_from_left_base,
-        xiaolan_from_right_base,
+        xiaolan_from_base,
+        target_side="left",
         boundary_margin=0.03,
         linear_speed=0.12,
         yaw_rate=0.8,
     ):
-        """设置两侧标准接近位姿和经过实机确认的导航参数。
+        """设置唯一左侧标准接近位姿和导航参数。
 
-        xiaolan_from_*_base表示目标base_link在xiaolan_base中的4×4位姿。
-        这些值与小蓝尺寸、攀爬动作和RTK天线外参有关，不能在控制器中猜测。
+        xiaolan_from_base表示目标base_link在xiaolan_base中的4×4位姿。
+        这是simulation baseline，实机仍须另行完成安全验证。
         """
 
-        self.xiaolan_from_approach = {
-            "left": np.asarray(
-                xiaolan_from_left_base,
-                dtype=np.float64,
-            ).reshape(4, 4).copy(),
-            "right": np.asarray(
-                xiaolan_from_right_base,
-                dtype=np.float64,
-            ).reshape(4, 4).copy(),
-        }
+        if target_side != "left":
+            raise ValueError("fixed approach target_side must be left")
+        self.xiaolan_from_fixed_approach = np.asarray(
+            xiaolan_from_base,
+            dtype=np.float64,
+        ).reshape(4, 4).copy()
         self.boundary_margin = float(boundary_margin)
         self.auto_linear_speed = float(linear_speed)
         self.auto_yaw_rate = float(yaw_rate)
 
     def plan_autonomous_approach(self, navigation_state):
-        """枚举左右接近点，选择边界内代价最低的固定直线路径。"""
+        """生成左侧投影再沿中心线进入P0的固定路线。"""
 
         navigation = navigation_state.normalized()
         self.navigation_state = navigation
@@ -157,72 +155,177 @@ class ApproachMode:
             return self._fail_approach("landing is not confirmed")
         if len(navigation.pv_boundary) < 3:
             return self._fail_approach("pv boundary is unavailable")
-        if set(self.xiaolan_from_approach) != {"left", "right"}:
+        if self.xiaolan_from_fixed_approach is None:
             return self._fail_approach(
-                "left/right approach poses are not configured"
+                "fixed left approach pose is not configured"
             )
 
         current_xy = navigation.pv_from_base[:2, 3]
         current_yaw = yaw_from_transform(navigation.pv_from_base)
-        safety_radius = self.robot_safety_radius + self.boundary_margin
-        candidates = []
-
-        for side, xiaolan_from_target in (
-            self.xiaolan_from_approach.items()
-        ):
-            target_pose = (
-                navigation.pv_from_xiaolan @ xiaolan_from_target
-            )
-            target_xy = target_pose[:2, 3]
-            feasible, minimum_clearance = circular_path_feasible(
-                current_xy,
-                target_xy,
-                navigation.pv_boundary,
-                safety_radius,
-                self.path_sample_spacing,
-            )
-            if not feasible:
-                continue
-
-            travel_distance = np.linalg.norm(target_xy - current_xy)
-            yaw_change = abs(
-                wrap_angle(
-                    yaw_from_transform(target_pose) - current_yaw
-                )
-            )
-            # 把转角按机器人安全半径折算为等效弧长，同时奖励更大边界余量。
-            score = (
-                travel_distance
-                + self.robot_safety_radius * yaw_change
-                - 0.25 * minimum_clearance
-            )
-            candidates.append(
-                (
-                    score,
-                    side,
-                    target_pose,
-                    minimum_clearance,
-                )
-            )
-
-        if not candidates:
-            return self._fail_approach(
-                "no approach side has a boundary-safe straight path"
-            )
-
-        score, side, target_pose, clearance = min(
-            candidates,
-            key=lambda candidate: candidate[0],
+        target_pose = (
+            navigation.pv_from_xiaolan
+            @ self.xiaolan_from_fixed_approach
         )
+        target_xy = target_pose[:2, 3]
+        xiaolan_xy = navigation.pv_from_xiaolan[:2, 3]
+        outward = target_xy - xiaolan_xy
+        outward_norm = np.linalg.norm(outward)
+        if outward_norm <= np.finfo(np.float64).eps:
+            return self._fail_approach(
+                "fixed target has no left-side outward direction"
+            )
+        outward /= outward_norm
+        outward_distance = float(
+            np.dot(current_xy - target_xy, outward)
+        )
+        if outward_distance < -self.position_tolerance:
+            return self._fail_approach(
+                "current base is beyond P0 on the Xiaolan side"
+            )
+
+        staging_xy = target_xy + outward_distance * outward
+        waypoints = []
+        if (
+            np.linalg.norm(staging_xy - current_xy)
+            > self.position_tolerance
+            and np.linalg.norm(staging_xy - target_xy)
+            > self.position_tolerance
+        ):
+            waypoints.append(staging_xy)
+        waypoints.append(target_xy)
+
+        waypoint_array = np.asarray(
+            waypoints,
+            dtype=np.float64,
+        ).reshape(-1, 2)
+        feasible, clearance = self._remaining_route_feasible(
+            navigation,
+            current_xy,
+            current_yaw,
+            waypoint_array,
+            yaw_from_transform(target_pose),
+        )
+        if not feasible:
+            return self._fail_approach(
+                "fixed left approach route violates pv boundary footprint"
+            )
+
         self.approach_plan = ApproachPlan(
             active=True,
             state="align",
-            target_side=side,
+            target_side="left",
             target_pose_pv=target_pose,
-            score=float(score),
+            waypoints_pv=waypoint_array,
             minimum_clearance=float(clearance),
         )
         return self.approach_plan
+
+    def _gait_motion_margin(self):
+        """返回一次三角步态周期内标准足端的保守平面运动余量。"""
+
+        support_duration = (
+            self.phase_duration + 2.0 * self.transfer_duration
+        )
+        return 0.5 * support_duration * max(
+            self.auto_linear_speed,
+            self.robot_safety_radius * self.auto_yaw_rate,
+        )
+
+    def _pose_feasible(self, center_xy, yaw, boundary):
+        """检查一个标准足印和机身中心的光伏板边界余量。"""
+
+        cosine, sine = np.cos(yaw), np.sin(yaw)
+        rotation = np.array(
+            [[cosine, -sine], [sine, cosine]],
+            dtype=np.float64,
+        )
+        feet_xy = (
+            self.controller.foot_init_base[:, :2] @ rotation.T
+            + np.asarray(center_xy, dtype=np.float64).reshape(2)
+        )
+        checked_points = np.vstack(
+            (np.asarray(center_xy, dtype=np.float64).reshape(1, 2), feet_xy)
+        )
+        clearance = distance_to_polygon_boundary(checked_points, boundary)
+        required_margin = self.boundary_margin + self._gait_motion_margin()
+        feasible = bool(
+            points_in_polygon(checked_points, boundary).all()
+            and np.all(clearance >= required_margin)
+        )
+        return feasible, float(clearance.min())
+
+    def _rotation_feasible(self, center_xy, start_yaw, target_yaw, boundary):
+        """按最大5度采样检查原地转向的标准足印。"""
+
+        yaw_change = wrap_angle(target_yaw - start_yaw)
+        count = max(2, int(np.ceil(abs(yaw_change) / np.deg2rad(5.0))) + 1)
+        minimum_clearance = np.inf
+        for yaw in np.linspace(start_yaw, start_yaw + yaw_change, count):
+            feasible, clearance = self._pose_feasible(center_xy, yaw, boundary)
+            minimum_clearance = min(minimum_clearance, clearance)
+            if not feasible:
+                return False, float(minimum_clearance)
+        return True, float(minimum_clearance)
+
+    def _translation_feasible(self, start_xy, end_xy, yaw, boundary):
+        """按最大0.02m采样检查固定偏航直线路段的标准足印。"""
+
+        start_xy = np.asarray(start_xy, dtype=np.float64).reshape(2)
+        end_xy = np.asarray(end_xy, dtype=np.float64).reshape(2)
+        count = max(
+            2,
+            int(
+                np.ceil(
+                    np.linalg.norm(end_xy - start_xy)
+                    / self.path_sample_spacing
+                )
+            )
+            + 1,
+        )
+        minimum_clearance = np.inf
+        for center_xy in np.linspace(start_xy, end_xy, count):
+            feasible, clearance = self._pose_feasible(center_xy, yaw, boundary)
+            minimum_clearance = min(minimum_clearance, clearance)
+            if not feasible:
+                return False, float(minimum_clearance)
+        return True, float(minimum_clearance)
+
+    def _remaining_route_feasible(
+        self,
+        navigation,
+        current_xy,
+        current_yaw,
+        waypoints_pv,
+        target_yaw,
+    ):
+        """复核当前转向及所有剩余固定路线的标准足印。"""
+
+        boundary = navigation.pv_boundary
+        rotation_ok, minimum_clearance = self._rotation_feasible(
+            current_xy,
+            current_yaw,
+            target_yaw,
+            boundary,
+        )
+        if not rotation_ok:
+            return False, minimum_clearance
+
+        previous_xy = np.asarray(current_xy, dtype=np.float64).reshape(2)
+        for waypoint_xy in np.asarray(
+            waypoints_pv,
+            dtype=np.float64,
+        ).reshape(-1, 2):
+            feasible, clearance = self._translation_feasible(
+                previous_xy,
+                waypoint_xy,
+                target_yaw,
+                boundary,
+            )
+            minimum_clearance = min(minimum_clearance, clearance)
+            if not feasible:
+                return False, float(minimum_clearance)
+            previous_xy = waypoint_xy
+        return True, float(minimum_clearance)
 
     def cancel_autonomous_approach(self, reason="cancelled"):
         """取消自动接近，并让当前摆动组三腿正常落地后停止。"""
@@ -260,19 +363,18 @@ class ApproachMode:
 
         target_pose = self.approach_plan.target_pose_pv
         current_xy = navigation.pv_from_base[:2, 3]
-        target_xy = target_pose[:2, 3]
         current_yaw = yaw_from_transform(navigation.pv_from_base)
         target_yaw = yaw_from_transform(target_pose)
         yaw_error = wrap_angle(target_yaw - current_yaw)
-        position_error_pv = target_xy - current_xy
-        position_error = np.linalg.norm(position_error_pv)
-
-        feasible, minimum_clearance = circular_path_feasible(
+        waypoints = self.approach_plan.waypoints_pv[
+            self.approach_plan.waypoint_index :
+        ]
+        feasible, minimum_clearance = self._remaining_route_feasible(
+            navigation,
             current_xy,
-            target_xy,
-            navigation.pv_boundary,
-            self.robot_safety_radius + self.boundary_margin,
-            self.path_sample_spacing,
+            current_yaw,
+            waypoints,
+            target_yaw,
         )
         self.approach_plan.minimum_clearance = minimum_clearance
         if not feasible:
@@ -290,11 +392,22 @@ class ApproachMode:
             self.approach_plan.state = "translate"
 
         if self.approach_plan.state == "translate":
+            if (
+                self.approach_plan.waypoint_index
+                >= len(self.approach_plan.waypoints_pv)
+            ):
+                self.approach_plan.state = "settle"
+                return command
             # 偏航漂移明显时先停下重新对齐，避免边走边扭影响相机稳定。
             if abs(yaw_error) > 2.0 * self.yaw_tolerance:
                 self.approach_plan.state = "align"
                 return command
 
+            target_xy = self.approach_plan.waypoints_pv[
+                self.approach_plan.waypoint_index
+            ]
+            position_error_pv = target_xy - current_xy
+            position_error = np.linalg.norm(position_error_pv)
             if position_error > self.position_tolerance:
                 speed = min(
                     self.auto_linear_speed,
@@ -319,8 +432,24 @@ class ApproachMode:
                 # 不能只凭发出零指令前的位置宣布到达。
                 if abs(yaw_error) > self.yaw_tolerance:
                     self.approach_plan.state = "align"
-                elif position_error > self.position_tolerance:
+                elif (
+                    self.approach_plan.waypoint_index
+                    < len(self.approach_plan.waypoints_pv)
+                    and np.linalg.norm(
+                        self.approach_plan.waypoints_pv[
+                            self.approach_plan.waypoint_index
+                        ]
+                        - current_xy
+                    )
+                    > self.position_tolerance
+                ):
                     self.approach_plan.state = "translate"
+                elif (
+                    self.approach_plan.waypoint_index
+                    < len(self.approach_plan.waypoints_pv)
+                ):
+                    self.approach_plan.waypoint_index += 1
+                    self.approach_plan.state = "align"
                 else:
                     self.approach_plan.active = False
                     self.approach_plan.state = "ready"

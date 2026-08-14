@@ -87,8 +87,9 @@ JOINT_UPPER = np.tile(
 )
 JOINT_LOWER[:, 0] = [-0.698, -1.571, -0.698, -1.571, -0.698, -0.698]
 JOINT_UPPER[:, 0] = [1.571, 0.698, 0.698, 0.698, 1.571, 0.698]
-# LX-15D空载6.5~10.5 rad/s(0.16s/60°@5V ~ 0.10s/60°@6V)；0.4m/s需7.65，取6V档76%。
-JOINT_VELOCITY_LIMIT = np.full((6, 3), 8.0, dtype=np.float64)
+# 30 Hz 控制链以 4 rad/s 限制每个控制周期的目标关节步进。
+# 这是共享目标步长保护，不是 LX-15D 的实测负载速度。
+JOINT_VELOCITY_LIMIT = np.full((6, 3), 4.0, dtype=np.float64)
 
 # M1A 估计惯性/几何模型，来自 hexapod_isaacgym_view.urdf。它们是模型估计，
 # 不是实机测量真值。连杆顺序为 thigh/knee/ankle/foot；腿顺序采用

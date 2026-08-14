@@ -7,7 +7,7 @@
   <arg name="right_port" default="/dev/ttyUSB1"/>
   <arg name="mid_port" default="/dev/ttyUSB2"/>
 
-  <arg name="controller_rate_hz" default="60.0"/>
+  <arg name="controller_rate_hz" default="30.0"/>
   <arg name="enable_link_collision_check" default="true"/>
   <arg name="servo_rate_hz" default="30.0"/>
   <arg name="command_duration_ms" default="33"/>
@@ -29,8 +29,6 @@
 
   <arg name="max_linear_speed" default="0.20"/>
   <arg name="max_vertical_speed" default="0.02"/>
-  <arg name="xiaolan_from_left_base" default="[]"/>
-  <arg name="xiaolan_from_right_base" default="[]"/>
 
   <include file="$(find grasp_hexapod_control)/launch/control_stack.launch">
     <arg name="control_source" value="$(arg mode)"/>
@@ -55,12 +53,6 @@
     <arg name="axis_body_scale" value="$(arg axis_body_scale)"/>
     <arg name="max_linear_speed" value="$(arg max_linear_speed)"/>
     <arg name="max_vertical_speed" value="$(arg max_vertical_speed)"/>
-    <arg
-      name="xiaolan_from_left_base"
-      value="$(arg xiaolan_from_left_base)"/>
-    <arg
-      name="xiaolan_from_right_base"
-      value="$(arg xiaolan_from_right_base)"/>
   </include>
 
   <include file="$(find grasp_hexapod_servo)/launch/servo_three_boards.launch">

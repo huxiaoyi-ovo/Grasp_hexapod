@@ -13,6 +13,7 @@
     GraspController负责，舵机协议仍由grasp_hexapod_servo负责。
 """
 
+import json
 from pathlib import Path
 import sys
 from threading import Lock
@@ -36,7 +37,25 @@ sys.path.insert(0, str(scripts_dir))
 
 from control import GraspController
 from kinematics import LEG_NAMES
-from utils import NavigationState, pose_to_transform
+from utils import NavigationState, package_config_path, pose_to_transform
+
+
+def load_fixed_approach_config():
+    """加载固定左侧P0接近基准；其仅是仿真基线。"""
+
+    with package_config_path("approach_fixed.json").open() as file:
+        config = json.load(file)
+    if config.get("target_side") != "left":
+        raise ValueError("approach_fixed.json target_side must be left")
+    if config.get("simulation_baseline_only") is not True:
+        raise ValueError("approach_fixed.json must remain simulation-baseline-only")
+    matrix = np.asarray(
+        config.get("xiaolan_from_base"),
+        dtype=np.float64,
+    )
+    if matrix.shape != (4, 4) or not np.isfinite(matrix).all():
+        raise ValueError("approach_fixed.json xiaolan_from_base must be 4x4")
+    return config["target_side"], matrix
 
 
 class NavigationInput:
@@ -176,7 +195,7 @@ class RosControlNode:
         self.local_execution = bool(local_execution)
         if controller_rate_hz is None:
             controller_rate_hz = rospy.get_param(
-                "~controller_rate_hz", 60.0
+                "~controller_rate_hz", 30.0
             )
         self.rate_hz = float(controller_rate_hz)
         self.enable_link_collision_check = bool(
@@ -261,33 +280,23 @@ class RosControlNode:
         self.navigation = None
         if self.control_source == "navigation":
             self.navigation = NavigationInput()
-            left_pose = rospy.get_param(
-                "~xiaolan_from_left_base",
-                [],
+            target_side, xiaolan_from_base = load_fixed_approach_config()
+            self.controller.approach_mode.configure_fixed_approach(
+                xiaolan_from_base,
+                target_side=target_side,
+                linear_speed=float(
+                    rospy.get_param(
+                        "~navigation_linear_speed",
+                        self.max_linear_speed,
+                    )
+                ),
+                yaw_rate=float(
+                    rospy.get_param(
+                        "~navigation_yaw_rate",
+                        self.max_yaw_rate,
+                    )
+                ),
             )
-            right_pose = rospy.get_param(
-                "~xiaolan_from_right_base",
-                [],
-            )
-            left_pose = np.asarray(left_pose, dtype=np.float64)
-            right_pose = np.asarray(right_pose, dtype=np.float64)
-            if left_pose.size == 16 and right_pose.size == 16:
-                self.controller.approach_mode.configure_autonomous_approach(
-                    left_pose.reshape(4, 4),
-                    right_pose.reshape(4, 4),
-                    linear_speed=float(
-                        rospy.get_param(
-                            "~navigation_linear_speed",
-                            self.max_linear_speed,
-                        )
-                    ),
-                    yaw_rate=float(
-                        rospy.get_param(
-                            "~navigation_yaw_rate",
-                            self.max_yaw_rate,
-                        )
-                    ),
-                )
 
         self.publishers = {}
         if not self.local_execution:

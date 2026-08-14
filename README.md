@@ -13,14 +13,22 @@
 
 控制包按职责命名：`run_*.py` 是执行入口，`control.py`、`*_mode.py` 和
 `kinematics.py` 是运行时核心，`scripts/utils/` 只放共享库；
-`scripts/tools/` 收纳 `analyze_*.py`、`plan_*.py` 和历史 `validate_climb.py`
-等离线命令，不进入实时控制链。
+`scripts/tools/` 保留 `analyze_workspace.py` 和离线候选重建工具；旧规划、trace 和长 validator 在
+`src/reference/climb_history/`，不进入实时控制链也不再维护。
 
 ## 开发协作
 
 - `test` 是集成分支；从 `test` 创建功能分支，合并目标也是 `test`，不要直接在 `main` 开发。
 - 在仓库根目录构建和运行检查。
 - URDF 和 CAD 导出文件只做必要的小修改；如果以后重新导出，需同步保留这些手工修改。
+
+### 协作者提交准则
+
+- 最小改动：只实现当前需求，不顺带重构、格式化或修改无关代码。
+- 控制文件：优先复用和合并现有文件，避免拆出零散模块；默认修改不超过 3 个文件，确需新增时说明理由。
+- 边界清晰：保持现有接口、调用链和配置兼容；若必须改变公共接口或扩大范围，先沟通确认。
+- 风格一致：沿用附近代码的命名、结构、注释和错误处理方式，避免过度抽象和非必要依赖。
+- 可直接接入：提交前完成相关语法及针对性测试，并说明修改文件、接口影响、验证结果和未覆盖风险；不要提交日志、临时文件或无关生成物。
 
 ## 构建
 
@@ -107,10 +115,10 @@ B -> 等待回到标准站姿 -> A -> 接受运动指令
 ```bash
 conda run --no-capture-output -n grasp_hexapod python3 \
   src/grasp_hexapod_control/scripts/run_sim.py \
-  --climb-start --climb-speed 4 --climb-joint-speed 3
+  --climb-start --climb-speed 1 --climb-joint-speed 1.2
 ```
 
-可只回放一个闭区间：`C1` 至 `C35` 是 compact 数组顺序的固定用户别名，也可
+可只回放一个闭区间：`C1` 至 `C53` 是 compact 数组顺序的固定用户别名，也可
 使用运行时阶段名。中途入口会把 Isaac root、18 个关节和足端锚点同步到该阶段
 的规划起点；它仍只是仿真预览。
 
@@ -118,7 +126,7 @@ conda run --no-capture-output -n grasp_hexapod python3 \
 conda run --no-capture-output -n grasp_hexapod python3 \
   src/grasp_hexapod_control/scripts/run_sim.py \
   --climb-start --climb-from C13 --climb-to C15 \
-  --climb-speed 4 --climb-joint-speed 3 \
+  --climb-speed 1 --climb-joint-speed 1.2 \
   --climb-metrics logs/c13_c15_metrics.json
 ```
 
@@ -126,6 +134,9 @@ conda run --no-capture-output -n grasp_hexapod python3 \
 限位余量；不证明接触、载荷或稳定性。`--climb-from`、`--climb-to` 和
 `--climb-metrics` 只能与 Isaac 的 `--climb-start` 或 `--climb-scene` 一起使用，
 不进入 ROS 或实机路径。
+
+离线候选先由 `rebuild_climb_preview.py snapshot` 生成模型/profile，再由 `build`
+仅重定向显式编辑的阶段终点；它不会自动选落脚点、改变阶段顺序、限位或时序。
 
 ## 包内说明
 

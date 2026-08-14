@@ -41,9 +41,10 @@ sys.path.insert(0, str(scripts_dir))
 
 from control import GraspController
 from climb_mode import ClimbMode
-from kinematics import LEG_NAMES
+from kinematics import LEG_NAMES, JOINT_NAMES
 from utils import (
     CONTROL_DOF_NAMES,
+    NavigationState,
     build_dof_indices,
     control_to_external,
     external_to_control,
@@ -57,6 +58,125 @@ gymapi: Any = _gymapi
 
 DEFAULT_TRACE_PATH = Path("logs/servo_walk_trace.csv")
 TRACE_ACTION_DURATION = 5.0
+MISSION_PV_BOUNDARY = np.array(
+    [
+        [-1.5, -1.5],
+        [1.5, -1.5],
+        [1.5, 1.5],
+        [-1.5, 1.5],
+    ],
+    dtype=np.float64,
+)
+
+
+def _planar_transform(x, y, z, yaw):
+    """生成用于模拟导航的世界位姿矩阵。"""
+
+    cosine, sine = np.cos(yaw), np.sin(yaw)
+    transform = np.eye(4, dtype=np.float64)
+    transform[:3, :3] = [
+        [cosine, -sine, 0.0],
+        [sine, cosine, 0.0],
+        [0.0, 0.0, 1.0],
+    ]
+    transform[:3, 3] = (x, y, z)
+    return transform
+
+
+def _isaac_transform_matrix(transform):
+    """把Isaac根位姿转换为4×4齐次矩阵。"""
+
+    position = transform.p
+    quaternion = np.array(
+        [transform.r.x, transform.r.y, transform.r.z, transform.r.w],
+        dtype=np.float64,
+    )
+    quaternion /= np.linalg.norm(quaternion)
+    x, y, z, w = quaternion
+    rotation = np.array(
+        [
+            [1.0 - 2.0 * (y * y + z * z), 2.0 * (x * y - z * w),
+             2.0 * (x * z + y * w)],
+            [2.0 * (x * y + z * w), 1.0 - 2.0 * (x * x + z * z),
+             2.0 * (y * z - x * w)],
+            [2.0 * (x * z - y * w), 2.0 * (y * z + x * w),
+             1.0 - 2.0 * (x * x + y * y)],
+        ],
+        dtype=np.float64,
+    )
+    output = np.eye(4, dtype=np.float64)
+    output[:3, :3] = rotation
+    output[:3, 3] = (position.x, position.y, position.z)
+    return output
+
+
+class SimulatedRtkImu:
+    """用仿真根位姿生成控制器可复用的RTK/IMU导航观测。"""
+
+    def __init__(self, xiaolan_translation):
+        self.pv_from_xiaolan = np.eye(4, dtype=np.float64)
+        self.pv_from_xiaolan[:3, 3] = np.asarray(
+            xiaolan_translation,
+            dtype=np.float64,
+        ).reshape(3)
+
+    def snapshot(self, pv_from_base, stamp):
+        """返回一帧理想且持续刷新的模拟导航数据。"""
+
+        return NavigationState(
+            stamp=float(stamp),
+            valid=True,
+            landing_confirmed=True,
+            pv_from_base=np.asarray(
+                pv_from_base,
+                dtype=np.float64,
+            ).reshape(4, 4).copy(),
+            pv_from_xiaolan=self.pv_from_xiaolan.copy(),
+            pv_boundary=MISSION_PV_BOUNDARY.copy(),
+        )
+
+    def xiaolan_from_base(self, pv_from_base):
+        """返回小蓝坐标系中的六足相对位姿。"""
+
+        return np.linalg.inv(self.pv_from_xiaolan) @ pv_from_base
+
+
+def _random_mission_start(compact, base_height, requested_seed):
+    """在compact入口外侧生成可复现的随机平地开局。"""
+
+    seed = requested_seed
+    if seed is None:
+        seed = int(np.random.SeedSequence().generate_state(1)[0])
+    random = np.random.default_rng(seed)
+    target_xy = np.asarray(compact["p0"]["base"][:2], dtype=np.float64)
+    xiaolan_xy = np.asarray(
+        compact["xiaolan_translation"][:2],
+        dtype=np.float64,
+    )
+    outward = target_xy - xiaolan_xy
+    outward /= np.linalg.norm(outward)
+    lateral = np.array([-outward[1], outward[0]], dtype=np.float64)
+    start_xy = (
+        target_xy
+        + random.uniform(0.35, 0.55) * outward
+        + random.uniform(-0.15, 0.15) * lateral
+    )
+    yaw = random.uniform(-np.pi, np.pi)
+    return int(seed), np.array(
+        [start_xy[0], start_xy[1], base_height, yaw],
+        dtype=np.float64,
+    )
+
+
+def _drive_properties(base_properties, joint_speed):
+    """按 Approach 共用基线生成 Isaac 关节驱动参数。"""
+
+    properties = base_properties.copy()
+    properties["driveMode"].fill(int(gymapi.DOF_MODE_POS))
+    properties["stiffness"].fill(100.0)
+    properties["damping"].fill(0.8)
+    properties["velocity"] *= joint_speed
+    return properties
 
 
 class JoyStick:
@@ -204,15 +324,15 @@ def parse_arguments():
         "--control-rate",
         type=float,
         choices=(30.0, 60.0),
-        default=60.0,
-        help="控制器更新频率",
+        default=30.0,
+        help="控制器更新频率，默认与 30 Hz 执行器链路一致",
     )
     parser.add_argument(
         "--actuator-rate",
         type=float,
         choices=(30.0, 60.0),
-        default=60.0,
-        help="向 Isaac Gym 写入关节目标的频率",
+        default=30.0,
+        help="向 Isaac Gym 写入关节目标的频率，默认与实机舵机链路同为 30 Hz",
     )
     parser.add_argument(
         "--physics-rate",
@@ -227,9 +347,34 @@ def parse_arguments():
         help="直接控制与轨迹的平面速度，单位 m/s",
     )
     parser.add_argument(
+        "--joint-speed",
+        type=float,
+        default=1.2,
+        help=(
+            "普通仿真关节速度上限倍率，默认 1.2（约 4.8 rad/s，对齐 "
+            "LX-15D 7.4V 官方空载上限）；大于 1.2 仅仿真诊断"
+        ),
+    )
+    parser.add_argument(
         "--climb-start",
         action="store_true",
         help="加载 compact 攀爬场景并立即回放",
+    )
+    parser.add_argument(
+        "--full-mission",
+        action="store_true",
+        help="随机开局并自动执行APPROACH、CLIMB到DOCK交接的仿真全流程",
+    )
+    parser.add_argument(
+        "--mission-seed",
+        type=int,
+        help="全流程随机开局种子；省略时每次随机并在终端打印实际种子",
+    )
+    parser.add_argument(
+        "--approach-timeout",
+        type=float,
+        default=60.0,
+        help="自动接近超时，仅触发失败保持，不作为成功门槛，单位s",
     )
     parser.add_argument(
         "--climb-scene",
@@ -239,22 +384,25 @@ def parse_arguments():
     parser.add_argument(
         "--climb-speed",
         type=float,
-        default=4.0,
-        help="compact 攀爬回放速度倍率，默认 4.0",
+        default=1.0,
+        help="compact 轨迹回放倍率（仅显式诊断），默认 1.0",
     )
     parser.add_argument(
         "--climb-joint-speed",
         type=float,
-        default=1.5,
-        help="compact 攀爬关节驱动响应倍率，默认 1.5",
+        default=1.2,
+        help=(
+            "compact 关节速度上限倍率，默认 1.2（LX-15D 官方空载上限候选，"
+            "约 4.8 rad/s）；大于 1.2 仅仿真诊断，非实机对齐"
+        ),
     )
     parser.add_argument(
         "--climb-from",
-        help="compact 闭区间起点（C1..C35 或运行时阶段名）",
+        help="compact 闭区间起点（C1..C53 或运行时阶段名）",
     )
     parser.add_argument(
         "--climb-to",
-        help="compact 闭区间终点（C1..C35 或运行时阶段名）",
+        help="compact 闭区间终点（C1..C53 或运行时阶段名）",
     )
     parser.add_argument(
         "--climb-metrics",
@@ -329,20 +477,154 @@ def _new_climb_metric(index, name):
         "simulated_duration_s": 0.0,
         "max_joint_target_tracking_error_rad": 0.0,
         "max_kinematic_foot_target_error_m": 0.0,
+        "worst_joint_leg": None,
+        "worst_joint_name": None,
+        "worst_joint_time_s": None,
+        "worst_joint_actual_rad": None,
+        "worst_joint_target_rad": None,
+        "worst_foot_leg": None,
+        "worst_foot_time_s": None,
+        "worst_foot_actual_base_xyz_m": None,
+        "worst_foot_target_base_xyz_m": None,
+        "end_joint_target_tracking_error_rad": 0.0,
+        "end_foot_target_error_m": 0.0,
+        "max_root_position_error_m": 0.0,
+        "worst_root_time_s": None,
+        "worst_root_actual_xyz_m": None,
+        "worst_root_target_xyz_m": None,
+        "end_root_position_error_m": 0.0,
+        "max_world_foot_anchor_error_m": 0.0,
+        "worst_world_foot_anchor_leg": None,
+        "worst_world_foot_anchor_time_s": None,
+        "worst_world_foot_actual_xyz_m": None,
+        "worst_world_foot_anchor_xyz_m": None,
+        "end_world_foot_anchor_error_m": 0.0,
+        "stage_start_anchor_world_xyz_m": None,
+        "stage_start_actual_world_foot_xyz_m": None,
+        "max_support_foot_world_drift_m": 0.0,
+        "worst_support_foot_drift_leg": None,
+        "worst_support_foot_drift_time_s": None,
+        "worst_support_foot_start_world_xyz_m": None,
+        "worst_support_foot_current_world_xyz_m": None,
+        "end_support_foot_world_drift_m": 0.0,
         "min_joint_limit_margin_rad": None,
     }
 
 
-def _update_climb_metric(metric, climb_mode, controller, q_current, dt):
+def _world_foot_positions(root_position, root_quaternion_xyzw, feet_base):
+    """用只读的实际根位姿把 FK 足端转换到世界坐标。"""
+
+    root_position = np.asarray(root_position, dtype=np.float64).reshape(3)
+    quaternion = np.asarray(root_quaternion_xyzw, dtype=np.float64).reshape(4)
+    feet_base = np.asarray(feet_base, dtype=np.float64).reshape(6, 3)
+    norm = np.linalg.norm(quaternion)
+    if (
+        not np.isfinite(root_position).all()
+        or not np.isfinite(quaternion).all()
+        or not np.isfinite(feet_base).all()
+        or norm == 0.0
+    ):
+        raise ValueError("actual root pose and FK feet must be finite")
+    x, y, z, w = quaternion / norm
+    rotation = np.array(
+        (
+            (1.0 - 2.0 * (y * y + z * z), 2.0 * (x * y - z * w),
+             2.0 * (x * z + y * w)),
+            (2.0 * (x * y + z * w), 1.0 - 2.0 * (x * x + z * z),
+             2.0 * (y * z - x * w)),
+            (2.0 * (x * z - y * w), 2.0 * (y * z + x * w),
+             1.0 - 2.0 * (x * x + y * y)),
+        ),
+        dtype=np.float64,
+    )
+    return feet_base @ rotation.T + root_position
+
+
+def _update_climb_metric(
+    metric, controller, q_current, root_position, root_quaternion_xyzw, dt
+):
+    """更新不反馈到控制器的关节、根部和足端漂移诊断。"""
+
     metric["simulated_duration_s"] += dt
-    metric["max_joint_target_tracking_error_rad"] = max(
-        metric["max_joint_target_tracking_error_rad"],
-        float(climb_mode.last_tracking_error_rad),
+    joint_errors = np.abs(q_current - controller.q_des)
+    joint_index = np.unravel_index(np.argmax(joint_errors), joint_errors.shape)
+    joint_error = float(joint_errors[joint_index])
+    metric["end_joint_target_tracking_error_rad"] = joint_error
+    if joint_error > metric["max_joint_target_tracking_error_rad"]:
+        metric["max_joint_target_tracking_error_rad"] = joint_error
+        metric["worst_joint_leg"] = LEG_NAMES[joint_index[0]]
+        metric["worst_joint_name"] = JOINT_NAMES[joint_index[1]]
+        metric["worst_joint_time_s"] = metric["simulated_duration_s"]
+        metric["worst_joint_actual_rad"] = float(q_current[joint_index])
+        metric["worst_joint_target_rad"] = float(controller.q_des[joint_index])
+
+    actual_base = controller.kinematic.forward_base(q_current)
+    foot_errors = np.linalg.norm(
+        actual_base - controller.foot_desired_base,
+        axis=1,
     )
-    metric["max_kinematic_foot_target_error_m"] = max(
-        metric["max_kinematic_foot_target_error_m"],
-        float(climb_mode.last_foot_target_error_m),
+    foot_index = int(np.argmax(foot_errors))
+    foot_error = float(foot_errors[foot_index])
+    metric["end_foot_target_error_m"] = foot_error
+    if foot_error > metric["max_kinematic_foot_target_error_m"]:
+        metric["max_kinematic_foot_target_error_m"] = foot_error
+        metric["worst_foot_leg"] = LEG_NAMES[foot_index]
+        metric["worst_foot_time_s"] = metric["simulated_duration_s"]
+        metric["worst_foot_actual_base_xyz_m"] = actual_base[foot_index].tolist()
+        metric["worst_foot_target_base_xyz_m"] = (
+            controller.foot_desired_base[foot_index].tolist()
+        )
+
+    actual_root = np.asarray(root_position, dtype=np.float64).reshape(3)
+    target_root = np.asarray(controller.climb_mode.base_pose[:3], dtype=np.float64)
+    root_error = float(np.linalg.norm(actual_root - target_root))
+    metric["end_root_position_error_m"] = root_error
+    if root_error > metric["max_root_position_error_m"]:
+        metric["max_root_position_error_m"] = root_error
+        metric["worst_root_time_s"] = metric["simulated_duration_s"]
+        metric["worst_root_actual_xyz_m"] = actual_root.tolist()
+        metric["worst_root_target_xyz_m"] = target_root.tolist()
+
+    actual_world = _world_foot_positions(
+        actual_root, root_quaternion_xyzw, actual_base
     )
+    anchors_world = np.asarray(
+        controller.climb_mode.anchors_world, dtype=np.float64
+    ).reshape(6, 3)
+    anchor_errors = np.linalg.norm(actual_world - anchors_world, axis=1)
+    anchor_index = int(np.argmax(anchor_errors))
+    anchor_error = float(anchor_errors[anchor_index])
+    metric["end_world_foot_anchor_error_m"] = anchor_error
+    if anchor_error > metric["max_world_foot_anchor_error_m"]:
+        metric["max_world_foot_anchor_error_m"] = anchor_error
+        metric["worst_world_foot_anchor_leg"] = LEG_NAMES[anchor_index]
+        metric["worst_world_foot_anchor_time_s"] = metric["simulated_duration_s"]
+        metric["worst_world_foot_actual_xyz_m"] = actual_world[anchor_index].tolist()
+        metric["worst_world_foot_anchor_xyz_m"] = anchors_world[anchor_index].tolist()
+
+    if metric["stage_start_anchor_world_xyz_m"] is None:
+        metric["stage_start_anchor_world_xyz_m"] = anchors_world.tolist()
+        metric["stage_start_actual_world_foot_xyz_m"] = actual_world.tolist()
+    start_anchors = np.asarray(metric["stage_start_anchor_world_xyz_m"])
+    start_actual_world = np.asarray(metric["stage_start_actual_world_foot_xyz_m"])
+    stationary = np.linalg.norm(anchors_world - start_anchors, axis=1) <= 1e-12
+    if stationary.any():
+        drifts = np.linalg.norm(actual_world - start_actual_world, axis=1)
+        drifts[~stationary] = -np.inf
+        drift_index = int(np.argmax(drifts))
+        drift = float(drifts[drift_index])
+        metric["end_support_foot_world_drift_m"] = drift
+        if drift > metric["max_support_foot_world_drift_m"]:
+            metric["max_support_foot_world_drift_m"] = drift
+            metric["worst_support_foot_drift_leg"] = LEG_NAMES[drift_index]
+            metric["worst_support_foot_drift_time_s"] = metric["simulated_duration_s"]
+            metric["worst_support_foot_start_world_xyz_m"] = (
+                start_actual_world[drift_index].tolist()
+            )
+            metric["worst_support_foot_current_world_xyz_m"] = (
+                actual_world[drift_index].tolist()
+            )
+
     margin = float(np.min(controller.kinematic.joint_limit_margins(q_current)))
     previous_margin = metric["min_joint_limit_margin_rad"]
     metric["min_joint_limit_margin_rad"] = (
@@ -359,6 +641,7 @@ def _write_climb_metrics(
     joint_speed,
     climb_mode,
     metrics_by_stage,
+    mission=None,
 ):
     """写出不参与控制或阶段门限的 simulation-only 诊断。"""
 
@@ -385,6 +668,43 @@ def _write_climb_metrics(
             for index in sorted(metrics_by_stage)
         ],
     }
+    if mission is not None:
+        finite_or_none = lambda value: (
+            float(value) if np.isfinite(value) else None
+        )
+        result["full_mission"] = {
+            "state": mission.state,
+            "reason": mission.reason or "none",
+            "dock_handoff_reached": mission.state == mission.DOCK,
+            "entry_position_error_m": finite_or_none(
+                mission.last_prepare_position_error_m
+            ),
+            "entry_yaw_error_deg": finite_or_none(
+                np.degrees(mission.last_prepare_yaw_error_rad)
+            ),
+            "entry_joint_error_rad": finite_or_none(
+                mission.last_prepare_joint_error_rad
+            ),
+            "entry_world_foot_error_m": finite_or_none(
+                mission.last_prepare_world_foot_error_m
+            ),
+            "entry_linear_speed_m_s": finite_or_none(
+                mission.last_prepare_linear_speed_m_s
+            ),
+            "entry_angular_speed_deg_s": finite_or_none(
+                np.degrees(mission.last_prepare_angular_speed_rad_s)
+            ),
+            "terminal_position_error_m": finite_or_none(
+                mission.final_position_error_m
+            ),
+            "terminal_orientation_error_deg": finite_or_none(
+                np.degrees(mission.final_orientation_error_rad)
+            ),
+            "terminal_world_foot_error_m": finite_or_none(
+                mission.final_world_foot_error_m
+            ),
+            "geometry_gate_only_not_contact_load_or_docking_proof": True,
+        }
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", encoding="utf-8") as file:
         json.dump(result, file, indent=2, allow_nan=False)
@@ -511,13 +831,24 @@ def print_model_info(gym, env, actor) :
     dof_names = gym.get_actor_dof_names(env, actor)
     print(f"Robot loaded: {len(rigid_body_names)} rigid bodies, {len(dof_names)} DOFs")
 
-    return dof_names  # 主循环需要用它解释q_cur中每个元素的含义
+    return rigid_body_names, dof_names
 
 
 
 def main() -> None:
     args = parse_arguments()
-    climb_scene = args.climb_start or args.climb_scene
+    climb_scene = args.climb_start or args.climb_scene or args.full_mission
+    if args.full_mission and (args.climb_start or args.climb_scene):
+        raise ValueError(
+            "--full-mission cannot be combined with --climb-start or "
+            "--climb-scene"
+        )
+    if args.full_mission and (
+        args.climb_from is not None or args.climb_to is not None
+    ):
+        raise ValueError("--full-mission always runs the complete compact climb")
+    if args.mission_seed is not None and not args.full_mission:
+        raise ValueError("--mission-seed requires --full-mission")
     if (args.climb_from is not None or args.climb_to is not None
             or args.climb_metrics is not None) and not climb_scene:
         raise ValueError(
@@ -529,10 +860,10 @@ def main() -> None:
     if climb_scene and args.record_servo_trace is not None:
         raise ValueError("compact climb cannot be combined with --record-servo-trace")
     if args.headless and not args.ros and args.record_servo_trace is None \
-            and not args.climb_start:
+            and not args.climb_start and not args.full_mission:
         raise ValueError(
             "--headless is only used with --ros, --record-servo-trace "
-            "or --climb-start"
+            "or an automatic climb/full mission"
         )
     if args.ros:
         import rospy
@@ -543,9 +874,19 @@ def main() -> None:
         raise ValueError("--climb-speed must be between 0.25 and 4.0")
     if (
         not np.isfinite(args.climb_joint_speed)
-        or not 0.5 <= args.climb_joint_speed <= 3.0
+        or not 0.5 <= args.climb_joint_speed <= 5.0
     ):
-        raise ValueError("--climb-joint-speed must be between 0.5 and 3.0")
+        raise ValueError("--climb-joint-speed must be between 0.5 and 5.0")
+    if (
+        not np.isfinite(args.joint_speed)
+        or not 0.5 <= args.joint_speed <= 5.0
+    ):
+        raise ValueError("--joint-speed must be between 0.5 and 5.0")
+    if (
+        not np.isfinite(args.approach_timeout)
+        or args.approach_timeout <= 0.0
+    ):
+        raise ValueError("--approach-timeout must be positive")
 
     rate_ratio = args.physics_rate / args.control_rate
     if abs(rate_ratio - round(rate_ratio)) > 1e-9:
@@ -585,6 +926,15 @@ def main() -> None:
     sim_params.physx.solver_type = 1
     sim_params.physx.num_position_iterations = 8
     sim_params.physx.num_velocity_iterations = 2
+    sim_params.physx.rest_offset = 0.0
+    sim_params.physx.contact_offset = 0.02
+    sim_params.physx.friction_offset_threshold = 0.001
+    sim_params.physx.friction_correlation_distance = 0.0005
+    print(
+        "PhysX contact scales: rest_offset=0m contact_offset=20mm "
+        "friction_offset_threshold=1mm friction_correlation_distance=0.5mm "
+        "robot_thickness=1mm"
+    )
 
     # 创建仿真。
     compute_device_id = 0
@@ -612,6 +962,7 @@ def main() -> None:
     asset_options.fix_base_link = False
     asset_options.collapse_fixed_joints = False
     asset_options.use_mesh_materials = True
+    asset_options.thickness = 0.001
 
     robot_asset = gym.load_asset(sim, asset_root, asset_file, asset_options)
     if robot_asset is None:
@@ -698,13 +1049,30 @@ def main() -> None:
     #创建环境和actor
     env = gym.create_env(sim, lower, upper, num_per_row)
 
-    if compact is not None:
+    mission_seed = None
+    mission_start_pose = None
+    if compact is not None and not args.full_mission:
         q_init_control, compact_entry_pose = prepare_compact_stage_entry(
             compact, climb_start_index, climb_end_index, 1.0 / args.control_rate
         )
+    elif args.full_mission:
+        mission_seed, mission_start_pose = _random_mission_start(
+            compact,
+            controller.base_height_at_stand,
+            args.mission_seed,
+        )
 
     pose = gymapi.Transform()
-    if compact is not None:
+    if args.full_mission:
+        pose.p = gymapi.Vec3(*mission_start_pose[:3])
+        half_yaw = 0.5 * mission_start_pose[3]
+        pose.r = gymapi.Quat(
+            0.0,
+            0.0,
+            float(np.sin(half_yaw)),
+            float(np.cos(half_yaw)),
+        )
+    elif compact is not None:
         pose.p = gymapi.Vec3(*compact_entry_pose[:3])
         pose.r = _compact_root_quaternion(compact_entry_pose)
     else:
@@ -717,20 +1085,40 @@ def main() -> None:
 
     actor = gym.create_actor(env, robot_asset, pose, "grasp_hexapod", 0, 1)
 
-    dof_names = print_model_info(gym, env, actor)
+    rigid_body_names, dof_names = print_model_info(gym, env, actor)
     dof_indices = build_dof_indices(dof_names)
     print(f"Control DOF mapping ready: {len(dof_indices)} joints")
+    if "base_link" not in rigid_body_names:
+        raise ValueError("Isaac actor has no base_link rigid body for diagnostics")
+    base_body_index = rigid_body_names.index("base_link")
 
-    dof_properties = gym.get_actor_dof_properties(env, actor)
-    joint_speed = args.climb_joint_speed if compact is not None else 1.0
-    dof_properties["driveMode"].fill(int(gymapi.DOF_MODE_POS))
-    dof_properties["stiffness"].fill(100.0 * joint_speed ** 2) #kp
-    dof_properties["damping"].fill(0.8 * joint_speed) #kd
-    if compact is not None:
-        dof_properties["velocity"] *= joint_speed
-        dof_properties["effort"] *= joint_speed ** 2
+    base_dof_properties = gym.get_actor_dof_properties(env, actor)
+    climb_drive_active = compact is not None and not args.full_mission
+    joint_speed = (
+        args.climb_joint_speed if climb_drive_active else args.joint_speed
+    )
+    dof_properties = _drive_properties(
+        base_dof_properties,
+        joint_speed,
+    )
+    if climb_drive_active:
         print(
-            "Compact climb joint response: {:.2g}x".format(joint_speed)
+            "Compact climb joint velocity limit: {:.2g}x "
+            "(same Isaac drive baseline as Approach: stiffness=100, "
+            "damping=0.8, URDF effort unchanged; 1.2x is the LX-15D "
+            "official no-load "
+            "upper-bound candidate, >1.2x is diagnostics-only and not "
+            "hardware-aligned; Isaac gains are not calibrated servo gains)".format(
+                joint_speed
+            )
+        )
+    else:
+        print(
+            "Normal joint velocity limit: {:.2g}x (about {:.2f} rad/s; "
+            "stiffness, damping and effort unchanged)".format(
+                joint_speed,
+                float(np.min(dof_properties["velocity"])),
+            )
         )
 
     gym.set_actor_dof_properties(
@@ -747,7 +1135,7 @@ def main() -> None:
         dof_properties["upper"],
         dof_indices,
     )
-    if compact is not None:
+    if compact is not None and not args.full_mission:
         print(
             "Compact climb: initialized at C{}:{} entry snapshot".format(
                 climb_start_index + 1, compact["stages"][climb_start_index]["name"]
@@ -786,7 +1174,22 @@ def main() -> None:
     # 镜头中心放在两个机器人之间，初始画面可以同时观察六足和小蓝。
     if viewer is not None:
         # 攀爬模式相机对准机器人与小蓝之间, 默认视角常看不到机器人
-        if compact is not None:
+        if args.full_mission:
+            midpoint = 0.5 * (
+                mission_start_pose[:2]
+                + np.asarray(compact["xiaolan_translation"][:2])
+            )
+            cam_eye = gymapi.Vec3(
+                float(midpoint[0] + 0.65),
+                float(midpoint[1] - 1.05),
+                0.65,
+            )
+            cam_target = gymapi.Vec3(
+                float(midpoint[0]),
+                float(midpoint[1]),
+                0.10,
+            )
+        elif compact is not None:
             cam_eye = gymapi.Vec3(0.45, -1.2, 0.5)
             cam_target = gymapi.Vec3(0.25, 0.0, 0.12)
         else:
@@ -803,6 +1206,68 @@ def main() -> None:
     )
     max_yaw_rate = max_linear_speed / nominal_foot_radius
 
+    sim_navigation = None
+    navigation_state = None
+    mission_target_pose = None
+    if args.full_mission:
+        sim_navigation = SimulatedRtkImu(
+            compact["xiaolan_translation"]
+        )
+        mission_target_pose = _planar_transform(
+            compact["p0"]["base"][0],
+            compact["p0"]["base"][1],
+            compact["p0"]["base"][2],
+            0.0,
+        )
+        xiaolan_from_target = (
+            np.linalg.inv(sim_navigation.pv_from_xiaolan)
+            @ mission_target_pose
+        )
+        # full-mission直接从当前compact P0导出同一固定左侧相对基准。
+        controller.approach_mode.configure_fixed_approach(
+            xiaolan_from_target,
+            target_side="left",
+            linear_speed=min(0.12, max_linear_speed),
+            yaw_rate=max_yaw_rate,
+        )
+        initial_pose = _planar_transform(*mission_start_pose)
+        navigation_state = sim_navigation.snapshot(initial_pose, 0.0)
+        relative = sim_navigation.xiaolan_from_base(initial_pose)
+        result = controller.start_full_mission(
+            navigation_state,
+            compact,
+            climb_start_index,
+            climb_end_index,
+            args.approach_timeout,
+            0.002,
+            np.deg2rad(0.2),
+        )
+        if result.failed:
+            raise RuntimeError(
+                "full mission approach planning failed: " + result.reason
+            )
+        relative_distance = np.linalg.norm(relative[:2, 3])
+        initial_yaw = np.arctan2(initial_pose[1, 0], initial_pose[0, 0])
+        print(
+            "[mission] seed={} random base=({:.3f}, {:.3f}, yaw={:.1f}deg) "
+            "distance_to_xiaolan={:.3f}m".format(
+                mission_seed,
+                mission_start_pose[0],
+                mission_start_pose[1],
+                np.degrees(initial_yaw),
+                relative_distance,
+            )
+        )
+        print(
+            "[sim-rtk/imu] base_in_xiaolan=({:.3f}, {:.3f}, {:.3f})m; "
+            "ideal simulation observation, not a contact/load signal".format(
+                relative[0, 3],
+                relative[1, 3],
+                relative[2, 3],
+            )
+        )
+        print("[mission] APPROACH started; target is compact C1 entry")
+
     trace_script = None
     trace_rows = []
     script_frame = 0
@@ -817,7 +1282,11 @@ def main() -> None:
             "initialize -> forward -> right -> rotate"
         )
     else:
-        if ros_controller is None and not args.climb_start:
+        if (
+            ros_controller is None
+            and not args.climb_start
+            and not args.full_mission
+        ):
             joystick = JoyStick()
 
     command = np.zeros(
@@ -825,11 +1294,10 @@ def main() -> None:
         dtype=np.float64,
     )
     motion_state = "WAIT_B"
-    if args.climb_start:
+    if args.climb_start or args.full_mission:
         motion_state = "RUNNING"
     elif trace_script is not None:
         motion_state = "HOLD"
-    mode = "CLIMB" if args.climb_start else "APPROACH"
     if args.climb_start:
         controller.enter_climb(
             q_init_control,
@@ -848,8 +1316,23 @@ def main() -> None:
     climb_entered = bool(args.climb_start)
     climb_metrics_by_stage = {}
     climb_metrics_written = False
+    mission_state_reported = (
+        controller.mission.state if args.full_mission else None
+    )
+    approach_state_reported = (
+        controller.approach_mode.approach_plan.state
+        if args.full_mission
+        else None
+    )
+    mission_terminal_stage = 0
+    mission_terminal_t0 = 0.0
+    mission_terminal_q_ref = None
     q_des_control = q_init_control.copy()
-    if trace_script is None and ros_controller is None:
+    if (
+        trace_script is None
+        and ros_controller is None
+        and not args.full_mission
+    ):
         print("A: enable/pause motion | B: reset to stand | X: compact climb")
 
     physics_frame = 0
@@ -883,6 +1366,20 @@ def main() -> None:
                 dof_states["pos"],
                 dof_indices,
             )
+            root_transform = None
+            if args.full_mission:
+                root_states = gym.get_actor_rigid_body_states(
+                    env,
+                    actor,
+                    gymapi.STATE_POS,
+                )
+                root_transform = gymapi.Transform.from_buffer(
+                    root_states["pose"][base_body_index]
+                )
+                navigation_state = sim_navigation.snapshot(
+                    _isaac_transform_matrix(root_transform),
+                    physics_frame * sim_params.dt,
+                )
 
             if ros_controller is not None:
                 if actuator_tick:
@@ -896,8 +1393,8 @@ def main() -> None:
             elif trace_script is not None:
                 stage, scripted_command = trace_script[script_frame]
                 command[:] = scripted_command
-            elif args.climb_start:
-                # 攀爬轨迹自驱, 无手柄输入
+            elif args.climb_start or args.full_mission:
+                # 自动攀爬/全流程由控制器状态机自驱，无手柄输入。
                 command[:] = 0.0
             else:
                 (
@@ -1002,17 +1499,60 @@ def main() -> None:
             metric_stage_name = None
             if controller.mode == controller.CLIMB:
                 # update() 内可能切换阶段；本 tick 的 diagnostics
-                # 仍属于切换前阶段。
+                # 用切换前的实际根位姿和足端参考，仍属于切换前阶段。
                 metric_stage_index = controller.climb_mode.stage_index
                 metric_stage_name = controller.climb_mode.phase
 
-            if ros_controller is None and compact is not None and not climb_entered:
+            if metric_stage_index is not None:
+                if root_transform is None:
+                    root_states = gym.get_actor_rigid_body_states(
+                        env, actor, gymapi.STATE_POS
+                    )
+                    root_transform = gymapi.Transform.from_buffer(
+                        root_states["pose"][base_body_index]
+                    )
+                root_position = np.array(
+                    (root_transform.p.x, root_transform.p.y, root_transform.p.z),
+                    dtype=np.float64,
+                )
+                root_quaternion_xyzw = np.array(
+                    (
+                        root_transform.r.x,
+                        root_transform.r.y,
+                        root_transform.r.z,
+                        root_transform.r.w,
+                    ),
+                    dtype=np.float64,
+                )
+                metric = climb_metrics_by_stage.setdefault(
+                    metric_stage_index,
+                    _new_climb_metric(metric_stage_index, metric_stage_name),
+                )
+                _update_climb_metric(
+                    metric,
+                    controller,
+                    q_control,
+                    root_position,
+                    root_quaternion_xyzw,
+                    1.0 / args.control_rate,
+                )
+
+            if (
+                ros_controller is None
+                and compact is not None
+                and not climb_entered
+                and not args.full_mission
+            ):
                 # --climb-scene 的入口已是 selected snapshot；等待 X 时不能让
                 # APPROACH 的足端参考把它重新拉向 Q_STAND。
                 q_des_control = q_init_control.copy()
             elif ros_controller is None:
                 # 直接模式仍由本文件读取手柄、规划足端并执行DLS。
-                q_des_control = controller.update(q_control, command)
+                q_des_control = controller.update(
+                    q_control,
+                    command,
+                    navigation_state if args.full_mission else None,
+                )
                 if (
                     trace_script is None
                     and motion_state == "RESETTING"
@@ -1021,17 +1561,110 @@ def main() -> None:
                     motion_state = "HOLD"
                     print("Stand initialization complete; press A to move")
 
-            if metric_stage_index is not None:
-                metric = climb_metrics_by_stage.setdefault(
-                    metric_stage_index,
-                    _new_climb_metric(metric_stage_index, metric_stage_name),
+            if args.full_mission:
+                approach_state = (
+                    controller.approach_mode.approach_plan.state
                 )
-                _update_climb_metric(
-                    metric, controller.climb_mode, controller, q_control,
-                    1.0 / args.control_rate,
-                )
+                if (
+                    controller.mission.state == controller.mission.APPROACH
+                    and approach_state != approach_state_reported
+                ):
+                    approach_state_reported = approach_state
+                    print("[mission] APPROACH state=" + approach_state)
 
-            if controller.mode == controller.CLIMB:
+                mission_state = controller.mission.state
+                if mission_state != mission_state_reported:
+                    mission_state_reported = mission_state
+                    if mission_state == controller.mission.CLIMB:
+                        climb_entered = True
+                        current_pose = navigation_state.pv_from_base
+                        position_error = np.linalg.norm(
+                            current_pose[:2, 3]
+                            - mission_target_pose[:2, 3]
+                        )
+                        current_yaw = np.arctan2(
+                            current_pose[1, 0],
+                            current_pose[0, 0],
+                        )
+                        print(
+                            "[mission] CLIMB entered after stopped-pose "
+                            "recheck: position_error={:.3f}m "
+                            "yaw_error={:.2f}deg joint_error={:.4f}rad "
+                            "world_foot_error={:.4f}m speed={:.4f}m/s "
+                            "angular_speed={:.2f}deg/s".format(
+                                position_error,
+                                abs(np.degrees(current_yaw)),
+                                controller.mission.last_prepare_joint_error_rad,
+                                controller.mission.last_prepare_world_foot_error_m,
+                                controller.mission.last_prepare_linear_speed_m_s,
+                                np.degrees(
+                                    controller.mission.last_prepare_angular_speed_rad_s
+                                ),
+                            )
+                        )
+                        print(
+                            "Compact climb joint velocity limit: {:.2g}x "
+                            "(same Isaac drive baseline as Approach; "
+                            "simulation-only)".format(args.climb_joint_speed)
+                        )
+                    elif (
+                        mission_state
+                        == controller.mission.PREPARE_CLIMB
+                    ):
+                        climb_properties = _drive_properties(
+                            base_dof_properties,
+                            args.climb_joint_speed,
+                        )
+                        gym.set_actor_dof_properties(
+                            env,
+                            actor,
+                            climb_properties,
+                        )
+                        print(
+                            "[mission] PREPARE_CLIMB entered: smooth return "
+                            "to Q_STAND with the shared Approach drive "
+                            "baseline, then persistent "
+                            "joint-feedback gate"
+                        )
+                    elif mission_state == controller.mission.APPROACH:
+                        approach_state_reported = (
+                            controller.approach_mode.approach_plan.state
+                        )
+                        print(
+                            "[mission] APPROACH correction restarted after "
+                            "posture-preparation recheck: position_error="
+                            "{:.3f}m yaw_error={:.2f}deg world_foot_error="
+                            "{:.4f}m".format(
+                                controller.mission.last_prepare_position_error_m,
+                                np.degrees(
+                                    controller.mission.last_prepare_yaw_error_rad
+                                ),
+                                controller.mission.last_prepare_world_foot_error_m,
+                            )
+                        )
+                    elif mission_state == controller.mission.DOCK:
+                        print(
+                            "[mission] DOCK entered after terminal gate: "
+                            "position_error={:.4f}m orientation_error="
+                            "{:.2f}deg world_foot_error={:.4f}m; holding "
+                            "for future DockMode".format(
+                                controller.mission.final_position_error_m,
+                                np.degrees(
+                                    controller.mission.final_orientation_error_rad
+                                ),
+                                controller.mission.final_world_foot_error_m,
+                            )
+                        )
+                    elif mission_state == controller.mission.FAILED:
+                        print(
+                            "[mission] FAILED: "
+                            + (controller.mission.reason or "unknown")
+                        )
+
+            if (
+                climb_entered
+                and controller.climb_mode.stage_index is not None
+            ):
                 phase_key = (
                     controller.climb_mode.state,
                     controller.climb_mode.phase,
@@ -1050,14 +1683,54 @@ def main() -> None:
                         )
                     ):
                         finished = climb_metrics_by_stage[metric_stage_index]
+                        worst_joint = "-"
+                        if finished["worst_joint_time_s"] is not None:
+                            worst_joint = "{}/{}@{:.2f}s".format(
+                                finished["worst_joint_leg"],
+                                finished["worst_joint_name"],
+                                finished["worst_joint_time_s"],
+                            )
+                        worst_foot = "-"
+                        if finished["worst_foot_time_s"] is not None:
+                            worst_foot = "{}@{:.2f}s".format(
+                                finished["worst_foot_leg"],
+                                finished["worst_foot_time_s"],
+                            )
+                        worst_root = "-"
+                        if finished["worst_root_time_s"] is not None:
+                            worst_root = "@{:.2f}s".format(
+                                finished["worst_root_time_s"]
+                            )
+                        worst_world_foot = "-"
+                        if finished["worst_world_foot_anchor_time_s"] is not None:
+                            worst_world_foot = "{}@{:.2f}s".format(
+                                finished["worst_world_foot_anchor_leg"],
+                                finished["worst_world_foot_anchor_time_s"],
+                            )
                         print(
                             "[climb] C{} {} metrics: t={:.2f}s track={:.4g}rad "
-                            "foot={:.4g}m limit_margin={:.4g}rad".format(
+                            "foot={:.4g}m limit_margin={:.4g}rad "
+                            "worst_joint={} worst_foot={} "
+                            "root={:.4g}m{} world_foot={:.4g}m{} "
+                            "support_drift={:.4g}m "
+                            "end_track={:.4g}rad end_foot={:.4g}m "
+                            "end_root={:.4g}m end_world_foot={:.4g}m".format(
                                 metric_stage_index + 1, metric_stage_name,
                                 finished["simulated_duration_s"],
                                 finished["max_joint_target_tracking_error_rad"],
                                 finished["max_kinematic_foot_target_error_m"],
                                 finished["min_joint_limit_margin_rad"],
+                                worst_joint,
+                                worst_foot,
+                                finished["max_root_position_error_m"],
+                                worst_root,
+                                finished["max_world_foot_anchor_error_m"],
+                                worst_world_foot,
+                                finished["max_support_foot_world_drift_m"],
+                                finished["end_joint_target_tracking_error_rad"],
+                                finished["end_foot_target_error_m"],
+                                finished["end_root_position_error_m"],
+                                finished["end_world_foot_anchor_error_m"],
                             )
                         )
                     climb_phase_reported = phase_key
@@ -1097,8 +1770,48 @@ def main() -> None:
                     args.climb_joint_speed,
                     controller.climb_mode,
                     climb_metrics_by_stage,
+                    controller.mission if args.full_mission else None,
                 )
                 climb_metrics_written = True
+
+            if args.full_mission and controller.mission.state in (
+                controller.mission.DOCK,
+                controller.mission.FAILED,
+            ):
+                if mission_terminal_stage == 0:
+                    mission_terminal_stage = 1
+                    mission_terminal_t0 = physics_frame * sim_params.dt
+                    mission_terminal_q_ref = q_control.copy()
+                    print(
+                        "[mission] terminal state={} at t={:.1f}s; "
+                        "holding for 2s".format(
+                            controller.mission.state,
+                            mission_terminal_t0,
+                        )
+                    )
+                elif (
+                    mission_terminal_stage == 1
+                    and physics_frame * sim_params.dt
+                    - mission_terminal_t0 >= 2.0
+                ):
+                    mission_terminal_stage = 2
+                    q_drift = (
+                        np.abs(q_control - mission_terminal_q_ref).max()
+                        * 1000.0
+                    )
+                    print(
+                        "[mission] terminal hold joint drift={:.1f}mrad; "
+                        "result={}".format(
+                            q_drift,
+                            (
+                                "DOCK_HANDOFF_REACHED"
+                                if controller.mission.state
+                                == controller.mission.DOCK
+                                else "FAILED"
+                            ),
+                        )
+                    )
+                    break
 
             # headless 验证: 攀爬完成后保持 2 秒, 检查姿态维持稳定性。
             if args.climb_start and controller.climb_mode.state in (
@@ -1211,6 +1924,7 @@ def main() -> None:
             args.climb_joint_speed,
             controller.climb_mode,
             climb_metrics_by_stage,
+            controller.mission if args.full_mission else None,
         )
     if viewer is not None:
         gym.destroy_viewer(viewer)

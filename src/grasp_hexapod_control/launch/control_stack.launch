@@ -2,7 +2,7 @@
   <!-- 内部公共链路：joy_node + 唯一高层控制节点。 -->
   <arg name="control_source" default="teleop"/>
   <arg name="joy_dev" default="/dev/input/js0"/>
-  <arg name="controller_rate_hz" default="60.0"/>
+  <arg name="controller_rate_hz" default="30.0"/>
   <arg name="enable_link_collision_check" default="true"/>
   <arg name="max_feedback_age" default="0.15"/>
   <arg name="max_joy_age" default="0.2"/>
@@ -27,8 +27,6 @@
   <arg name="xiaolan_pose_topic" default="/grasp_hexapod/navigation/xiaolan_pose"/>
   <arg name="pv_boundary_topic" default="/grasp_hexapod/navigation/pv_boundary"/>
   <arg name="landing_topic" default="/grasp_hexapod/landing_confirmed"/>
-  <arg name="xiaolan_from_left_base" default="[]"/>
-  <arg name="xiaolan_from_right_base" default="[]"/>
 
   <node
     pkg="joy"
@@ -74,11 +72,5 @@
     <param name="xiaolan_pose_topic" value="$(arg xiaolan_pose_topic)"/>
     <param name="pv_boundary_topic" value="$(arg pv_boundary_topic)"/>
     <param name="landing_topic" value="$(arg landing_topic)"/>
-    <rosparam
-      param="xiaolan_from_left_base"
-      subst_value="true">$(arg xiaolan_from_left_base)</rosparam>
-    <rosparam
-      param="xiaolan_from_right_base"
-      subst_value="true">$(arg xiaolan_from_right_base)</rosparam>
   </node>
 </launch>

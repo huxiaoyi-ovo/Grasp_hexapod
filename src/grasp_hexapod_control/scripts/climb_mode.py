@@ -149,6 +149,17 @@ class ClimbMode:
                 stage.get("segment_durations_s"), dtype=np.float64
             )
             active = stage.get("active_legs")
+            anchor_curve = stage.get("anchor_curve")
+            relative_height = stage.get("relative_swing_height_m")
+            relative_curve = bool(
+                anchor_curve == "relative_base_high_step"
+                and knots.shape[0] == 2
+                and durations.shape == (1,)
+                and isinstance(relative_height, (int, float))
+                and np.isfinite(relative_height)
+                and relative_height > 0.0
+                and active
+            )
             if (
                 knots.ndim != 3
                 or knots.shape[1:] != (6, 3)
@@ -164,7 +175,10 @@ class ClimbMode:
                 )
                 or len(set(active)) != len(active)
                 or stage.get("pose_curve") != "quintic_full_stage"
-                or stage.get("anchor_curve") != "piecewise_quintic"
+                or not (
+                    anchor_curve == "piecewise_quintic"
+                    or relative_curve
+                )
                 or not isinstance(stage.get("settle_s"), (int, float))
                 or stage["settle_s"] <= 0.0
             ):
@@ -302,13 +316,51 @@ class ClimbMode:
         knots = np.asarray(stage["anchor_knots"], dtype=np.float64)
         durations = stage["segment_durations_s"]
         total = float(sum(durations))
-        pose_weight = self._smoothstep(self.phase_time / total)
+        phase = float(np.clip(self.phase_time / total, 0.0, 1.0))
+        pose_weight = self._smoothstep(phase)
         pose = pose_start * (1.0 - pose_weight) + pose_end * pose_weight
-        anchors = self._piecewise(knots, durations)
+        if stage["anchor_curve"] == "relative_base_high_step":
+            anchors = self._relative_base_high_step(
+                stage,
+                pose,
+                pose_weight,
+                phase,
+            )
+        else:
+            anchors = self._piecewise(knots, durations)
         if self.phase_time >= total:
             pose = pose_end.copy()
             anchors = knots[-1].copy()
         return pose, anchors, total
+
+    def _relative_base_high_step(self, stage, pose, pose_weight, phase):
+        """按 Approach 同款剖面生成机身相对高抬腿曲线。"""
+
+        knots = np.asarray(stage["anchor_knots"], dtype=np.float64)
+        pose_start = np.asarray(stage["pose_start"], dtype=np.float64)
+        pose_end = np.asarray(stage["pose_end"], dtype=np.float64)
+        start_inverse = np.linalg.inv(self._world_from_base(pose_start))
+        end_inverse = np.linalg.inv(self._world_from_base(pose_end))
+        start_base = np.column_stack((knots[0], np.ones(6))) @ start_inverse.T
+        end_base = np.column_stack((knots[1], np.ones(6))) @ end_inverse.T
+        desired_base = (
+            (1.0 - pose_weight) * start_base[:, :3]
+            + pose_weight * end_base[:, :3]
+        )
+        # 六次单峰曲线的两端速度、加速度均为零；避免把 Approach
+        # 30 mm 梯形抬腿中的分段速度拐点放大到攀爬高步。
+        lift_weight = 64.0 * phase**3 * (1.0 - phase) ** 3
+        active = np.asarray(stage["active_legs"], dtype=np.int64)
+        desired_base[active, 2] += (
+            stage["relative_swing_height_m"] * lift_weight
+        )
+        current_world = (
+            np.column_stack((desired_base, np.ones(6)))
+            @ self._world_from_base(pose).T
+        )
+        anchors = knots[0].copy()
+        anchors[active] = current_world[active, :3]
+        return anchors
 
     def _piecewise(self, knots, durations):
         """按当前阶段时间插值足端锚点。"""

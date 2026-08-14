@@ -53,6 +53,7 @@ __pycache__/
 *.py[cod]
 
 # 本地导出文件和运行日志
+exports/
 *.log
 
 # 只跟踪 README Markdown 文档。

@@ -3,9 +3,11 @@
   <arg name="joy_dev" default="/dev/input/js0"/>
   <!-- mode只允许teleop或navigation；导航模式下手柄仍可接管。 -->
   <arg name="mode" default="teleop"/>
-  <arg name="controller_rate_hz" default="60.0"/>
-  <arg name="actuator_rate_hz" default="60.0"/>
+  <arg name="controller_rate_hz" default="30.0"/>
+  <arg name="actuator_rate_hz" default="30.0"/>
   <arg name="physics_rate_hz" default="240.0"/>
+  <!-- 普通仿真默认使用LX-15D 7.4V官方空载速度上限候选。 -->
+  <arg name="joint_speed" default="1.2"/>
   <arg name="headless" default="false"/>
   <arg name="max_joy_age" default="0.2"/>
   <arg name="joy_deadzone" default="0.20"/>
@@ -30,10 +32,8 @@
 
   <arg name="max_linear_speed" default="0.20"/>
   <arg name="max_vertical_speed" default="0.02"/>
-  <arg name="xiaolan_from_left_base" default="[]"/>
-  <arg name="xiaolan_from_right_base" default="[]"/>
 
-  <!-- ROS只负责输入；控制器在Isaac的60 Hz控制帧内同步运行。 -->
+  <!-- ROS只负责输入；控制器在Isaac的30 Hz控制帧内同步运行。 -->
   <node
     pkg="joy"
     type="joy_node"
@@ -80,12 +80,6 @@
   <param
     name="grasp_hexapod_sim/max_vertical_speed"
     value="$(arg max_vertical_speed)"/>
-  <rosparam
-    param="grasp_hexapod_sim/xiaolan_from_left_base"
-    subst_value="true">$(arg xiaolan_from_left_base)</rosparam>
-  <rosparam
-    param="grasp_hexapod_sim/xiaolan_from_right_base"
-    subst_value="true">$(arg xiaolan_from_right_base)</rosparam>
 
   <group unless="$(arg headless)">
     <node
@@ -95,7 +89,7 @@
       output="screen"
       required="true"
       launch-prefix="$(arg python_executable)"
-      args="--ros --control-rate $(arg controller_rate_hz) --actuator-rate $(arg actuator_rate_hz) --physics-rate $(arg physics_rate_hz)">
+      args="--ros --control-rate $(arg controller_rate_hz) --actuator-rate $(arg actuator_rate_hz) --physics-rate $(arg physics_rate_hz) --joint-speed $(arg joint_speed)">
       <env
         name="PYTHONPATH"
         value="$(arg isaacgym_python_path):$(env PYTHONPATH)"/>
@@ -110,7 +104,7 @@
       output="screen"
       required="true"
       launch-prefix="$(arg python_executable)"
-      args="--ros --headless --control-rate $(arg controller_rate_hz) --actuator-rate $(arg actuator_rate_hz) --physics-rate $(arg physics_rate_hz)">
+      args="--ros --headless --control-rate $(arg controller_rate_hz) --actuator-rate $(arg actuator_rate_hz) --physics-rate $(arg physics_rate_hz) --joint-speed $(arg joint_speed)">
       <env
         name="PYTHONPATH"
         value="$(arg isaacgym_python_path):$(env PYTHONPATH)"/>

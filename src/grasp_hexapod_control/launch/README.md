@@ -122,19 +122,14 @@ python src/grasp_hexapod_control/scripts/run_sim.py \
 阶段门限，且不构成接触、承载或稳定性证明。上述三个参数不属于 ROS launch 或
 实机攀爬接口。
 
-## 导航模式参数
+## 导航模式目标
 
-导航模式需要经过实测的左右接近位姿，每个位姿都是按行展开的4×4矩阵：
-
-```bash
-roslaunch grasp_hexapod_control run_real.launch \
-  mode:=navigation \
-  xiaolan_from_left_base:='[r00,r01,r02,tx,r10,r11,r12,ty,r20,r21,r22,tz,0,0,0,1]' \
-  xiaolan_from_right_base:='[r00,r01,r02,tx,r10,r11,r12,ty,r20,r21,r22,tz,0,0,0,1]'
-```
-
-没有配置外参、导航位姿过期、没有落板确认或路径越界时，A不会启动导航，
-机器人保持不动；推动摇杆仍可接管。
+导航模式固定使用`config/approach_fixed.json`中的左侧 P0 相对位姿；它由当前
+`climb_compact.json`的 P0 导出，仅是仿真基线，尚未构成实机安全验证。运行时由
+小蓝和机器人实时`pv_map`位姿生成“横向投影到左侧中心线 -> 沿中心线到 P0”的两段
+路线，先原地对齐目标偏航。路线、转向和每个标准足印都会检查光伏板边界；每个拐点
+必须在完整步态落地、停稳和复测后才会继续。没有新鲜导航位姿、落板确认或安全余量时，
+A不会启动导航，机器人保持不动；推动摇杆仍可接管。
 
 ## 安全操作顺序
 

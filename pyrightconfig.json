@@ -18,7 +18,6 @@
   "pythonVersion": "3.8",
   "pythonPlatform": "Linux",
   "typeCheckingMode": "off",
-  "diagnosticMode": "openFilesOnly",
   "reportMissingImports": "none",
   "reportMissingModuleSource": "none",
   "reportMissingTypeStubs": "none"

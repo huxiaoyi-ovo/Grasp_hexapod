@@ -405,6 +405,7 @@ class RosControlNode:
         self.climb_start_navigation = None
         self.climb_start_imu_rotation = None
         self.climb_start_planned_pose = None
+        self.real_climb_monitor_active = False
         self.climb_bad_frames = 0
         self.climb_good_frames = 0
         self.real_climb_persistence_frames = int(
@@ -708,9 +709,12 @@ class RosControlNode:
         return True, ""
 
     def _monitor_real_climb(self):
-        """持续观察实机攀爬；不把计划时间当作接触或承载证据。"""
+        """持续观察已启用的可选相对运动监控。"""
 
-        if self.controller.mode != self.controller.CLIMB:
+        if (
+            not self.real_climb_monitor_active
+            or self.controller.mode != self.controller.CLIMB
+        ):
             return
         okay, reason = self._real_climb_observation()
         if okay:
@@ -730,12 +734,13 @@ class RosControlNode:
             self.state = self.HOLD
             self.command[:] = 0.0
             rospy.logwarn(
-                "CLIMB HOLD: %s; this is not contact or load evidence",
+                "Diagnostic replay CLIMB HOLD: %s; joint-feedback gates "
+                "are not contact/load evidence",
                 reason,
             )
 
     def _start_real_climb(self, q_cur, controls_ready):
-        """在显式使能和全部部署输入通过后进入C1。"""
+        """在回站和关节反馈门限通过后进入诊断回放C1。"""
 
         if not self.enable_real_climb:
             rospy.logwarn_throttle(2.0, "X ignored: enable_real_climb is false")
@@ -743,24 +748,37 @@ class RosControlNode:
         if not controls_ready or self.state != self.HOLD or self.controller.mode != self.controller.APPROACH:
             rospy.logwarn_throttle(2.0, "X ignored: reset must finish and controls must be fresh")
             return
-        if not self.navigation.motion_snapshot().valid or not self.imu.snapshot()["valid"]:
-            rospy.logwarn_throttle(2.0, "X ignored: fresh IMU and RTK/LoRa are required")
-            return
+        navigation = self.navigation.motion_snapshot()
+        imu = self.imu.snapshot()
         try:
             self.controller.enter_climb(q_cur, hardware_execution=True)
         except ValueError as error:
             rospy.logwarn("X ignored: compact entry gate failed: %s", error)
             return
-        self.climb_start_navigation = self.navigation.motion_snapshot()
-        self.climb_start_imu_rotation = self.imu.snapshot()["rotation"]
-        self.climb_start_planned_pose = ClimbMode._world_from_base(
-            self.controller.climb_mode.base_pose
-        )
+        self.real_climb_monitor_active = navigation.valid and imu["valid"]
+        if self.real_climb_monitor_active:
+            self.climb_start_navigation = navigation
+            self.climb_start_imu_rotation = imu["rotation"]
+            self.climb_start_planned_pose = ClimbMode._world_from_base(
+                self.controller.climb_mode.base_pose
+            )
+            rospy.loginfo("Diagnostic replay: optional IMU/RTK relative-motion monitoring enabled")
+        else:
+            self.climb_start_navigation = None
+            self.climb_start_imu_rotation = None
+            self.climb_start_planned_pose = None
+            rospy.logwarn(
+                "Diagnostic replay: IMU or RTK/LoRa unavailable at start; "
+                "optional relative-motion monitoring disabled for this replay"
+            )
         self.climb_bad_frames = 0
         self.climb_good_frames = 0
         self.command[:] = 0.0
         self.state = self.RUNNING
-        rospy.loginfo("X accepted: hardware climb C1-C53 started with feedback gates")
+        rospy.loginfo(
+            "X accepted: diagnostic replay C1-C53 started with joint-feedback "
+            "gates; joint-feedback gates are not contact/load evidence"
+        )
 
     def _start_real_dock(self, q_cur, controls_ready):
         """在实机输入新鲜且没有运行中攀爬时进入DockMode。"""
@@ -843,13 +861,18 @@ class RosControlNode:
             return
         if self.controller.mode == self.controller.CLIMB:
             if self.state == self.HOLD:
-                okay, reason = self._real_climb_observation()
-                if okay and self.climb_good_frames >= self.real_climb_persistence_frames:
+                if not self.real_climb_monitor_active:
                     self.controller.resume_climb()
                     self.state = self.RUNNING
-                    rospy.loginfo("CLIMB resumed after fresh IMU/RTK persistence")
+                    rospy.loginfo("Diagnostic replay CLIMB resumed without optional motion monitoring")
                 else:
-                    rospy.logwarn("A ignored: CLIMB HOLD persists: %s", reason)
+                    okay, reason = self._real_climb_observation()
+                    if okay and self.climb_good_frames >= self.real_climb_persistence_frames:
+                        self.controller.resume_climb()
+                        self.state = self.RUNNING
+                        rospy.loginfo("Diagnostic replay CLIMB resumed after IMU/RTK persistence")
+                    else:
+                        rospy.logwarn("A ignored: CLIMB HOLD persists: %s", reason)
             elif self.state == self.RUNNING:
                 self.controller.hold_climb()
                 self.state = self.HOLD
@@ -983,7 +1006,8 @@ class RosControlNode:
                         "CLIMB FAILED: HOLD: %s",
                         self.controller.climb_mode.failure_reason,
                     )
-            self._monitor_real_climb()
+            if self.real_climb_monitor_active:
+                self._monitor_real_climb()
         return q_des
 
     def update_from_feedback(self, q_cur):

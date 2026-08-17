@@ -14,7 +14,7 @@
   <arg name="max_feedback_age" default="0.15"/>
   <arg name="max_joy_age" default="0.2"/>
   <arg name="joy_deadzone" default="0.20"/>
-  <arg name="enable_real_climb" default="false"/>
+  <arg name="enable_real_climb" default="true"/>
   <arg name="enable_real_dock" default="false"/>
 
   <arg name="button_a" default="0"/>

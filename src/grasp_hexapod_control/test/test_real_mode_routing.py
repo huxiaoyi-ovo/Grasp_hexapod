@@ -5,6 +5,7 @@ import importlib.util
 from pathlib import Path
 import sys
 import types
+import xml.etree.ElementTree as ET
 
 import numpy as np
 
@@ -100,10 +101,20 @@ def _button_node():
     node.controller = _ButtonController()
     node.manual_override = True
     node.command = np.ones(4, dtype=np.float64)
+    node.real_climb_monitor_active = False
     return node
 
 
-def test_x_y_defaults_are_disabled_and_conflicting_requests_do_not_start():
+def test_run_real_launch_enables_climb_by_default():
+    launch = ET.parse(SCRIPTS.parent / "launch" / "run_real.launch")
+    arguments = {
+        argument.attrib["name"]: argument.attrib.get("default")
+        for argument in launch.findall("arg")
+    }
+    assert arguments["enable_real_climb"] == "true"
+
+
+def test_x_y_disabled_requests_and_conflicts_do_not_start():
     node = _button_node()
     RUN_REAL.RosControlNode._process_buttons(
         node, np.array([0, 0, 1, 0]), True, Q_STAND
@@ -159,6 +170,7 @@ def test_climb_done_moves_to_hold_then_y_routes_to_dock_request():
         state=ClimbMode.DONE,
         failure_reason="",
     )
+    node.real_climb_monitor_active = True
     node.controller.update = lambda *args: Q_STAND.copy()
     monitor_calls = []
     node._monitor_real_climb = lambda: monitor_calls.append(True)
@@ -182,6 +194,7 @@ def test_climb_done_moves_to_hold_then_y_routes_to_dock_request():
 def test_climb_safety_persistence_counts_one_30hz_update_per_frame():
     node = _button_node()
     node.state = node.RUNNING
+    node.real_climb_monitor_active = True
     node.controller.mode = node.controller.CLIMB
     node.controller.climb_mode = types.SimpleNamespace(state=ClimbMode.RUNNING)
     hold_calls = []
@@ -197,6 +210,71 @@ def test_climb_safety_persistence_counts_one_30hz_update_per_frame():
     RUN_REAL.RosControlNode._monitor_real_climb(node)
     assert node.state == node.HOLD
     assert hold_calls == [True]
+
+
+class _DiagnosticReplayController:
+    APPROACH = "approach"
+    CLIMB = "climb"
+
+    def __init__(self):
+        self.mode = self.APPROACH
+        self.climb_mode = types.SimpleNamespace(base_pose=None)
+        self.entered_hardware_execution = None
+
+    def enter_climb(self, q_cur, hardware_execution):
+        del q_cur
+        self.entered_hardware_execution = hardware_execution
+        self.mode = self.CLIMB
+        self.climb_mode = types.SimpleNamespace(
+            base_pose=np.zeros(5, dtype=np.float64),
+            state=ClimbMode.RUNNING,
+        )
+
+
+def _diagnostic_replay_node(navigation_valid, imu_valid):
+    node = _button_node()
+    node.enable_real_climb = True
+    node.controller = _DiagnosticReplayController()
+    node.navigation = types.SimpleNamespace(
+        motion_snapshot=lambda: types.SimpleNamespace(valid=navigation_valid)
+    )
+    node.imu = types.SimpleNamespace(
+        snapshot=lambda: {
+            "valid": imu_valid,
+            "rotation": np.eye(3),
+        }
+    )
+    return node
+
+
+def test_x_starts_diagnostic_replay_without_imu_or_rtk_monitoring():
+    node = _diagnostic_replay_node(navigation_valid=False, imu_valid=False)
+    RUN_REAL.RosControlNode._start_real_climb(node, Q_STAND, True)
+    assert node.state == node.RUNNING
+    assert node.controller.entered_hardware_execution is True
+    assert not node.real_climb_monitor_active
+
+
+def test_x_enables_optional_monitoring_when_imu_and_rtk_are_fresh():
+    node = _diagnostic_replay_node(navigation_valid=True, imu_valid=True)
+    RUN_REAL.RosControlNode._start_real_climb(node, Q_STAND, True)
+    assert node.state == node.RUNNING
+    assert node.real_climb_monitor_active
+    assert node.climb_start_navigation is not None
+    assert node.climb_start_imu_rotation is not None
+    assert node.climb_start_planned_pose is not None
+
+
+def test_inactive_optional_monitoring_never_holds_diagnostic_replay():
+    node = _diagnostic_replay_node(navigation_valid=False, imu_valid=False)
+    node.controller.enter_climb(Q_STAND, hardware_execution=True)
+    node.state = node.RUNNING
+    node.real_climb_monitor_active = False
+    hold_calls = []
+    node.controller.hold_climb = lambda: hold_calls.append(True)
+    RUN_REAL.RosControlNode._monitor_real_climb(node)
+    assert node.state == node.RUNNING
+    assert hold_calls == []
 
 
 def test_dock_target_guard_rejects_and_keeps_feedback_pose():

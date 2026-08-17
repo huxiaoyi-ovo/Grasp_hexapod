@@ -776,7 +776,7 @@ class RosControlNode:
         self.command[:] = 0.0
         self.state = self.RUNNING
         rospy.loginfo(
-            "X accepted: diagnostic replay C1-C53 started with joint-feedback "
+            "X accepted: diagnostic replay C1-C35 started with joint-feedback "
             "gates; joint-feedback gates are not contact/load evidence"
         )
 

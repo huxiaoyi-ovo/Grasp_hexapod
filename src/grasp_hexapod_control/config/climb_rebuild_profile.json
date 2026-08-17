@@ -1,7 +1,7 @@
 {
   "schema": "COMPACT_CLIMB_REBUILD_PROFILE_V1",
   "version": 1,
-  "template_sha256": "9a26ba3befdf031b9b3d7ae681aed36b45d1c19b614de2c2f3cdfd6388a3ff08",
+  "template_sha256": "b9b370d8cfd8b4ec26ad1dc7a08941e5fa580431701d8ba5a099ca98533ddf7a",
   "template_repo_relative_path": "src/grasp_hexapod_control/config/climb_compact.json",
   "model": {
     "repo_relative_path": "src/grasp_hexapod_description/meshes/xiaolan/base_link_xiaolan.STL",
@@ -128,39 +128,21 @@
     "LM_EDGE_STAGE",
     "BODY_A",
     "RM_RIGHT_SYMMETRY",
-    "LM_VERTICAL_PREP",
-    "LB_LF_CLEARANCE_RAISE",
-    "LB_LF_LOW_LAND_PAIR",
-    "LM_LOW_LAND_LAST",
+    "BODY_LEFT_TRANSFER_PREP",
+    "LB_LOW_STEP",
+    "LF_LOW_STEP",
+    "BODY_PRELOAD_LM",
     "LM_LIFT",
-    "BODY_LM_AIR_P30",
-    "BODY_LM_AIR_P33",
-    "LM_NORMAL_LAND",
-    "RF_LIFT",
-    "RF_BODY_AIR",
-    "RF_TEMP_LAND",
-    "RB_LIFT",
-    "RB_BODY_AIR",
-    "RB_FINAL_LAND",
-    "RF_FINAL_REFOOT",
-    "BODY_P35_P37",
-    "RM_LIFT",
-    "RM_BODY_AIR",
-    "RM_FINAL_LAND",
-    "BODY_P383_P39",
-    "LB_LOW_RESET_50",
-    "LF_LOW_RESET_50",
-    "BODY_P39_P43",
-    "LB_LIFT35",
-    "LB_BODY_AIR",
-    "LB_AIR_REBRANCH",
-    "LB_FINAL_LAND",
-    "LF_LIFT35",
-    "LF_AIR_REBRANCH",
-    "LF_FINAL_LAND",
-    "LM_LIFT35",
-    "LM_AIR_REBRANCH",
-    "LM_FINAL_LAND",
+    "BODY_ADVANCE_LM_AIR",
+    "LM_LEFT_FINAL_LAND",
+    "RB_DIRECT_FINAL",
+    "RF_DIRECT_FINAL",
+    "BODY_REPOSITION_1",
+    "LM_DIRECT_FINAL",
+    "RM_DIRECT_FINAL",
+    "BODY_REPOSITION_2",
+    "LB_DIRECT_FINAL",
+    "LF_DIRECT_FINAL",
     "BODY_DOCK_FINAL",
     "STAND_FINAL_HOLD"
   ],
@@ -539,32 +521,22 @@
       ]
     },
     {
-      "name": "LM_VERTICAL_PREP",
+      "name": "BODY_LEFT_TRANSFER_PREP",
       "pose_end": [
         0.23,
         -0.06769449763600001,
-        0.19,
+        0.201,
         0.0,
         -0.2
       ],
-      "active_endpoints": [
-        {
-          "leg": 2,
-          "world_point_m": [
-            0.14167794028091918,
-            -0.06769449763600001,
-            0.0065
-          ],
-          "surface_id": "unassigned"
-        }
-      ]
+      "active_endpoints": []
     },
     {
-      "name": "LB_LF_CLEARANCE_RAISE",
+      "name": "LB_LOW_STEP",
       "pose_end": [
-        0.24000000000000002,
+        0.23,
         -0.06769449763600001,
-        0.22,
+        0.201,
         0.0,
         -0.2
       ],
@@ -572,80 +544,52 @@
         {
           "leg": 0,
           "world_point_m": [
-            0.09999999999999999,
-            -0.23567567852906157,
-            0.13964067589319143
-          ],
-          "surface_id": "unassigned"
-        },
-        {
-          "leg": 1,
-          "world_point_m": [
-            0.09999999999999999,
-            0.1002863576809389,
-            0.13964073037884733
+            0.20364857479269685,
+            -0.2506760807732025,
+            0.15379742215574044
           ],
           "surface_id": "unassigned"
         }
       ]
     },
     {
-      "name": "LB_LF_LOW_LAND_PAIR",
+      "name": "LF_LOW_STEP",
       "pose_end": [
-        0.24000000000000002,
+        0.23,
         -0.06769449763600001,
-        0.22,
+        0.201,
         0.0,
         -0.2
       ],
       "active_endpoints": [
         {
-          "leg": 0,
-          "world_point_m": [
-            0.21864857479269684,
-            -0.23067608077320254,
-            0.15698573683140368
-          ],
-          "surface_id": "unassigned"
-        },
-        {
           "leg": 1,
           "world_point_m": [
-            0.21864857479269684,
-            0.12028708155300927,
-            0.1569857913170596
+            0.20364857479269685,
+            0.12028708155300925,
+            0.15379747664139634
           ],
           "surface_id": "unassigned"
         }
       ]
     },
     {
-      "name": "LM_LOW_LAND_LAST",
+      "name": "BODY_PRELOAD_LM",
       "pose_end": [
-        0.26,
+        0.234,
         -0.06769449763600001,
-        0.28,
+        0.201,
         0.0,
         -0.2
       ],
-      "active_endpoints": [
-        {
-          "leg": 2,
-          "world_point_m": [
-            0.20364857479269682,
-            -0.06769449961009663,
-            0.15379743685757963
-          ],
-          "surface_id": "unassigned"
-        }
-      ]
+      "active_endpoints": []
     },
     {
       "name": "LM_LIFT",
       "pose_end": [
-        0.26,
+        0.234,
         -0.06769449763600001,
-        0.28,
+        0.201,
         0.0,
         -0.2
       ],
@@ -653,37 +597,16 @@
         {
           "leg": 2,
           "world_point_m": [
-            0.1974112277145727,
-            -0.06769449961009663,
-            0.18314186565466165
+            0.09567794028091918,
+            -0.06769449763600001,
+            0.09599999999999997
           ],
           "surface_id": "unassigned"
         }
       ]
     },
     {
-      "name": "BODY_LM_AIR_P30",
-      "pose_end": [
-        0.3,
-        -0.06769449763600001,
-        0.28,
-        0.0,
-        -0.2
-      ],
-      "active_endpoints": [
-        {
-          "leg": 2,
-          "world_point_m": [
-            0.23741122771457268,
-            -0.06769449961009663,
-            0.18314186565466165
-          ],
-          "surface_id": "unassigned"
-        }
-      ]
-    },
-    {
-      "name": "BODY_LM_AIR_P33",
+      "name": "BODY_ADVANCE_LM_AIR",
       "pose_end": [
         0.33,
         -0.06769449763600001,
@@ -695,16 +618,16 @@
         {
           "leg": 2,
           "world_point_m": [
-            0.2674112277145727,
-            -0.06769449961009663,
-            0.18314186565466165
+            0.19167794028091917,
+            -0.06769449763600001,
+            0.175
           ],
           "surface_id": "unassigned"
         }
       ]
     },
     {
-      "name": "LM_NORMAL_LAND",
+      "name": "LM_LEFT_FINAL_LAND",
       "pose_end": [
         0.33,
         -0.06769449763600001,
@@ -725,118 +648,13 @@
       ]
     },
     {
-      "name": "RF_LIFT",
+      "name": "RB_DIRECT_FINAL",
       "pose_end": [
         0.33,
         -0.06769449763600001,
         0.28,
         0.0,
         -0.2
-      ],
-      "active_endpoints": [
-        {
-          "leg": 4,
-          "world_point_m": [
-            0.425,
-            0.02,
-            0.2265
-          ],
-          "surface_id": "unassigned"
-        }
-      ]
-    },
-    {
-      "name": "RF_BODY_AIR",
-      "pose_end": [
-        0.34,
-        -0.066861033596543,
-        0.27828054298642535,
-        0.0,
-        -0.18280542986425338
-      ],
-      "active_endpoints": [
-        {
-          "leg": 4,
-          "world_point_m": [
-            0.4340660926431008,
-            0.020833464039457017,
-            0.2231550478425305
-          ],
-          "surface_id": "unassigned"
-        }
-      ]
-    },
-    {
-      "name": "RF_TEMP_LAND",
-      "pose_end": [
-        0.34,
-        -0.066861033596543,
-        0.27828054298642535,
-        0.0,
-        -0.18280542986425338
-      ],
-      "active_endpoints": [
-        {
-          "leg": 4,
-          "world_point_m": [
-            0.5277660704851153,
-            0.07059810066223177,
-            0.19649999761581421
-          ],
-          "surface_id": "unassigned"
-        }
-      ]
-    },
-    {
-      "name": "RB_LIFT",
-      "pose_end": [
-        0.34,
-        -0.066861033596543,
-        0.27828054298642535,
-        0.0,
-        -0.18280542986425338
-      ],
-      "active_endpoints": [
-        {
-          "leg": 3,
-          "world_point_m": [
-            0.43,
-            -0.18,
-            0.2265
-          ],
-          "surface_id": "unassigned"
-        }
-      ]
-    },
-    {
-      "name": "RB_BODY_AIR",
-      "pose_end": [
-        0.35,
-        -0.06602756955708598,
-        0.27656108597285073,
-        0.0,
-        -0.16561085972850687
-      ],
-      "active_endpoints": [
-        {
-          "leg": 3,
-          "world_point_m": [
-            0.43909639562538527,
-            -0.179166535960543,
-            0.22324076228165526
-          ],
-          "surface_id": "unassigned"
-        }
-      ]
-    },
-    {
-      "name": "RB_FINAL_LAND",
-      "pose_end": [
-        0.35,
-        -0.06602756955708598,
-        0.27656108597285073,
-        0.0,
-        -0.16561085972850687
       ],
       "active_endpoints": [
         {
@@ -851,13 +669,13 @@
       ]
     },
     {
-      "name": "RF_FINAL_REFOOT",
+      "name": "RF_DIRECT_FINAL",
       "pose_end": [
-        0.35,
-        -0.06602756955708598,
-        0.27656108597285073,
+        0.33,
+        -0.06769449763600001,
+        0.28,
         0.0,
-        -0.16561085972850687
+        -0.2
       ],
       "active_endpoints": [
         {
@@ -872,66 +690,45 @@
       ]
     },
     {
-      "name": "BODY_P35_P37",
+      "name": "BODY_REPOSITION_1",
       "pose_end": [
-        0.37,
-        -0.06436064147817196,
-        0.2731221719457014,
+        0.36,
+        -0.06527087322700001,
+        0.275,
         0.0,
-        -0.1312217194570136
+        -0.15000000000000002
       ],
       "active_endpoints": []
     },
     {
-      "name": "RM_LIFT",
+      "name": "LM_DIRECT_FINAL",
       "pose_end": [
-        0.37,
-        -0.06436064147817196,
-        0.2731221719457014,
+        0.36,
+        -0.06527087322700001,
+        0.275,
         0.0,
-        -0.1312217194570136
+        -0.15000000000000002
       ],
       "active_endpoints": [
         {
-          "leg": 5,
+          "leg": 2,
           "world_point_m": [
-            0.51,
-            -0.08,
-            0.2265
+            0.27440314554432327,
+            -0.05747349999999976,
+            0.16965469007282727
           ],
           "surface_id": "unassigned"
         }
       ]
     },
     {
-      "name": "RM_BODY_AIR",
+      "name": "RM_DIRECT_FINAL",
       "pose_end": [
-        0.3833333333333333,
-        -0.06324935609222927,
-        0.2708295625942685,
+        0.36,
+        -0.06527087322700001,
+        0.275,
         0.0,
-        -0.10829562594268484
-      ],
-      "active_endpoints": [
-        {
-          "leg": 5,
-          "world_point_m": [
-            0.5222277718985703,
-            -0.07888871461405732,
-            0.22101027062236117
-          ],
-          "surface_id": "unassigned"
-        }
-      ]
-    },
-    {
-      "name": "RM_FINAL_LAND",
-      "pose_end": [
-        0.3833333333333333,
-        -0.06324935609222927,
-        0.2708295625942685,
-        0.0,
-        -0.10829562594268484
+        -0.15000000000000002
       ],
       "active_endpoints": [
         {
@@ -946,140 +743,24 @@
       ]
     },
     {
-      "name": "BODY_P383_P39",
+      "name": "BODY_REPOSITION_2",
       "pose_end": [
         0.39,
-        -0.06269371339925792,
-        0.2696832579185521,
+        -0.06284724881800001,
+        0.27,
         0.0,
-        -0.09683257918552036
+        -0.1
       ],
       "active_endpoints": []
     },
     {
-      "name": "LB_LOW_RESET_50",
+      "name": "LB_DIRECT_FINAL",
       "pose_end": [
         0.39,
-        -0.06269371339925792,
-        0.2696832579185521,
+        -0.06284724881800001,
+        0.27,
         0.0,
-        -0.09683257918552036
-      ],
-      "active_endpoints": [
-        {
-          "leg": 0,
-          "world_point_m": [
-            0.2561545552500311,
-            -0.23067608077320254,
-            0.1665936403177337
-          ],
-          "surface_id": "unassigned"
-        }
-      ]
-    },
-    {
-      "name": "LF_LOW_RESET_50",
-      "pose_end": [
-        0.39,
-        -0.06269371339925792,
-        0.2696832579185521,
-        0.0,
-        -0.09683257918552036
-      ],
-      "active_endpoints": [
-        {
-          "leg": 1,
-          "world_point_m": [
-            0.2561545552500311,
-            0.12028708155300927,
-            0.1665936948033896
-          ],
-          "surface_id": "unassigned"
-        }
-      ]
-    },
-    {
-      "name": "BODY_P39_P43",
-      "pose_end": [
-        0.43,
-        -0.059359857241429864,
-        0.2628054298642534,
-        0.0,
-        -0.028054298642533976
-      ],
-      "active_endpoints": []
-    },
-    {
-      "name": "LB_LIFT35",
-      "pose_end": [
-        0.43,
-        -0.059359857241429864,
-        0.2628054298642534,
-        0.0,
-        -0.028054298642533976
-      ],
-      "active_endpoints": [
-        {
-          "leg": 0,
-          "world_point_m": [
-            0.24887765032555298,
-            -0.23067608077320254,
-            0.20082880724766272
-          ],
-          "surface_id": "unassigned"
-        }
-      ]
-    },
-    {
-      "name": "LB_BODY_AIR",
-      "pose_end": [
-        0.4405,
-        -0.05848472,
-        0.261,
-        0.0,
-        -0.01
-      ],
-      "active_endpoints": [
-        {
-          "leg": 0,
-          "world_point_m": [
-            0.25828828496946854,
-            -0.22980094353177266,
-            0.2023033373335047
-          ],
-          "surface_id": "unassigned"
-        }
-      ]
-    },
-    {
-      "name": "LB_AIR_REBRANCH",
-      "pose_end": [
-        0.4405,
-        -0.05848472,
-        0.261,
-        0.0,
-        -0.01
-      ],
-      "active_endpoints": [
-        {
-          "leg": 0,
-          "world_point_m": [
-            0.23,
-            -0.22849161665550274,
-            0.225
-          ],
-          "surface_id": "unassigned"
-        }
-      ]
-    },
-    {
-      "name": "LB_FINAL_LAND",
-      "pose_end": [
-        0.4405,
-        -0.05848472,
-        0.261,
-        0.0,
-        -0.01
+        -0.1
       ],
       "active_endpoints": [
         {
@@ -1094,55 +775,13 @@
       ]
     },
     {
-      "name": "LF_LIFT35",
+      "name": "LF_DIRECT_FINAL",
       "pose_end": [
-        0.4405,
-        -0.05848472,
-        0.261,
+        0.39,
+        -0.06284724881800001,
+        0.27,
         0.0,
-        -0.01
-      ],
-      "active_endpoints": [
-        {
-          "leg": 1,
-          "world_point_m": [
-            0.24887765032555298,
-            0.12028708155300927,
-            0.20082886173331863
-          ],
-          "surface_id": "unassigned"
-        }
-      ]
-    },
-    {
-      "name": "LF_AIR_REBRANCH",
-      "pose_end": [
-        0.4405,
-        -0.05848472,
-        0.261,
-        0.0,
-        -0.01
-      ],
-      "active_endpoints": [
-        {
-          "leg": 1,
-          "world_point_m": [
-            0.23,
-            0.11832880238935818,
-            0.225
-          ],
-          "surface_id": "unassigned"
-        }
-      ]
-    },
-    {
-      "name": "LF_FINAL_LAND",
-      "pose_end": [
-        0.4405,
-        -0.05848472,
-        0.261,
-        0.0,
-        -0.01
+        -0.1
       ],
       "active_endpoints": [
         {
@@ -1151,69 +790,6 @@
             0.35376607048511516,
             0.11059810066223177,
             0.1972999976158142
-          ],
-          "surface_id": "unassigned"
-        }
-      ]
-    },
-    {
-      "name": "LM_LIFT35",
-      "pose_end": [
-        0.4405,
-        -0.05848472,
-        0.261,
-        0.0,
-        -0.01
-      ],
-      "active_endpoints": [
-        {
-          "leg": 2,
-          "world_point_m": [
-            0.1961637582989479,
-            -0.06769449961009663,
-            0.18901075141407805
-          ],
-          "surface_id": "unassigned"
-        }
-      ]
-    },
-    {
-      "name": "LM_AIR_REBRANCH",
-      "pose_end": [
-        0.4405,
-        -0.05848472,
-        0.261,
-        0.0,
-        -0.01
-      ],
-      "active_endpoints": [
-        {
-          "leg": 2,
-          "world_point_m": [
-            0.2714508012606779,
-            -0.05747349999999976,
-            0.18354438637011278
-          ],
-          "surface_id": "unassigned"
-        }
-      ]
-    },
-    {
-      "name": "LM_FINAL_LAND",
-      "pose_end": [
-        0.4405,
-        -0.05848472,
-        0.261,
-        0.0,
-        -0.01
-      ],
-      "active_endpoints": [
-        {
-          "leg": 2,
-          "world_point_m": [
-            0.27440314554432327,
-            -0.05747349999999976,
-            0.16965469007282727
           ],
           "surface_id": "unassigned"
         }

@@ -23,15 +23,12 @@ ACTIVE_STAGE_NAMES = (
     "LM_GROUND_SHIFT", "BODY2", "RM_HIGH_C", "RB_RF_HIGH_C", "BODY3",
     "RB_RF_SHIFT1", "LM_GROUND_SHIFT1", "RM_PRE_ADVANCE",
     "LB_LF_BODY_ADVANCE_HIGH_STEP", "RB_RF_TOP_INWARD_PAIR", "LM_EDGE_STAGE",
-    "BODY_A", "RM_RIGHT_SYMMETRY", "LM_VERTICAL_PREP",
-    "LB_LF_CLEARANCE_RAISE", "LB_LF_LOW_LAND_PAIR", "LM_LOW_LAND_LAST",
-    "LM_LIFT", "BODY_LM_AIR_P30", "BODY_LM_AIR_P33", "LM_NORMAL_LAND",
-    "RF_LIFT", "RF_BODY_AIR", "RF_TEMP_LAND", "RB_LIFT", "RB_BODY_AIR",
-    "RB_FINAL_LAND", "RF_FINAL_REFOOT", "BODY_P35_P37", "RM_LIFT",
-    "RM_BODY_AIR", "RM_FINAL_LAND", "BODY_P383_P39", "LB_LOW_RESET_50",
-    "LF_LOW_RESET_50", "BODY_P39_P43", "LB_LIFT35", "LB_BODY_AIR",
-    "LB_AIR_REBRANCH", "LB_FINAL_LAND", "LF_LIFT35", "LF_AIR_REBRANCH",
-    "LF_FINAL_LAND", "LM_LIFT35", "LM_AIR_REBRANCH", "LM_FINAL_LAND",
+    "BODY_A", "RM_RIGHT_SYMMETRY", "BODY_LEFT_TRANSFER_PREP",
+    "LB_LOW_STEP", "LF_LOW_STEP", "BODY_PRELOAD_LM", "LM_LIFT",
+    "BODY_ADVANCE_LM_AIR", "LM_LEFT_FINAL_LAND", "RB_DIRECT_FINAL",
+    "RF_DIRECT_FINAL", "BODY_REPOSITION_1", "LM_DIRECT_FINAL",
+    "RM_DIRECT_FINAL", "BODY_REPOSITION_2", "LB_DIRECT_FINAL",
+    "LF_DIRECT_FINAL",
     "BODY_DOCK_FINAL", "STAND_FINAL_HOLD",
 )
 
@@ -67,7 +64,7 @@ def strict_contract(compact):
 
     stages = compact["stages"]
     require(compact["stage_count"] == len(ACTIVE_STAGE_NAMES) == len(stages),
-            "53 active stages")
+            "35 active stages")
     require(tuple(stage["name"] for stage in stages) == ACTIVE_STAGE_NAMES,
             "active stage map")
     require(stages[10]["active_legs"] == [3], "C11 RB-only shift")
@@ -82,32 +79,30 @@ def strict_contract(compact):
     require(np.array_equal(np.asarray(c14["anchor_knots"])[0, 2:],
                            np.asarray(c14["anchor_knots"])[1, 2:]),
             "C14 fixed anchors")
-    c20, c21, c22 = stages[19:22]
-    delta_z = 0.01 * 0.20791 / 0.97815
-    require(c20["active_legs"] == [0, 1], "C20 LB/LF active")
-    require(np.isclose(c20["pose_end"][0] - c20["pose_start"][0], .01),
-            "C20 body +10 mm")
-    require(np.allclose(np.asarray(c20["anchor_knots"])[-1, :2, 0]
-                        - np.asarray(c20["anchor_knots"])[0, :2, 0], .01),
-            "C20 LB/LF high +10 mm")
-    require(np.isclose(c21["pose_start"][0], c20["pose_end"][0]),
-            "C21 pose boundary")
-    c21_landing = np.asarray(c21["anchor_knots"])[-1, :2]
-    require(np.allclose(c21_landing[:, 0], .21864857479269684), "C21 landing +10 mm")
-    require(np.allclose(c21_landing[:, 1], [-.23067608077320254, .12028708155300927]),
-            "C21 landing y unchanged")
-    require(np.allclose(c21_landing[:, 2], [.15698573683140368, .1569857913170596]),
-            "C21 inclined landing z")
-    require(np.isclose(c22["pose_start"][0], c21["pose_end"][0]),
-            "C22 inherits C21 body")
-    require(np.isclose(c22["pose_end"][0], .26), "C22 end unchanged")
+    c19, c20, c21, c22, c23, c24, c25 = stages[18:25]
+    require(c19["active_legs"] == [], "C19 fixed-body prep")
+    require(c20["active_legs"] == [0], "C20 LB-only step")
+    require(c21["active_legs"] == [1], "C21 LF-only step")
+    require(c22["active_legs"] == [], "C22 LM preload")
+    require(c23["active_legs"] == [2] and c24["active_legs"] == [2]
+            and c25["active_legs"] == [2], "C23-C25 LM transfer")
+    require(np.allclose(c25["pose_end"], stages[25]["pose_start"]),
+            "C25 restores RF entry pose")
+    require(stages[25]["active_legs"] == [3], "C26 RB direct final")
+    require(stages[26]["active_legs"] == [4], "C27 RF direct final")
+    require(stages[27]["active_legs"] == [], "C28 body reposition 1")
+    require(stages[28]["active_legs"] == [2], "C29 LM direct final")
+    require(stages[29]["active_legs"] == [5], "C30 RM direct final")
+    require(stages[30]["active_legs"] == [], "C31 body reposition 2")
+    require(stages[31]["active_legs"] == [0], "C32 LB direct final")
+    require(stages[32]["active_legs"] == [1], "C33 LF direct final")
     for index in range(1, len(stages)):
         require(np.allclose(stages[index - 1]["pose_end"], stages[index]["pose_start"],
                             rtol=0.0, atol=1e-9), "pose boundary")
         require(np.allclose(stages[index - 1]["anchor_knots"][-1],
                             stages[index]["anchor_knots"][0], rtol=0.0, atol=1e-9),
                 "anchor boundary")
-    require(resolve_compact_stage_range(compact, "C1", "C53") == (0, 52),
+    require(resolve_compact_stage_range(compact, "C1", "C35") == (0, 34),
             "active aliases")
 
 

@@ -398,11 +398,11 @@ def parse_arguments():
     )
     parser.add_argument(
         "--climb-from",
-        help="compact 闭区间起点（C1..C53 或运行时阶段名）",
+        help="compact 闭区间起点（C1..C35 或运行时阶段名）",
     )
     parser.add_argument(
         "--climb-to",
-        help="compact 闭区间终点（C1..C53 或运行时阶段名）",
+        help="compact 闭区间终点（C1..C35 或运行时阶段名）",
     )
     parser.add_argument(
         "--climb-metrics",

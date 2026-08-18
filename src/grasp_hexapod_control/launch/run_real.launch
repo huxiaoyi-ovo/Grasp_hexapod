@@ -53,11 +53,12 @@
   <arg name="dock_allow_uncalibrated" default="false"/>
   <arg name="dock_lock_confirmation_max_age_s" default="0.5"/>
   <arg name="dock_video_device" default="/dev/video0"/>
-  <arg name="dock_image_width" default="640"/>
-  <arg name="dock_image_height" default="480"/>
+  <arg name="dock_image_width" default="1280"/>
+  <arg name="dock_image_height" default="720"/>
   <arg name="dock_pixel_format" default="yuyv"/>
   <arg name="dock_color_format" default="yuv422p"/>
-  <arg name="dock_camera_info_url" default=""/>
+  <arg name="dock_camera_name" default="dock_camera"/>
+  <arg name="dock_camera_info_url" default="file://$(find grasp_hexapod_control)/config/dock_camera.yaml"/>
   <arg name="dock_camera_frame_id" default="dock_camera_optical_frame"/>
   <arg name="dock_allow_inference" default="false"/>
   <arg name="dock_require_lock_confirmation" default="false"/>
@@ -122,6 +123,7 @@
     <arg name="image_height" value="$(arg dock_image_height)"/>
     <arg name="pixel_format" value="$(arg dock_pixel_format)"/>
     <arg name="color_format" value="$(arg dock_color_format)"/>
+    <arg name="camera_name" value="$(arg dock_camera_name)"/>
     <arg name="camera_info_url" value="$(arg dock_camera_info_url)"/>
     <arg name="camera_frame_id" value="$(arg dock_camera_frame_id)"/>
     <arg name="dock_system_config" value="$(arg dock_system_config)"/>

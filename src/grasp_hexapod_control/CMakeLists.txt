@@ -45,6 +45,7 @@ install(
     config/approach_fixed.json
     config/climb_compact.json
     config/climb_rebuild_profile.json
+    config/dock_camera.yaml
     config/dock_system.yaml
     config/workspace_bounds.csv
   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/config

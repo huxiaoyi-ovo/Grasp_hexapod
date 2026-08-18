@@ -406,6 +406,7 @@ class RosControlNode:
         self.climb_start_imu_rotation = None
         self.climb_start_planned_pose = None
         self.real_climb_monitor_active = False
+        self.real_climb_speed_diagnostic = None
         self.climb_bad_frames = 0
         self.climb_good_frames = 0
         self.real_climb_persistence_frames = int(
@@ -731,6 +732,7 @@ class RosControlNode:
             and self.climb_bad_frames >= self.real_climb_persistence_frames
         ):
             self.controller.hold_climb()
+            self._flush_real_climb_speed_diagnostic("safety hold")
             self.state = self.HOLD
             self.command[:] = 0.0
             rospy.logwarn(
@@ -738,6 +740,80 @@ class RosControlNode:
                 "are not contact/load evidence",
                 reason,
             )
+
+    def _reset_real_climb_speed_diagnostic(self):
+        """Start a hardware-only, observation-only stage diagnostic session."""
+
+        self.real_climb_speed_diagnostic = None
+
+    def _flush_real_climb_speed_diagnostic(self, reason):
+        """Log and discard the completed stage aggregate without affecting motion."""
+
+        item = self.real_climb_speed_diagnostic
+        if item is None:
+            return
+        peak_command = item["peak_command_speed_rad_s"]
+        peak_measured = item["peak_measured_speed_rad_s"]
+        peak_ratio = (peak_measured / peak_command
+                      if peak_command > 0.0 else float("nan"))
+        mean_ratio = (item["ratio_sum"] / item["ratio_count"]
+                      if item["ratio_count"] else float("nan"))
+        rospy.loginfo(
+            "CLIMB speed diagnostic-only stage=%s reason=%s peak_cmd=%.3f "
+            "peak_meas=%.3f R_v=%.3f mean_meas_cmd=%.3f samples=%d "
+            "peak_tracking=%.4f clip_joints=%d guard_holds=%d; mean ratio "
+            "uses per-joint |cmd_speed| >= 0.05 rad/s and is not contact/load evidence",
+            item["stage"], reason, peak_command, peak_measured, peak_ratio,
+            mean_ratio, item["ratio_count"], item["peak_tracking_error_rad"],
+            item["velocity_limit_clip_count"], item["collision_guard_hold_count"],
+        )
+        self.real_climb_speed_diagnostic = None
+
+    def _record_real_climb_speed_diagnostic(self, stage, q_cur, q_des):
+        """Aggregate actual-hardware CLIMB feedback; this never gates a stage."""
+
+        if self.local_execution or self.controller.mode != self.controller.CLIMB:
+            return
+        q_cur = np.asarray(q_cur, dtype=np.float64).reshape(6, 3)
+        q_des = np.asarray(q_des, dtype=np.float64).reshape(6, 3)
+        item = self.real_climb_speed_diagnostic
+        if item is None or item["stage"] != stage:
+            self._flush_real_climb_speed_diagnostic("stage transition")
+            item = {
+                "stage": stage,
+                "previous_q_cur": q_cur.copy(),
+                "previous_q_des": q_des.copy(),
+                "peak_command_speed_rad_s": 0.0,
+                "peak_measured_speed_rad_s": 0.0,
+                "peak_tracking_error_rad": float(np.max(np.abs(q_des - q_cur))),
+                "ratio_sum": 0.0,
+                "ratio_count": 0,
+                "velocity_limit_clip_count": int(
+                    self.controller.last_update_velocity_limit_clip_count),
+                "collision_guard_hold_count": int(
+                    self.controller.last_update_collision_guard_hold_count),
+            }
+            self.real_climb_speed_diagnostic = item
+            return
+        command_speed = np.abs(q_des - item["previous_q_des"]) / self.controller.dt
+        measured_speed = np.abs(q_cur - item["previous_q_cur"]) / self.controller.dt
+        item["peak_command_speed_rad_s"] = max(
+            item["peak_command_speed_rad_s"], float(np.max(command_speed)))
+        item["peak_measured_speed_rad_s"] = max(
+            item["peak_measured_speed_rad_s"], float(np.max(measured_speed)))
+        item["peak_tracking_error_rad"] = max(
+            item["peak_tracking_error_rad"], float(np.max(np.abs(q_des - q_cur))))
+        significant = command_speed >= 0.05
+        if np.any(significant):
+            item["ratio_sum"] += float(np.sum(
+                measured_speed[significant] / command_speed[significant]))
+            item["ratio_count"] += int(np.count_nonzero(significant))
+        item["velocity_limit_clip_count"] += int(
+            self.controller.last_update_velocity_limit_clip_count)
+        item["collision_guard_hold_count"] += int(
+            self.controller.last_update_collision_guard_hold_count)
+        item["previous_q_cur"] = q_cur.copy()
+        item["previous_q_des"] = q_des.copy()
 
     def _start_real_climb(self, q_cur, controls_ready):
         """在回站和关节反馈门限通过后进入诊断回放C1。"""
@@ -773,6 +849,7 @@ class RosControlNode:
             )
         self.climb_bad_frames = 0
         self.climb_good_frames = 0
+        self._reset_real_climb_speed_diagnostic()
         self.command[:] = 0.0
         self.state = self.RUNNING
         rospy.loginfo(
@@ -820,6 +897,7 @@ class RosControlNode:
                 return
             self.controller.approach_mode.cancel_autonomous_approach(reason)
             self.controller.hold_climb()
+            self._flush_real_climb_speed_diagnostic("hold: " + reason)
             self.state = self.HOLD
             self.command[:] = 0.0
             if log:
@@ -832,6 +910,7 @@ class RosControlNode:
         x_pressed = bool(self._read(button_presses, self.button_x))
         y_pressed = bool(self._read(button_presses, self.button_y))
         if b_pressed:
+            self._flush_real_climb_speed_diagnostic("reset")
             self.state = self.RESETTING
             self.controller.reset_active = False
             self.controller.mission.cancel("reset requested by B")
@@ -875,6 +954,7 @@ class RosControlNode:
                         rospy.logwarn("A ignored: CLIMB HOLD persists: %s", reason)
             elif self.state == self.RUNNING:
                 self.controller.hold_climb()
+                self._flush_real_climb_speed_diagnostic("paused by A")
                 self.state = self.HOLD
                 self.command[:] = 0.0
                 rospy.loginfo("CLIMB paused by A")
@@ -949,6 +1029,13 @@ class RosControlNode:
 
         navigation_state = None
         dock_robot_state = None
+        climb_stage = (
+            self.controller.climb_mode.phase
+            if (not self.local_execution
+                and self.controller.mode == self.controller.CLIMB
+                and self.controller.climb_mode.state == ClimbMode.RUNNING)
+            else None
+        )
         if self.state == self.RUNNING:
             if self.controller.mode == self.controller.DOCK:
                 self.command[:] = 0.0
@@ -984,6 +1071,8 @@ class RosControlNode:
             navigation_state,
             dock_robot_state,
         )
+        if climb_stage is not None:
+            self._record_real_climb_speed_diagnostic(climb_stage, q_cur, q_des)
         if (
             self.controller.mode == self.controller.DOCK
             and self.controller.dock_mode is not None
@@ -997,6 +1086,7 @@ class RosControlNode:
                 ClimbMode.DONE,
                 ClimbMode.FAILED,
             ):
+                self._flush_real_climb_speed_diagnostic("terminal")
                 self.state = self.HOLD
                 self.command[:] = 0.0
                 if self.controller.climb_mode.state == ClimbMode.DONE:

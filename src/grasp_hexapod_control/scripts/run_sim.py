@@ -382,6 +382,14 @@ def parse_arguments():
         help="加载 compact 所选起点与小蓝场景，等待 X 启动",
     )
     parser.add_argument(
+        "--climb-config",
+        type=Path,
+        help=(
+            "simulation-only compact 配置路径；仅可与 --climb-start、"
+            "--climb-scene 或 --full-mission 一起使用"
+        ),
+    )
+    parser.add_argument(
         "--climb-speed",
         type=float,
         default=1.0,
@@ -849,6 +857,11 @@ def main() -> None:
         raise ValueError("--full-mission always runs the complete compact climb")
     if args.mission_seed is not None and not args.full_mission:
         raise ValueError("--mission-seed requires --full-mission")
+    if args.climb_config is not None and not climb_scene:
+        raise ValueError(
+            "--climb-config requires --climb-start, --climb-scene or "
+            "--full-mission"
+        )
     if (args.climb_from is not None or args.climb_to is not None
             or args.climb_metrics is not None) and not climb_scene:
         raise ValueError(
@@ -972,7 +985,10 @@ def main() -> None:
     climb_start_index = 0
     climb_end_index = None
     if climb_scene:
-        compact_path = package_config_path("climb_compact.json")
+        compact_path = (
+            package_config_path("climb_compact.json")
+            if args.climb_config is None else args.climb_config
+        )
         with compact_path.open() as compact_file:
             compact = json.load(compact_file)
         if (
@@ -983,6 +999,7 @@ def main() -> None:
         ):
             raise ValueError("invalid compact climb scene config")
         ClimbMode(None)._validate_config(compact)
+        print("Compact climb config selected: {}".format(compact_path))
         climb_start_index, climb_end_index = resolve_compact_stage_range(
             compact, args.climb_from, args.climb_to
         )
@@ -1839,14 +1856,59 @@ def main() -> None:
                     climb_report_stage = 2
                     q_drift = np.abs(q_control - climb_report_q_ref).max() * 1000
                     track_err = np.abs(q_des_control - q_control).max() * 1000
-                    print(
-                        f"[climb] hold check: joint drift over 2s "
-                        f"{q_drift:.1f}mrad (stable if small), "
-                        f"joint tracking error {track_err:.1f}mrad"
+                    final_metric = climb_metrics_by_stage.get(climb_end_index)
+                    selected_rows = [
+                        climb_metrics_by_stage[index]
+                        for index in range(climb_start_index, climb_end_index + 1)
+                        if index in climb_metrics_by_stage
+                    ]
+                    end_foot = (None if final_metric is None else
+                                final_metric["end_foot_target_error_m"])
+                    end_root = (None if final_metric is None else
+                                final_metric["end_root_position_error_m"])
+                    root_values = [
+                        row["max_root_position_error_m"]
+                        for row in selected_rows
+                        if row["max_root_position_error_m"] is not None
+                    ]
+                    margin_values = [
+                        row["min_joint_limit_margin_rad"]
+                        for row in selected_rows
+                        if row["min_joint_limit_margin_rad"] is not None
+                    ]
+                    global_root = max(root_values) if root_values else None
+                    global_min_margin = min(margin_values) if margin_values else None
+                    checks = (
+                        ("hold_q_drift_lt_20mrad", q_drift, 20.0,
+                         q_drift < 20.0),
+                        ("end_foot_target_error_le_0.015m", end_foot, 0.015,
+                         end_foot is not None and end_foot <= 0.015),
+                        ("end_root_position_error_le_0.05m", end_root, 0.05,
+                         end_root is not None and end_root <= 0.05),
+                        ("global_max_root_position_error_le_0.20m", global_root,
+                         0.20, global_root is not None and global_root <= 0.20),
+                        ("global_min_joint_limit_margin_ge_0rad",
+                         global_min_margin, 0.0,
+                         global_min_margin is not None and global_min_margin >= 0.0),
                     )
                     print(
-                        "[climb] VERDICT: " +
-                        ("STABLE" if q_drift < 20.0 else "UNSTABLE")
+                        f"[climb] hold check: joint drift over 2s "
+                        f"{q_drift:.1f}mrad, "
+                        f"joint tracking error {track_err:.1f}mrad"
+                    )
+                    for label, value, threshold, passed in checks:
+                        shown = "missing" if value is None else "{:.6g}".format(value)
+                        print(
+                            "[climb] preview gate {}: value={} threshold={} {}".format(
+                                label, shown, threshold,
+                                "PASS" if passed else "FAIL",
+                            )
+                        )
+                    print(
+                        "[climb] PREVIEW VERDICT: " +
+                        ("SUCCESS" if all(check[-1] for check in checks) else "FAILED")
+                        + " (simulation preview gates only; not contact, load, "
+                        "stability, or hardware proof)"
                     )
                     break
 

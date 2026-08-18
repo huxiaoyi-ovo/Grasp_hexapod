@@ -27,6 +27,12 @@ from utils.climb_collision import (
     ANKLE_VISUAL_FOOTPAD_COMPONENT_INDEX,
     default_visual_scene,
 )
+from utils.climb_retime import (
+    assert_speed_report,
+    segment_for_time,
+    speed_report,
+    update_speed_report,
+)
 
 
 DT = 1.0 / 30.0
@@ -260,6 +266,7 @@ def dense_kinematic_gate(compact):
             "min_sigma": np.inf,
             "max_joint_speed_rad_s": 0.0,
             "max_IK_residual_m": 0.0,
+            "segments": speed_report(index, stage),
         }
         if active:
             report["min_cross_clearance_m"] = np.inf
@@ -301,17 +308,25 @@ def dense_kinematic_gate(compact):
                         report["min_cross_clearance_m"],
                         footprint_clearance(triangles, anchors[leg]))
             if previous_q is not None:
+                speed = np.abs(q - previous_q) / (time_s - previous_t)
+                peak = float(np.max(speed))
                 report["max_joint_speed_rad_s"] = max(
-                    report["max_joint_speed_rad_s"],
-                    float(np.max(np.abs(q - previous_q) /
-                                 (time_s - previous_t))))
+                    report["max_joint_speed_rad_s"], peak)
+                semantic = segment_for_time(index, stage, time_s)
+                if semantic is not None:
+                    leg, joint = np.unravel_index(np.argmax(speed), speed.shape)
+                    update_speed_report(
+                        report["segments"], semantic["segment_index"], peak,
+                        {**source(stage["name"], time_s, "joint_speed_rad_s", peak,
+                                   semantic["hard_gate_rad_s"]),
+                         "leg": int(leg), "joint": int(joint)},
+                    )
             previous_q = q.copy()
             previous_t = float(time_s)
         checks = (
             ("min_support_margin_m", 0.03, True),
             ("min_joint_margin_rad", 0.08, True),
             ("min_sigma", 0.01, True),
-            ("max_joint_speed_rad_s", 2.5, False),
             ("max_IK_residual_m", 1e-5, False),
         )
         if active:
@@ -325,6 +340,11 @@ def dense_kinematic_gate(compact):
             actual = report[metric]
             require(actual >= threshold if minimum else actual <= threshold,
                     source(stage["name"], 0.0, metric, actual, threshold))
+        assert_speed_report(report["segments"], require)
+        if index >= 34:
+            require(report["max_joint_speed_rad_s"] <= 2.5,
+                    source(stage["name"], 0.0, "joint_speed_rad_s",
+                           report["max_joint_speed_rad_s"], 2.5))
         reports.append(report)
     return reports
 
@@ -411,40 +431,62 @@ def dynamic_gate(compact):
     controller = GraspController(DT)
     q = np.asarray(compact["p0"]["q_rad"], dtype=np.float64)
     controller.enter_climb(q, compact)
-    names = tuple(name for _, name, _ in DIRECT)
     legs = {name: leg for _, name, leg in DIRECT}
-    reports = {name: {"min_joint_margin_rad": np.inf,
-                      "max_command_speed_rad_s": 0.0,
-                      "max_active_foot_error_m": 0.0}
-               for name in names}
+    reports = {
+        index: {"stage_name": stage["name"], "min_joint_margin_rad": np.inf,
+                "max_command_speed_rad_s": 0.0,
+                "max_active_foot_error_m": 0.0,
+                "segments": speed_report(index, stage)}
+        for index, stage in enumerate(compact["stages"][FIRST:34], FIRST)
+    }
+    ticks = 0
     while controller.climb_mode.state == ClimbMode.RUNNING:
         name = controller.climb_mode.phase
+        stage_index = controller.climb_mode.stage_index
+        time_s = controller.climb_mode.phase_time
         before = q.copy()
         q = controller.update(q, np.zeros(4))
-        if name not in reports:
+        if stage_index not in reports:
+            ticks += 1
             continue
-        leg = legs[name]
-        item = reports[name]
+        item = reports[stage_index]
         item["min_joint_margin_rad"] = min(
             item["min_joint_margin_rad"],
             float(np.min(controller.kinematic.joint_limit_margins(q))))
-        item["max_command_speed_rad_s"] = max(
-            item["max_command_speed_rad_s"],
-            float(np.max(np.abs(q - before) / DT)))
-        actual = controller.kinematic.forward_base(q)
-        item["max_active_foot_error_m"] = max(
-            item["max_active_foot_error_m"],
-            float(np.linalg.norm(
-                actual[leg] - controller.foot_desired_base[leg])))
-    for name, item in reports.items():
-        for metric, threshold, minimum in (
-                ("min_joint_margin_rad", 0.08, True),
-                ("max_command_speed_rad_s", 2.5, False),
-                ("max_active_foot_error_m", 0.015, False)):
+        speed = np.abs(q - before) / DT
+        peak = float(np.max(speed))
+        item["max_command_speed_rad_s"] = max(item["max_command_speed_rad_s"],
+                                                peak)
+        semantic = segment_for_time(stage_index, compact["stages"][stage_index],
+                                    time_s)
+        speed_leg, joint = np.unravel_index(np.argmax(speed), speed.shape)
+        update_speed_report(
+            item["segments"], semantic["segment_index"], peak,
+            {"stage": name, "time_s": time_s, "tick": ticks,
+             "leg": int(speed_leg), "joint": int(joint),
+             "metric": "command_speed_rad_s", "actual": peak,
+             "threshold": semantic["hard_gate_rad_s"]},
+        )
+        if name in legs:
+            leg = legs[name]
+            actual = controller.kinematic.forward_base(q)
+            item["max_active_foot_error_m"] = max(
+                item["max_active_foot_error_m"],
+                float(np.linalg.norm(
+                    actual[leg] - controller.foot_desired_base[leg])))
+        ticks += 1
+    for item in reports.values():
+        name = item["stage_name"]
+        for metric, threshold, minimum in (("min_joint_margin_rad", 0.08, True),):
             actual = item[metric]
             require(actual >= threshold if minimum else actual <= threshold,
                     source(name, 0.0, metric, actual, threshold))
-    return reports
+        assert_speed_report(item["segments"], require)
+        if name in legs:
+            require(item["max_active_foot_error_m"] <= 0.015,
+                    source(name, 0.0, "max_active_foot_error_m",
+                           item["max_active_foot_error_m"], 0.015))
+    return list(reports.values())
 
 
 def main():

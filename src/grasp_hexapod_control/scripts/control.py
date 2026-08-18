@@ -477,6 +477,9 @@ class GraspController:
         self.reset_start_q = self.q_init.copy()
 
         self.last_link_collision_free = np.ones(6, dtype=bool)
+        # Observation-only per-update telemetry; it never feeds control.
+        self.last_update_velocity_limit_clip_count = 0
+        self.last_update_collision_guard_hold_count = 0
 
         self.approach_mode = ApproachMode(self)
         self.climb_mode = ClimbMode(self)
@@ -983,6 +986,8 @@ class GraspController:
         """根据足端目标计算下一周期关节目标"""
 
         q_cur = np.asarray(q_cur, dtype=np.float64).reshape(6, 3)
+        self.last_update_velocity_limit_clip_count = 0
+        self.last_update_collision_guard_hold_count = 0
 
         # 每个控制周期更新。
         self.foot_current_hip = self.kinematic.forward(q_cur)
@@ -1048,10 +1053,17 @@ class GraspController:
 
         # 舵机能力兜底: 单帧关节增量限幅
         step = JOINT_VELOCITY_LIMIT * self.dt
+        self.last_update_velocity_limit_clip_count = int(np.count_nonzero(
+            np.abs(q_candidate - q_cur) > step
+        ))
         q_candidate = np.clip(q_candidate, q_cur - step, q_cur + step)
 
         # 关节目标下发前检查完整连杆胶囊；
         # 一旦候选姿态碰撞，整机本周期保持当前位置。
-        self.q_des = self.collision_guard(q_candidate, q_cur)
+        accepted = self.collision_guard(q_candidate, q_cur)
+        self.last_update_collision_guard_hold_count = int(
+            not np.array_equal(accepted, q_candidate)
+        )
+        self.q_des = accepted
 
         return self.q_des

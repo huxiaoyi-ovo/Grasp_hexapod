@@ -23,6 +23,12 @@ from control import GraspController
 from kinematics import JOINT_LOWER, JOINT_UPPER
 from utils import package_config_path
 from utils.climb import gravity_projected_support
+from utils.climb_retime import (
+    assert_speed_report,
+    segment_for_time,
+    speed_report,
+    update_speed_report,
+)
 from validate_final_transfer import footprint_clearance, stl_triangles
 
 
@@ -198,6 +204,7 @@ def dense_validate(compact):
             "LM_min_hip_foot_xy_m": np.inf,
             "LM_max_terminal_axis_angle_deg": 0.0,
             "max_IK_residual_m": 0.0,
+            "segments": speed_report(index, stage),
         }
         if stage["name"] == "LB_LOW_STEP":
             report["platform_entry_clearance_m"] = np.inf
@@ -266,6 +273,16 @@ def dense_validate(compact):
                 speed = np.abs(q - previous_q) / (float(time_s) - previous_t)
                 report["max_joint_speed_rad_s"] = max(
                     report["max_joint_speed_rad_s"], float(np.max(speed)))
+                semantic = segment_for_time(index, stage, time_s)
+                peak = float(np.max(speed))
+                leg, joint = np.unravel_index(np.argmax(speed), speed.shape)
+                update_speed_report(
+                    report["segments"], semantic["segment_index"], peak,
+                    {**source(stage["name"], time_s, int(leg),
+                               "joint_speed_rad_s", peak,
+                               semantic["hard_gate_rad_s"]),
+                     "joint": int(joint)},
+                )
             previous_q = q.copy()
             previous_t = float(time_s)
 
@@ -278,9 +295,7 @@ def dense_validate(compact):
                 global_sources.get("max_IK_residual_m"))
         require(item["min_joint_margin_rad"] >= 0.08,
                 global_sources["min_joint_margin_rad:" + name])
-        require(item["max_joint_speed_rad_s"] <= 2.5,
-                source(name, 0.0, None, "joint_speed_rad_s",
-                       item["max_joint_speed_rad_s"], 2.5))
+        assert_speed_report(item["segments"], require)
         if name in ("LB_LOW_STEP", "LF_LOW_STEP", "LM_LIFT",
                     "BODY_ADVANCE_LM_AIR", "LM_LEFT_FINAL_LAND"):
             require(item["min_support_margin_m"] >= 0.03,
@@ -345,12 +360,29 @@ def dynamic_gate(compact):
     minimum = np.inf
     support = np.inf
     margin_source = None
+    segments = {index: speed_report(index, compact["stages"][index])
+                for index in range(18, 25)}
+    ticks = 0
     while controller.climb_mode.state == ClimbMode.RUNNING:
         name = controller.climb_mode.phase
         time_s = controller.climb_mode.phase_time
+        stage_index = controller.climb_mode.stage_index
+        before = q.copy()
         q = controller.update(q, np.zeros(4))
         if name not in NAMES:
+            ticks += 1
             continue
+        semantic = segment_for_time(
+            stage_index, compact["stages"][stage_index], time_s)
+        speed = np.abs(q - before) / DT
+        peak = float(np.max(speed))
+        leg, joint = np.unravel_index(np.argmax(speed), speed.shape)
+        update_speed_report(
+            segments[stage_index], semantic["segment_index"], peak,
+            {**source(name, time_s, int(leg), "command_speed_rad_s", peak,
+                       semantic["hard_gate_rad_s"]),
+             "tick": ticks, "joint": int(joint)},
+        )
         margins = controller.kinematic.joint_limit_margins(q)
         value = float(np.min(margins))
         if value < minimum:
@@ -367,12 +399,20 @@ def dynamic_gate(compact):
                 com, controller.climb_mode.anchors_world[[0, 1, 3, 4, 5]],
                 (0.0, 0.0, -1.0)).raw_margin_m
             support = min(support, float(value))
+        ticks += 1
     require(minimum >= 0.08, margin_source)
     require(support >= 0.03,
             source("LM_AIR_DYNAMIC", 0.0, None, "support_margin_m", support, 0.03))
+    for rows in segments.values():
+        assert_speed_report(rows, require)
     return {"min_joint_margin_rad": minimum,
             "min_LM_air_support_margin_m": support,
-            "min_joint_margin_source": margin_source}
+            "min_joint_margin_source": margin_source,
+            "segments": [
+                {"stage_name": compact["stages"][index]["name"],
+                 "segments": rows}
+                for index, rows in segments.items()
+            ]}
 
 
 def main():

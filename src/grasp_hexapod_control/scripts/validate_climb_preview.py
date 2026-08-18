@@ -15,6 +15,12 @@ from climb_mode import ClimbMode
 from control import GraspController
 from utils import package_config_path
 from utils.climb import gravity_projected_support, resolve_compact_stage_range
+from utils.climb_retime import (
+    assert_speed_report,
+    segment_for_time,
+    speed_report,
+    update_speed_report,
+)
 
 
 DT = 1.0 / 30.0
@@ -74,7 +80,7 @@ def strict_contract(compact):
     require(c14["active_legs"] == [0, 1], "C14 LB/LF active")
     require(c14["anchor_curve"] == "relative_base_high_step", "C14 curve")
     require(np.isclose(c14["relative_swing_height_m"], 0.06), "C14 lift")
-    require(np.allclose(c14["segment_durations_s"], [1.8]), "C14 duration")
+    require(len(c14["segment_durations_s"]) == 1, "C14 one critical segment")
     require(len(c14["anchor_knots"]) == 2, "C14 endpoint-only path")
     require(np.array_equal(np.asarray(c14["anchor_knots"])[0, 2:],
                            np.asarray(c14["anchor_knots"])[1, 2:]),
@@ -125,10 +131,13 @@ def replay(compact, strict=False):
     ]
     min_margin, margin_source, peak_speed, peak_speed_source, ticks = np.inf, None, 0.0, None, 0
     stage_entry_q = [None] * len(stages)
+    semantic_segments = [speed_report(index, stage)
+                         for index, stage in enumerate(stages)]
     c14_q, c14_errors = [], []
     zeros = np.zeros(4)
     while controller.climb_mode.state == ClimbMode.RUNNING and ticks < 12000:
         stage_index = controller.climb_mode.stage_index
+        stage_time = controller.climb_mode.phase_time
         before = q.copy()
         if stage_entry_q[stage_index] is None:
             stage_entry_q[stage_index] = before.copy()
@@ -143,6 +152,18 @@ def replay(compact, strict=False):
                 "leg": int(leg), "joint": int(joint),
             }
         speed = np.abs(q - before) / DT
+        semantic = segment_for_time(
+            stage_index, stages[stage_index], stage_time)
+        if semantic is not None:
+            peak = float(np.max(speed))
+            leg, joint = np.unravel_index(np.argmax(speed), speed.shape)
+            update_speed_report(
+                semantic_segments[stage_index], semantic["segment_index"], peak,
+                {"stage": stages[stage_index]["name"], "time_s": stage_time,
+                 "tick": ticks, "leg": int(leg), "joint": int(joint),
+                 "metric": "command_speed_rad_s", "actual": peak,
+                 "threshold": semantic["hard_gate_rad_s"]},
+            )
         if float(np.max(speed)) > peak_speed:
             leg, joint = np.unravel_index(np.argmax(speed), speed.shape)
             peak_speed, peak_speed_source = float(np.max(speed)), {
@@ -186,6 +207,8 @@ def replay(compact, strict=False):
             c14_errors.append(np.linalg.norm(actual[:2] - desired[:2], axis=1))
         ticks += 1
     require(controller.climb_mode.state == ClimbMode.DONE, "preview did not finish")
+    for rows in semantic_segments[:34]:
+        assert_speed_report(rows, require)
     if strict:
         velocity = np.diff(np.asarray(c14_q), axis=0) / DT
         pair = velocity[:, :2]
@@ -200,6 +223,7 @@ def replay(compact, strict=False):
         "min_joint_margin_rad": float(min_margin), "min_joint_margin_source": margin_source,
         "global_peak_command_speed_rad_s": float(peak_speed),
         "global_peak_command_speed_source": peak_speed_source,
+        "semantic_segments": semantic_segments[:34],
         "stages": stage_report,
         "model_diagnostic_only": "planned base/raw support margins are geometry diagnostics, not contact/load/stability proof",
         "final_foot_target_error_m": float(controller.climb_mode.last_foot_target_error_m),

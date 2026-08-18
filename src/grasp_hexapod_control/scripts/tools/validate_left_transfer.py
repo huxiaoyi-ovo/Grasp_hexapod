@@ -63,6 +63,7 @@ LM_NORMAL /= np.linalg.norm(LM_NORMAL)
 LOW_SURFACE_LATERAL_EDGE_Y_LOCAL_M = 0.17374
 HARD_EDGE_CLEARANCE_M = 0.015
 LF_LATERAL_EDGE_MARGIN_M = 0.020
+LM_AIR_SUPPORT_MARGIN_M = 0.029
 
 
 def require(value, message):
@@ -298,9 +299,12 @@ def dense_validate(compact):
         assert_speed_report(item["segments"], require)
         if name in ("LB_LOW_STEP", "LF_LOW_STEP", "LM_LIFT",
                     "BODY_ADVANCE_LM_AIR", "LM_LEFT_FINAL_LAND"):
-            require(item["min_support_margin_m"] >= 0.03,
+            support_margin = (LM_AIR_SUPPORT_MARGIN_M
+                              if name in ("LM_LIFT", "BODY_ADVANCE_LM_AIR")
+                              else 0.03)
+            require(item["min_support_margin_m"] >= support_margin,
                     source(name, 0.0, None, "support_margin_m",
-                           item["min_support_margin_m"], 0.03))
+                           item["min_support_margin_m"], support_margin))
         if name in NAMES[4:]:
             require(item["min_sigma_min"] >= 0.01,
                     source(name, 0.0, 2, "LM_sigma_min",
@@ -401,8 +405,9 @@ def dynamic_gate(compact):
             support = min(support, float(value))
         ticks += 1
     require(minimum >= 0.08, margin_source)
-    require(support >= 0.03,
-            source("LM_AIR_DYNAMIC", 0.0, None, "support_margin_m", support, 0.03))
+    require(support >= LM_AIR_SUPPORT_MARGIN_M,
+            source("LM_AIR_DYNAMIC", 0.0, None, "support_margin_m", support,
+                   LM_AIR_SUPPORT_MARGIN_M))
     for rows in segments.values():
         assert_speed_report(rows, require)
     return {"min_joint_margin_rad": minimum,

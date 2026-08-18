@@ -336,6 +336,10 @@ class RosControlNode:
                 "~controller_rate_hz", 30.0
             )
         self.rate_hz = float(controller_rate_hz)
+        # 控制器仍只在一帧完整的新六腿反馈上按30 Hz数学步长推进。
+        # 提高轮询频率仅缩短两块独立Servo板反馈错相时的等待，不会重复
+        # 消费同一帧反馈。
+        self.poll_rate_hz = self.rate_hz * 4.0
         self.enable_link_collision_check = bool(
             rospy.get_param("~enable_link_collision_check", True)
         )
@@ -1348,6 +1352,7 @@ class RosControlNode:
             and self.controller.dock_mode is not None
             and self.controller.dock_mode.state
             in self.controller.dock_mode.TERMINAL_STATES
+            and self.state == self.RUNNING
         ):
             self.state = self.HOLD
             rospy.loginfo("DockMode terminal HOLD: %s", self.controller.dock_mode.reason)
@@ -1355,7 +1360,7 @@ class RosControlNode:
             if self.controller.climb_mode.state in (
                 ClimbMode.DONE,
                 ClimbMode.FAILED,
-            ):
+            ) and self.state == self.RUNNING:
                 self._flush_real_climb_speed_diagnostic("terminal")
                 self.state = self.HOLD
                 self.command[:] = 0.0
@@ -1466,7 +1471,7 @@ class RosControlNode:
 def main():
     rospy.init_node("grasp_hexapod_control")
     node = RosControlNode()
-    rate = rospy.Rate(node.rate_hz)
+    rate = rospy.Rate(node.poll_rate_hz)
 
     while not rospy.is_shutdown():
         node.step()

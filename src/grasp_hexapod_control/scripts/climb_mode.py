@@ -5,6 +5,7 @@
 """
 
 import json
+import time
 
 import numpy as np
 
@@ -74,6 +75,7 @@ class ClimbMode:
         self.last_phase_hold = False
         self.last_collision_guard_hold = False
         self.hardware_execution = False
+        self._hardware_stage_last_monotonic = None
 
     @staticmethod
     def _world_from_base(base):
@@ -323,6 +325,9 @@ class ClimbMode:
         self.settle_time = 0.0
         self.failure_reason = ""
         self.state = self.RUNNING
+        self._hardware_stage_last_monotonic = (
+            time.monotonic() if self.hardware_execution else None
+        )
         if start_stage_index == 0:
             self.anchors_world = self._array(
                 config, ("p0", "anchors_world_m"), (6, 3)
@@ -353,12 +358,24 @@ class ClimbMode:
 
         if self.state == self.RUNNING:
             self.state = self.HOLD
+            self._hardware_stage_last_monotonic = None
 
     def resume(self):
         """继续已暂停的攀爬预览。"""
 
         if self.state == self.HOLD:
             self.state = self.RUNNING
+            if self.hardware_execution:
+                self._hardware_stage_last_monotonic = time.monotonic()
+
+    def _update_hardware_stage_elapsed_time(self):
+        """只在实机RUNNING期间按单调墙钟累计当前阶段耗时。"""
+
+        now = time.monotonic()
+        previous = self._hardware_stage_last_monotonic
+        self._hardware_stage_last_monotonic = now
+        if previous is not None:
+            self.stage_elapsed_time += max(0.0, now - previous)
 
     def _apply_reference(self, base, anchors, sync_previous=False):
         """把机身和足端参考写入控制器。"""
@@ -465,12 +482,15 @@ class ClimbMode:
 
         if self.stage_index == self.end_stage_index:
             self.state = self.DONE
+            self._hardware_stage_last_monotonic = None
             return
         self.stage_index += 1
         self.phase = self.stage_names[self.stage_index]
         self.phase_time = 0.0
         self.stage_elapsed_time = 0.0
         self.settle_time = 0.0
+        if self.hardware_execution:
+            self._hardware_stage_last_monotonic = time.monotonic()
 
     def _update_tracking_diagnostics(self, q_current):
         """更新关节和足端目标误差。"""
@@ -656,7 +676,7 @@ class ClimbMode:
             gate = self.config["settle_gate"]
             stage = self.config["stages"][self.stage_index]
             duration = float(sum(stage["segment_durations_s"]))
-            self.stage_elapsed_time += self.controller.dt
+            self._update_hardware_stage_elapsed_time()
 
             # 先检查上一控制帧已经下发的目标。实机跟不上或公共碰撞守卫
             # 保持时冻结当前轨迹相位，继续追踪同一目标，避免摆动腿尚未

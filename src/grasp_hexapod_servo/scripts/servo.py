@@ -21,6 +21,7 @@ import ast
 import math
 import os
 import sys
+import time
 from threading import Lock
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -130,6 +131,18 @@ class ServoSideNode:
             for leg in self.legs
         }
 
+        # 仅汇总诊断：不改变串口读写顺序、次数或定时器节拍。
+        self._timing_window_started = None
+        self._timing_callbacks = 0
+        self._timing_max_loop_s = 0.0
+        self._timing_overruns = 0
+        self._timing_read_retries = {
+            servo_id: 0 for servo_id in self.servo_ids
+        }
+        self._timing_read_failures = {
+            servo_id: 0 for servo_id in self.servo_ids
+        }
+
         # 启动时整块板全部卸力。
         # 此时仍然可以读取舵机位置。
         self._set_board_power(False)
@@ -151,6 +164,8 @@ class ServoSideNode:
                 queue_size=1,
             )
 
+        # 统计窗口从定时器启用前开始，不把启动卸力和pub/sub创建计入。
+        self._timing_window_started = time.monotonic()
         self.timer = rospy.Timer(
             rospy.Duration(
                 1.0 / self.servo_rate_hz
@@ -313,11 +328,60 @@ class ServoSideNode:
         """读取一次位置；失败时只追加一次即时重试。"""
         position = self.control.get_servo_position(servo_id)
         if position is None:
+            self._timing_read_retries[servo_id] += 1
             position = self.control.get_servo_position(servo_id)
+            if position is None:
+                self._timing_read_failures[servo_id] += 1
         return position
+
+    @staticmethod
+    def _timing_counts_text(counts):
+        """稳定格式化本窗口内有事件的舵机计数。"""
+
+        return ",".join(
+            "%d=%d" % (servo_id, count)
+            for servo_id, count in sorted(counts.items())
+            if count
+        ) or "none"
+
+    def _record_timing_diagnostics(self, started_at):
+        """每秒输出一次本板实际循环与读回异常汇总。"""
+
+        elapsed = max(0.0, time.monotonic() - started_at)
+        self._timing_callbacks += 1
+        self._timing_max_loop_s = max(self._timing_max_loop_s, elapsed)
+        if elapsed > 1.0 / self.servo_rate_hz:
+            self._timing_overruns += 1
+
+        window_elapsed = time.monotonic() - self._timing_window_started
+        if window_elapsed < 1.0:
+            return
+
+        rospy.loginfo(
+            "Servo timing: side=%s actual_hz=%.2f max_loop_ms=%.3f "
+            "overruns=%d retries=%s failures=%s",
+            self.side,
+            self._timing_callbacks / window_elapsed,
+            self._timing_max_loop_s * 1000.0,
+            self._timing_overruns,
+            self._timing_counts_text(self._timing_read_retries),
+            self._timing_counts_text(self._timing_read_failures),
+        )
+        self._timing_window_started = time.monotonic()
+        self._timing_callbacks = 0
+        self._timing_max_loop_s = 0.0
+        self._timing_overruns = 0
+        self._timing_read_retries = {
+            servo_id: 0 for servo_id in self.servo_ids
+        }
+        self._timing_read_failures = {
+            servo_id: 0 for servo_id in self.servo_ids
+        }
 
     def control_loop(self, _event):
         """执行最新目标，再读取并发布本周期有效反馈。"""
+
+        started_at = time.monotonic()
 
         # 回调只更新缓存；串口操作期间不持有缓存锁。
         with self.lock:
@@ -386,6 +450,8 @@ class ServoSideNode:
                     position=read_position,
                 )
             )
+
+        self._record_timing_diagnostics(started_at)
 
 
 if __name__ == "__main__":

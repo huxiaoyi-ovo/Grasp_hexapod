@@ -1,7 +1,7 @@
 {
   "schema": "COMPACT_CLIMB_REBUILD_PROFILE_V1",
   "version": 1,
-  "template_sha256": "048f986a4df324098335d23b1c8bad9b738ca0df5e5689471c418130d7cba68b",
+  "template_sha256": "4acfafd1766db17cf2b1749a369023c5aca9fa64ee42437e03f5d31ec5a276ab",
   "template_repo_relative_path": "src/grasp_hexapod_control/config/climb_compact.json",
   "model": {
     "repo_relative_path": "src/grasp_hexapod_description/meshes/xiaolan/base_link_xiaolan.STL",
@@ -130,6 +130,7 @@
     "RM_RIGHT_SYMMETRY",
     "BODY_LEFT_TRANSFER_PREP",
     "LB_LOW_STEP",
+    "BODY_RIGHT_BEFORE_LF",
     "LF_LOW_STEP",
     "BODY_PRELOAD_LM",
     "LM_LIFT",
@@ -480,7 +481,7 @@
         {
           "leg": 2,
           "world_point_m": [
-            0.09,
+            0.07,
             -0.06769402266682714,
             0.0065
           ],
@@ -536,8 +537,8 @@
       "pose_end": [
         0.23,
         -0.06769449763600001,
-        0.201,
-        0.0,
+        0.215,
+        -0.16,
         -0.2
       ],
       "active_endpoints": [
@@ -553,12 +554,23 @@
       ]
     },
     {
+      "name": "BODY_RIGHT_BEFORE_LF",
+      "pose_end": [
+        0.232,
+        -0.06769449763600001,
+        0.2,
+        0.0,
+        -0.2
+      ],
+      "active_endpoints": []
+    },
+    {
       "name": "LF_LOW_STEP",
       "pose_end": [
-        0.23,
+        0.232,
         -0.06769449763600001,
-        0.201,
-        0.0,
+        0.226,
+        0.16,
         -0.2
       ],
       "active_endpoints": [

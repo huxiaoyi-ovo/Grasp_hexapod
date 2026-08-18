@@ -30,7 +30,8 @@ ACTIVE_STAGE_NAMES = (
     "RB_RF_SHIFT1", "LM_GROUND_SHIFT1", "RM_PRE_ADVANCE",
     "LB_LF_BODY_ADVANCE_HIGH_STEP", "RB_RF_TOP_INWARD_PAIR", "LM_EDGE_STAGE",
     "BODY_A", "RM_RIGHT_SYMMETRY", "BODY_LEFT_TRANSFER_PREP",
-    "LB_LOW_STEP", "LF_LOW_STEP", "BODY_PRELOAD_LM", "LM_LIFT",
+    "LB_LOW_STEP", "BODY_RIGHT_BEFORE_LF", "LF_LOW_STEP",
+    "BODY_PRELOAD_LM", "LM_LIFT",
     "BODY_ADVANCE_LM_AIR", "LM_LEFT_FINAL_LAND", "RB_DIRECT_FINAL",
     "RF_DIRECT_FINAL", "BODY_REPOSITION_1", "LM_DIRECT_FINAL",
     "RM_DIRECT_FINAL", "BODY_REPOSITION_2", "LB_DIRECT_FINAL",
@@ -84,7 +85,7 @@ def strict_contract(compact):
 
     stages = compact["stages"]
     require(compact["stage_count"] == len(ACTIVE_STAGE_NAMES) == len(stages),
-            "35 active stages")
+            "36 active stages")
     require(tuple(stage["name"] for stage in stages) == ACTIVE_STAGE_NAMES,
             "active stage map")
     for stage in stages:
@@ -109,30 +110,55 @@ def strict_contract(compact):
     require(np.array_equal(np.asarray(c14["anchor_knots"])[0, 2:],
                            np.asarray(c14["anchor_knots"])[1, 2:]),
             "C14 fixed anchors")
-    c19, c20, c21, c22, c23, c24, c25 = stages[18:25]
+    c19, c20, c21, c22, c23, c24, c25, c26 = stages[18:26]
     require(c19["active_legs"] == [], "C19 fixed-body prep")
     require(c20["active_legs"] == [0], "C20 LB-only step")
-    require(c21["active_legs"] == [1], "C21 LF-only step")
-    require(c22["active_legs"] == [], "C22 LM preload")
-    require(c23["active_legs"] == [2] and c24["active_legs"] == [2]
-            and c25["active_legs"] == [2], "C23-C25 LM transfer")
-    require(np.allclose(c25["pose_end"], stages[25]["pose_start"]),
-            "C25 restores RF entry pose")
-    require(stages[25]["active_legs"] == [3], "C26 RB direct final")
-    require(stages[26]["active_legs"] == [4], "C27 RF direct final")
-    require(stages[27]["active_legs"] == [], "C28 body reposition 1")
-    require(stages[28]["active_legs"] == [2], "C29 LM direct final")
-    require(stages[29]["active_legs"] == [5], "C30 RM direct final")
-    require(stages[30]["active_legs"] == [], "C31 body reposition 2")
-    require(stages[31]["active_legs"] == [0], "C32 LB direct final")
-    require(stages[32]["active_legs"] == [1], "C33 LF direct final")
+    require(c21["active_legs"] == [], "C21 fixed-body right shift")
+    require(c22["active_legs"] == [1], "C22 LF-only step")
+    require(c23["active_legs"] == [], "C23 LM preload")
+    require(c20["segment_durations_s"] == [1.4, .9, .8] and
+            np.allclose(c20["pose_start"], [.230, -.06769449763600001,
+                                             .201, 0.0, -.2]) and
+            np.allclose(c20["pose_end"], [.230, -.06769449763600001,
+                                           .215, -.16, -.2]),
+            "C20 folded LB transfer")
+    require(c21["segment_durations_s"] == [.8] and
+            np.allclose(c21["pose_start"], [.230, -.06769449763600001,
+                                             .215, -.16, -.2]) and
+            np.allclose(c21["pose_end"], [.232, -.06769449763600001,
+                                           .200, 0.0, -.2]),
+            "C21 right shift and level return")
+    require(c22["segment_durations_s"] == [1.4, .9, 1.0] and
+            np.allclose(c22["pose_start"], [.232, -.06769449763600001,
+                                             .200, 0.0, -.2]) and
+            np.allclose(c22["pose_end"], [.232, -.06769449763600001,
+                                           .226, .16, -.2]),
+            "C22 folded LF transfer with rising roll")
+    require(c23["segment_durations_s"] == [1.0] and
+            np.allclose(c23["pose_start"], [.232, -.06769449763600001,
+                                             .226, .16, -.2]) and
+            np.allclose(c23["pose_end"], [.234, -.06769449763600001,
+                                           .201, 0.0, -.2]),
+            "C23 descent from elevated left-transfer pose")
+    require(c24["active_legs"] == [2] and c25["active_legs"] == [2]
+            and c26["active_legs"] == [2], "C24-C26 LM transfer")
+    require(np.allclose(c26["pose_end"], stages[26]["pose_start"]),
+            "C26 restores RB entry pose")
+    require(stages[26]["active_legs"] == [3], "C27 RB direct final")
+    require(stages[27]["active_legs"] == [4], "C28 RF direct final")
+    require(stages[28]["active_legs"] == [], "C29 body reposition 1")
+    require(stages[29]["active_legs"] == [2], "C30 LM direct final")
+    require(stages[30]["active_legs"] == [5], "C31 RM direct final")
+    require(stages[31]["active_legs"] == [], "C32 body reposition 2")
+    require(stages[32]["active_legs"] == [0], "C33 LB direct final")
+    require(stages[33]["active_legs"] == [1], "C34 LF direct final")
     for index in range(1, len(stages)):
         require(np.allclose(stages[index - 1]["pose_end"], stages[index]["pose_start"],
                             rtol=0.0, atol=1e-9), "pose boundary")
         require(np.allclose(stages[index - 1]["anchor_knots"][-1],
                             stages[index]["anchor_knots"][0], rtol=0.0, atol=1e-9),
                 "anchor boundary")
-    require(resolve_compact_stage_range(compact, "C1", "C35") == (0, 34),
+    require(resolve_compact_stage_range(compact, "C1", "C36") == (0, 35),
             "active aliases")
 
 
@@ -232,7 +258,7 @@ def replay(compact, strict=False):
             c14_errors.append(np.linalg.norm(actual[:2] - desired[:2], axis=1))
         ticks += 1
     require(controller.climb_mode.state == ClimbMode.DONE, "preview did not finish")
-    for rows in semantic_segments[:34]:
+    for rows in semantic_segments[:35]:
         assert_speed_report(rows, require)
     if strict:
         velocity = np.diff(np.asarray(c14_q), axis=0) / DT
@@ -248,7 +274,7 @@ def replay(compact, strict=False):
         "min_joint_margin_rad": float(min_margin), "min_joint_margin_source": margin_source,
         "global_peak_command_speed_rad_s": float(peak_speed),
         "global_peak_command_speed_source": peak_speed_source,
-        "semantic_segments": semantic_segments[:34],
+        "semantic_segments": semantic_segments[:35],
         "stages": stage_report,
         "model_diagnostic_only": "planned base/raw support margins are geometry diagnostics, not contact/load/stability proof",
         "final_foot_target_error_m": float(controller.climb_mode.last_foot_target_error_m),

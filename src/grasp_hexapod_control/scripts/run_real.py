@@ -1062,7 +1062,7 @@ class RosControlNode:
         self.local_climb_entry_q = None
         self.state = self.RUNNING
         rospy.loginfo(
-            "X accepted: diagnostic replay C1-C35 started with source=%s "
+            "X accepted: diagnostic replay C1-C36 started with source=%s "
             "foot_gate_m=%.3f; joint-feedback gates are not contact/load evidence",
             "isaac_sim_feedback" if self.local_execution else "hardware_feedback",
             gate_m,

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Offline continuous-seed C1--C34 compact trajectory retimer.
+"""Offline continuous-seed C1--C35 compact trajectory retimer.
 
 The default only prints the proposed plan.  Writes require ``--output`` or
 ``--in-place``.  Results are model kinematic diagnostics, not hardware proof.
@@ -22,6 +22,8 @@ from climb_mode import ClimbMode
 from control import GraspController
 from utils import package_config_path
 from utils.climb_retime import (
+    FROZEN_LB_LOW_STEP_INDEX,
+    FROZEN_LF_LOW_STEP_INDEX,
     FROZEN_PRELOAD_INDEX,
     segment_for_time,
     stage_specs,
@@ -45,10 +47,10 @@ def require(value, detail):
 
 
 def allowed_difference(before, after):
-    """Assert that only C1--C34 duration scalars are different."""
+    """Assert that only C1--C35 duration scalars are different."""
 
-    require(before["stage_count"] == after["stage_count"] == 35,
-            "expected active 35-stage compact")
+    require(before["stage_count"] == after["stage_count"] == 36,
+            "expected active 36-stage compact")
     for stage_index, (old_stage, new_stage) in enumerate(
             zip(before["stages"], after["stages"])):
         old_copy, new_copy = copy.deepcopy(old_stage), copy.deepcopy(new_stage)
@@ -56,12 +58,18 @@ def allowed_difference(before, after):
         new_durations = new_copy.pop("segment_durations_s")
         require(old_copy == new_copy,
                 "non-duration stage field changed: C{}".format(stage_index + 1))
-        if stage_index >= 34:
+        if stage_index >= 35:
             require(old_durations == new_durations,
-                    "C35 duration must remain identical")
+                    "C36 duration must remain identical")
+        elif stage_index == FROZEN_LB_LOW_STEP_INDEX:
+            require(old_durations == new_durations == [1.4, 0.9, 0.8],
+                    "C20 LB_LOW_STEP duration contract must remain identical")
         elif stage_index == FROZEN_PRELOAD_INDEX:
-            require(old_durations == new_durations == [0.5],
-                    "C22 BODY_PRELOAD_LM must remain 0.5 s")
+            require(old_durations == new_durations == [1.0],
+                    "C23 BODY_PRELOAD_LM must remain 1.0 s")
+        elif stage_index == FROZEN_LF_LOW_STEP_INDEX:
+            require(old_durations == new_durations == [1.4, 0.9, 1.0],
+                    "C22 LF_LOW_STEP duration contract must remain identical")
     before_top, after_top = copy.deepcopy(before), copy.deepcopy(after)
     before_top.pop("stages")
     after_top.pop("stages")
@@ -83,7 +91,7 @@ def dynamic_tracking_adjust(proposal):
             time_s = controller.climb_mode.phase_time
             before = q.copy()
             q = controller.update(q, np.zeros(4))
-            if stage_index >= 34 or not stage["active_legs"]:
+            if stage_index >= 35 or not stage["active_legs"]:
                 continue
             semantic = segment_for_time(stage_index, stage, time_s)
             speed = float(np.max(np.abs(q - before) / DT))
@@ -106,6 +114,12 @@ def dynamic_tracking_adjust(proposal):
         if not failures:
             return adjustments
         for (stage_index, segment_index), item in sorted(failures.items()):
+            require(stage_index not in (
+                FROZEN_LB_LOW_STEP_INDEX,
+                FROZEN_LF_LOW_STEP_INDEX,
+                FROZEN_PRELOAD_INDEX,
+            ), "frozen user trajectory exceeds 30 Hz tracking gate: " +
+                    item["stage"])
             old_duration = proposal["stages"][stage_index]["segment_durations_s"][
                 segment_index]
             scale = max(1.05, 1.02 * item["error_m"] / TRACKING_ERROR_LIMIT_M)
@@ -136,7 +150,7 @@ def retime(compact):
     mode = ClimbMode(None)
     mode.config = compact
     report = []
-    for stage_index, stage in enumerate(compact["stages"][:34]):
+    for stage_index, stage in enumerate(compact["stages"][:35]):
         rows = []
         elapsed = 0.0
         for spec in stage_specs(stage_index, stage):
@@ -160,8 +174,10 @@ def retime(compact):
                     )
                 previous_q = q.copy()
                 previous_s = normalized_s
-            if stage_index == FROZEN_PRELOAD_INDEX:
-                new_duration = 0.50
+            if stage_index in (FROZEN_LB_LOW_STEP_INDEX,
+                               FROZEN_LF_LOW_STEP_INDEX,
+                               FROZEN_PRELOAD_INDEX):
+                new_duration = spec["duration_s"]
             else:
                 new_duration = round_up_centisecond(max(
                     spec["minimum_duration_s"],

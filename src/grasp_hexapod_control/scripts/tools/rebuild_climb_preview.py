@@ -30,6 +30,50 @@ def finite(value):
     return not isinstance(value, float) or np.isfinite(value)
 
 
+def world_from_base(base):
+    """Build the compact plan's world-from-base transform."""
+
+    x, y, z, roll, pitch = np.asarray(base, dtype=float)
+    cosine_r, sine_r = np.cos(roll), np.sin(roll)
+    cosine_p, sine_p = np.cos(pitch), np.sin(pitch)
+    rotation_x = np.array(((1.0, 0.0, 0.0),
+                           (0.0, cosine_r, -sine_r),
+                           (0.0, sine_r, cosine_r)))
+    rotation_y = np.array(((cosine_p, 0.0, sine_p),
+                           (0.0, 1.0, 0.0),
+                           (-sine_p, 0.0, cosine_p)))
+    output = np.eye(4)
+    output[:3, :3] = rotation_y @ rotation_x
+    output[:3, 3] = (x, y, z)
+    return output
+
+
+def refresh_active_base_knots(stage):
+    """Rebuild mixed-frame active knots after endpoint or body edits."""
+
+    if stage["anchor_curve"] != "piecewise_base_quintic":
+        return
+    knots = np.asarray(stage["anchor_knots"], dtype=float)
+    durations = np.asarray(stage["segment_durations_s"], dtype=float)
+    knot_times = np.r_[0.0, np.cumsum(durations)]
+    total = float(knot_times[-1])
+    pose_start = np.asarray(stage["pose_start"], dtype=float)
+    pose_end = np.asarray(stage["pose_end"], dtype=float)
+    active = np.asarray(stage["active_legs"], dtype=np.int64)
+    active_base = []
+    for knot_index, time_s in enumerate(knot_times):
+        phase = float(time_s / total)
+        weight = phase ** 3 * (10.0 - 15.0 * phase + 6.0 * phase ** 2)
+        pose = pose_start * (1.0 - weight) + pose_end * weight
+        inverse = np.linalg.inv(world_from_base(pose))
+        base = (
+            np.column_stack((knots[knot_index, active], np.ones(len(active))))
+            @ inverse.T
+        )
+        active_base.append(base[:, :3])
+    stage["active_base_knots_m"] = np.asarray(active_base).tolist()
+
+
 def repo_path(path):
     """Return a repository-relative model path or reject an out-of-tree path."""
     return str(Path(path).resolve().relative_to(ROOT))
@@ -156,7 +200,9 @@ def build(template_path, profile_path, output, scope_output):
         for leg in range(6):
             if leg not in stage["active_legs"] and not np.allclose(knots[:, leg], previous[leg]):
                 knots[:, leg] = previous[leg]; propagated.append(stage["name"] + ":" + str(leg))
-        stage["anchor_knots"] = knots.tolist(); previous, previous_pose = knots[-1], desired_pose
+        stage["anchor_knots"] = knots.tolist()
+        refresh_active_base_knots(stage)
+        previous, previous_pose = knots[-1], desired_pose
     if not finite(result): raise ValueError("build produced non-finite candidate")
     boundary_values = []
     for index in range(1, len(result["stages"])):

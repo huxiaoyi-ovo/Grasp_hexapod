@@ -151,6 +151,17 @@ class ClimbMode:
             )
             active = stage.get("active_legs")
             anchor_curve = stage.get("anchor_curve")
+            active_base_knots = np.asarray(
+                stage.get("active_base_knots_m", []), dtype=np.float64
+            )
+            base_piecewise_curve = bool(
+                anchor_curve == "piecewise_base_quintic"
+                and isinstance(active, list)
+                and active
+                and active_base_knots.shape
+                == (len(knots), len(active), 3)
+                and np.all(np.isfinite(active_base_knots))
+            )
             relative_height = stage.get("relative_swing_height_m")
             relative_curve = bool(
                 anchor_curve == "relative_base_high_step"
@@ -177,7 +188,8 @@ class ClimbMode:
                 or len(set(active)) != len(active)
                 or stage.get("pose_curve") != "quintic_full_stage"
                 or not (
-                    anchor_curve == "piecewise_quintic"
+                    (anchor_curve == "piecewise_quintic" and not active)
+                    or base_piecewise_curve
                     or relative_curve
                 )
                 or not isinstance(stage.get("settle_s"), (int, float))
@@ -191,6 +203,31 @@ class ClimbMode:
                 )
             ):
                 raise ValueError("compact stage boundary mismatch: " + stage["name"])
+            if base_piecewise_curve:
+                active_index = np.asarray(active, dtype=np.int64)
+                for endpoint, endpoint_pose, knot_index in (
+                    (knots[0], pose_start, 0),
+                    (knots[-1], pose_end, -1),
+                ):
+                    endpoint_world = (
+                        np.column_stack(
+                            (
+                                active_base_knots[knot_index],
+                                np.ones(len(active)),
+                            )
+                        )
+                        @ self._world_from_base(endpoint_pose).T
+                    )[:, :3]
+                    if not np.allclose(
+                        endpoint_world,
+                        endpoint[active_index],
+                        rtol=0.0,
+                        atol=1e-9,
+                    ):
+                        raise ValueError(
+                            "base-relative endpoint mismatch: "
+                            + stage["name"]
+                        )
             previous_pose = pose_end
             previous_anchors = knots[-1]
         if len(set(names)) != len(names):
@@ -330,6 +367,8 @@ class ClimbMode:
                 pose_weight,
                 phase,
             )
+        elif stage["anchor_curve"] == "piecewise_base_quintic":
+            anchors = self._piecewise_base(stage, pose)
         else:
             anchors = self._piecewise(knots, durations)
         if self.phase_time >= total:
@@ -364,6 +403,24 @@ class ClimbMode:
         )
         anchors = knots[0].copy()
         anchors[active] = current_world[active, :3]
+        return anchors
+
+    def _piecewise_base(self, stage, pose):
+        """在base_link中插值活动腿，固定支撑腿保持世界锚点。"""
+
+        knots = np.asarray(stage["anchor_knots"], dtype=np.float64)
+        durations = stage["segment_durations_s"]
+        active = np.asarray(stage["active_legs"], dtype=np.int64)
+        active_base = self._piecewise(
+            np.asarray(stage["active_base_knots_m"], dtype=np.float64),
+            durations,
+        )
+        current_world = (
+            np.column_stack((active_base, np.ones(len(active))))
+            @ self._world_from_base(pose).T
+        )
+        anchors = self._piecewise(knots, durations)
+        anchors[active] = current_world[:, :3]
         return anchors
 
     def _piecewise(self, knots, durations):

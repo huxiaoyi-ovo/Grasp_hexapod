@@ -491,6 +491,33 @@ def test_runtime_climb_settle_gate_uses_15mm_foot_error_and_80mrad_joint_gate():
     assert settle_gate["max_joint_tracking_error_rad"] == 0.08
 
 
+def test_active_climb_feet_use_base_relative_paths_and_audited_clearance():
+    config = json.loads(
+        (SCRIPTS.parent / "config" / "climb_compact.json").read_text()
+    )
+    for stage in config["stages"]:
+        if not stage["active_legs"]:
+            continue
+        assert stage["anchor_curve"] in (
+            "piecewise_base_quintic",
+            "relative_base_high_step",
+        )
+
+    pair = np.asarray(config["stages"][3]["active_base_knots_m"])
+    pair_clearance = np.max(pair[:, :, 2], axis=0) - np.maximum(
+        pair[0, :, 2], pair[-1, :, 2]
+    )
+    assert (pair_clearance >= 0.10).all()
+
+    rm_symmetry = np.asarray(
+        config["stages"][17]["active_base_knots_m"]
+    )
+    rm_clearance = np.max(rm_symmetry[:, 0, 2]) - max(
+        rm_symmetry[0, 0, 2], rm_symmetry[-1, 0, 2]
+    )
+    assert np.isclose(rm_clearance, 0.04)
+
+
 def test_hardware_climb_never_advances_on_time_without_settled_feedback():
     controller = GraspController(1.0 / 30.0)
     controller.enter_climb(Q_STAND, hardware_execution=True)

@@ -65,6 +65,20 @@ def finite_json(value):
     return not isinstance(value, float) or np.isfinite(value)
 
 
+def base_relative_clearances(stage):
+    """Return each active leg's configured base-link swing clearance."""
+
+    if not stage["active_legs"]:
+        return []
+    if stage["anchor_curve"] == "relative_base_high_step":
+        return [float(stage["relative_swing_height_m"])] * len(
+            stage["active_legs"]
+        )
+    knots = np.asarray(stage["active_base_knots_m"], dtype=np.float64)
+    endpoint = np.maximum(knots[0, :, 2], knots[-1, :, 2])
+    return (np.max(knots[:, :, 2], axis=0) - endpoint).tolist()
+
+
 def strict_contract(compact):
     """Lock the accepted active plan's identity-specific invariants."""
 
@@ -73,6 +87,16 @@ def strict_contract(compact):
             "35 active stages")
     require(tuple(stage["name"] for stage in stages) == ACTIVE_STAGE_NAMES,
             "active stage map")
+    for stage in stages:
+        if not stage["active_legs"]:
+            continue
+        require(stage["anchor_curve"] in (
+            "piecewise_base_quintic", "relative_base_high_step"),
+            "active feet must use base-relative trajectories: " + stage["name"])
+    require(min(base_relative_clearances(stages[3])) >= .10,
+            "C4 RB/RF first-platform clearance >= 100 mm")
+    require(np.isclose(base_relative_clearances(stages[17])[0], .04),
+            "C18 RM relative clearance = 40 mm")
     require(stages[10]["active_legs"] == [3], "C11 RB-only shift")
     require(stages[11]["active_legs"] == [2], "C12 LM shift")
     require(stages[12]["active_legs"] == [5], "C13 RM pre-advance")
@@ -121,6 +145,7 @@ def replay(compact, strict=False):
     stages = compact["stages"]
     stage_report = [
         {"name": stage["name"], "max_active_foot_error_m": 0.0,
+         "base_relative_clearance_m": base_relative_clearances(stage),
          "max_active_foot_error_source": (None if stage["active_legs"] else {
              "leg": None, "tick": None, "reason": "no active legs"}),
          "fixed_support_thigh_peak_rad": 0.0,

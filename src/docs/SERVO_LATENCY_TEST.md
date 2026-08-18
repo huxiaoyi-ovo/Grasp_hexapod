@@ -46,10 +46,10 @@ q = direction * radians((raw - 500) / (1000 / 240))
 
 ## 测试步骤
 
-1. 单独启动三块Servo节点：
+1. 单独启动两块Servo节点：
 
 ```bash
-roslaunch grasp_hexapod_servo servo_three_boards.launch
+roslaunch grasp_hexapod_servo servo_two_boards.launch
 ```
 
 2. 在另一终端启动公共控制链，架空机器人并按B进入站姿：
@@ -58,7 +58,7 @@ roslaunch grasp_hexapod_servo servo_three_boards.launch
 roslaunch grasp_hexapod_control control_stack.launch
 ```
 
-3. 站姿稳定后只停止第二个终端的公共控制链，保持第一个终端的三块
+3. 站姿稳定后只停止第二个终端的公共控制链，保持第一个终端的两块
    Servo节点运行并维持最后站姿。
 4. 记录目标和反馈：
 

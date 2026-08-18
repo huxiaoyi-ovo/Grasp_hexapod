@@ -23,17 +23,17 @@ roslaunch grasp_hexapod_control run_real.launch
 roslaunch grasp_hexapod_control run_real.launch mode:=navigation
 ```
 
-开发机上的`ttyUSB`编号可能变化，可以在启动时覆盖：
+串口名称可在启动时覆盖：
 
 ```bash
 roslaunch grasp_hexapod_control run_real.launch \
   joy_dev:=/dev/input/js0 \
-  left_port:=/dev/ttyUSB0 \
-  right_port:=/dev/ttyUSB1 \
-  mid_port:=/dev/ttyUSB2
+  left_port:=/dev/ttyTHS0 \
+  right_port:=/dev/ttyACM0
 ```
 
-工控机部署时再用稳定的`/dev/serial/by-id/...`路径替换三个串口参数。
+默认即为 Jetson 板载串口`/dev/ttyTHS0`（left）和 USB 串口`/dev/ttyACM0`（right），
+串口名称变化时再显式覆盖。
 
 仿真和实机默认都使用`0.20 m/s`平移、`0.02 m/s`升降。
 实机控制器与Servo串口均以30 Hz运行，并使用33 ms位置插值。
@@ -45,16 +45,14 @@ roslaunch grasp_hexapod_control run_real.launch \
   max_vertical_speed:=0.003
 ```
 
-当前工控机上三块板依次为`left=/dev/ttyUSB1`、`right=/dev/ttyUSB2`、
-`mid=/dev/ttyUSB0`。如果无法在30 Hz内完成整机连杆碰撞计算，使用下面的
-完整指令临时关闭这一项：
+当前两块板依次为`left=/dev/ttyTHS0`、`right=/dev/ttyACM0`。如果无法在
+30 Hz内完成整机连杆碰撞计算，使用下面的完整指令临时关闭这一项：
 
 ```bash
 roslaunch grasp_hexapod_control run_real.launch \
   joy_dev:=/dev/input/js0 \
-  left_port:=/dev/ttyUSB1 \
-  right_port:=/dev/ttyUSB2 \
-  mid_port:=/dev/ttyUSB0 \
+  left_port:=/dev/ttyTHS0 \
+  right_port:=/dev/ttyACM0 \
   enable_link_collision_check:=false
 ```
 
@@ -205,17 +203,16 @@ rostopic echo /lf_des
 rosparam get /grasp_hexapod_control/control_source
 rosparam get /servo_left_node/port
 rosparam get /servo_right_node/port
-rosparam get /servo_mid_node/port
 ```
 
-仅启动三块舵机板：
+仅启动两块舵机板：
 
 ```bash
-roslaunch grasp_hexapod_servo servo_three_boards.launch
+roslaunch grasp_hexapod_servo servo_two_boards.launch
 ```
 
 ## 文件职责
 
-- `run_real.launch`：公共控制链加三块Servo板。
+- `run_real.launch`：公共控制链加两块Servo板。
 - `run_sim_ros.launch`：ROS输入加Isaac内部同步控制循环。
 - `control_stack.launch`：实机复用的`joy_node`和高层控制节点，不作为日常入口。

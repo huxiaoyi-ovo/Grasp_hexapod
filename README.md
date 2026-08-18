@@ -1,6 +1,6 @@
 # Grasp Hexapod
 
-这是一个基于 ROS Noetic 的六足机器人工作空间。项目使用手写控制器，支持 Isaac Gym 仿真和三块 LX-15D 舵机板实机运行。
+这是一个基于 ROS Noetic 的六足机器人工作空间。项目使用手写控制器，支持 Isaac Gym 仿真和两块 LX-15D 舵机板实机运行。
 
 ## 目录
 
@@ -55,21 +55,19 @@ roslaunch grasp_hexapod_control run_sim_ros.launch
 
 ## 实机部署
 
-三块驱动板的默认映射如下。`left`、`right`、`mid` 是启动参数中的板标识。
+两块驱动板的默认映射如下。`left`、`right` 是启动参数中的板标识。
 
 | 板 | 腿 | 舵机 ID | 默认串口 |
 |---|---|---|---|
-| `left` | `lf`、`lm` | 1～6 | `/dev/ttyUSB0` |
-| `right` | `rf`、`rm` | 10～15 | `/dev/ttyUSB1` |
-| `mid` | `lb`、`rb` | 7～9、16～18 | `/dev/ttyUSB2` |
+| `left` | `lf`、`lm`、`lb` | 1～9 | `/dev/ttyTHS0` |
+| `right` | `rf`、`rm`、`rb` | 10～18 | `/dev/ttyACM0` |
 
-部署时优先使用稳定的 `/dev/serial/by-id/...` 路径：
+串口名称变化时可在启动时覆盖：
 
 ```bash
 roslaunch grasp_hexapod_control run_real.launch \
-  left_port:=/dev/serial/by-id/<left-board> \
-  right_port:=/dev/serial/by-id/<right-board> \
-  mid_port:=/dev/serial/by-id/<mid-board>
+  left_port:=/dev/ttyTHS0 \
+  right_port:=/dev/ttyACM0
 ```
 
 首次架空测试可显式降低速度：

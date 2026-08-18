@@ -1,11 +1,10 @@
 <launch>
-  <!-- 实机链路：joy -> GraspController -> 三块Servo板。 -->
+  <!-- 实机链路：joy -> GraspController -> 两块Servo板。 -->
   <arg name="joy_dev" default="/dev/input/js0"/>
   <!-- mode只允许teleop或navigation；导航模式下手柄仍可接管。 -->
   <arg name="mode" default="teleop"/>
-  <arg name="left_port" default="/dev/ttyUSB0"/>
-  <arg name="right_port" default="/dev/ttyUSB1"/>
-  <arg name="mid_port" default="/dev/ttyUSB2"/>
+  <arg name="left_port" default="/dev/ttyTHS0"/>
+  <arg name="right_port" default="/dev/ttyACM0"/>
 
   <arg name="controller_rate_hz" default="30.0"/>
   <arg name="enable_link_collision_check" default="true"/>
@@ -101,10 +100,9 @@
     <arg name="dock_max_perception_age" value="$(arg dock_max_perception_age)"/>
   </include>
 
-  <include file="$(find grasp_hexapod_servo)/launch/servo_three_boards.launch">
+  <include file="$(find grasp_hexapod_servo)/launch/servo_two_boards.launch">
     <arg name="left_port" value="$(arg left_port)"/>
     <arg name="right_port" value="$(arg right_port)"/>
-    <arg name="mid_port" value="$(arg mid_port)"/>
     <arg name="servo_rate_hz" value="$(arg servo_rate_hz)"/>
     <arg name="command_duration_ms" value="$(arg command_duration_ms)"/>
   </include>

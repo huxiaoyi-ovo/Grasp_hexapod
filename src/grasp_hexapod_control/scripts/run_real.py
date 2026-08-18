@@ -1119,7 +1119,7 @@ class RosControlNode:
         )
 
     def step(self):
-        """实机循环：读取完整反馈，计算一次目标并发布给三块Servo板。"""
+        """实机循环：读取完整反馈，计算一次目标并发布给两块Servo板。"""
         with self.lock:
             q_cur = self.q_cur.copy()
             feedback_stamp = self.feedback_stamp.copy()

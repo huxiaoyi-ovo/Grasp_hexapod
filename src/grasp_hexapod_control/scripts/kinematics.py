@@ -238,6 +238,26 @@ class GraspKinematic:
 
         return points
 
+    def collision_points_base(self, joint_angles):
+        """返回碰撞专用髋、膝、踝、ankle L拐点和足端，shape=(6,5,3)。"""
+
+        transforms = self.link_transforms_base(joint_angles)
+        ankle_corner_local = np.array(
+            [FOOT_OFFSET_ANKLE[0], 0.0, FOOT_OFFSET_ANKLE[2], 1.0],
+            dtype=np.float64,
+        )
+        ankle_corner = transforms[:, 2] @ ankle_corner_local
+        return np.stack(
+            (
+                transforms[:, 0, :3, 3],
+                transforms[:, 1, :3, 3],
+                transforms[:, 2, :3, 3],
+                ankle_corner[:, :3],
+                transforms[:, 3, :3, 3],
+            ),
+            axis=1,
+        )
+
     def jacobian_leg(self, leg_index, joint_angles):
         """计算一条腿足端位置对三个关节角的3×3雅可比。"""
         joint_angles = np.asarray(

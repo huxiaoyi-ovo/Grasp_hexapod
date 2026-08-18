@@ -13,6 +13,7 @@ from typing import Mapping
 import cv2
 import numpy as np
 import rospy
+import yaml
 from apriltag_ros.msg import AprilTagDetectionArray
 from cv_bridge import CvBridge, CvBridgeError
 from sensor_msgs.msg import CameraInfo, Image, JointState
@@ -32,6 +33,7 @@ from kinematics import (
 )
 from utils import (
     CONTROL_DOF_NAMES,
+    package_config_path,
     pose_to_transform,
     transform_points,
     yaw_from_transform,
@@ -76,18 +78,66 @@ MAX_ANGLE_ERROR = np.deg2rad(15.0)
 transform = rigid_transform
 
 
-LOCK_FROM_CAMERA = transform(
-    (0.0, -0.065, -0.0325), np.diag((1.0, -1.0, -1.0))
-)
-PIN_FROM_TAG = {
-    tag_id: transform(xyz)
-    for tag_id, xyz in {
-        0: (0.0, 0.100, -0.037),
-        1: (0.100, 0.0, -0.037),
-        2: (0.0, -0.100, -0.037),
-        3: (-0.100, 0.0, -0.037),
-    }.items()
-}
+def load_dock_system(path=None):
+    """严格加载底部USB相机的唯一DOCK标签与几何配置。"""
+
+    config_path = package_config_path("dock_system.yaml") if path is None else path
+    with open(config_path, encoding="utf-8") as config_file:
+        config = yaml.safe_load(config_file)
+    if not isinstance(config, Mapping):
+        raise ValueError("dock_system.yaml must be a mapping")
+    tag_ids = tuple(config.get("tag_ids", ()))
+    if tag_ids != (0, 1, 2, 3):
+        raise ValueError("dock_system.yaml tag_ids must be exactly 0..3")
+    tag_size = float(config.get("tag_size_m", 0.0))
+    if config.get("tag_family") != "tag36h11" or tag_size <= 0.0:
+        raise ValueError("dock_system.yaml requires tag36h11 and positive size")
+    descriptions = config.get("standalone_tags")
+    if not isinstance(descriptions, list) or {
+        int(item.get("id", -1)) for item in descriptions
+    } != set(tag_ids) or any(
+        not np.isclose(float(item.get("size", 0.0)), tag_size)
+        for item in descriptions
+    ):
+        raise ValueError("dock_system.yaml standalone_tags must match tag_ids/size")
+    lock = config.get("lock_from_camera", {})
+    lock_translation = np.asarray(lock.get("translation_m"), dtype=float)
+    lock_rotation = np.asarray(lock.get("rotation"), dtype=float)
+    if lock_translation.shape != (3,) or lock_rotation.shape != (3, 3):
+        raise ValueError("dock_system.yaml lock_from_camera shape is invalid")
+    if not np.isfinite(lock_translation).all() or not np.isfinite(lock_rotation).all():
+        raise ValueError("dock_system.yaml lock_from_camera must be finite")
+    if not np.allclose(lock_rotation.T @ lock_rotation, np.eye(3), atol=1e-8):
+        raise ValueError("dock_system.yaml lock rotation must be orthogonal")
+    pin_source = config.get("pin_from_tag_m")
+    if not isinstance(pin_source, Mapping) or {
+        int(tag_id) for tag_id in pin_source
+    } != set(tag_ids):
+        raise ValueError("dock_system.yaml pin_from_tag_m ids must match tag_ids")
+    pin_from_tag = {}
+    for tag_id in tag_ids:
+        translation_m = np.asarray(pin_source[str(tag_id)], dtype=float)
+        if translation_m.shape != (3,) or not np.isfinite(translation_m).all():
+            raise ValueError("dock_system.yaml pin_from_tag_m must be finite xyz")
+        pin_from_tag[tag_id] = transform(translation_m)
+    if not isinstance(config.get("real_calibrated"), bool):
+        raise ValueError("dock_system.yaml real_calibrated must be bool")
+    return {
+        "path": str(config_path),
+        "tag_ids": tag_ids,
+        "tag_size_m": tag_size,
+        "lock_from_camera": transform(lock_translation, lock_rotation),
+        "pin_from_tag": pin_from_tag,
+        "real_calibrated": config["real_calibrated"],
+    }
+
+
+DOCK_SYSTEM = load_dock_system()
+TAG_IDS = DOCK_SYSTEM["tag_ids"]
+TAG_SIZE = DOCK_SYSTEM["tag_size_m"]
+LOCK_FROM_CAMERA = DOCK_SYSTEM["lock_from_camera"]
+PIN_FROM_TAG = DOCK_SYSTEM["pin_from_tag"]
+REAL_CALIBRATED = DOCK_SYSTEM["real_calibrated"]
 TAG_FROM_PIN = {
     tag_id: np.linalg.inv(pose) for tag_id, pose in PIN_FROM_TAG.items()
 }
@@ -101,10 +151,17 @@ TAG_CORNERS = np.array([
 ], dtype=np.float32)
 
 
-def make_board(dictionary, pin_from_tag=PIN_FROM_TAG):
+def make_board(dictionary, pin_from_tag=PIN_FROM_TAG, tag_size=TAG_SIZE):
+    half_tag = float(tag_size) / 2.0
+    tag_corners = np.array([
+        (-half_tag, half_tag, 0.0),
+        (half_tag, half_tag, 0.0),
+        (half_tag, -half_tag, 0.0),
+        (-half_tag, -half_tag, 0.0),
+    ], dtype=np.float32)
     corners = [
         (
-            TAG_CORNERS @ PIN_FROM_OPENCV_TAG_ROTATION.T
+            tag_corners @ PIN_FROM_OPENCV_TAG_ROTATION.T
             + pin_from_tag[tag_id][:3, 3]
         ).astype(np.float32)
         for tag_id in TAG_IDS
@@ -223,9 +280,9 @@ class DockPerception:
 
     def __init__(
         self,
-        detections_topic="/tag_detections",
-        image_topic="/usb_cam/image_raw",
-        camera_info_topic="/usb_cam/camera_info",
+        detections_topic="/dock/tag_detections",
+        image_topic="/dock_camera/image_raw",
+        camera_info_topic="/dock_camera/camera_info",
         allow_inference=False,
         min_stable_frames=10,
         max_stable_position=0.003,
@@ -233,16 +290,22 @@ class DockPerception:
         max_age=0.2,
         lock_from_camera=LOCK_FROM_CAMERA,
         tag_from_pin=None,
+        dock_system_path=None,
     ):
+        dock_system = load_dock_system(dock_system_path)
         self.allow_inference = bool(allow_inference)
         self.min_stable_frames = max(1, int(min_stable_frames))
         self.max_stable_position = float(max_stable_position)
         self.max_stable_angle = float(max_stable_angle)
         self.max_age = float(max_age)
         self.lock_from_camera = np.asarray(
-            lock_from_camera, dtype=float
+            dock_system["lock_from_camera"] if lock_from_camera is LOCK_FROM_CAMERA
+            else lock_from_camera, dtype=float
         ).reshape(4, 4).copy()
-        source = TAG_FROM_PIN if tag_from_pin is None else tag_from_pin
+        source = (
+            {tag_id: np.linalg.inv(pose) for tag_id, pose in dock_system["pin_from_tag"].items()}
+            if tag_from_pin is None else tag_from_pin
+        )
         self.tag_from_pin = {
             int(tag_id): np.asarray(pose, dtype=float).reshape(4, 4).copy()
             for tag_id, pose in source.items()
@@ -268,7 +331,9 @@ class DockPerception:
             tag_id: np.linalg.inv(pose)
             for tag_id, pose in self.tag_from_pin.items()
         }
-        self.board = make_board(self.dictionary, pin_from_tag)
+        self.board = make_board(
+            self.dictionary, pin_from_tag, dock_system["tag_size_m"]
+        )
         self.subscriber = rospy.Subscriber(
             detections_topic,
             AprilTagDetectionArray,
@@ -1724,4 +1789,8 @@ class DockMode:
         self._clear(self.IDLE)
 
 
-__all__ = ("DockMode", "DockResult", "DockRobotState")
+__all__ = (
+    "DockMode", "DockResult", "DockRobotState", "DockPerception",
+    "TAG_IDS", "TAG_SIZE", "LOCK_FROM_CAMERA", "PIN_FROM_TAG",
+    "REAL_CALIBRATED", "load_dock_system",
+)

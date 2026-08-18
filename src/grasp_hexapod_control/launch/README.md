@@ -90,12 +90,12 @@ roslaunch grasp_hexapod_control run_sim_ros.launch \
 
 ROS仿真默认使用`/usr/bin/python3`，因为它同时具备ROS的`rospy/rospkg`
 和Isaac Gym所需的Python 3.8 ABI。原Python直启链路才使用conda环境。
-ROS仿真默认使用60 Hz控制器和60 Hz Isaac执行节拍，与原Python仿真一致。
-实机舵机节点仍按30 Hz发送带33 ms运动时间的指令。若只想观察30 Hz
-零阶保持对Isaac位置驱动的影响，可以显式运行：
+ROS仿真默认使用30 Hz控制器、30 Hz执行器写入和240 Hz物理步进，与实机目标
+节拍一致。若需要60 Hz诊断，必须同时覆盖控制器和执行器频率，并保持物理频率可整除：
 
 ```bash
-roslaunch grasp_hexapod_control run_sim_ros.launch actuator_rate_hz:=30.0
+roslaunch grasp_hexapod_control run_sim_ros.launch \
+  controller_rate_hz:=60.0 actuator_rate_hz:=60.0 physics_rate_hz:=240.0
 ```
 
 原来的非ROS仿真链路仍然保留：
@@ -138,14 +138,47 @@ B -> 等待回到标准站姿 -> A -> 接受运动指令
 - B：最高优先级，停止当前行为并回到站姿。
 - A：站姿初始化完成后启用或暂停运动。
 - X（默认索引2）：`run_real.launch`默认启用。完成B回站、Joy和18关节反馈新鲜并通过compact入口关节门限后，按X从C1启动完整C1--C35诊断回放；A暂停或恢复，B可随时中止。阶段只按实际关节跟踪与FK足端目标误差的连续稳定门限推进。IMU和RTK/LoRa不要求；若启动瞬间两者恰好有效，才启用可选相对运动监控。关节反馈门限不证明接触、承载或稳定性；可用`enable_real_climb:=false`显式关闭该入口。
-- Y（默认索引3）：默认禁用。只有显式传入`enable_real_dock:=true`、已完成B回站、反馈/手柄/IMU新鲜且没有运行中的攀爬时，才进入DockMode。DockMode等待稳定的完整AprilTag输入；它只把18关节候选交给同一个`run_real.py -> GraspController -> /<leg>_des`链路，未另行发布舵机或`JointTrajectory`命令。完成或失败都进入HOLD，B可随时中止。
+- Y（默认索引3）：`run_real.launch`默认启用。完成B回站、Joy和18关节反馈新鲜且没有运行中的攀爬时，按Y进入DockMode；不依赖IMU或RTK。DockMode等待稳定的完整AprilTag输入；它只把18关节候选交给同一个`run_real.py -> GraspController -> /<leg>_des`链路，未另行发布舵机或`JointTrajectory`命令。完成或失败都进入HOLD，B可随时中止。
 - 导航运行时推动任一运动摇杆会取消导航并锁存为手柄控制。
 - 松开摇杆不会恢复导航；按B重新初始化，再按A才会重新规划。
 
 整机状态为`WAIT_B -> RESETTING -> HOLD <-> RUNNING`。`ApproachMode`
 内部的摆动腿、支撑腿和换相状态始终保留。
 
-IMU和RTK/LoRa话题保留为攀爬诊断回放的可选相对运动监控接口，不是启动或推进条件。Dock的传感器话题仍必须明确提供，不会猜测相机设备号、内参或标定；常用参数包括`imu_topic`、`lock_confirmed_topic`、`dock_detections_topic`、`dock_image_topic`和`dock_camera_info_topic`。AprilTag推断与锁紧确认分别由`dock_allow_inference`和`dock_require_lock_confirmation`显式控制，默认均为`false`。若要关闭默认实机诊断回放入口：
+IMU和RTK/LoRa话题保留为攀爬诊断回放的可选相对运动监控接口，不是启动或推进条件。DOCK使用独立底部USB链：`/dock_camera/image_raw -> image_proc -> /dock_camera/image_rect_color -> /dock/tag_detections`；它与顶部Orbbec及`xiaolan_tag_system.launch`严格分离。
+
+先安装相机与标定工具：
+
+```bash
+sudo apt install ros-noetic-usb-cam ros-noetic-image-proc ros-noetic-apriltag-ros \
+  ros-noetic-nodelet ros-noetic-camera-calibration python3-opencv python3-yaml
+```
+
+必须以最终实机分辨率和像素格式完成标定。下面的棋盘格`8x6`、格长`0.025 m`只是示例，必须替换为实际棋盘参数：
+
+```bash
+rosrun camera_calibration cameracalibrator.py --size 8x6 --square 0.025 \
+  image:=/dock_camera/image_raw camera:=/dock_camera
+```
+
+保存内参 YAML 后，使用绝对路径让USB相机读取它；相机外参必须以相机光学帧到卡紧机构为实测值。Tag size 是黑白边界的有效边长，不是标签纸张外沿。推荐把`dock_system.yaml`复制为部署文件，写入实测外参与`real_calibrated: true`，并在同一条启动命令中把该绝对路径同时交给 detector 与控制器：
+
+```bash
+roslaunch grasp_hexapod_control run_real.launch \
+  dock_camera_info_url:=file:///absolute/path/dock_camera.yaml \
+  dock_system_config:=/absolute/path/dock_system.yaml
+```
+
+仅在机器人架空状态下检查节点、频率和检测输入：
+
+```bash
+roslaunch --nodes src/grasp_hexapod_control/launch/dock_tag_system.launch
+rostopic hz /dock_camera/image_rect_color
+rostopic echo -n1 /dock_camera/camera_info
+rostopic echo -n1 /dock/tag_detections
+```
+
+`run_real.launch`默认启动该链，可用`start_dock_perception:=false`关闭。默认未标定时Y会被`dock_require_real_calibrated:=true`阻止；仅在架空调试时可显式传入`dock_allow_uncalibrated:=true`。视觉检测、对准或锁紧话题通过都不证明物理锁紧、接触、承载或整机安全。`dock_allow_inference`和`dock_require_lock_confirmation`仍默认`false`；未要求锁紧确认时，`SUCCESS`只表示对准流程完成，不证明物理锁紧。锁紧确认只接受本次Y启动后、`dock_lock_confirmation_max_age_s`（默认0.5 s）内的新消息。若要关闭默认攀爬诊断回放入口：
 
 ```bash
 roslaunch grasp_hexapod_control run_real.launch enable_real_climb:=false

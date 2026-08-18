@@ -2,6 +2,7 @@
 """纯CPU回归：实机模式仲裁和公共关节目标安全门。"""
 
 import importlib.util
+import json
 from pathlib import Path
 import sys
 import types
@@ -28,6 +29,9 @@ def _install_ros_stubs():
     rospy.loginfo = lambda *args, **kwargs: None
     rospy.logwarn = lambda *args, **kwargs: None
     rospy.logwarn_throttle = lambda *args, **kwargs: None
+    rospy.Time = types.SimpleNamespace(
+        now=lambda: types.SimpleNamespace(to_sec=lambda: 1.0)
+    )
     sys.modules.setdefault("rospy", rospy)
 
     geometry = types.ModuleType("geometry_msgs.msg")
@@ -71,8 +75,8 @@ finally:
             sys.modules[_name] = _module
 
 from climb_mode import ClimbMode
-from control import GraspController
-from kinematics import Q_STAND
+from control import COLLISION_MARGIN, LINK_COLLISION_RADII, GraspController
+from kinematics import JOINT_LOWER, JOINT_UPPER, Q_STAND
 
 
 class _Mission:
@@ -136,6 +140,16 @@ def test_run_real_launch_enables_climb_by_default():
         for argument in launch.findall("arg")
     }
     assert arguments["enable_real_climb"] == "true"
+
+
+def test_real_launches_enable_dock_by_default():
+    for launch_name in ("run_real.launch", "control_stack.launch"):
+        launch = ET.parse(SCRIPTS.parent / "launch" / launch_name)
+        arguments = {
+            argument.attrib["name"]: argument.attrib.get("default")
+            for argument in launch.findall("arg")
+        }
+        assert arguments["enable_real_dock"] == "true"
 
 
 def test_dual_board_frame_waits_until_all_six_legs_are_new():
@@ -353,6 +367,40 @@ def test_x_enables_optional_monitoring_when_imu_and_rtk_are_fresh():
     assert node.climb_start_planned_pose is not None
 
 
+def test_y_starts_dock_without_imu_and_rejects_running_climb():
+    class DockController:
+        APPROACH = "approach"
+        CLIMB = "climb"
+        DOCK = "dock"
+
+        def __init__(self, climb_state):
+            self.mode = self.APPROACH
+            self.climb_mode = types.SimpleNamespace(state=climb_state)
+            self.entered_q_cur = None
+
+        def enter_dock(self, q_cur):
+            self.entered_q_cur = q_cur.copy()
+            self.mode = self.DOCK
+
+    node = _button_node()
+    node.enable_real_dock = True
+    node.controller = DockController(climb_state=ClimbMode.DONE)
+    ensured = []
+    node._ensure_dock_mode = lambda: ensured.append(True)
+    RUN_REAL.RosControlNode._start_real_dock(node, Q_STAND, True)
+    assert node.state == node.RUNNING
+    assert ensured == [True]
+    assert np.array_equal(node.controller.entered_q_cur, Q_STAND)
+
+    node = _button_node()
+    node.enable_real_dock = True
+    node.controller = DockController(climb_state=ClimbMode.RUNNING)
+    node._ensure_dock_mode = lambda: (_ for _ in ()).throw(AssertionError())
+    RUN_REAL.RosControlNode._start_real_dock(node, Q_STAND, True)
+    assert node.state == node.HOLD
+    assert node.controller.entered_q_cur is None
+
+
 def test_inactive_optional_monitoring_never_holds_diagnostic_replay():
     node = _diagnostic_replay_node(navigation_valid=False, imu_valid=False)
     node.controller.enter_climb(Q_STAND, hardware_execution=True)
@@ -393,6 +441,54 @@ def test_dock_target_guard_rejects_and_keeps_feedback_pose():
     q_des = controller.update(Q_STAND, np.zeros(4), dock_robot_state={})
     assert np.array_equal(q_des, Q_STAND)
     assert "joint limits" in dock.failed_reason
+
+
+def test_l_shaped_ankle_keeps_the_30mm_teleop_swing_moving():
+    controller = GraspController(1.0 / 30.0)
+    assert np.isclose(controller.approach_mode.step_height, 0.030)
+    q_cur = Q_STAND.copy()
+    former_false_positive = False
+    clearance = (
+        LINK_COLLISION_RADII[0]
+        + LINK_COLLISION_RADII[2]
+        + COLLISION_MARGIN
+    )
+    for _ in range(5):
+        q_cur = controller.update(q_cur, np.array([0.20, 0.0, 0.0, 0.0]))
+        points = controller.kinematic.link_points_base(q_cur)
+        former_false_positive |= bool(np.any([
+            controller._segment_distance(
+                points[leg_index, 0], points[leg_index, 1],
+                points[leg_index, 2], points[leg_index, 3],
+            ) < clearance
+            for leg_index in range(6)
+        ]))
+        assert controller.last_update_collision_guard_hold_count == 0
+    assert former_false_positive
+    assert controller._same_leg_collision_free(
+        controller.kinematic.collision_points_base(q_cur)
+    ).all()
+
+
+def test_l_shaped_ankle_rejects_a_real_deep_fold_within_joint_limits():
+    controller = GraspController(1.0 / 30.0)
+    q_candidate = Q_STAND.copy()
+    q_candidate[0] = [-0.10728169, -1.79814372, -2.04202932]
+    assert (q_candidate >= JOINT_LOWER).all()
+    assert (q_candidate <= JOINT_UPPER).all()
+    collision_points = controller.kinematic.collision_points_base(q_candidate)
+    assert not controller._same_leg_collision_free(collision_points)[0]
+    assert not controller._link_collision_free(q_candidate)[0]
+
+
+def test_runtime_climb_settle_gate_uses_15mm_foot_error_and_80mrad_joint_gate():
+    config = json.loads(
+        (SCRIPTS.parent / "config" / "climb_compact.json").read_text()
+    )
+    settle_gate = config["settle_gate"]
+    assert settle_gate["max_foot_target_error_m"] == 0.015
+    assert settle_gate["entry_max_joint_error_rad"] == 0.08
+    assert settle_gate["max_joint_tracking_error_rad"] == 0.08
 
 
 def test_hardware_climb_never_advances_on_time_without_settled_feedback():

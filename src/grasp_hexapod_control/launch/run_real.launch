@@ -14,7 +14,8 @@
   <arg name="max_joy_age" default="0.2"/>
   <arg name="joy_deadzone" default="0.20"/>
   <arg name="enable_real_climb" default="true"/>
-  <arg name="enable_real_dock" default="false"/>
+  <arg name="enable_real_dock" default="true"/>
+  <arg name="start_dock_perception" default="true"/>
 
   <arg name="button_a" default="0"/>
   <arg name="button_b" default="1"/>
@@ -44,9 +45,20 @@
   <arg name="real_climb_max_angular_speed_deg_s" default="30.0"/>
   <arg name="real_climb_persistence_frames" default="3"/>
   <arg name="lock_confirmed_topic" default="/grasp_hexapod/dock/lock_confirmed"/>
-  <arg name="dock_detections_topic" default="/tag_detections"/>
-  <arg name="dock_image_topic" default="/usb_cam/image_raw"/>
-  <arg name="dock_camera_info_topic" default="/usb_cam/camera_info"/>
+  <arg name="dock_detections_topic" default="/dock/tag_detections"/>
+  <arg name="dock_image_topic" default="/dock_camera/image_raw"/>
+  <arg name="dock_camera_info_topic" default="/dock_camera/camera_info"/>
+  <arg name="dock_system_config" default="$(find grasp_hexapod_control)/config/dock_system.yaml"/>
+  <arg name="dock_require_real_calibrated" default="true"/>
+  <arg name="dock_allow_uncalibrated" default="false"/>
+  <arg name="dock_lock_confirmation_max_age_s" default="0.5"/>
+  <arg name="dock_video_device" default="/dev/video0"/>
+  <arg name="dock_image_width" default="640"/>
+  <arg name="dock_image_height" default="480"/>
+  <arg name="dock_pixel_format" default="yuyv"/>
+  <arg name="dock_color_format" default="yuv422p"/>
+  <arg name="dock_camera_info_url" default=""/>
+  <arg name="dock_camera_frame_id" default="dock_camera_optical_frame"/>
   <arg name="dock_allow_inference" default="false"/>
   <arg name="dock_require_lock_confirmation" default="false"/>
   <arg name="dock_min_stable_frames" default="10"/>
@@ -94,10 +106,26 @@
     <arg name="dock_detections_topic" value="$(arg dock_detections_topic)"/>
     <arg name="dock_image_topic" value="$(arg dock_image_topic)"/>
     <arg name="dock_camera_info_topic" value="$(arg dock_camera_info_topic)"/>
+    <arg name="dock_system_config" value="$(arg dock_system_config)"/>
+    <arg name="dock_require_real_calibrated" value="$(arg dock_require_real_calibrated)"/>
+    <arg name="dock_allow_uncalibrated" value="$(arg dock_allow_uncalibrated)"/>
+    <arg name="dock_lock_confirmation_max_age_s" value="$(arg dock_lock_confirmation_max_age_s)"/>
     <arg name="dock_allow_inference" value="$(arg dock_allow_inference)"/>
     <arg name="dock_require_lock_confirmation" value="$(arg dock_require_lock_confirmation)"/>
     <arg name="dock_min_stable_frames" value="$(arg dock_min_stable_frames)"/>
     <arg name="dock_max_perception_age" value="$(arg dock_max_perception_age)"/>
+  </include>
+
+  <include file="$(find grasp_hexapod_control)/launch/dock_tag_system.launch" if="$(arg start_dock_perception)">
+    <arg name="video_device" value="$(arg dock_video_device)"/>
+    <arg name="image_width" value="$(arg dock_image_width)"/>
+    <arg name="image_height" value="$(arg dock_image_height)"/>
+    <arg name="pixel_format" value="$(arg dock_pixel_format)"/>
+    <arg name="color_format" value="$(arg dock_color_format)"/>
+    <arg name="camera_info_url" value="$(arg dock_camera_info_url)"/>
+    <arg name="camera_frame_id" value="$(arg dock_camera_frame_id)"/>
+    <arg name="dock_system_config" value="$(arg dock_system_config)"/>
+    <arg name="detections_topic" value="$(arg dock_detections_topic)"/>
   </include>
 
   <include file="$(find grasp_hexapod_servo)/launch/servo_two_boards.launch">

@@ -16,6 +16,9 @@
   <depend>std_msgs</depend>
   <depend>tf</depend>
   <depend>trajectory_msgs</depend>
+  <exec_depend>usb_cam</exec_depend>
+  <exec_depend>image_proc</exec_depend>
+  <exec_depend>nodelet</exec_depend>
 
   <exec_depend>grasp_hexapod_description</exec_depend>
   <exec_depend>grasp_hexapod_servo</exec_depend>
@@ -23,4 +26,6 @@
   <exec_depend>joy</exec_depend>
   <exec_depend>python3-numpy</exec_depend>
   <exec_depend>python3-rospkg</exec_depend>
+  <exec_depend>python3-opencv</exec_depend>
+  <exec_depend>python3-yaml</exec_depend>
 </package>

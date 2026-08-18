@@ -290,15 +290,21 @@ class BoolInput:
     def __init__(self, topic):
         self.lock = Lock()
         self.value = None
+        self.received_at = 0.0
         self.subscriber = rospy.Subscriber(topic, Bool, self._callback, queue_size=1)
 
     def _callback(self, message):
         with self.lock:
             self.value = bool(message.data)
+            self.received_at = rospy.Time.now().to_sec()
 
     def snapshot(self):
         with self.lock:
             return self.value
+
+    def snapshot_with_time(self):
+        with self.lock:
+            return self.value, self.received_at
 
 
 class RosControlNode:
@@ -334,8 +340,23 @@ class RosControlNode:
             rospy.get_param("~enable_real_climb", False)
         )
         self.enable_real_dock = bool(
-            rospy.get_param("~enable_real_dock", False)
+            rospy.get_param("~enable_real_dock", True)
         )
+        self.dock_system_config = str(rospy.get_param(
+            "~dock_system_config", str(package_config_path("dock_system.yaml"))
+        ))
+        self.dock_require_real_calibrated = bool(
+            rospy.get_param("~dock_require_real_calibrated", True)
+        )
+        self.dock_allow_uncalibrated = bool(
+            rospy.get_param("~dock_allow_uncalibrated", False)
+        )
+        self.dock_lock_confirmation_max_age = float(rospy.get_param(
+            "~dock_lock_confirmation_max_age_s", 0.5
+        ))
+        if self.dock_lock_confirmation_max_age <= 0.0:
+            raise ValueError("~dock_lock_confirmation_max_age_s must be positive")
+        self.dock_session_started_at = 0.0
         self.control_source = str(
             rospy.get_param("~control_source", "teleop")
         ).strip().lower()
@@ -697,17 +718,18 @@ class RosControlNode:
         allow_inference = bool(rospy.get_param("~dock_allow_inference", False))
         perception = DockPerception(
             detections_topic=rospy.get_param(
-                "~dock_detections_topic", "/tag_detections"
+                "~dock_detections_topic", "/dock/tag_detections"
             ),
             image_topic=rospy.get_param(
-                "~dock_image_topic", "/usb_cam/image_raw"
+                "~dock_image_topic", "/dock_camera/image_raw"
             ),
             camera_info_topic=rospy.get_param(
-                "~dock_camera_info_topic", "/usb_cam/camera_info"
+                "~dock_camera_info_topic", "/dock_camera/camera_info"
             ),
             allow_inference=allow_inference,
             min_stable_frames=int(rospy.get_param("~dock_min_stable_frames", 10)),
             max_age=float(rospy.get_param("~dock_max_perception_age", 0.2)),
+            dock_system_path=self.dock_system_config,
         )
         dock_mode = DockMode(
             self.controller,
@@ -964,21 +986,44 @@ class RosControlNode:
         if not controls_ready or self.state != self.HOLD:
             rospy.logwarn_throttle(2.0, "Y ignored: reset must finish and controls must be fresh")
             return
-        if not self.imu.snapshot()["valid"]:
-            rospy.logwarn_throttle(2.0, "Y ignored: fresh IMU is required")
-            return
         if self.controller.climb_mode.state == ClimbMode.RUNNING:
             rospy.logwarn_throttle(2.0, "Y ignored: climb is running")
             return
         try:
+            if (
+                getattr(self, "dock_require_real_calibrated", False)
+                and not getattr(self, "dock_allow_uncalibrated", False)
+            ):
+                from dock_mode import load_dock_system
+                dock_system = load_dock_system(self.dock_system_config)
+                if not dock_system["real_calibrated"]:
+                    rospy.logwarn_throttle(
+                        2.0, "Y ignored: dock_system.yaml is not real-calibrated"
+                    )
+                    return
             self._ensure_dock_mode()
             self.controller.enter_dock(q_cur)
         except (ImportError, RuntimeError, ValueError) as error:
             rospy.logwarn("Y ignored: DockMode entry failed: %s", error)
             return
         self.command[:] = 0.0
+        self.dock_session_started_at = rospy.Time.now().to_sec()
         self.state = self.RUNNING
         rospy.loginfo("Y accepted: DockMode waiting for stable complete AprilTag input")
+
+    def _dock_lock_confirmed(self):
+        """只接受本次Y后、未过期的锁紧确认。"""
+
+        lock_confirmed, received_at = self.lock_confirmation.snapshot_with_time()
+        now = rospy.Time.now().to_sec()
+        age = now - received_at
+        if (
+            received_at < self.dock_session_started_at
+            or age < 0.0
+            or age > self.dock_lock_confirmation_max_age
+        ):
+            return None
+        return lock_confirmed
 
     def _hold_motion(self, reason, log=True):
         """停止推进步态并保持上力；再次按A才能恢复。"""
@@ -1140,7 +1185,7 @@ class RosControlNode:
                 self.command[:] = 0.0
                 dock_robot_state = {
                     "joints": q_cur,
-                    "lock_confirmed": self.lock_confirmation.snapshot(),
+                    "lock_confirmed": self._dock_lock_confirmed(),
                 }
             elif (
                 self.control_source == "navigation"

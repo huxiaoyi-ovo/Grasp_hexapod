@@ -1,0 +1,31 @@
+# Bottom USB camera DOCK geometry.  This is the sole source for tag36h11,
+# tag-board layout and camera-to-lock geometry; values are simulation-derived
+# until a real calibration replaces them.
+tag_family: tag36h11
+tag_ids: [0, 1, 2, 3]
+tag_size_m: 0.040
+standalone_tags:
+  - {id: 0, size: 0.040, name: dock_tag_0}
+  - {id: 1, size: 0.040, name: dock_tag_1}
+  - {id: 2, size: 0.040, name: dock_tag_2}
+  - {id: 3, size: 0.040, name: dock_tag_3}
+tag_bundles: []
+tag_threads: 4
+tag_decimate: 1.0
+tag_blur: 0.0
+tag_refine_edges: 1
+max_hamming_dist: 1
+publish_tf: false
+transport_hint: raw
+real_calibrated: false
+lock_from_camera:
+  translation_m: [0.0, -0.065, -0.0325]
+  rotation:
+    - [1.0, 0.0, 0.0]
+    - [0.0, -1.0, 0.0]
+    - [0.0, 0.0, -1.0]
+pin_from_tag_m:
+  "0": [0.0, 0.100, -0.037]
+  "1": [0.100, 0.0, -0.037]
+  "2": [0.0, -0.100, -0.037]
+  "3": [-0.100, 0.0, -0.037]

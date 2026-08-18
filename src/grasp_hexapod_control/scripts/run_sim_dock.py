@@ -27,6 +27,11 @@ XIAOLAN_ROOT = Path(os.environ.get(
 if ISAAC_GYM_ROOT.is_dir():
     sys.path.insert(0, str(ISAAC_GYM_ROOT))
 sys.path.insert(0, str(SCRIPT_DIR))
+# Ubuntu 20.04的OpenCV/aruco由apt安装在这里；放到Conda路径之后，
+# 只补齐ROS系统包，不覆盖Isaac Gym环境中的NumPy和PyTorch。
+SYSTEM_DIST_PACKAGES = Path("/usr/lib/python3/dist-packages")
+if SYSTEM_DIST_PACKAGES.is_dir():
+    sys.path.append(str(SYSTEM_DIST_PACKAGES))
 # 绝对路径启动Python时shell未必激活对应环境；确保gymtorch能找到ninja。
 python_bin = str(Path(sys.executable).resolve().parent)
 os.environ["PATH"] = python_bin + os.pathsep + os.environ.get("PATH", "")
@@ -45,7 +50,13 @@ from sensor_msgs.msg import JointState
 import dock_mode as body
 from approach_mode import ApproachMode
 from control import GraspController
-from dock_mode import PerceptionResult, TAG_IDS
+from dock_mode import (
+    LOCK_FROM_CAMERA,
+    PIN_FROM_TAG,
+    PerceptionResult,
+    TAG_IDS,
+    TAG_SIZE,
+)
 from kinematics import FOOT_RADIUS, Q_STAND
 from utils import (
     build_dof_indices,
@@ -66,16 +77,10 @@ dock_time_scale = 3.0
 ISAAC_FROM_OPTICAL_ROTATION = np.array(
     ((0.0, 0.0, 1.0), (-1.0, 0.0, 0.0), (0.0, -1.0, 0.0))
 )
-LOCK_FROM_CAMERA_ROTATION = np.diag((1.0, -1.0, -1.0))
-CAMERA_POSITION_IN_LOCK = np.array((0.0, -0.065, -0.0325))
+LOCK_FROM_CAMERA_ROTATION = LOCK_FROM_CAMERA[:3, :3].copy()
+CAMERA_POSITION_IN_LOCK = LOCK_FROM_CAMERA[:3, 3].copy()
 PIN_WORLD = np.array((0.0, -0.028, 0.228))
-TAG_SIZE_M = 0.040
-PIN_FROM_TAG = {
-    0: np.array((0.0, 0.100, -0.037)),
-    1: np.array((0.100, 0.0, -0.037)),
-    2: np.array((0.0, -0.100, -0.037)),
-    3: np.array((-0.100, 0.0, -0.037)),
-}
+TAG_SIZE_M = TAG_SIZE
 PIN_FROM_OPENCV_TAG_ROTATION = np.diag((-1.0, -1.0, 1.0))
 # 攀爬终态相机距标签面约38 mm，16:9画面的垂直视野无法容纳偏离光轴
 # 35 mm的完整40 mm标签。对接请求后先把相机升到旧版已验证的260 mm，
@@ -735,7 +740,7 @@ def detect_pin_pose(
         )
         tag_position = sensor_position + world_from_optical @ tvec
         positions.append(
-            tag_position - pin_rotation @ PIN_FROM_TAG[tag_id]
+            tag_position - pin_rotation @ PIN_FROM_TAG[tag_id][:3, 3]
         )
         rotations.append(pin_rotation)
         used_ids.append(tag_id)
@@ -782,7 +787,8 @@ def _run_simulation(resources):
     params.dt, params.substeps = dt, 2
     params.up_axis = gymapi.UP_AXIS_Z
     params.gravity = gymapi.Vec3(0.0, 0.0, -9.81)
-    params.use_gpu_pipeline = True
+    # PhysX仍可使用GPU；CPU版Torch只能包装CPU tensor pipeline。
+    params.use_gpu_pipeline = torch.cuda.is_available()
     params.physx.use_gpu = True
     params.physx.solver_type = 1
     params.physx.num_position_iterations = 4
@@ -909,7 +915,7 @@ def _run_simulation(resources):
     )
     ros_camera = RosCameraPublisher(
         camera_width, camera_height, camera_fov,
-        "/usb_cam/image_raw", "/usb_cam/camera_info", "isaac_camera",
+        "/dock_camera/image_raw", "/dock_camera/camera_info", "isaac_camera",
     )
     dictionary, detector_parameters = create_apriltag_detector()
     camera_matrix, distortion = calculate_intrinsics(

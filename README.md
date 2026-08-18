@@ -6,7 +6,7 @@
 
 - `src/grasp_hexapod_control/`：步态、运动学、安全控制和仿真/实机入口。
 - `src/grasp_hexapod_description/`：URDF、网格、RViz 和 Gazebo 配置。
-- `src/grasp_hexapod_servo/`：LX-15D 三板驱动和串口协议。
+- `src/grasp_hexapod_servo/`：LX-15D 两板驱动和串口协议。
 - `src/reference/`：参考代码，不参与运行。
 
 仿真和实机共用 `GraspController`：前者在 Isaac 控制帧内运行，后者通过 ROS 读取反馈并发布关节目标。
@@ -54,6 +54,35 @@ roslaunch grasp_hexapod_control run_sim_ros.launch
 ```
 
 ## 实机部署
+
+APPROACH、CLIMB与DOCK可分别调试：普通Isaac/ROS仿真使用`run_sim.py`或
+`run_sim_ros.launch`，联合底部相机对接仿真使用`run_sim_dock.py`，实机统一从
+`run_real.launch`进入。DOCK只使用底部USB相机；顶部Orbbec和小蓝标签链不参与
+该流程。
+
+底部相机链依赖安装包：
+
+```bash
+sudo apt install ros-noetic-usb-cam ros-noetic-image-proc ros-noetic-apriltag-ros \
+  ros-noetic-nodelet ros-noetic-camera-calibration python3-opencv python3-yaml
+```
+
+首次只在机器人架空、舵机安全条件已确认时启动。必须在最终分辨率/像素格式下标定，棋盘格
+参数按实际工装填写（`8x6`、`0.025 m`仅示例）：
+
+```bash
+rosrun camera_calibration cameracalibrator.py --size 8x6 --square 0.025 \
+  image:=/dock_camera/image_raw camera:=/dock_camera
+```
+
+保存内参后用`dock_camera_info_url:=file:///absolute/path/dock_camera.yaml`启动。实测相机
+光学帧到卡紧机构外参，并将部署版`dock_system.yaml`以绝对路径通过
+`dock_system_config:=/absolute/path/dock_system.yaml`传入；它同时供 detector 和控制器使用。
+Tag size 是黑白边界有效边长。未标定的`real_calibrated: false`会阻止Y进入DockMode。
+先执行`roslaunch --nodes src/grasp_hexapod_control/launch/dock_tag_system.launch`，再检查
+`rostopic hz /dock_camera/image_rect_color`、`/dock_camera/camera_info`和
+`/dock/tag_detections`。AprilTag检测、视觉对准或锁紧话题均不证明物理锁紧、接触、承载或
+整机安全。
 
 两块驱动板的默认映射如下。`left`、`right` 是启动参数中的板标识。
 

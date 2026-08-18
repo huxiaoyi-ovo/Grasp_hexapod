@@ -649,28 +649,37 @@ class GraspController:
 
         return collision_free
 
-    def _link_collision_free(self, joint_angles):
-        """用URDF碰撞盒等效胶囊检查整机连杆自碰撞。"""
+    def _same_leg_collision_free(self, collision_points):
+        """检查thigh与实际L形ankle两段非相邻胶囊的自碰撞。"""
 
-        points = self.kinematic.link_points_base(joint_angles)
         collision_free = np.ones(6, dtype=bool)
-
-        # 同一条腿只检查不相邻的thigh与ankle。
-        # 相邻连杆在关节处本来就相接，不能作为碰撞处理。
         self_clearance = (
             LINK_COLLISION_RADII[0]
             + LINK_COLLISION_RADII[2]
             + COLLISION_MARGIN
         )
         for leg_index in range(6):
-            distance = self._segment_distance(
-                points[leg_index, 0],
-                points[leg_index, 1],
-                points[leg_index, 2],
-                points[leg_index, 3],
-            )
-            if distance < self_clearance:
-                collision_free[leg_index] = False
+            thigh_start = collision_points[leg_index, 0]
+            thigh_end = collision_points[leg_index, 1]
+            for ankle_start, ankle_end in (
+                (collision_points[leg_index, 2], collision_points[leg_index, 3]),
+                (collision_points[leg_index, 3], collision_points[leg_index, 4]),
+            ):
+                if self._segment_distance(
+                    thigh_start, thigh_end, ankle_start, ankle_end
+                ) < self_clearance:
+                    collision_free[leg_index] = False
+                    break
+        return collision_free
+
+    def _link_collision_free(self, joint_angles):
+        """用URDF碰撞盒等效胶囊检查整机连杆自碰撞。"""
+
+        points = self.kinematic.link_points_base(joint_angles)
+        collision_points = self.kinematic.collision_points_base(joint_angles)
+        collision_free = np.ones(6, dtype=bool)
+
+        collision_free &= self._same_leg_collision_free(collision_points)
 
         # 六条腿两两检查，共15组；每组检查3×3个胶囊组合。
         for first_leg in range(6):

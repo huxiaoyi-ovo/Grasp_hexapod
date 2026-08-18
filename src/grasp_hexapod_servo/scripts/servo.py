@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
-"""单块六舵机驱动板的ROS节点。
+"""单块九舵机驱动板的ROS节点。
 
-每个节点管理一块串口板和两条腿：
-    left  -> lf、lm
-    right -> rf、rm
-    mid   -> lb、rb
+每个节点管理一块串口板和三条腿：
+    left  -> lf、lm、lb
+    right -> rf、rm、rb
 
 订阅：
     /<leg>_des
@@ -34,33 +33,26 @@ import hiwonder_servo_controller
 
 
 class ServoSideNode:
-    """管理一块驱动板上的六个LX-15D舵机。"""
+    """管理一块驱动板上的九个LX-15D舵机。"""
 
     SIDE_CONFIG = {
         "left": {
-            "port": "/dev/ttyUSB0",
-            "legs": ("lf", "lm"),
-            "directions": (1, 1, 1, 1, 1, 1),
+            "port": "/dev/ttyTHS0",
+            "legs": ("lf", "lm", "lb"),
+            "directions": (1, 1, 1, 1, 1, 1, 1, 1, 1),
             "id_map": {
                 "lf": (1, 2, 3),
                 "lm": (4, 5, 6),
+                "lb": (7, 8, 9),
             },
         },
         "right": {
-            "port": "/dev/ttyUSB1",
-            "legs": ("rf", "rm"),
-            "directions": (1, -1, -1, 1, -1, -1),
+            "port": "/dev/ttyACM0",
+            "legs": ("rf", "rm", "rb"),
+            "directions": (1, -1, -1, 1, -1, -1, -1, -1, -1),
             "id_map": {
                 "rf": (10, 11, 12),
                 "rm": (13, 14, 15),
-            },
-        },
-        "mid": {
-            "port": "/dev/ttyUSB2",
-            "legs": ("lb", "rb"),
-            "directions": (1, 1, 1, 1, -1, -1),
-            "id_map": {
-                "lb": (7, 8, 9),
                 "rb": (16, 17, 18),
             },
         },
@@ -73,7 +65,7 @@ class ServoSideNode:
 
         if self.side not in self.SIDE_CONFIG:
             raise ValueError(
-                "~side must be one of: left, right, mid"
+                "~side must be one of: left, right"
             )
 
         config = self.SIDE_CONFIG[self.side]
@@ -95,7 +87,7 @@ class ServoSideNode:
             rospy.get_param("~command_duration_ms", 33)
         )
 
-        # 一块板固定管理六个舵机。
+        # 一块板固定管理九个舵机。
         self.servo_ids = tuple(
             servo_id
             for leg in self.legs
@@ -117,7 +109,7 @@ class ServoSideNode:
         # 回调和定时控制循环共享目标数据。
         self.lock = Lock()
 
-        # power_on表示整块板的六个舵机是否加载。
+        # power_on表示整块板的九个舵机是否加载。
         self.power_on = False
 
         # 每条腿是否收到过完整目标。
@@ -177,7 +169,7 @@ class ServoSideNode:
         )
 
     def _load_directions(self):
-        """读取本板六个舵机的安装方向。"""
+        """读取本板九个舵机的安装方向。"""
 
         direction_param = rospy.get_param(
             "~directions",
@@ -214,7 +206,7 @@ class ServoSideNode:
         }
 
     def _set_board_power(self, enabled):
-        """统一加载或卸载本板的全部六个舵机。"""
+        """统一加载或卸载本板的全部九个舵机。"""
 
         status = 1 if enabled else 0
 

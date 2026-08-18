@@ -1,0 +1,2 @@
+KERNEL=="ttyUSB*", ATTRS{interface}=="HandsFree IMU USB to UART Bridge Controller", MODE:="0777", SYMLINK+="HFRobotIMU"
+KERNEL=="ttyACM*", MODE="0777"

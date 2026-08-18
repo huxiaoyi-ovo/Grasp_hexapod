@@ -9,6 +9,7 @@ import types
 import xml.etree.ElementTree as ET
 
 import numpy as np
+import pytest
 
 
 SCRIPTS = Path(__file__).parents[1] / "scripts"
@@ -280,6 +281,43 @@ def test_b_cleans_mission_climb_and_dock_before_reset():
     assert np.array_equal(node.command, np.zeros(4))
 
 
+def test_local_compact_arm_holds_entry_and_a_is_ignored():
+    node = object.__new__(RUN_REAL.RosControlNode)
+    node.local_execution = True
+    node.HOLD = RUN_REAL.RosControlNode.HOLD
+    node.WAIT_B = RUN_REAL.RosControlNode.WAIT_B
+    node.state = node.WAIT_B
+    node.command = np.ones(4)
+    node.controller = types.SimpleNamespace(
+        q_des=np.zeros((6, 3)), reset_active=True
+    )
+    node.max_joy_age = 0.2
+    node.button_a = 0
+    node.button_b = 1
+    node.button_x = 2
+    node.button_y = 3
+    node._read = RUN_REAL.RosControlNode._read
+    node._process_buttons = RUN_REAL.RosControlNode._process_buttons.__get__(node)
+
+    RUN_REAL.RosControlNode.arm_local_climb(node, Q_STAND)
+    assert node.state == node.HOLD
+    assert node.local_climb_armed
+    assert np.array_equal(node.local_climb_entry_q, Q_STAND)
+
+    RUN_REAL.RosControlNode._process_buttons(
+        node, np.array([1, 0, 0, 0]), True, Q_STAND
+    )
+    assert node.local_climb_armed
+    held = RUN_REAL.RosControlNode._update_control(
+        node, Q_STAND + 0.1, np.empty(0), np.zeros(4), 1.0, 1.0
+    )
+    assert np.array_equal(held, Q_STAND)
+    with pytest.raises(ValueError, match="finite"):
+        RUN_REAL.RosControlNode.arm_local_climb(
+            node, np.full((6, 3), np.nan)
+        )
+
+
 def test_climb_done_moves_to_hold_then_y_routes_to_dock_request():
     node = _button_node()
     node.state = node.RUNNING
@@ -336,12 +374,17 @@ class _DiagnosticReplayController:
 
     def __init__(self):
         self.mode = self.APPROACH
-        self.climb_mode = types.SimpleNamespace(base_pose=None)
+        self.climb_mode = types.SimpleNamespace(
+            base_pose=None,
+            _load_config=lambda: {"settle_gate": {"max_foot_target_error_m": 0.02}},
+        )
         self.entered_hardware_execution = None
+        self.entered_config = None
 
-    def enter_climb(self, q_cur, hardware_execution):
+    def enter_climb(self, q_cur, config=None, hardware_execution=False):
         del q_cur
         self.entered_hardware_execution = hardware_execution
+        self.entered_config = config
         self.mode = self.CLIMB
         self.climb_mode = types.SimpleNamespace(
             base_pose=np.zeros(5, dtype=np.float64),
@@ -367,10 +410,39 @@ def _diagnostic_replay_node(navigation_valid, imu_valid):
 
 def test_x_starts_diagnostic_replay_without_imu_or_rtk_monitoring():
     node = _diagnostic_replay_node(navigation_valid=False, imu_valid=False)
+    node.local_climb_armed = True
+    node.local_climb_entry_q = Q_STAND.copy()
     RUN_REAL.RosControlNode._start_real_climb(node, Q_STAND, True)
     assert node.state == node.RUNNING
     assert node.controller.entered_hardware_execution is True
+    assert node.controller.entered_config["settle_gate"]["max_foot_target_error_m"] == 0.02
+    assert not node.local_climb_armed
+    assert node.local_climb_entry_q is None
     assert not node.real_climb_monitor_active
+
+
+def test_real_climb_override_gate_and_validation():
+    node = _diagnostic_replay_node(navigation_valid=False, imu_valid=False)
+    node.climb_foot_gate_m = 0.05
+    RUN_REAL.RosControlNode._start_real_climb(node, Q_STAND, True)
+    assert node.controller.entered_hardware_execution is True
+    assert node.controller.entered_config["settle_gate"]["max_foot_target_error_m"] == 0.05
+    for value in (0.0, float("nan"), 0.101):
+        with pytest.raises(ValueError):
+            RUN_REAL.RosControlNode._climb_foot_gate_m(value)
+
+
+def test_b_cancels_local_compact_arm_before_normal_reset():
+    node = _button_node()
+    node.local_execution = True
+    node.local_climb_armed = True
+    node.local_climb_entry_q = Q_STAND.copy()
+    RUN_REAL.RosControlNode._process_buttons(
+        node, np.array([0, 1, 0, 0]), False, Q_STAND
+    )
+    assert not node.local_climb_armed
+    assert node.local_climb_entry_q is None
+    assert node.state == node.RESETTING
 
 
 def test_x_enables_optional_monitoring_when_imu_and_rtk_are_fresh():
@@ -553,6 +625,26 @@ def test_runtime_climb_settle_gate_uses_20mm_foot_error_and_80mrad_joint_gate():
     assert settle_gate["timeout_s"] == 5.0
 
 
+def test_real_launch_uses_temporary_5cm_gate_and_control_stack_keeps_2cm():
+    launches = {}
+    for name in ("run_real.launch", "control_stack.launch"):
+        root = ET.parse(SCRIPTS.parent / "launch" / name).getroot()
+        launches[name] = {
+            item.attrib["name"]: item.attrib.get("default")
+            for item in root.findall("arg")
+        }
+    assert launches["run_real.launch"]["climb_foot_gate_m"] == "0.05"
+    assert launches["control_stack.launch"]["climb_foot_gate_m"] == "0.02"
+    control_root = ET.parse(
+        SCRIPTS.parent / "launch" / "control_stack.launch"
+    ).getroot()
+    assert any(
+        item.attrib.get("name") == "climb_foot_gate_m"
+        and item.attrib.get("value") == "$(arg climb_foot_gate_m)"
+        for item in control_root.iter("param")
+    )
+
+
 def test_active_climb_feet_use_base_relative_paths_and_audited_clearance():
     config = json.loads(
         (SCRIPTS.parent / "config" / "climb_compact.json").read_text()
@@ -589,6 +681,21 @@ def test_hardware_climb_never_advances_on_time_without_settled_feedback():
     assert mode.stage_index == 0
     assert mode.state == ClimbMode.RUNNING
     assert mode.settle_time == 0.0
+    assert mode.last_phase_hold
+
+
+def test_hardware_climb_endpoint_phase_hold_clears_when_feedback_settles():
+    controller = GraspController(1.0 / 30.0)
+    controller.enter_climb(Q_STAND, hardware_execution=True)
+    mode = controller.climb_mode
+    duration = sum(mode.config["stages"][0]["segment_durations_s"])
+    mode.phase_time = duration
+    controller.update(Q_STAND + 0.5, np.zeros(4))
+    assert mode.last_phase_hold
+    controller.q_des = Q_STAND.copy()
+    controller.foot_desired_base[:] = controller.kinematic.forward_base(Q_STAND)
+    controller.update(Q_STAND, np.zeros(4))
+    assert not mode.last_phase_hold
 
 
 def test_hardware_climb_uses_foot_task_error_not_joint_tracking_for_phase():
@@ -610,28 +717,45 @@ def test_hardware_climb_uses_foot_task_error_not_joint_tracking_for_phase():
     assert mode.phase_time == controller.dt
 
 
-def test_hardware_climb_freezes_and_resumes_trajectory_phase_from_feedback():
+def test_hardware_climb_only_holds_fk_error_at_segment_checkpoints():
     controller = GraspController(1.0 / 30.0)
     controller.enter_climb(Q_STAND, hardware_execution=True)
     mode = controller.climb_mode
     command = np.zeros(4)
 
-    q_reference = controller.update(Q_STAND, command)
+    controller.update(Q_STAND, command)
     moving_phase = mode.phase_time
-    reference_before_freeze = controller.foot_desired_base.copy()
+    # C1 has one segment: a large FK error inside it must not interrupt motion.
     q_des = controller.update(Q_STAND + 0.5, command)
     assert mode.last_foot_target_error_m > mode.config["settle_gate"][
         "max_foot_target_error_m"
     ]
-    assert mode.phase_time == moving_phase
-    assert np.array_equal(controller.foot_desired_base, reference_before_freeze)
+    assert mode.phase_time > moving_phase
     assert np.isfinite(q_des).all()
 
-    controller.update(q_reference, command)
+    # C2 RM has an existing lift checkpoint. There the same error holds exactly
+    # at the knot, preserving the checkpoint reference until feedback recovers.
+    mode.stage_index = 1
+    mode.phase = mode.stage_names[1]
+    mode.phase_time = mode.config["stages"][1]["segment_durations_s"][0]
+    mode.stage_elapsed_time = mode.phase_time
+    base, anchors, _ = mode._stage_reference()
+    mode._apply_reference(base, anchors, sync_previous=True)
+    reference_before_hold = controller.foot_desired_base.copy()
+    controller.update(Q_STAND + 0.5, command)
+    assert mode.last_foot_target_error_m > mode.config["settle_gate"][
+        "max_foot_target_error_m"
+    ]
+    assert mode.phase_time == mode.config["stages"][1]["segment_durations_s"][0]
+    assert np.array_equal(controller.foot_desired_base, reference_before_hold)
+
+    controller.q_des = Q_STAND.copy()
+    controller.foot_desired_base[:] = controller.kinematic.forward_base(Q_STAND)
+    controller.update(Q_STAND, command)
     assert mode.last_foot_target_error_m <= mode.config["settle_gate"][
         "max_foot_target_error_m"
     ]
-    assert mode.phase_time > moving_phase
+    assert mode.phase_time > mode.config["stages"][1]["segment_durations_s"][0]
 
 
 def test_hardware_climb_diagnostics_keep_all_feet_and_motors():
@@ -730,7 +854,8 @@ def test_run_real_logs_hardware_climb_phase_hold_diagnostics(monkeypatch):
 
     assert warnings == [(
         0.5,
-        "CLIMB PHASE HOLD: stage=%s %s collision_guard_hold=%s",
+        "CLIMB PHASE HOLD: source=%s stage=%s %s collision_guard_hold=%s",
+        "hardware_feedback",
         "LM_GROUND_SHIFT1",
         "worst_foot=lm foot_target_error_m=0.0309 "
         "feet_over_gate=lm=0.0309 worst_motor=lm_knee "
@@ -747,6 +872,7 @@ def test_run_real_logs_active_leg_trace_without_phase_hold(monkeypatch):
         lambda *args: infos.append(args),
     )
     node = object.__new__(RUN_REAL.RosControlNode)
+    node.local_execution = True
     node.controller = types.SimpleNamespace(
         mode="climb",
         CLIMB="climb",
@@ -769,8 +895,9 @@ def test_run_real_logs_active_leg_trace_without_phase_hold(monkeypatch):
     RUN_REAL.RosControlNode._info_hardware_climb_active_trace(node)
 
     assert infos[0][0] == 1.0
-    assert infos[0][2] == "RB_RF_HIGH_C"
-    assert "base_link diagnostic_phase_time_s=0.2" in infos[0][3]
+    assert infos[0][2] == "isaac_sim_feedback"
+    assert infos[0][3] == "RB_RF_HIGH_C"
+    assert "base_link diagnostic_phase_time_s=0.2" in infos[0][4]
 
 
 def test_hardware_climb_collision_hold_freezes_trajectory_phase():
@@ -829,7 +956,7 @@ def test_hardware_climb_timeout_uses_wall_time_while_phase_is_frozen():
     )
     controller.update(Q_STAND + 0.5, np.zeros(4))
     assert mode.state == ClimbMode.FAILED
-    assert mode.phase_time == 0.0
+    assert mode.phase_time == controller.dt
 
 
 def test_isaac_compact_paths_enable_real_feedback_gates():

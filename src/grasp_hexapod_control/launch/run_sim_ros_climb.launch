@@ -1,0 +1,15 @@
+<launch>
+  <!-- Isaac compact C1-C35: no Servo nodes or dock perception are started. -->
+  <arg name="joy_dev" default="/dev/input/js0"/>
+  <arg name="headless" default="false"/>
+  <arg name="python_executable" default="/usr/bin/python3"/>
+  <arg name="isaacgym_python_path" default="/home/artrc/isaacgym/python"/>
+  <include file="$(find grasp_hexapod_control)/launch/run_sim_ros.launch">
+    <arg name="joy_dev" value="$(arg joy_dev)"/>
+    <arg name="headless" value="$(arg headless)"/>
+    <arg name="python_executable" value="$(arg python_executable)"/>
+    <arg name="isaacgym_python_path" value="$(arg isaacgym_python_path)"/>
+    <arg name="climb_scene" value="true"/>
+    <arg name="enable_climb" value="true"/>
+  </include>
+</launch>

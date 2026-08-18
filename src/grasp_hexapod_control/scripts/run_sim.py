@@ -868,8 +868,22 @@ def main() -> None:
             "--climb-from, --climb-to and --climb-metrics require "
             "--climb-start or --climb-scene"
         )
-    if args.ros and (args.record_servo_trace is not None or climb_scene):
-        raise ValueError("--ros cannot be combined with trace recording or compact climb")
+    if args.ros and args.record_servo_trace is not None:
+        raise ValueError("--ros cannot be combined with trace recording")
+    if args.ros and (args.climb_start or args.full_mission):
+        raise ValueError(
+            "--ros compact climbing requires --climb-scene and X start"
+        )
+    if args.ros and args.climb_scene and (
+        args.climb_config is not None
+        or args.climb_from is not None
+        or args.climb_to is not None
+        or args.climb_speed != 1.0
+    ):
+        raise ValueError(
+            "--ros --climb-scene only supports active default compact C1-C35 "
+            "at --climb-speed 1.0"
+        )
     if climb_scene and args.record_servo_trace is not None:
         raise ValueError("compact climb cannot be combined with --record-servo-trace")
     if args.headless and not args.ros and args.record_servo_trace is None \
@@ -1063,6 +1077,20 @@ def main() -> None:
         f"{args.control_rate:.0f} Hz, actuator: "
         f"{args.actuator_rate:.0f} Hz"
     )
+    if args.ros and args.climb_scene:
+        print(
+            "ROS Isaac compact alignment: physics q/control sampling {:.0f}Hz, "
+            "/pos telemetry {:.0f}Hz, target write {:.0f}Hz, physics {:.0f}Hz, "
+            "~{:.3g}ms target hold, same controller and feedback-paced gates. "
+            "Not simulated: serial per-servo I/O/retry, inter-board skew, "
+            "power/load/backlash/torque, or real contact proof.".format(
+                args.control_rate,
+                args.actuator_rate,
+                args.actuator_rate,
+                args.physics_rate,
+                1000.0 / args.actuator_rate,
+            )
+        )
     #创建环境和actor
     env = gym.create_env(sim, lower, upper, num_per_row)
 
@@ -1180,6 +1208,8 @@ def main() -> None:
         actor,
         q_init_isaac,
     )
+    if ros_controller is not None and args.climb_scene:
+        ros_controller.arm_local_climb(q_init_control)
 
     # 所有资产与场景加载完成后再创建 viewer, 避免加载期窗口黑屏无响应。
     viewer = None
@@ -1409,6 +1439,13 @@ def main() -> None:
                 if synchronous_target is not None:
                     q_des_control = synchronous_target
                     ros_telemetry.publish_target(q_des_control)
+                if (
+                    args.climb_scene
+                    and not climb_entered
+                    and controller.climb_mode.state == ClimbMode.RUNNING
+                ):
+                    climb_entered = True
+                    print("ROS Isaac compact climb started by X (hardware gates)")
             elif trace_script is not None:
                 stage, scripted_command = trace_script[script_frame]
                 command[:] = scripted_command

@@ -320,6 +320,15 @@ class RosControlNode:
     )
     LEG_INDEX = {name: index for index, name in enumerate(LEG_NAMES)}
 
+    @staticmethod
+    def _climb_foot_gate_m(value):
+        """验证仅实机入口可覆盖的 FK 足端任务门。"""
+
+        value = float(value)
+        if not np.isfinite(value) or not 0.0 < value <= 0.10:
+            raise ValueError("~climb_foot_gate_m must be finite and in (0, 0.10]")
+        return value
+
     def __init__(self, local_execution=False, controller_rate_hz=None):
         self.local_execution = bool(local_execution)
         if controller_rate_hz is None:
@@ -349,6 +358,9 @@ class RosControlNode:
         )
         self.enable_real_climb = bool(
             rospy.get_param("~enable_real_climb", False)
+        )
+        self.climb_foot_gate_m = self._climb_foot_gate_m(
+            rospy.get_param("~climb_foot_gate_m", 0.02)
         )
         self.enable_real_dock = bool(
             rospy.get_param("~enable_real_dock", True)
@@ -440,6 +452,8 @@ class RosControlNode:
 
         # 单一状态表达完整运动顺序，避免多个布尔量出现非法组合。
         self.state = self.WAIT_B
+        self.local_climb_armed = False
+        self.local_climb_entry_q = None
         self.manual_override = False
         self.command = np.zeros(4, dtype=np.float64)
         self.climb_start_navigation = None
@@ -526,13 +540,17 @@ class RosControlNode:
         if self.local_execution:
             rospy.loginfo(
                 "Control source=%s; synchronous simulator control; "
-                "press B before A",
+                "climb source=isaac_sim_feedback foot_gate_m=%.3f; press B before A",
                 self.control_source,
+                self.climb_foot_gate_m,
             )
         else:
             rospy.loginfo(
-                "Control source=%s; waiting for feedback; press B before A",
+                "Control source=%s; climb source=hardware_feedback foot_gate_m=%.3f; "
+                "persistence/timeout come from compact config; waiting for feedback; "
+                "press B before A",
                 self.control_source,
+                self.climb_foot_gate_m,
             )
 
     def _joy_callback(self, message):
@@ -870,7 +888,10 @@ class RosControlNode:
             return
         rospy.logwarn_throttle(
             0.5,
-            "CLIMB PHASE HOLD: stage=%s %s collision_guard_hold=%s",
+            "CLIMB PHASE HOLD: source=%s stage=%s %s collision_guard_hold=%s",
+            "isaac_sim_feedback"
+            if getattr(self, "local_execution", False)
+            else "hardware_feedback",
             climb.phase,
             climb.tracking_diagnostic_summary(),
             "true" if climb.last_collision_guard_hold else "false",
@@ -886,10 +907,13 @@ class RosControlNode:
             return
         rospy.loginfo_throttle(
             1.0,
-            "CLIMB ACTIVE LEG TRACE: stage=%s %s; diagnostic only: "
+            "CLIMB ACTIVE LEG TRACE: source=%s stage=%s %s; diagnostic only: "
             "desired_z/planned lift low suggests planning, while desired-correct "
             "actual lag with same-leg joint error suggests load/execution/feedback; "
             "not causal proof",
+            "isaac_sim_feedback"
+            if getattr(self, "local_execution", False)
+            else "hardware_feedback",
             climb.last_diagnostic_stage_name,
             climb.active_leg_diagnostic_summary(),
         )
@@ -1001,7 +1025,12 @@ class RosControlNode:
         navigation = self.navigation.motion_snapshot()
         imu = self.imu.snapshot()
         try:
-            self.controller.enter_climb(q_cur, hardware_execution=True)
+            config = self.controller.climb_mode._load_config()
+            gate_m = getattr(self, "climb_foot_gate_m", 0.02)
+            config["settle_gate"]["max_foot_target_error_m"] = gate_m
+            self.controller.enter_climb(
+                q_cur, config=config, hardware_execution=True
+            )
         except ValueError as error:
             rospy.logwarn("X ignored: compact entry gate failed: %s", error)
             return
@@ -1025,10 +1054,14 @@ class RosControlNode:
         self.climb_good_frames = 0
         self._reset_real_climb_speed_diagnostic()
         self.command[:] = 0.0
+        self.local_climb_armed = False
+        self.local_climb_entry_q = None
         self.state = self.RUNNING
         rospy.loginfo(
-            "X accepted: diagnostic replay C1-C35 started with joint-feedback "
-            "gates; joint-feedback gates are not contact/load evidence"
+            "X accepted: diagnostic replay C1-C35 started with source=%s "
+            "foot_gate_m=%.3f; joint-feedback gates are not contact/load evidence",
+            "isaac_sim_feedback" if self.local_execution else "hardware_feedback",
+            gate_m,
         )
 
     def _start_real_dock(self, q_cur, controls_ready):
@@ -1064,6 +1097,25 @@ class RosControlNode:
         self.dock_session_started_at = rospy.Time.now().to_sec()
         self.state = self.RUNNING
         rospy.loginfo("Y accepted: DockMode waiting for stable complete AprilTag input")
+
+    def arm_local_climb(self, q_entry):
+        """把同步 Isaac 场景锁在 C1 入口，等待 X 启动同一实机门控链。"""
+
+        if not self.local_execution:
+            raise RuntimeError("local climb arm is only valid in Isaac")
+        self.local_climb_entry_q = np.asarray(
+            q_entry, dtype=np.float64
+        ).reshape(6, 3).copy()
+        if not np.isfinite(self.local_climb_entry_q).all():
+            raise ValueError("local climb entry q must be finite")
+        self.local_climb_armed = True
+        self.controller.q_des = self.local_climb_entry_q.copy()
+        self.controller.reset_active = False
+        self.state = self.HOLD
+        self.command[:] = 0.0
+        rospy.loginfo(
+            "Isaac compact C1 armed: HOLD entry target; press X to start"
+        )
 
     def _dock_lock_confirmed(self):
         """只接受本次Y后、未过期的锁紧确认。"""
@@ -1107,6 +1159,9 @@ class RosControlNode:
         x_pressed = bool(self._read(button_presses, self.button_x))
         y_pressed = bool(self._read(button_presses, self.button_y))
         if b_pressed:
+            if self.local_execution:
+                self.local_climb_armed = False
+                self.local_climb_entry_q = None
             self._flush_real_climb_speed_diagnostic("reset")
             self.state = self.RESETTING
             self.controller.reset_active = False
@@ -1130,6 +1185,12 @@ class RosControlNode:
             return
 
         if not a_pressed:
+            return
+
+        if getattr(self, "local_climb_armed", False):
+            rospy.logwarn_throttle(
+                2.0, "A ignored: Isaac compact C1 is armed; press X or B"
+            )
             return
 
         if self.controller.mode == self.controller.DOCK:
@@ -1213,6 +1274,9 @@ class RosControlNode:
         # 第一次B以前不发布目标，Servo保持卸力并只读反馈。
         if self.state == self.WAIT_B:
             return None
+
+        if getattr(self, "local_climb_armed", False) and self.state == self.HOLD:
+            return self.local_climb_entry_q.copy()
 
         if self.state == self.RESETTING:
             if not self.controller.reset_active:

@@ -669,12 +669,21 @@ class ClimbMode:
             ))
             self.last_collision_guard_hold = collision_hold
             if self.phase_time < duration:
+                boundaries = np.cumsum(stage["segment_durations_s"])
+                internal = boundaries[:-1]
+                at_checkpoint = bool(np.any(np.isclose(
+                    self.phase_time, internal, rtol=0.0, atol=1e-12
+                )))
+                checkpoint_foot_hold = at_checkpoint and not self.last_settled
                 self.last_phase_hold = bool(
-                    not self.last_settled or collision_hold
+                    collision_hold or checkpoint_foot_hold
                 )
-                if self.last_settled and not collision_hold:
+                if not self.last_phase_hold:
+                    next_boundary = boundaries[
+                        np.searchsorted(boundaries, self.phase_time, side="right")
+                    ]
                     self.phase_time = min(
-                        duration,
+                        float(next_boundary),
                         self.phase_time + self.controller.dt,
                     )
                 base, anchors, _ = self._stage_reference()
@@ -688,6 +697,9 @@ class ClimbMode:
             # 一帧对旧目标的误差错误计入完成门。
             base, anchors, _ = self._stage_reference()
             self._apply_reference(base, anchors)
+            self.last_phase_hold = bool(
+                not self.last_settled or collision_hold
+            )
             self.settle_time = (
                 self.settle_time + self.controller.dt
                 if self.last_settled and not collision_hold

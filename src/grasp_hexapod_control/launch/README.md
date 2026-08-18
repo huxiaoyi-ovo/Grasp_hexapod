@@ -45,6 +45,11 @@ roslaunch grasp_hexapod_control run_real.launch \
   max_vertical_speed:=0.003
 ```
 
+`run_real.launch` 当前暂时把攀爬 FK 足端任务门设为 `0.05 m`；可用
+`climb_foot_gate_m:=0.02` 回退。它仅在既有 segment knot/最终 endpoint 阻止进入下一段，
+段内不冻结；绝不是接触或负载证明，
+可能掩盖约 5 cm 的 FK 偏差；实机测试必须具备可靠支撑与急停条件。
+
 当前两块板依次为`left=/dev/ttyTHS0`、`right=/dev/ttyACM0`。如果无法在
 30 Hz内完成整机连杆碰撞计算，使用下面的完整指令临时关闭这一项：
 
@@ -97,6 +102,25 @@ ROS仿真默认使用30 Hz控制器、30 Hz执行器写入和240 Hz物理步进�
 roslaunch grasp_hexapod_control run_sim_ros.launch \
   controller_rate_hz:=60.0 actuator_rate_hz:=60.0 physics_rate_hz:=240.0
 ```
+
+ROS Isaac compact 攀爬使用同一套 `ClimbMode`、20 mm FK 足端门、`.25 s`
+持续稳定和 `5 s` 超时：
+
+```bash
+roslaunch grasp_hexapod_control run_sim_ros_climb.launch
+```
+
+场景固定在 active compact 的 C1 入口，按 X 开始 C1--C35；A 在 armed 状态会被忽略，B
+取消并正常回站。`/lb_pos` 与 `/lb_des` 是 Isaac 同步反馈/目标 telemetry，约为 30 Hz：
+
+```bash
+rostopic hz /lb_pos
+rostopic hz /lb_des
+```
+
+日志中的 `ACTIVE LEG TRACE` 是 base_link 中的规划/Isaac FK 对照，`PHASE HOLD` 表示同一
+反馈门冻结相位。此路径没有模拟两串口逐舵机读写/重试、跨板 skew、真实电源/负载/回差/力矩，
+也不构成真实接触或攀爬认证。
 
 原来的非ROS仿真链路仍然保留：
 

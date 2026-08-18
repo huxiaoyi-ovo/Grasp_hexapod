@@ -8,6 +8,9 @@
   <arg name="physics_rate_hz" default="240.0"/>
   <!-- 普通仿真默认使用LX-15D 7.4V官方空载速度上限候选。 -->
   <arg name="joint_speed" default="1.2"/>
+  <arg name="climb_joint_speed" default="1.2"/>
+  <arg name="climb_scene" default="false"/>
+  <arg name="enable_climb" default="$(arg climb_scene)"/>
   <arg name="headless" default="false"/>
   <arg name="max_joy_age" default="0.2"/>
   <arg name="joy_deadzone" default="0.20"/>
@@ -20,6 +23,8 @@
 
   <arg name="button_a" default="0"/>
   <arg name="button_b" default="1"/>
+  <arg name="button_x" default="2"/>
+  <arg name="button_y" default="3"/>
   <arg name="axis_right" default="0"/>
   <arg name="axis_forward" default="1"/>
   <arg name="axis_yaw" default="3"/>
@@ -53,6 +58,9 @@
     value="$(arg max_joy_age)"/>
   <param name="grasp_hexapod_sim/button_a" value="$(arg button_a)"/>
   <param name="grasp_hexapod_sim/button_b" value="$(arg button_b)"/>
+  <param name="grasp_hexapod_sim/button_x" value="$(arg button_x)"/>
+  <param name="grasp_hexapod_sim/button_y" value="$(arg button_y)"/>
+  <param name="grasp_hexapod_sim/enable_real_climb" value="$(arg enable_climb)"/>
   <param name="grasp_hexapod_sim/axis_right" value="$(arg axis_right)"/>
   <param name="grasp_hexapod_sim/axis_forward" value="$(arg axis_forward)"/>
   <param name="grasp_hexapod_sim/axis_yaw" value="$(arg axis_yaw)"/>
@@ -89,7 +97,21 @@
       output="screen"
       required="true"
       launch-prefix="$(arg python_executable)"
-      args="--ros --control-rate $(arg controller_rate_hz) --actuator-rate $(arg actuator_rate_hz) --physics-rate $(arg physics_rate_hz) --joint-speed $(arg joint_speed)">
+      unless="$(arg climb_scene)"
+      args="--ros --control-rate $(arg controller_rate_hz) --actuator-rate $(arg actuator_rate_hz) --physics-rate $(arg physics_rate_hz) --joint-speed $(arg joint_speed) --climb-joint-speed $(arg climb_joint_speed)">
+      <env
+        name="PYTHONPATH"
+        value="$(arg isaacgym_python_path):$(env PYTHONPATH)"/>
+    </node>
+    <node
+      pkg="grasp_hexapod_control"
+      type="run_sim.py"
+      name="grasp_hexapod_sim"
+      output="screen"
+      required="true"
+      launch-prefix="$(arg python_executable)"
+      if="$(arg climb_scene)"
+      args="--ros --climb-scene --control-rate $(arg controller_rate_hz) --actuator-rate $(arg actuator_rate_hz) --physics-rate $(arg physics_rate_hz) --joint-speed $(arg joint_speed) --climb-joint-speed $(arg climb_joint_speed)">
       <env
         name="PYTHONPATH"
         value="$(arg isaacgym_python_path):$(env PYTHONPATH)"/>
@@ -104,7 +126,21 @@
       output="screen"
       required="true"
       launch-prefix="$(arg python_executable)"
-      args="--ros --headless --control-rate $(arg controller_rate_hz) --actuator-rate $(arg actuator_rate_hz) --physics-rate $(arg physics_rate_hz) --joint-speed $(arg joint_speed)">
+      unless="$(arg climb_scene)"
+      args="--ros --headless --control-rate $(arg controller_rate_hz) --actuator-rate $(arg actuator_rate_hz) --physics-rate $(arg physics_rate_hz) --joint-speed $(arg joint_speed) --climb-joint-speed $(arg climb_joint_speed)">
+      <env
+        name="PYTHONPATH"
+        value="$(arg isaacgym_python_path):$(env PYTHONPATH)"/>
+    </node>
+    <node
+      pkg="grasp_hexapod_control"
+      type="run_sim.py"
+      name="grasp_hexapod_sim"
+      output="screen"
+      required="true"
+      launch-prefix="$(arg python_executable)"
+      if="$(arg climb_scene)"
+      args="--ros --headless --climb-scene --control-rate $(arg controller_rate_hz) --actuator-rate $(arg actuator_rate_hz) --physics-rate $(arg physics_rate_hz) --joint-speed $(arg joint_speed) --climb-joint-speed $(arg climb_joint_speed)">
       <env
         name="PYTHONPATH"
         value="$(arg isaacgym_python_path):$(env PYTHONPATH)"/>

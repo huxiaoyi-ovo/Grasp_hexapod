@@ -39,7 +39,7 @@ class ServoSideNode:
         "left": {
             "port": "/dev/ttyTHS0",
             "legs": ("lf", "lm", "lb"),
-            "directions": (1, 1, 1, 1, 1, 1, 1, 1, 1),
+            "directions": (-1, 1, 1, -1, 1, 1, -1, 1, 1),
             "id_map": {
                 "lf": (1, 2, 3),
                 "lm": (4, 5, 6),
@@ -49,7 +49,7 @@ class ServoSideNode:
         "right": {
             "port": "/dev/ttyACM0",
             "legs": ("rf", "rm", "rb"),
-            "directions": (1, -1, -1, 1, -1, -1, -1, -1, -1),
+            "directions": (1, -1, -1, -1, -1, -1, 1, -1, -1),
             "id_map": {
                 "rf": (10, 11, 12),
                 "rm": (13, 14, 15),

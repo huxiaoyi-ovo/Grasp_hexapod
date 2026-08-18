@@ -333,6 +333,17 @@ class RosControlNode:
         self.max_feedback_age = float(
             rospy.get_param("~max_feedback_age", 0.15)
         )
+        self.max_feedback_skew = float(
+            rospy.get_param("~max_feedback_skew", 0.10)
+        )
+        if (
+            self.max_feedback_skew <= 0.0
+            or self.max_feedback_skew > self.max_feedback_age
+        ):
+            raise ValueError(
+                "~max_feedback_skew must be positive and no greater than "
+                "~max_feedback_age"
+            )
         self.max_joy_age = float(
             rospy.get_param("~max_joy_age", 0.2)
         )
@@ -573,6 +584,7 @@ class RosControlNode:
         last_control_feedback_stamp,
         now,
         max_feedback_age,
+        max_feedback_skew=0.10,
     ):
         """区分“反馈有效”和“两块板六条腿均已更新”。"""
 
@@ -584,11 +596,15 @@ class RosControlNode:
             last_control_feedback_stamp, dtype=np.float64
         ).reshape(6)
         age = float(now) - feedback_stamp
+        snapshot_skew = float(
+            np.max(feedback_stamp) - np.min(feedback_stamp)
+        )
         feedback_ready = bool(
             np.isfinite(q_cur).all()
             and (feedback_stamp > 0.0).all()
             and (age >= 0.0).all()
             and (age <= float(max_feedback_age)).all()
+            and snapshot_skew <= float(max_feedback_skew)
         )
         complete_new_frame = bool(
             feedback_ready
@@ -839,6 +855,44 @@ class RosControlNode:
         """Start a hardware-only, observation-only stage diagnostic session."""
 
         self.real_climb_speed_diagnostic = None
+
+    def _warn_hardware_climb_phase_hold(self):
+        """报告实机反馈门冻结，保留完整足端与关节定位。"""
+
+        if self.controller.mode != self.controller.CLIMB:
+            return
+        climb = self.controller.climb_mode
+        if (
+            climb.state != ClimbMode.RUNNING
+            or not climb.hardware_execution
+            or not climb.last_phase_hold
+        ):
+            return
+        rospy.logwarn_throttle(
+            0.5,
+            "CLIMB PHASE HOLD: stage=%s %s collision_guard_hold=%s",
+            climb.phase,
+            climb.tracking_diagnostic_summary(),
+            "true" if climb.last_collision_guard_hold else "false",
+        )
+
+    def _info_hardware_climb_active_trace(self):
+        """周期输出活动腿的 base_link 规划/反馈对照，不推断因果。"""
+
+        if self.controller.mode != self.controller.CLIMB:
+            return
+        climb = self.controller.climb_mode
+        if climb.state != ClimbMode.RUNNING or not climb.hardware_execution:
+            return
+        rospy.loginfo_throttle(
+            1.0,
+            "CLIMB ACTIVE LEG TRACE: stage=%s %s; diagnostic only: "
+            "desired_z/planned lift low suggests planning, while desired-correct "
+            "actual lag with same-leg joint error suggests load/execution/feedback; "
+            "not causal proof",
+            climb.last_diagnostic_stage_name,
+            climb.active_leg_diagnostic_summary(),
+        )
 
     def _flush_real_climb_speed_diagnostic(self, reason):
         """Log and discard the completed stage aggregate without affecting motion."""
@@ -1215,6 +1269,8 @@ class RosControlNode:
             navigation_state,
             dock_robot_state,
         )
+        self._warn_hardware_climb_phase_hold()
+        self._info_hardware_climb_active_trace()
         if climb_stage is not None and feedback_stamp is not None:
             self._record_real_climb_speed_diagnostic(
                 climb_stage,
@@ -1284,6 +1340,7 @@ class RosControlNode:
                 self.last_control_feedback_stamp,
                 now,
                 self.max_feedback_age,
+                self.max_feedback_skew,
             )
             b_pending = bool(self._read(
                 self.button_press_latch, self.button_b

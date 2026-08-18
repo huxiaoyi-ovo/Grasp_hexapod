@@ -11,6 +11,7 @@
   <arg name="servo_rate_hz" default="30.0"/>
   <arg name="command_duration_ms" default="33"/>
   <arg name="max_feedback_age" default="0.15"/>
+  <arg name="max_feedback_skew" default="0.10"/>
   <arg name="max_joy_age" default="0.2"/>
   <arg name="joy_deadzone" default="0.20"/>
   <arg name="enable_real_climb" default="true"/>
@@ -73,6 +74,7 @@
       name="enable_link_collision_check"
       value="$(arg enable_link_collision_check)"/>
     <arg name="max_feedback_age" value="$(arg max_feedback_age)"/>
+    <arg name="max_feedback_skew" value="$(arg max_feedback_skew)"/>
     <arg name="max_joy_age" value="$(arg max_joy_age)"/>
     <arg name="joy_deadzone" value="$(arg joy_deadzone)"/>
     <arg name="enable_real_climb" value="$(arg enable_real_climb)"/>

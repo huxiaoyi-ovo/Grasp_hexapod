@@ -2,11 +2,13 @@
 """CPU contract checks for the bottom-USB DOCK perception chain."""
 
 import importlib
+import inspect
 from pathlib import Path
 import sys
 import types
 import xml.etree.ElementTree as ET
 
+import numpy as np
 import yaml
 
 
@@ -56,6 +58,18 @@ def test_simulation_imports_shared_dock_geometry_and_topics():
     assert "TAG_SIZE," in source
     assert '"/dock_camera/image_raw"' in source
     assert '"/dock_camera/camera_info"' in source
+
+
+def test_dock_planner_uses_the_shared_climb_and_approach_joint_speed_limit():
+    from dock_mode import DockPlannerConfig, _leg_motion_plan
+    from kinematics import JOINT_VELOCITY_LIMIT
+
+    shared_limit = float(np.min(JOINT_VELOCITY_LIMIT))
+    support_default = inspect.signature(
+        _leg_motion_plan
+    ).parameters["max_joint_speed"].default
+    assert DockPlannerConfig().max_joint_speed == shared_limit
+    assert support_default == shared_limit
 
 
 def test_uncalibrated_dock_configuration_blocks_y_without_override():

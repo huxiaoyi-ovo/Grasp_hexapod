@@ -29,6 +29,7 @@ from kinematics import (
     GraspKinematic,
     JOINT_LOWER,
     JOINT_UPPER,
+    JOINT_VELOCITY_LIMIT,
     LEG_NAMES,
 )
 from utils import (
@@ -833,7 +834,7 @@ def _leg_feet_path(start_feet, leg, waypoints, step=0.002):
 
 def _leg_motion_plan(
     current_joints, leg, start_feet, waypoints,
-    max_joint_speed=np.deg2rad(45.0),
+    max_joint_speed=float(np.min(JOINT_VELOCITY_LIMIT)),
 ):
     """生成单腿轨迹并统一添加末端保持点。"""
 
@@ -954,7 +955,7 @@ class DockPlannerConfig:
     prealign_angle_speed: float = np.deg2rad(20.0)
     descent_speed: float = 0.012
     descent_angle_speed: float = np.deg2rad(10.0)
-    max_joint_speed: float = np.deg2rad(45.0)
+    max_joint_speed: float = float(np.min(JOINT_VELOCITY_LIMIT))
     prealign_hold: float = 0.25
     prealign_position_tolerance: float = 0.006
     prealign_tilt_tolerance: float = 2.5

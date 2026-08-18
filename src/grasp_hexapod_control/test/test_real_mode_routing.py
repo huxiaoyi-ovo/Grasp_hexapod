@@ -27,6 +27,7 @@ ROS_STUB_MODULES = (
 def _install_ros_stubs():
     rospy = types.ModuleType("rospy")
     rospy.loginfo = lambda *args, **kwargs: None
+    rospy.loginfo_throttle = lambda *args, **kwargs: None
     rospy.logwarn = lambda *args, **kwargs: None
     rospy.logwarn_throttle = lambda *args, **kwargs: None
     rospy.Time = types.SimpleNamespace(
@@ -76,7 +77,7 @@ finally:
 
 from climb_mode import ClimbMode
 from control import COLLISION_MARGIN, LINK_COLLISION_RADII, GraspController
-from kinematics import JOINT_LOWER, JOINT_UPPER, Q_STAND
+from kinematics import JOINT_LOWER, JOINT_UPPER, JOINT_VELOCITY_LIMIT, Q_STAND
 
 
 class _Mission:
@@ -170,6 +171,21 @@ def test_dual_board_frame_waits_until_all_six_legs_are_new():
         q_cur, partial, current, now=10.06, max_feedback_age=0.15
     )
     assert ready
+    assert not complete
+
+
+def test_dual_board_frame_rejects_excessive_snapshot_skew():
+    q_cur = np.zeros((6, 3), dtype=np.float64)
+    stamps = np.array([10.00, 10.01, 10.02, 10.11, 10.12, 10.13])
+    ready, complete = RUN_REAL.RosControlNode._feedback_frame_state(
+        q_cur,
+        stamps,
+        np.zeros(6),
+        now=10.14,
+        max_feedback_age=0.15,
+        max_feedback_skew=0.10,
+    )
+    assert not ready
     assert not complete
 
 
@@ -443,6 +459,51 @@ def test_dock_target_guard_rejects_and_keeps_feedback_pose():
     assert "joint limits" in dock.failed_reason
 
 
+def test_dock_target_speed_guard_limits_without_terminal_failure():
+    class Dock:
+        active = False
+
+        def __init__(self, target):
+            self.target = target
+            self.failed_reason = ""
+
+        def enter(self, feet):
+            del feet
+            self.active = True
+
+        def exit(self):
+            self.active = False
+
+        def update(self, state):
+            del state
+            return types.SimpleNamespace(joint_positions=self.target)
+
+        def fail_execution(self, reason):
+            self.failed_reason = reason
+
+    q_target = Q_STAND.copy()
+    q_target[0, 0] += np.deg2rad(20.0)
+    controller = GraspController(1.0 / 30.0)
+    dock = Dock(q_target)
+    controller.attach_dock_mode(dock)
+    controller.enter_dock(Q_STAND)
+
+    q_des = controller.update(Q_STAND, np.zeros(4), dock_robot_state={})
+
+    step = JOINT_VELOCITY_LIMIT * controller.dt
+    assert np.isclose(q_des[0, 0], Q_STAND[0, 0] + step[0, 0])
+    assert np.array_equal(q_des[1:], Q_STAND[1:])
+    assert controller.last_update_velocity_limit_clip_count == 1
+    assert dock.failed_reason == ""
+
+    q_cur = q_des
+    for _ in range(3):
+        q_cur = controller.update(q_cur, np.zeros(4), dock_robot_state={})
+    assert np.allclose(q_cur, q_target)
+    assert controller.last_update_velocity_limit_clip_count == 0
+    assert dock.failed_reason == ""
+
+
 def test_l_shaped_ankle_keeps_the_30mm_teleop_swing_moving():
     controller = GraspController(1.0 / 30.0)
     assert np.isclose(controller.approach_mode.step_height, 0.030)
@@ -481,14 +542,15 @@ def test_l_shaped_ankle_rejects_a_real_deep_fold_within_joint_limits():
     assert not controller._link_collision_free(q_candidate)[0]
 
 
-def test_runtime_climb_settle_gate_uses_15mm_foot_error_and_80mrad_joint_gate():
+def test_runtime_climb_settle_gate_uses_20mm_foot_error_and_80mrad_joint_gate():
     config = json.loads(
         (SCRIPTS.parent / "config" / "climb_compact.json").read_text()
     )
     settle_gate = config["settle_gate"]
-    assert settle_gate["max_foot_target_error_m"] == 0.015
+    assert settle_gate["max_foot_target_error_m"] == 0.020
     assert settle_gate["entry_max_joint_error_rad"] == 0.08
     assert settle_gate["max_joint_tracking_error_rad"] == 0.08
+    assert settle_gate["timeout_s"] == 5.0
 
 
 def test_active_climb_feet_use_base_relative_paths_and_audited_clearance():
@@ -527,6 +589,253 @@ def test_hardware_climb_never_advances_on_time_without_settled_feedback():
     assert mode.stage_index == 0
     assert mode.state == ClimbMode.RUNNING
     assert mode.settle_time == 0.0
+
+
+def test_hardware_climb_uses_foot_task_error_not_joint_tracking_for_phase():
+    controller = GraspController(1.0 / 30.0)
+    controller.enter_climb(Q_STAND, hardware_execution=True)
+    mode = controller.climb_mode
+
+    # 模拟负载下存在关节稳态偏差，但实际 FK 足端仍在当前任务目标。
+    controller.q_des = Q_STAND + 0.5
+    controller.foot_desired_base[:] = controller.kinematic.forward_base(Q_STAND)
+    controller.update(Q_STAND, np.zeros(4))
+
+    assert mode.last_tracking_error_rad > mode.config["settle_gate"][
+        "max_joint_tracking_error_rad"
+    ]
+    assert mode.last_foot_target_error_m <= mode.config["settle_gate"][
+        "max_foot_target_error_m"
+    ]
+    assert mode.phase_time == controller.dt
+
+
+def test_hardware_climb_freezes_and_resumes_trajectory_phase_from_feedback():
+    controller = GraspController(1.0 / 30.0)
+    controller.enter_climb(Q_STAND, hardware_execution=True)
+    mode = controller.climb_mode
+    command = np.zeros(4)
+
+    q_reference = controller.update(Q_STAND, command)
+    moving_phase = mode.phase_time
+    reference_before_freeze = controller.foot_desired_base.copy()
+    q_des = controller.update(Q_STAND + 0.5, command)
+    assert mode.last_foot_target_error_m > mode.config["settle_gate"][
+        "max_foot_target_error_m"
+    ]
+    assert mode.phase_time == moving_phase
+    assert np.array_equal(controller.foot_desired_base, reference_before_freeze)
+    assert np.isfinite(q_des).all()
+
+    controller.update(q_reference, command)
+    assert mode.last_foot_target_error_m <= mode.config["settle_gate"][
+        "max_foot_target_error_m"
+    ]
+    assert mode.phase_time > moving_phase
+
+
+def test_hardware_climb_diagnostics_keep_all_feet_and_motors():
+    controller = GraspController(1.0 / 30.0)
+    controller.enter_climb(Q_STAND, hardware_execution=True)
+    mode = controller.climb_mode
+    mode.stage_index = 3
+    mode.phase = mode.stage_names[mode.stage_index]
+    mode.phase_time = 0.2
+    mode.stage_elapsed_time = 0.7
+    controller.foot_desired_base[:] = controller.kinematic.forward_base(Q_STAND)
+    controller.foot_desired_base[0, 0] += 0.03
+    controller.foot_desired_base[1, 1] += 0.04
+    controller.q_des = Q_STAND.copy()
+    controller.q_des[2, 1] += 0.10
+    controller.q_des[4, 2] += 0.12
+
+    mode._update_tracking_diagnostics(Q_STAND)
+
+    assert mode.last_worst_foot_leg == "lf"
+    assert mode.last_worst_joint_leg == "rf"
+    assert mode.last_worst_joint_name == "ankle"
+    assert tuple(name for name, _ in mode.last_feet_over_gate) == ("lb", "lf")
+    assert np.allclose(
+        tuple(value for _, value in mode.last_feet_over_gate), (0.03, 0.04)
+    )
+    assert tuple(name for name, _ in mode.last_joints_over_tracking_gate) == (
+        "lm_knee",
+        "rf_ankle",
+    )
+    assert np.allclose(
+        tuple(value for _, value in mode.last_joints_over_tracking_gate),
+        (0.10, 0.12),
+    )
+    summary = mode.tracking_diagnostic_summary()
+    assert "feet_over_gate=lb=0.03,lf=0.04" in summary
+    assert "feet_over_gate_base_link_xyz=lb[actual_base_xyz_m=" in summary
+    assert ";lf[actual_base_xyz_m=" in summary
+    assert "error_xyz_m=(-0.03,0,0)" in summary
+    assert "error_xyz_m=(0,-0.04,0)" in summary
+    assert "worst_motor=rf_ankle" in summary
+    assert "motors_over_0.08rad=lm_knee=0.1,rf_ankle=0.12" in summary
+    active_trace = mode.active_leg_diagnostic_summary()
+    assert "diagnostic_stage=PAIR diagnostic_phase_time_s=0.2" in active_trace
+    assert "stage_duration_s=3.57 diagnostic_stage_elapsed_s=0.7" in active_trace
+    assert "active_legs=rb,rf" in active_trace
+    assert "rb[actual_base_xyz_m=" in active_trace
+    assert ";rf[actual_base_xyz_m=" in active_trace
+
+
+def test_hardware_climb_timeout_includes_foot_and_motor_diagnostics():
+    controller = GraspController(1.0 / 30.0)
+    controller.enter_climb(Q_STAND, hardware_execution=True)
+    mode = controller.climb_mode
+    stage = mode.config["stages"][0]
+    mode.stage_elapsed_time = (
+        sum(stage["segment_durations_s"])
+        + mode.config["settle_gate"]["timeout_s"]
+        - controller.dt
+    )
+    controller.update(Q_STAND + 0.5, np.zeros(4))
+
+    assert mode.state == ClimbMode.FAILED
+    assert "worst_foot=" in mode.failure_reason
+    assert "worst_motor=" in mode.failure_reason
+    assert "feet_over_gate=" in mode.failure_reason
+    assert "motors_over_0.08rad=" in mode.failure_reason
+
+
+def test_run_real_logs_hardware_climb_phase_hold_diagnostics(monkeypatch):
+    warnings = []
+    monkeypatch.setattr(
+        RUN_REAL.rospy,
+        "logwarn_throttle",
+        lambda *args: warnings.append(args),
+    )
+    node = object.__new__(RUN_REAL.RosControlNode)
+    node.controller = types.SimpleNamespace(
+        mode="climb",
+        CLIMB="climb",
+        climb_mode=types.SimpleNamespace(
+            state=ClimbMode.RUNNING,
+            hardware_execution=True,
+            last_phase_hold=True,
+            last_collision_guard_hold=True,
+            phase="LM_GROUND_SHIFT1",
+            tracking_diagnostic_summary=lambda: (
+                "worst_foot=lm foot_target_error_m=0.0309 "
+                "feet_over_gate=lm=0.0309 worst_motor=lm_knee "
+                "motors_over_0.08rad=lm_knee=0.1"
+            ),
+        ),
+    )
+
+    RUN_REAL.RosControlNode._warn_hardware_climb_phase_hold(node)
+
+    assert warnings == [(
+        0.5,
+        "CLIMB PHASE HOLD: stage=%s %s collision_guard_hold=%s",
+        "LM_GROUND_SHIFT1",
+        "worst_foot=lm foot_target_error_m=0.0309 "
+        "feet_over_gate=lm=0.0309 worst_motor=lm_knee "
+        "motors_over_0.08rad=lm_knee=0.1",
+        "true",
+    )]
+
+
+def test_run_real_logs_active_leg_trace_without_phase_hold(monkeypatch):
+    infos = []
+    monkeypatch.setattr(
+        RUN_REAL.rospy,
+        "loginfo_throttle",
+        lambda *args: infos.append(args),
+    )
+    node = object.__new__(RUN_REAL.RosControlNode)
+    node.controller = types.SimpleNamespace(
+        mode="climb",
+        CLIMB="climb",
+        climb_mode=types.SimpleNamespace(
+            state=ClimbMode.RUNNING,
+            hardware_execution=True,
+            phase="RB_RF_HIGH_C",
+            last_diagnostic_stage_name="RB_RF_HIGH_C",
+            active_leg_diagnostic_summary=lambda: (
+                "base_link diagnostic_phase_time_s=0.2 stage_duration_s=1 "
+                "diagnostic_stage_elapsed_s=0.2 active_legs=rb,rf "
+                "active_leg_base_link_xyz=rb[actual_base_xyz_m=(0,0,0),"
+                "desired_base_xyz_m=(0,0,0),error_xyz_m=(0,0,0)];"
+                "rf[actual_base_xyz_m=(0,0,0),desired_base_xyz_m=(0,0,0),"
+                "error_xyz_m=(0,0,0)]"
+            ),
+        ),
+    )
+
+    RUN_REAL.RosControlNode._info_hardware_climb_active_trace(node)
+
+    assert infos[0][0] == 1.0
+    assert infos[0][2] == "RB_RF_HIGH_C"
+    assert "base_link diagnostic_phase_time_s=0.2" in infos[0][3]
+
+
+def test_hardware_climb_collision_hold_freezes_trajectory_phase():
+    controller = GraspController(1.0 / 30.0)
+    controller.enter_climb(Q_STAND, hardware_execution=True)
+    mode = controller.climb_mode
+    controller.last_update_collision_guard_hold_count = 1
+    controller.update(Q_STAND, np.zeros(4))
+    assert mode.phase_time == 0.0
+
+
+def test_hardware_climb_endpoint_requires_configured_persistence():
+    config = json.loads(
+        (SCRIPTS.parent / "config" / "climb_compact.json").read_text()
+    )
+    ideal = GraspController(1.0 / 30.0)
+    ideal.enter_climb(Q_STAND, config, end_stage_index=0)
+    q_end = Q_STAND.copy()
+    while ideal.climb_mode.state == ClimbMode.RUNNING:
+        q_end = ideal.update(q_end, np.zeros(4))
+
+    controller = GraspController(1.0 / 30.0)
+    controller.enter_climb(
+        Q_STAND,
+        config,
+        end_stage_index=0,
+        hardware_execution=True,
+    )
+    mode = controller.climb_mode
+    duration = sum(config["stages"][0]["segment_durations_s"])
+    mode.phase_time = duration
+    mode.stage_elapsed_time = duration
+    base, anchors, _ = mode._stage_reference()
+    mode._apply_reference(base, anchors, sync_previous=True)
+    controller.q_des = q_end.copy()
+    required_frames = int(np.ceil(
+        config["settle_gate"]["persistence_s"] / controller.dt
+    ))
+
+    for _ in range(required_frames - 1):
+        controller.update(q_end, np.zeros(4))
+        assert mode.state == ClimbMode.RUNNING
+    controller.update(q_end, np.zeros(4))
+    assert mode.state == ClimbMode.DONE
+
+
+def test_hardware_climb_timeout_uses_wall_time_while_phase_is_frozen():
+    controller = GraspController(1.0 / 30.0)
+    controller.enter_climb(Q_STAND, hardware_execution=True)
+    mode = controller.climb_mode
+    stage = mode.config["stages"][0]
+    duration = sum(stage["segment_durations_s"])
+    mode.stage_elapsed_time = (
+        duration + mode.config["settle_gate"]["timeout_s"]
+        - controller.dt
+    )
+    controller.update(Q_STAND + 0.5, np.zeros(4))
+    assert mode.state == ClimbMode.FAILED
+    assert mode.phase_time == 0.0
+
+
+def test_isaac_compact_paths_enable_real_feedback_gates():
+    source = (SCRIPTS / "run_sim.py").read_text()
+    assert source.count("hardware_execution=True") >= 2
+    assert "climb_hardware_execution=True" in source
 
 
 def test_climb_observation_uses_start_frame_relative_transforms():

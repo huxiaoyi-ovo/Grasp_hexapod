@@ -8,7 +8,7 @@ import json
 
 import numpy as np
 
-from kinematics import Q_STAND
+from kinematics import JOINT_NAMES, LEG_NAMES, Q_STAND
 from utils import package_config_path
 
 
@@ -41,6 +41,7 @@ class ClimbMode:
         self.state = self.IDLE
         self.phase = None
         self.phase_time = 0.0
+        self.stage_elapsed_time = 0.0
         self.settle_time = 0.0
         self.failure_reason = ""
         self.anchors_world = None
@@ -50,7 +51,28 @@ class ClimbMode:
         self.stage_names = ()
         self.last_tracking_error_rad = 0.0
         self.last_foot_target_error_m = 0.0
+        self.last_foot_errors_m = np.zeros(6, dtype=np.float64)
+        self.last_actual_foot_base_m = np.zeros((6, 3), dtype=np.float64)
+        self.last_desired_foot_base_m = np.zeros((6, 3), dtype=np.float64)
+        self.last_foot_error_xyz_m = np.zeros((6, 3), dtype=np.float64)
+        self.last_diagnostic_phase_time_s = 0.0
+        self.last_diagnostic_stage_elapsed_s = 0.0
+        self.last_diagnostic_stage_name = ""
+        self.last_diagnostic_stage_duration_s = 0.0
+        self.last_diagnostic_active_legs = ()
+        self.last_worst_foot_leg = LEG_NAMES[0]
+        self.last_worst_foot_error_m = 0.0
+        self.last_feet_over_gate = ()
+        self.last_joint_tracking_errors_rad = np.zeros((6, 3), dtype=np.float64)
+        self.last_worst_joint_leg = LEG_NAMES[0]
+        self.last_worst_joint_name = JOINT_NAMES[0]
+        self.last_worst_joint_error_rad = 0.0
+        self.last_worst_joint_q_current_rad = 0.0
+        self.last_worst_joint_q_des_rad = 0.0
+        self.last_joints_over_tracking_gate = ()
         self.last_settled = False
+        self.last_phase_hold = False
+        self.last_collision_guard_hold = False
         self.hardware_execution = False
 
     @staticmethod
@@ -297,6 +319,7 @@ class ClimbMode:
         self.stage_names = tuple(stage["name"] for stage in config["stages"])
         self.phase = self.stage_names[self.stage_index]
         self.phase_time = 0.0
+        self.stage_elapsed_time = 0.0
         self.settle_time = 0.0
         self.failure_reason = ""
         self.state = self.RUNNING
@@ -446,6 +469,7 @@ class ClimbMode:
         self.stage_index += 1
         self.phase = self.stage_names[self.stage_index]
         self.phase_time = 0.0
+        self.stage_elapsed_time = 0.0
         self.settle_time = 0.0
 
     def _update_tracking_diagnostics(self, q_current):
@@ -454,27 +478,157 @@ class ClimbMode:
         q_current = np.asarray(q_current, dtype=np.float64).reshape(6, 3)
         if not np.all(np.isfinite(q_current)):
             raise ValueError("q_current must be finite")
-        tracking_error = float(
-            np.max(np.abs(q_current - np.asarray(self.controller.q_des)))
-        )
+        q_des = np.asarray(
+            self.controller.q_des, dtype=np.float64
+        ).reshape(6, 3)
+        joint_errors = np.abs(q_current - q_des)
+        tracking_error = float(np.max(joint_errors))
         actual_base = self.controller.kinematic.hip_to_base(
             self.controller.kinematic.forward(q_current)
         )
-        foot_error = float(
-            np.max(
-                np.linalg.norm(
-                    actual_base - self.controller.foot_desired_base, axis=1
-                )
-            )
+        desired_base = np.asarray(
+            self.controller.foot_desired_base, dtype=np.float64
+        ).reshape(6, 3)
+        foot_error_xyz = actual_base - desired_base
+        foot_errors = np.linalg.norm(
+            foot_error_xyz, axis=1
         )
+        foot_error = float(np.max(foot_errors))
         if not np.isfinite(tracking_error) or not np.isfinite(foot_error):
             raise ValueError("compact tracking diagnostics must be finite")
         gate = self.config["settle_gate"]
+        worst_foot_index = int(np.argmax(foot_errors))
+        worst_joint_index = np.unravel_index(
+            int(np.argmax(joint_errors)), joint_errors.shape
+        )
+        feet_over_gate = np.flatnonzero(
+            foot_errors > gate["max_foot_target_error_m"]
+        )
+        joints_over_gate = np.argwhere(
+            joint_errors > gate["max_joint_tracking_error_rad"]
+        )
         self.last_tracking_error_rad = tracking_error
         self.last_foot_target_error_m = foot_error
+        self.last_foot_errors_m = foot_errors.copy()
+        self.last_actual_foot_base_m = actual_base.copy()
+        self.last_desired_foot_base_m = desired_base.copy()
+        self.last_foot_error_xyz_m = foot_error_xyz.copy()
+        self.last_diagnostic_phase_time_s = self.phase_time
+        self.last_diagnostic_stage_elapsed_s = self.stage_elapsed_time
+        stage = self.config["stages"][self.stage_index]
+        self.last_diagnostic_stage_name = stage["name"]
+        self.last_diagnostic_stage_duration_s = float(
+            sum(stage["segment_durations_s"])
+        )
+        self.last_diagnostic_active_legs = tuple(stage["active_legs"])
+        self.last_worst_foot_leg = LEG_NAMES[worst_foot_index]
+        self.last_worst_foot_error_m = float(foot_errors[worst_foot_index])
+        self.last_feet_over_gate = tuple(
+            (LEG_NAMES[index], float(foot_errors[index]))
+            for index in feet_over_gate
+        )
+        self.last_joint_tracking_errors_rad = joint_errors.copy()
+        self.last_worst_joint_leg = LEG_NAMES[worst_joint_index[0]]
+        self.last_worst_joint_name = JOINT_NAMES[worst_joint_index[1]]
+        self.last_worst_joint_error_rad = float(joint_errors[worst_joint_index])
+        self.last_worst_joint_q_current_rad = float(q_current[worst_joint_index])
+        self.last_worst_joint_q_des_rad = float(q_des[worst_joint_index])
+        self.last_joints_over_tracking_gate = tuple(
+            (
+                LEG_NAMES[leg_index] + "_" + JOINT_NAMES[joint_index],
+                float(joint_errors[leg_index, joint_index]),
+            )
+            for leg_index, joint_index in joints_over_gate
+        )
+        # 关节角误差和足端 FK 误差来自同一组回读，并且会随姿态受到
+        # 不同 Jacobian 放大。实机负载下前者存在稳定偏差时，不能再把
+        # 它作为与足端任务误差并列的完成条件；足端误差才是阶段推进的
+        # 任务量，关节误差仅保留给日志/故障诊断。
         self.last_settled = bool(
-            tracking_error <= gate["max_joint_tracking_error_rad"]
-            and foot_error <= gate["max_foot_target_error_m"]
+            foot_error <= gate["max_foot_target_error_m"]
+        )
+
+    @staticmethod
+    def _format_named_errors(errors):
+        """格式化超过既有门限的完整腿/关节列表。"""
+
+        return ",".join(
+            "{}={:.9g}".format(name, value) for name, value in errors
+        ) or "none"
+
+    @staticmethod
+    def _format_xyz(vector):
+        """稳定格式化 base_link 中的 xyz 向量。"""
+
+        return "({:.9g},{:.9g},{:.9g})".format(*vector)
+
+    def _format_foot_vectors(self, leg_indices):
+        """格式化指定腿的 actual/desired/signed-FK-error base_link 向量。"""
+
+        values = []
+        for leg_index in leg_indices:
+            values.append(
+                "{}[actual_base_xyz_m={},desired_base_xyz_m={},error_xyz_m={}]".format(
+                    LEG_NAMES[leg_index],
+                    self._format_xyz(self.last_actual_foot_base_m[leg_index]),
+                    self._format_xyz(self.last_desired_foot_base_m[leg_index]),
+                    self._format_xyz(self.last_foot_error_xyz_m[leg_index]),
+                )
+            )
+        return ";".join(values) or "none"
+
+    def tracking_diagnostic_summary(self):
+        """返回实机暂停/失败可直接定位的反馈误差摘要。"""
+
+        gate = self.config["settle_gate"]
+        worst_motor = (
+            self.last_worst_joint_leg + "_" + self.last_worst_joint_name
+        )
+        return (
+            "worst_foot={} foot_target_error_m={:.9g} foot_gate_m={:.9g} "
+            "feet_over_gate={} feet_over_gate_base_link_xyz={} "
+            "worst_motor={} tracking_error_rad={:.9g} "
+            "q_cur_rad={:.9g} q_des_rad={:.9g} motors_over_{:.9g}rad={}"
+        ).format(
+            self.last_worst_foot_leg,
+            self.last_worst_foot_error_m,
+            gate["max_foot_target_error_m"],
+            self._format_named_errors(self.last_feet_over_gate),
+            self._format_foot_vectors(
+                tuple(LEG_NAMES.index(name) for name, _ in self.last_feet_over_gate)
+            ),
+            worst_motor,
+            self.last_worst_joint_error_rad,
+            self.last_worst_joint_q_current_rad,
+            self.last_worst_joint_q_des_rad,
+            gate["max_joint_tracking_error_rad"],
+            self._format_named_errors(self.last_joints_over_tracking_gate),
+        )
+
+    def active_leg_diagnostic_summary(self):
+        """返回当前阶段活动腿在诊断采样时的 base_link 规划/实际对照。"""
+
+        active = self.last_diagnostic_active_legs
+        return (
+            "base_link diagnostic_stage={} diagnostic_phase_time_s={:.9g} "
+            "stage_duration_s={:.9g} diagnostic_stage_elapsed_s={:.9g} active_legs={} "
+            "active_leg_base_link_xyz={}"
+        ).format(
+            self.last_diagnostic_stage_name,
+            self.last_diagnostic_phase_time_s,
+            self.last_diagnostic_stage_duration_s,
+            self.last_diagnostic_stage_elapsed_s,
+            ",".join(LEG_NAMES[index] for index in active) or "none",
+            self._format_foot_vectors(active),
+        )
+
+    def _tracking_failure_reason(self):
+        """生成阶段超时的诊断性失败原因，不把其解释为接触证明。"""
+
+        return (
+            self.phase
+            + ": TRACKING_OR_KINEMATIC_TARGET_TIMEOUT_NOT_CONTACT_PROOF "
+            + self.tracking_diagnostic_summary()
         )
 
     def update(self, command, q_current):
@@ -497,6 +651,59 @@ class ClimbMode:
         if self.state == self.FAILED:
             self._update_tracking_diagnostics(q_current)
             return None
+
+        if self.hardware_execution:
+            gate = self.config["settle_gate"]
+            stage = self.config["stages"][self.stage_index]
+            duration = float(sum(stage["segment_durations_s"]))
+            self.stage_elapsed_time += self.controller.dt
+
+            # 先检查上一控制帧已经下发的目标。实机跟不上或公共碰撞守卫
+            # 保持时冻结当前轨迹相位，继续追踪同一目标，避免摆动腿尚未
+            # 到达最高点，规划时钟就进入平移或下降。
+            self._update_tracking_diagnostics(q_current)
+            collision_hold = bool(getattr(
+                self.controller,
+                "last_update_collision_guard_hold_count",
+                0,
+            ))
+            self.last_collision_guard_hold = collision_hold
+            if self.phase_time < duration:
+                self.last_phase_hold = bool(
+                    not self.last_settled or collision_hold
+                )
+                if self.last_settled and not collision_hold:
+                    self.phase_time = min(
+                        duration,
+                        self.phase_time + self.controller.dt,
+                    )
+                base, anchors, _ = self._stage_reference()
+                self._apply_reference(base, anchors)
+                if self.stage_elapsed_time >= duration + gate["timeout_s"]:
+                    self.state = self.FAILED
+                    self.failure_reason = self._tracking_failure_reason()
+                return None
+
+            # 到达终点后的下一帧才开始累计稳定时间，避免把抵达终点前
+            # 一帧对旧目标的误差错误计入完成门。
+            base, anchors, _ = self._stage_reference()
+            self._apply_reference(base, anchors)
+            self.settle_time = (
+                self.settle_time + self.controller.dt
+                if self.last_settled and not collision_hold
+                else 0.0
+            )
+            settle_required = max(
+                float(stage["settle_s"]),
+                float(gate["persistence_s"]),
+            )
+            if self.settle_time >= settle_required:
+                self._advance_stage()
+            elif self.stage_elapsed_time >= duration + gate["timeout_s"]:
+                self.state = self.FAILED
+                self.failure_reason = self._tracking_failure_reason()
+            return None
+
         base, anchors, duration = self._stage_reference()
         self._apply_reference(base, anchors)
         self._update_tracking_diagnostics(q_current)

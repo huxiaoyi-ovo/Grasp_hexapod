@@ -72,6 +72,7 @@ class MissionStateMachine:
         self.climb_config = None
         self.climb_start_stage_index = 0
         self.climb_end_stage_index = None
+        self.climb_hardware_execution = False
         self.approach_elapsed_s = 0.0
         self.approach_timeout_s = 60.0
         self.prepare_elapsed_s = 0.0
@@ -107,6 +108,7 @@ class MissionStateMachine:
         approach_timeout_s=60.0,
         approach_position_tolerance_m=0.01,
         approach_yaw_tolerance_rad=np.deg2rad(1.0),
+        climb_hardware_execution=False,
     ):
         """规划自动接近并保存后续攀爬任务。"""
 
@@ -126,6 +128,7 @@ class MissionStateMachine:
             if end_stage_index is None
             else int(end_stage_index)
         )
+        self.climb_hardware_execution = bool(climb_hardware_execution)
         self.approach_elapsed_s = 0.0
         self.approach_timeout_s = float(approach_timeout_s)
         if self.approach_timeout_s <= 0.0:
@@ -337,6 +340,7 @@ class MissionStateMachine:
                         self.climb_config,
                         self.climb_start_stage_index,
                         self.climb_end_stage_index,
+                        hardware_execution=self.climb_hardware_execution,
                     )
                     self.state = self.CLIMB
             if (
@@ -772,9 +776,11 @@ class GraspController:
         return feet_base
 
     def _safe_direct_joint_target(self, q_candidate, q_cur):
-        """检查DockMode给出的关节目标，不安全时保持反馈姿态。"""
+        """检查DockMode目标，并从反馈姿态按单周期速度安全追赶。"""
 
         q_cur = np.asarray(q_cur, dtype=np.float64).reshape(6, 3)
+        self.last_update_velocity_limit_clip_count = 0
+        self.last_update_collision_guard_hold_count = 0
         try:
             q_candidate = np.asarray(q_candidate, dtype=np.float64).reshape(6, 3)
         except (TypeError, ValueError):
@@ -783,10 +789,16 @@ class GraspController:
             return q_cur.copy(), "dock target is non-finite"
         if (q_candidate < JOINT_LOWER).any() or (q_candidate > JOINT_UPPER).any():
             return q_cur.copy(), "dock target exceeds joint limits"
-        if np.any(np.abs(q_candidate - q_cur) > JOINT_VELOCITY_LIMIT * self.dt):
-            return q_cur.copy(), "dock target exceeds per-cycle joint speed limit"
-        accepted = self.collision_guard(q_candidate, q_cur)
-        if not np.array_equal(accepted, q_candidate):
+        step = JOINT_VELOCITY_LIMIT * self.dt
+        self.last_update_velocity_limit_clip_count = int(np.count_nonzero(
+            np.abs(q_candidate - q_cur) > step
+        ))
+        q_limited = np.clip(q_candidate, q_cur - step, q_cur + step)
+        accepted = self.collision_guard(q_limited, q_cur)
+        self.last_update_collision_guard_hold_count = int(
+            not np.array_equal(accepted, q_limited)
+        )
+        if self.last_update_collision_guard_hold_count:
             return q_cur.copy(), "dock target rejected by link collision guard"
         return accepted, ""
 
@@ -851,17 +863,19 @@ class GraspController:
         approach_timeout_s=60.0,
         approach_position_tolerance_m=0.01,
         approach_yaw_tolerance_rad=np.deg2rad(1.0),
+        climb_hardware_execution=False,
     ):
         """启动APPROACH到CLIMB再到DOCK的自动调度。"""
 
         return self.mission.start(
             navigation_state,
             climb_config,
-            start_stage_index,
-            end_stage_index,
-            approach_timeout_s,
-            approach_position_tolerance_m,
-            approach_yaw_tolerance_rad,
+            start_stage_index=start_stage_index,
+            end_stage_index=end_stage_index,
+            approach_timeout_s=approach_timeout_s,
+            approach_position_tolerance_m=approach_position_tolerance_m,
+            approach_yaw_tolerance_rad=approach_yaw_tolerance_rad,
+            climb_hardware_execution=climb_hardware_execution,
         )
 
     def set_mode(self, mode):

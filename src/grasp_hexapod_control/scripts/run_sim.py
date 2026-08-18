@@ -1253,11 +1253,12 @@ def main() -> None:
         result = controller.start_full_mission(
             navigation_state,
             compact,
-            climb_start_index,
-            climb_end_index,
-            args.approach_timeout,
-            0.002,
-            np.deg2rad(0.2),
+            start_stage_index=climb_start_index,
+            end_stage_index=climb_end_index,
+            approach_timeout_s=args.approach_timeout,
+            approach_position_tolerance_m=0.002,
+            approach_yaw_tolerance_rad=np.deg2rad(0.2),
+            climb_hardware_execution=True,
         )
         if result.failed:
             raise RuntimeError(
@@ -1321,8 +1322,9 @@ def main() -> None:
             compact,
             climb_start_index,
             climb_end_index,
+            hardware_execution=True,
         )
-        print("Compact climb started (--climb-start)")
+        print("Compact climb started (--climb-start, real feedback gates)")
     button_a_was_down = False
     button_b_was_down = False
     button_x_was_down = False
@@ -1464,9 +1466,10 @@ def main() -> None:
                             compact,
                             climb_start_index,
                             climb_end_index,
+                            hardware_execution=True,
                         )
                         motion_state = "RUNNING"
-                        print("Compact climb started (X)")
+                        print("Compact climb started (X, real feedback gates)")
                     elif compact is None:
                         print("X rejected: start with --climb-scene")
                     else:

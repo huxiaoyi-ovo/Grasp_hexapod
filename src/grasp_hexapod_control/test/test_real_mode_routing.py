@@ -12,6 +12,15 @@ import numpy as np
 
 SCRIPTS = Path(__file__).parents[1] / "scripts"
 sys.path.insert(0, str(SCRIPTS))
+ROS_STUB_MODULES = (
+    "rospy",
+    "geometry_msgs",
+    "geometry_msgs.msg",
+    "sensor_msgs",
+    "sensor_msgs.msg",
+    "std_msgs",
+    "std_msgs.msg",
+)
 
 
 def _install_ros_stubs():
@@ -41,12 +50,25 @@ def _install_ros_stubs():
     sys.modules.setdefault("std_msgs.msg", std)
 
 
-_install_ros_stubs()
-RUN_REAL_SPEC = importlib.util.spec_from_file_location(
-    "run_real_for_test", SCRIPTS / "run_real.py"
-)
-RUN_REAL = importlib.util.module_from_spec(RUN_REAL_SPEC)
-RUN_REAL_SPEC.loader.exec_module(RUN_REAL)
+_missing_module = object()
+_previous_ros_modules = {
+    name: sys.modules.get(name, _missing_module)
+    for name in ROS_STUB_MODULES
+}
+try:
+    _install_ros_stubs()
+    RUN_REAL_SPEC = importlib.util.spec_from_file_location(
+        "run_real_for_test", SCRIPTS / "run_real.py"
+    )
+    RUN_REAL = importlib.util.module_from_spec(RUN_REAL_SPEC)
+    RUN_REAL_SPEC.loader.exec_module(RUN_REAL)
+finally:
+    # 仅在run_real导入期间使用替身，避免污染同一pytest进程中的ROS测试。
+    for _name, _module in _previous_ros_modules.items():
+        if _module is _missing_module:
+            sys.modules.pop(_name, None)
+        else:
+            sys.modules[_name] = _module
 
 from climb_mode import ClimbMode
 from control import GraspController
@@ -90,6 +112,7 @@ class _ButtonController:
 
 def _button_node():
     node = object.__new__(RUN_REAL.RosControlNode)
+    node.local_execution = False
     node.button_a = 0
     node.button_b = 1
     node.button_x = 2
@@ -102,6 +125,7 @@ def _button_node():
     node.manual_override = True
     node.command = np.ones(4, dtype=np.float64)
     node.real_climb_monitor_active = False
+    node.real_climb_speed_diagnostic = None
     return node
 
 
@@ -112,6 +136,70 @@ def test_run_real_launch_enables_climb_by_default():
         for argument in launch.findall("arg")
     }
     assert arguments["enable_real_climb"] == "true"
+
+
+def test_dual_board_frame_waits_until_all_six_legs_are_new():
+    q_cur = np.zeros((6, 3), dtype=np.float64)
+    previous = np.full(6, 9.9, dtype=np.float64)
+    current = np.full(6, 10.0, dtype=np.float64)
+    ready, complete = RUN_REAL.RosControlNode._feedback_frame_state(
+        q_cur, current, previous, now=10.05, max_feedback_age=0.15
+    )
+    assert ready
+    assert complete
+
+    # 左板三条腿已进入下一轮、右板仍停留在上轮时不得重复推进控制器。
+    partial = current.copy()
+    for leg_name in ("lf", "lm", "lb"):
+        partial[RUN_REAL.RosControlNode.LEG_INDEX[leg_name]] = 10.04
+    ready, complete = RUN_REAL.RosControlNode._feedback_frame_state(
+        q_cur, partial, current, now=10.06, max_feedback_age=0.15
+    )
+    assert ready
+    assert not complete
+
+
+def test_dual_board_feedback_issue_identifies_stale_board_and_leg():
+    q_cur = np.zeros((6, 3), dtype=np.float64)
+    stamps = np.full(6, 20.0, dtype=np.float64)
+    stamps[RUN_REAL.RosControlNode.LEG_INDEX["rf"]] = 19.7
+    ready, complete = RUN_REAL.RosControlNode._feedback_frame_state(
+        q_cur, stamps, np.zeros(6), now=20.1, max_feedback_age=0.15
+    )
+    assert not ready
+    assert not complete
+    issue = RUN_REAL.RosControlNode._feedback_issue(
+        q_cur, stamps, now=20.1, max_feedback_age=0.15
+    )
+    assert "right[rf=stale(0.400s)]" in issue
+    assert "snapshot_skew=0.300s" in issue
+
+
+def test_real_climb_speed_diagnostic_uses_feedback_timestamps():
+    node = object.__new__(RUN_REAL.RosControlNode)
+    node.local_execution = False
+    node.real_climb_speed_diagnostic = None
+    node.controller = types.SimpleNamespace(
+        mode="climb",
+        CLIMB="climb",
+        last_update_velocity_limit_clip_count=0,
+        last_update_collision_guard_hold_count=0,
+    )
+    q_start = np.zeros((6, 3), dtype=np.float64)
+    q_next = np.full((6, 3), 0.2, dtype=np.float64)
+    stamp_start = np.full(6, 30.0, dtype=np.float64)
+    stamp_next = stamp_start + np.array(
+        [0.1, 0.2, 0.25, 0.4, 0.5, 1.0], dtype=np.float64
+    )
+    node._record_real_climb_speed_diagnostic(
+        "C1", q_start, q_start, stamp_start, 30.0
+    )
+    node._record_real_climb_speed_diagnostic(
+        "C1", q_next, q_next, stamp_next, 31.0
+    )
+    item = node.real_climb_speed_diagnostic
+    assert np.isclose(item["peak_command_speed_rad_s"], 0.2)
+    assert np.isclose(item["peak_measured_speed_rad_s"], 2.0)
 
 
 def test_x_y_disabled_requests_and_conflicts_do_not_start():

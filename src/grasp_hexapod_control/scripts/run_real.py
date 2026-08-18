@@ -308,6 +308,11 @@ class RosControlNode:
     RESETTING = "RESETTING"
     HOLD = "HOLD"
     RUNNING = "RUNNING"
+    SERVO_BOARD_LEGS = (
+        ("left", ("lf", "lm", "lb")),
+        ("right", ("rf", "rm", "rb")),
+    )
+    LEG_INDEX = {name: index for index, name in enumerate(LEG_NAMES)}
 
     def __init__(self, local_execution=False, controller_rate_hz=None):
         self.local_execution = bool(local_execution)
@@ -351,6 +356,9 @@ class RosControlNode:
         # q_cur的行顺序与GraspController一致：lb、lf、lm、rb、rf、rm。
         self.q_cur = np.full((6, 3), np.nan, dtype=np.float64)
         self.feedback_stamp = np.zeros(6, dtype=np.float64)
+        # 两块板分别顺序读取三条腿；仅当六条腿都产生新反馈后
+        # 推进一次控制。
+        self.last_control_feedback_stamp = np.zeros(6, dtype=np.float64)
         self.axes = np.empty(0, dtype=np.float64)
         self.buttons = np.empty(0, dtype=np.int32)
         self.button_press_latch = np.empty(0, dtype=np.int32)
@@ -536,6 +544,70 @@ class RosControlNode:
                 self.feedback_stamp[leg_index] = stamp
 
         return callback
+
+    @staticmethod
+    def _feedback_frame_state(
+        q_cur,
+        feedback_stamp,
+        last_control_feedback_stamp,
+        now,
+        max_feedback_age,
+    ):
+        """区分“反馈有效”和“两块板六条腿均已更新”。"""
+
+        q_cur = np.asarray(q_cur, dtype=np.float64).reshape(6, 3)
+        feedback_stamp = np.asarray(
+            feedback_stamp, dtype=np.float64
+        ).reshape(6)
+        last_control_feedback_stamp = np.asarray(
+            last_control_feedback_stamp, dtype=np.float64
+        ).reshape(6)
+        age = float(now) - feedback_stamp
+        feedback_ready = bool(
+            np.isfinite(q_cur).all()
+            and (feedback_stamp > 0.0).all()
+            and (age >= 0.0).all()
+            and (age <= float(max_feedback_age)).all()
+        )
+        complete_new_frame = bool(
+            feedback_ready
+            and (feedback_stamp > last_control_feedback_stamp).all()
+        )
+        return feedback_ready, complete_new_frame
+
+    @classmethod
+    def _feedback_issue(cls, q_cur, feedback_stamp, now, max_feedback_age):
+        """生成按双板分组的反馈故障摘要，便于定位掉线腿。"""
+
+        q_cur = np.asarray(q_cur, dtype=np.float64).reshape(6, 3)
+        feedback_stamp = np.asarray(
+            feedback_stamp, dtype=np.float64
+        ).reshape(6)
+        board_issues = []
+        for board_name, leg_names in cls.SERVO_BOARD_LEGS:
+            leg_issues = []
+            for leg_name in leg_names:
+                index = cls.LEG_INDEX[leg_name]
+                stamp = feedback_stamp[index]
+                if not np.isfinite(q_cur[index]).all() or stamp <= 0.0:
+                    leg_issues.append(f"{leg_name}=missing")
+                    continue
+                age = float(now) - stamp
+                if age < 0.0:
+                    leg_issues.append(f"{leg_name}=future({-age:.3f}s)")
+                elif age > float(max_feedback_age):
+                    leg_issues.append(f"{leg_name}=stale({age:.3f}s)")
+            if leg_issues:
+                board_issues.append(
+                    f"{board_name}[{', '.join(leg_issues)}]"
+                )
+        valid_stamp = feedback_stamp[feedback_stamp > 0.0]
+        skew = (
+            float(np.max(valid_stamp) - np.min(valid_stamp))
+            if valid_stamp.size >= 2
+            else float("nan")
+        )
+        return "; ".join(board_issues) + f"; snapshot_skew={skew:.3f}s"
 
     @staticmethod
     def _read(values, index):
@@ -769,13 +841,24 @@ class RosControlNode:
         )
         self.real_climb_speed_diagnostic = None
 
-    def _record_real_climb_speed_diagnostic(self, stage, q_cur, q_des):
+    def _record_real_climb_speed_diagnostic(
+        self,
+        stage,
+        q_cur,
+        q_des,
+        feedback_stamp,
+        sample_time,
+    ):
         """Aggregate actual-hardware CLIMB feedback; this never gates a stage."""
 
         if self.local_execution or self.controller.mode != self.controller.CLIMB:
             return
         q_cur = np.asarray(q_cur, dtype=np.float64).reshape(6, 3)
         q_des = np.asarray(q_des, dtype=np.float64).reshape(6, 3)
+        feedback_stamp = np.asarray(
+            feedback_stamp, dtype=np.float64
+        ).reshape(6)
+        sample_time = float(sample_time)
         item = self.real_climb_speed_diagnostic
         if item is None or item["stage"] != stage:
             self._flush_real_climb_speed_diagnostic("stage transition")
@@ -783,6 +866,8 @@ class RosControlNode:
                 "stage": stage,
                 "previous_q_cur": q_cur.copy(),
                 "previous_q_des": q_des.copy(),
+                "previous_feedback_stamp": feedback_stamp.copy(),
+                "previous_sample_time": sample_time,
                 "peak_command_speed_rad_s": 0.0,
                 "peak_measured_speed_rad_s": 0.0,
                 "peak_tracking_error_rad": float(np.max(np.abs(q_des - q_cur))),
@@ -795,8 +880,19 @@ class RosControlNode:
             }
             self.real_climb_speed_diagnostic = item
             return
-        command_speed = np.abs(q_des - item["previous_q_des"]) / self.controller.dt
-        measured_speed = np.abs(q_cur - item["previous_q_cur"]) / self.controller.dt
+        command_dt = sample_time - item["previous_sample_time"]
+        feedback_dt = feedback_stamp - item["previous_feedback_stamp"]
+        if command_dt <= 0.0 or (feedback_dt <= 0.0).any():
+            item["previous_q_cur"] = q_cur.copy()
+            item["previous_q_des"] = q_des.copy()
+            item["previous_feedback_stamp"] = feedback_stamp.copy()
+            item["previous_sample_time"] = sample_time
+            return
+        command_speed = np.abs(q_des - item["previous_q_des"]) / command_dt
+        measured_speed = (
+            np.abs(q_cur - item["previous_q_cur"])
+            / feedback_dt[:, np.newaxis]
+        )
         item["peak_command_speed_rad_s"] = max(
             item["peak_command_speed_rad_s"], float(np.max(command_speed)))
         item["peak_measured_speed_rad_s"] = max(
@@ -814,6 +910,8 @@ class RosControlNode:
             self.controller.last_update_collision_guard_hold_count)
         item["previous_q_cur"] = q_cur.copy()
         item["previous_q_des"] = q_des.copy()
+        item["previous_feedback_stamp"] = feedback_stamp.copy()
+        item["previous_sample_time"] = sample_time
 
     def _start_real_climb(self, q_cur, controls_ready):
         """在回站和关节反馈门限通过后进入诊断回放C1。"""
@@ -996,6 +1094,7 @@ class RosControlNode:
         joy_stamp,
         now,
         feedback_ready=True,
+        feedback_stamp=None,
     ):
         """用一帧完整反馈处理B/A和运动指令，返回18关节目标。"""
         joy_fresh = (
@@ -1071,8 +1170,14 @@ class RosControlNode:
             navigation_state,
             dock_robot_state,
         )
-        if climb_stage is not None:
-            self._record_real_climb_speed_diagnostic(climb_stage, q_cur, q_des)
+        if climb_stage is not None and feedback_stamp is not None:
+            self._record_real_climb_speed_diagnostic(
+                climb_stage,
+                q_cur,
+                q_des,
+                feedback_stamp,
+                now,
+            )
         if (
             self.controller.mode == self.controller.DOCK
             and self.controller.dock_mode is not None
@@ -1124,17 +1229,29 @@ class RosControlNode:
             q_cur = self.q_cur.copy()
             feedback_stamp = self.feedback_stamp.copy()
             axes = self.axes.copy()
-            button_presses = self.button_press_latch.copy()
-            self.button_press_latch[:] = 0
             joy_stamp = self.joy_stamp
-        now = rospy.Time.now().to_sec()
+            # 在反馈快照之后取时钟，避免回调刚写入的新时间戳
+            # 落到now之后。
+            now = rospy.Time.now().to_sec()
+            feedback_ready, complete_new_frame = self._feedback_frame_state(
+                q_cur,
+                feedback_stamp,
+                self.last_control_feedback_stamp,
+                now,
+                self.max_feedback_age,
+            )
+            b_pending = bool(self._read(
+                self.button_press_latch, self.button_b
+            ))
+            if complete_new_frame or not feedback_ready or b_pending:
+                button_presses = self.button_press_latch.copy()
+                self.button_press_latch[:] = 0
+            else:
+                # A/X/Y最多等待另一个板完成本轮反馈；B仍在上方立即消费。
+                button_presses = np.zeros_like(self.button_press_latch)
+            if complete_new_frame:
+                self.last_control_feedback_stamp = feedback_stamp.copy()
 
-        feedback_ready = (
-            np.isfinite(q_cur).all()
-            and (feedback_stamp > 0.0).all()
-            and ((now - feedback_stamp) >= 0.0).all()
-            and ((now - feedback_stamp) <= self.max_feedback_age).all()
-        )
         if not feedback_ready:
             # B已经被转换为RESETTING状态，即使反馈暂时不可用也不会丢失。
             self._process_buttons(
@@ -1143,7 +1260,27 @@ class RosControlNode:
                 q_cur=q_cur,
             )
             self._hold_motion("joint feedback lost")
-            rospy.logwarn_throttle(1.0, "Waiting for valid 18-DOF feedback")
+            rospy.logwarn_throttle(
+                1.0,
+                "Waiting for valid 18-DOF feedback: %s",
+                self._feedback_issue(
+                    q_cur,
+                    feedback_stamp,
+                    now,
+                    self.max_feedback_age,
+                ),
+            )
+            return
+
+        if not complete_new_frame:
+            # 两块板独立计时，等待较慢板的三条腿；
+            # 不重复推进控制器状态。
+            if b_pending:
+                self._process_buttons(
+                    button_presses,
+                    controls_ready=False,
+                    q_cur=q_cur,
+                )
             return
 
         q_des = self._update_control(
@@ -1153,6 +1290,7 @@ class RosControlNode:
             joy_stamp,
             now,
             feedback_ready=feedback_ready,
+            feedback_stamp=feedback_stamp,
         )
         if q_des is not None:
             # 初始化、暂停和行走都保持舵机上力；暂停不等于卸力。

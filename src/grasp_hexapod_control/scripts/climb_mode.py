@@ -326,7 +326,12 @@ class ClimbMode:
         self.failure_reason = ""
         self.state = self.RUNNING
         self._hardware_stage_last_monotonic = (
-            time.monotonic() if self.hardware_execution else None
+            time.monotonic()
+            if (
+                self.hardware_execution
+                and self.controller.climb_timeout_uses_wall_time
+            )
+            else None
         )
         if start_stage_index == 0:
             self.anchors_world = self._array(
@@ -365,11 +370,18 @@ class ClimbMode:
 
         if self.state == self.HOLD:
             self.state = self.RUNNING
-            if self.hardware_execution:
+            if (
+                self.hardware_execution
+                and self.controller.climb_timeout_uses_wall_time
+            ):
                 self._hardware_stage_last_monotonic = time.monotonic()
 
     def _update_hardware_stage_elapsed_time(self):
-        """只在实机RUNNING期间按单调墙钟累计当前阶段耗时。"""
+        """按执行后端累计阶段耗时；实机墙钟，Isaac控制帧时间。"""
+
+        if not self.controller.climb_timeout_uses_wall_time:
+            self.stage_elapsed_time += self.controller.dt
+            return
 
         now = time.monotonic()
         previous = self._hardware_stage_last_monotonic
@@ -489,7 +501,10 @@ class ClimbMode:
         self.phase_time = 0.0
         self.stage_elapsed_time = 0.0
         self.settle_time = 0.0
-        if self.hardware_execution:
+        if (
+            self.hardware_execution
+            and self.controller.climb_timeout_uses_wall_time
+        ):
             self._hardware_stage_last_monotonic = time.monotonic()
 
     def _update_tracking_diagnostics(self, q_current):

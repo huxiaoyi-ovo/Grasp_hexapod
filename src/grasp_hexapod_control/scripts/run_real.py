@@ -393,6 +393,7 @@ class RosControlNode:
         self.controller = GraspController(
             1.0 / self.rate_hz,
             enable_link_collision_check=self.enable_link_collision_check,
+            climb_timeout_uses_wall_time=not self.local_execution,
         )
         self.lock = Lock()
         if not self.enable_link_collision_check:

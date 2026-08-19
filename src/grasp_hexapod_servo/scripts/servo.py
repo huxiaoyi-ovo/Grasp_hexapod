@@ -14,6 +14,9 @@
     /<leg>_pos
     sensor_msgs/JointState，包含时间戳和三个关节位置。
 
+诊断：
+    每2秒在终端输出本板九个关节的供电电压。
+
 ROS侧角度单位统一为rad。
 """
 
@@ -35,6 +38,8 @@ import hiwonder_servo_controller
 
 class ServoSideNode:
     """管理一块驱动板上的九个LX-15D舵机。"""
+
+    JOINT_NAMES = ("thigh", "knee", "ankle")
 
     SIDE_CONFIG = {
         "left": {
@@ -87,6 +92,11 @@ class ServoSideNode:
         self.command_duration_ms = int(
             rospy.get_param("~command_duration_ms", 33)
         )
+        self.voltage_report_interval_s = float(
+            rospy.get_param("~voltage_report_interval_s", 2.0)
+        )
+        if self.voltage_report_interval_s <= 0.0:
+            raise ValueError("~voltage_report_interval_s must be positive")
 
         # 一块板固定管理九个舵机。
         self.servo_ids = tuple(
@@ -131,7 +141,7 @@ class ServoSideNode:
             for leg in self.legs
         }
 
-        # 仅汇总诊断：不改变串口读写顺序、次数或定时器节拍。
+        # 时序汇总本身不增加串口读写或改变定时器节拍。
         self._timing_window_started = None
         self._timing_callbacks = 0
         self._timing_max_loop_s = 0.0
@@ -142,6 +152,21 @@ class ServoSideNode:
         self._timing_read_failures = {
             servo_id: 0 for servo_id in self.servo_ids
         }
+
+        # 每个控制周期最多读一个电压，避免一次连读九个占用总线。
+        self._voltage_labels = {
+            servo_id: f"{leg}_{joint_name}"
+            for leg in self.legs
+            for joint_name, servo_id in zip(
+                self.JOINT_NAMES,
+                self.id_map[leg],
+            )
+        }
+        self._voltage_pending_ids = []
+        self._voltage_samples_mv = {}
+        self._voltage_next_report_at = (
+            time.monotonic() + self.voltage_report_interval_s
+        )
 
         # 启动时整块板全部卸力。
         # 此时仍然可以读取舵机位置。
@@ -378,6 +403,50 @@ class ServoSideNode:
             servo_id: 0 for servo_id in self.servo_ids
         }
 
+    def _update_voltage_diagnostics(self):
+        """分散读取本板电压，完成九路后统一输出。"""
+
+        now = time.monotonic()
+        if not self._voltage_pending_ids:
+            if now < self._voltage_next_report_at:
+                return
+            self._voltage_pending_ids = list(self.servo_ids)
+            self._voltage_samples_mv = {}
+            self._voltage_next_report_at = (
+                now + self.voltage_report_interval_s
+            )
+
+        servo_id = self._voltage_pending_ids.pop(0)
+        self._voltage_samples_mv[servo_id] = (
+            self.control.get_servo_voltage(servo_id)
+        )
+
+        if self._voltage_pending_ids:
+            return
+
+        values = []
+        for sample_id in self.servo_ids:
+            voltage_mv = self._voltage_samples_mv.get(sample_id)
+            voltage_text = (
+                "N/A"
+                if voltage_mv is None
+                else f"{voltage_mv / 1000.0:.2f}V"
+            )
+            values.append(
+                "%s(ID%d)=%s"
+                % (
+                    self._voltage_labels[sample_id],
+                    sample_id,
+                    voltage_text,
+                )
+            )
+
+        rospy.loginfo(
+            "Servo voltage: side=%s %s",
+            self.side,
+            " ".join(values),
+        )
+
     def control_loop(self, _event):
         """执行最新目标，再读取并发布本周期有效反馈。"""
 
@@ -451,6 +520,7 @@ class ServoSideNode:
                 )
             )
 
+        self._update_voltage_diagnostics()
         self._record_timing_diagnostics(started_at)
 
 

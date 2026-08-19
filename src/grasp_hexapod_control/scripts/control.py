@@ -445,10 +445,18 @@ class GraspController:
     CLIMB = "climb"
     DOCK = "dock"
 
-    def __init__(self, dt, enable_link_collision_check=False):
+    def __init__(
+        self,
+        dt,
+        enable_link_collision_check=False,
+        climb_timeout_uses_wall_time=True,
+    ):
         self.dt = dt
         self.enable_link_collision_check = bool(
             enable_link_collision_check
+        )
+        self.climb_timeout_uses_wall_time = bool(
+            climb_timeout_uses_wall_time
         )
         self.kinematic = GraspKinematic()
         self.workspace_boundary = np.loadtxt(

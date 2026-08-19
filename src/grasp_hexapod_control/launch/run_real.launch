@@ -7,7 +7,7 @@
   <arg name="right_port" default="/dev/ttyACM0"/>
 
   <arg name="controller_rate_hz" default="30.0"/>
-  <arg name="enable_link_collision_check" default="true"/>
+  <arg name="enable_link_collision_check" default="false"/>
   <arg name="servo_rate_hz" default="30.0"/>
   <arg name="command_duration_ms" default="33"/>
   <arg name="max_feedback_age" default="0.15"/>
@@ -121,18 +121,7 @@
     <arg name="dock_max_perception_age" value="$(arg dock_max_perception_age)"/>
   </include>
 
-  <include file="$(find grasp_hexapod_control)/launch/dock_tag_system.launch" if="$(arg start_dock_perception)">
-    <arg name="video_device" value="$(arg dock_video_device)"/>
-    <arg name="image_width" value="$(arg dock_image_width)"/>
-    <arg name="image_height" value="$(arg dock_image_height)"/>
-    <arg name="pixel_format" value="$(arg dock_pixel_format)"/>
-    <arg name="color_format" value="$(arg dock_color_format)"/>
-    <arg name="camera_name" value="$(arg dock_camera_name)"/>
-    <arg name="camera_info_url" value="$(arg dock_camera_info_url)"/>
-    <arg name="camera_frame_id" value="$(arg dock_camera_frame_id)"/>
-    <arg name="dock_system_config" value="$(arg dock_system_config)"/>
-    <arg name="detections_topic" value="$(arg dock_detections_topic)"/>
-  </include>
+
 
   <include file="$(find grasp_hexapod_servo)/launch/servo_two_boards.launch">
     <arg name="left_port" value="$(arg left_port)"/>

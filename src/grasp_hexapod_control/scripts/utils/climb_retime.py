@@ -1,4 +1,4 @@
-"""Shared C1--C34 segment-speed contract for compact-climb diagnostics.
+"""Shared C1--C35 segment-speed contract for compact-climb diagnostics.
 
 These limits are offline trajectory-planning gates.  They are not contact,
 load, friction, stability, or hardware authorization evidence.
@@ -27,7 +27,8 @@ SEMANTIC_NAMES = (
     ("BODY",),
     ("SWING_TRANSFER", "TOUCHDOWN"),
     ("BODY",),
-    ("SWING_LIFT", "SWING_TRANSFER", "SWING_TRANSFER", "TOUCHDOWN"),
+    ("SWING_LIFT", "SWING_TRANSFER", "TOUCHDOWN"),
+    ("BODY",),
     ("SWING_LIFT", "SWING_TRANSFER", "TOUCHDOWN"),
     ("BODY",),
     ("SWING_LIFT", "SWING_TRANSFER"),
@@ -44,8 +45,10 @@ SEMANTIC_NAMES = (
     ("BODY",),
 )
 
-MAJOR_BODY_INDICES = frozenset((0, 6, 16, 33))
-FROZEN_PRELOAD_INDEX = 21
+MAJOR_BODY_INDICES = frozenset((0, 6, 16, 34))
+FROZEN_PRELOAD_INDEX = 22
+FROZEN_LB_LOW_STEP_INDEX = 19
+FROZEN_LF_LOW_STEP_INDEX = 21
 # Full-chain PhysX-informed first-pass floors for body and critical-body
 # stages.  They are simulation preview durations, not hardware speed limits.
 PHYSX_BODY_MINIMUM_DURATIONS = {
@@ -55,11 +58,12 @@ PHYSX_BODY_MINIMUM_DURATIONS = {
     9: 2.00,
     16: 2.00,
     18: 0.80,
-    21: 0.50,
-    23: 3.00,
-    27: 2.00,
-    30: 2.00,
-    33: 3.00,
+    20: 0.80,
+    22: 0.50,
+    24: 3.00,
+    28: 2.00,
+    31: 2.00,
+    34: 3.00,
 }
 
 

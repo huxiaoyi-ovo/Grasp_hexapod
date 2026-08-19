@@ -175,6 +175,13 @@ def test_dual_board_frame_waits_until_all_six_legs_are_new():
     assert not complete
 
 
+def test_real_main_polls_four_times_per_control_step_without_changing_frame_gate():
+    source = (SCRIPTS / "run_real.py").read_text()
+    assert "self.poll_rate_hz = self.rate_hz * 4.0" in source
+    assert "rate = rospy.Rate(node.poll_rate_hz)" in source
+    assert "and (feedback_stamp > last_control_feedback_stamp).all()" in source
+
+
 def test_dual_board_frame_rejects_excessive_snapshot_skew():
     q_cur = np.zeros((6, 3), dtype=np.float64)
     stamps = np.array([10.00, 10.01, 10.02, 10.11, 10.12, 10.13])
@@ -329,7 +336,9 @@ def test_climb_done_moves_to_hold_then_y_routes_to_dock_request():
     node.real_climb_monitor_active = True
     node.controller.update = lambda *args: Q_STAND.copy()
     monitor_calls = []
+    terminal_flushes = []
     node._monitor_real_climb = lambda: monitor_calls.append(True)
+    node._flush_real_climb_speed_diagnostic = lambda reason: terminal_flushes.append(reason)
     node._hold_motion = lambda *args, **kwargs: None
     node._make_command = lambda axes: np.zeros(4)
     node.control_source = "teleop"
@@ -338,6 +347,12 @@ def test_climb_done_moves_to_hold_then_y_routes_to_dock_request():
     )
     assert node.state == node.HOLD
     assert monitor_calls == [True]
+    assert terminal_flushes == ["terminal"]
+
+    node._update_control(
+        Q_STAND, np.empty(0), np.zeros(4), 1.0, 1.0, feedback_ready=True
+    )
+    assert terminal_flushes == ["terminal"]
 
     calls = []
     node._start_real_dock = lambda *args: calls.append("dock")
@@ -345,6 +360,46 @@ def test_climb_done_moves_to_hold_then_y_routes_to_dock_request():
         node, np.array([0, 0, 0, 1]), True, Q_STAND
     )
     assert calls == ["dock"]
+
+
+def test_dock_terminal_logs_only_on_first_running_to_hold(monkeypatch):
+    node = _button_node()
+    node.state = node.RUNNING
+    node.controller = types.SimpleNamespace(
+        APPROACH="approach",
+        CLIMB="climb",
+        DOCK="dock",
+        mode="dock",
+        reset_active=False,
+        dock_mode=types.SimpleNamespace(
+            state="DONE",
+            TERMINAL_STATES=("DONE",),
+            reason="alignment complete",
+        ),
+        update=lambda *args: Q_STAND.copy(),
+    )
+    node._dock_lock_confirmed = lambda: False
+    node._warn_hardware_climb_phase_hold = lambda: None
+    node._info_hardware_climb_active_trace = lambda: None
+    node._make_command = lambda axes: np.zeros(4)
+    node._hold_motion = lambda *args, **kwargs: None
+    node.control_source = "teleop"
+    messages = []
+    monkeypatch.setattr(
+        RUN_REAL.rospy, "loginfo", lambda *args: messages.append(args)
+    )
+
+    for _ in range(2):
+        node._update_control(
+            Q_STAND, np.empty(0), np.zeros(4), 1.0, 1.0,
+            feedback_ready=True,
+        )
+
+    terminal_messages = [
+        item for item in messages if item[0].startswith("DockMode terminal HOLD")
+    ]
+    assert node.state == node.HOLD
+    assert terminal_messages == [("DockMode terminal HOLD: %s", "alignment complete")]
 
 
 def test_climb_safety_persistence_counts_one_30hz_update_per_frame():
@@ -806,7 +861,11 @@ def test_hardware_climb_diagnostics_keep_all_feet_and_motors():
     assert ";rf[actual_base_xyz_m=" in active_trace
 
 
-def test_hardware_climb_timeout_includes_foot_and_motor_diagnostics():
+def test_hardware_climb_timeout_includes_foot_and_motor_diagnostics(monkeypatch):
+    import climb_mode
+
+    monotonic_time = [10.0]
+    monkeypatch.setattr(climb_mode.time, "monotonic", lambda: monotonic_time[0])
     controller = GraspController(1.0 / 30.0)
     controller.enter_climb(Q_STAND, hardware_execution=True)
     mode = controller.climb_mode
@@ -814,8 +873,8 @@ def test_hardware_climb_timeout_includes_foot_and_motor_diagnostics():
     mode.stage_elapsed_time = (
         sum(stage["segment_durations_s"])
         + mode.config["settle_gate"]["timeout_s"]
-        - controller.dt
     )
+    monotonic_time[0] += 0.01
     controller.update(Q_STAND + 0.5, np.zeros(4))
 
     assert mode.state == ClimbMode.FAILED
@@ -944,7 +1003,11 @@ def test_hardware_climb_endpoint_requires_configured_persistence():
     assert mode.state == ClimbMode.DONE
 
 
-def test_hardware_climb_timeout_uses_wall_time_while_phase_is_frozen():
+def test_hardware_climb_timeout_uses_wall_time_while_phase_is_frozen(monkeypatch):
+    import climb_mode
+
+    monotonic_time = [10.0]
+    monkeypatch.setattr(climb_mode.time, "monotonic", lambda: monotonic_time[0])
     controller = GraspController(1.0 / 30.0)
     controller.enter_climb(Q_STAND, hardware_execution=True)
     mode = controller.climb_mode
@@ -952,11 +1015,35 @@ def test_hardware_climb_timeout_uses_wall_time_while_phase_is_frozen():
     duration = sum(stage["segment_durations_s"])
     mode.stage_elapsed_time = (
         duration + mode.config["settle_gate"]["timeout_s"]
-        - controller.dt
     )
+    monotonic_time[0] += 0.01
     controller.update(Q_STAND + 0.5, np.zeros(4))
     assert mode.state == ClimbMode.FAILED
     assert mode.phase_time == controller.dt
+
+
+def test_hardware_climb_elapsed_time_uses_monotonic_running_time_only(monkeypatch):
+    import climb_mode
+
+    monotonic_time = [100.0]
+    monkeypatch.setattr(climb_mode.time, "monotonic", lambda: monotonic_time[0])
+    controller = GraspController(1.0 / 30.0)
+    controller.enter_climb(Q_STAND, hardware_execution=True)
+    mode = controller.climb_mode
+
+    monotonic_time[0] = 100.4
+    mode.update(np.zeros(4), Q_STAND)
+    assert np.isclose(mode.stage_elapsed_time, 0.4)
+
+    mode.hold()
+    monotonic_time[0] = 140.0
+    mode.update(np.zeros(4), Q_STAND)
+    assert np.isclose(mode.stage_elapsed_time, 0.4)
+
+    mode.resume()
+    monotonic_time[0] = 140.25
+    mode.update(np.zeros(4), Q_STAND)
+    assert np.isclose(mode.stage_elapsed_time, 0.65)
 
 
 def test_isaac_compact_paths_enable_real_feedback_gates():

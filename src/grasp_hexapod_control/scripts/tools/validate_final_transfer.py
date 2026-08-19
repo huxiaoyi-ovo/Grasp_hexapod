@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate the C25-to-final compressed six-leg transfer.
+"""Validate the C26-to-final compressed six-leg transfer.
 
 All results are offline kinematic/CAD diagnostics. They do not establish
 contact, load sharing, friction, physical clearance, or hardware safety.
@@ -36,22 +36,22 @@ from utils.climb_retime import (
 
 
 DT = 1.0 / 30.0
-FIRST = 25
+FIRST = 26
 FOOT_RADIUS_M = 0.0065
 HARD_CLEARANCE_M = 0.015
 PREFERRED_CLEARANCE_M = 0.030
 DIRECT = (
-    (25, "RB_DIRECT_FINAL", 3),
-    (26, "RF_DIRECT_FINAL", 4),
-    (28, "LM_DIRECT_FINAL", 2),
-    (29, "RM_DIRECT_FINAL", 5),
-    (31, "LB_DIRECT_FINAL", 0),
-    (32, "LF_DIRECT_FINAL", 1),
+    (26, "RB_DIRECT_FINAL", 3),
+    (27, "RF_DIRECT_FINAL", 4),
+    (29, "LM_DIRECT_FINAL", 2),
+    (30, "RM_DIRECT_FINAL", 5),
+    (32, "LB_DIRECT_FINAL", 0),
+    (33, "LF_DIRECT_FINAL", 1),
 )
 BODY = (
-    (27, "BODY_REPOSITION_1"),
-    (30, "BODY_REPOSITION_2"),
-    (33, "BODY_DOCK_FINAL"),
+    (28, "BODY_REPOSITION_1"),
+    (31, "BODY_REPOSITION_2"),
+    (34, "BODY_DOCK_FINAL"),
 )
 TAIL_NAMES = (
     "RB_DIRECT_FINAL", "RF_DIRECT_FINAL", "BODY_REPOSITION_1",
@@ -179,8 +179,8 @@ def prefix_entry(compact):
 
 def structural_gate(compact):
     stages = compact["stages"]
-    require(compact["stage_count"] == len(stages) == 35,
-            {"metric": "stage_count", "actual": len(stages), "threshold": 35})
+    require(compact["stage_count"] == len(stages) == 36,
+            {"metric": "stage_count", "actual": len(stages), "threshold": 36})
     require(tuple(stage["name"] for stage in stages[FIRST:]) == TAIL_NAMES,
             {"metric": "tail_stage_map"})
     for index in range(1, len(stages)):

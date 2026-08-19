@@ -406,11 +406,11 @@ def parse_arguments():
     )
     parser.add_argument(
         "--climb-from",
-        help="compact 闭区间起点（C1..C35 或运行时阶段名）",
+        help="compact 闭区间起点（C1..C36 或运行时阶段名）",
     )
     parser.add_argument(
         "--climb-to",
-        help="compact 闭区间终点（C1..C35 或运行时阶段名）",
+        help="compact 闭区间终点（C1..C36 或运行时阶段名）",
     )
     parser.add_argument(
         "--climb-metrics",
@@ -881,7 +881,7 @@ def main() -> None:
         or args.climb_speed != 1.0
     ):
         raise ValueError(
-            "--ros --climb-scene only supports active default compact C1-C35 "
+            "--ros --climb-scene only supports active default compact C1-C36 "
             "at --climb-speed 1.0"
         )
     if climb_scene and args.record_servo_trace is not None:

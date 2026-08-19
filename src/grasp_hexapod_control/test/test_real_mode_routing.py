@@ -1075,9 +1075,11 @@ def test_simulated_feedback_gates_use_controller_time_not_wall_time(monkeypatch)
 
 def test_isaac_compact_paths_enable_real_feedback_gates():
     source = (SCRIPTS / "run_sim.py").read_text()
+    real_source = (SCRIPTS / "run_real.py").read_text()
     assert source.count("hardware_execution=True") >= 2
     assert "climb_hardware_execution=True" in source
     assert "climb_timeout_uses_wall_time=False" in source
+    assert "climb_timeout_uses_wall_time=not self.local_execution" in real_source
 
 
 def test_climb_observation_uses_start_frame_relative_transforms():

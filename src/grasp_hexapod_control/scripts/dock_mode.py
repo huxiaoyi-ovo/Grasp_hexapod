@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from itertools import combinations
 import json
 import time
+from threading import Lock
 from typing import Mapping
 
 import numpy as np
@@ -374,20 +375,42 @@ docked_pin_in_lock = np.zeros(3)
 # 与视觉位姿变换共用同一份实机外参，避免标定后预对接高度仍使用旧硬编码。
 camera_position_in_lock = LOCK_FROM_CAMERA[:3, 3].copy()
 
-# 真实关节角读取：从/joint_states按固定顺序读取六条腿的18个关节角。
+# 真实关节角读取：与实机Servo链路一致，分别读取六条腿的3关节反馈。
 class JointReader:
     def __init__(self):
+        self.lock = Lock()
         self.values = None
-        self.subscriber = rospy.Subscriber(
-            "/joint_states", JointState, self._callback, queue_size=1
-        )
+        self.latest = np.full((6, 3), np.nan, dtype=np.float64)
+        self.received = np.zeros(6, dtype=bool)
+        self.subscribers = [
+            rospy.Subscriber(
+                "/{}_pos".format(leg_name),
+                JointState,
+                self._make_callback(leg_index, leg_name),
+                queue_size=1,
+                tcp_nodelay=True,
+            )
+            for leg_index, leg_name in enumerate(LEG_NAMES)
+        ]
 
-    def _callback(self, message):
-        positions = dict(zip(message.name, message.position))
-        if all(name in positions for name in joint_names):
-            self.values = np.array(
-                [positions[name] for name in joint_names]
-            ).reshape(6, 3)
+    def _make_callback(self, leg_index, leg_name):
+        def callback(message):
+            position = np.asarray(message.position, dtype=np.float64)
+            if position.shape != (3,) or not np.isfinite(position).all():
+                rospy.logwarn_throttle(
+                    1.0,
+                    "/{}_pos must contain 3 finite joint positions".format(
+                        leg_name
+                    ),
+                )
+                return
+            with self.lock:
+                self.latest[leg_index] = position
+                self.received[leg_index] = True
+                if self.received.all():
+                    self.values = self.latest.copy()
+
+        return callback
 
 
 def move_fixed_feet(feet, body_from_entry):
@@ -1099,7 +1122,7 @@ class DockMode:
         self.perception = perception or DockPerception(
             allow_inference=self.allow_inference
         )
-        # 独立ROS入口可读/joint_states；正式实机循环应直接注入反馈。
+        # 独立ROS入口可读六个/<leg>_pos；正式实机循环应直接注入反馈。
         if joint_reader is not None:
             self.joints = joint_reader
         elif subscribe_joint_state:
@@ -1483,13 +1506,21 @@ class DockMode:
             return self._result()
         if self.state == self.WAITING_TAG:
             self.start(robot_state=robot_state)
+            # start()可能因IK不可达、调足失败或路线为空直接
+            # 进入FAILED。立即返回以保留具体原因，不再被后面的
+            # 缺少执行数据提示覆盖。
+            if self.state in self.TERMINAL_STATES:
+                return self._result()
             if self.state == self.WAITING_TAG:
                 return self._result()
         if not target_accepted:
             self._terminal_failure(reject_reason or "执行层拒绝对接关节目标")
             return self._result()
-        if self.plan is None or self.joints.values is None:
-            self._terminal_failure("对接执行缺少轨迹或关节反馈")
+        if self.joints.values is None:
+            self._terminal_failure("对接执行缺少六腿关节反馈")
+            return self._result()
+        if self.plan is None:
+            self._terminal_failure("对接轨迹未成功建立")
             return self._result()
 
         elapsed = max(0.0, self.clock() - self.plan_started)

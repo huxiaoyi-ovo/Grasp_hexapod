@@ -777,7 +777,7 @@ class RosControlNode:
             require_lock_confirmation=bool(
                 rospy.get_param("~dock_require_lock_confirmation", False)
             ),
-            subscribe_joint_state=False,
+            subscribe_joint_state=True,
             publish_trajectory=False,
         )
         self.controller.attach_dock_mode(dock_mode)

@@ -51,6 +51,15 @@ def _node():
     node._timing_overruns = 0
     node._timing_read_retries = {servo_id: 0 for servo_id in node.servo_ids}
     node._timing_read_failures = {servo_id: 0 for servo_id in node.servo_ids}
+    node.voltage_report_interval_s = 2.0
+    node._voltage_labels = {
+        1: "lf_thigh",
+        2: "lf_knee",
+        3: "lf_ankle",
+    }
+    node._voltage_pending_ids = []
+    node._voltage_samples_mv = {}
+    node._voltage_next_report_at = 2.0
     return node
 
 
@@ -86,3 +95,37 @@ def test_timing_diagnostic_reports_one_second_summary_and_resets(monkeypatch):
     assert node._timing_overruns == 0
     assert node._timing_read_retries == {1: 0, 2: 0, 3: 0}
     assert node._timing_read_failures == {1: 0, 2: 0, 3: 0}
+
+
+def test_voltage_diagnostic_spreads_reads_and_reports_all_ids(monkeypatch):
+    node = _node()
+    calls = []
+    messages = []
+    voltages = {1: 8400, 2: None, 3: 8150}
+    node.control = types.SimpleNamespace(
+        get_servo_voltage=lambda servo_id: (
+            calls.append(servo_id) or voltages[servo_id]
+        )
+    )
+    monkeypatch.setattr(SERVO.time, "monotonic", lambda: 2.0)
+    monkeypatch.setattr(SERVO.rospy, "loginfo", lambda *args: messages.append(args))
+
+    node._update_voltage_diagnostics()
+    assert calls == [1]
+    assert messages == []
+
+    node._update_voltage_diagnostics()
+    assert calls == [1, 2]
+    assert messages == []
+
+    node._update_voltage_diagnostics()
+    assert calls == [1, 2, 3]
+    assert messages == [
+        (
+            "Servo voltage: side=%s %s",
+            "left",
+            "lf_thigh(ID1)=8.40V lf_knee(ID2)=N/A "
+            "lf_ankle(ID3)=8.15V",
+        )
+    ]
+    assert node._voltage_next_report_at == 4.0

@@ -1070,7 +1070,10 @@ def main() -> None:
         ros_telemetry = RosSimTelemetry()
         controller = ros_controller.controller
     else:
-        controller = GraspController(dt=1.0 / args.control_rate)
+        controller = GraspController(
+            dt=1.0 / args.control_rate,
+            climb_timeout_uses_wall_time=False,
+        )
 
     print(
         f"Physics: {args.physics_rate:.0f} Hz, controller: "

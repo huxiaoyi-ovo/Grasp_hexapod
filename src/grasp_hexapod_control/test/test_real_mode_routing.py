@@ -1046,10 +1046,40 @@ def test_hardware_climb_elapsed_time_uses_monotonic_running_time_only(monkeypatc
     assert np.isclose(mode.stage_elapsed_time, 0.65)
 
 
+def test_simulated_feedback_gates_use_controller_time_not_wall_time(monkeypatch):
+    import climb_mode
+
+    monotonic_time = [100.0]
+    monkeypatch.setattr(climb_mode.time, "monotonic", lambda: monotonic_time[0])
+    controller = GraspController(
+        1.0 / 30.0,
+        climb_timeout_uses_wall_time=False,
+    )
+    controller.enter_climb(Q_STAND, hardware_execution=True)
+    mode = controller.climb_mode
+
+    monotonic_time[0] = 1000.0
+    mode.update(np.zeros(4), Q_STAND)
+    assert np.isclose(mode.stage_elapsed_time, controller.dt)
+
+    mode.hold()
+    monotonic_time[0] = 2000.0
+    mode.update(np.zeros(4), Q_STAND)
+    assert np.isclose(mode.stage_elapsed_time, controller.dt)
+
+    mode.resume()
+    monotonic_time[0] = 3000.0
+    mode.update(np.zeros(4), Q_STAND)
+    assert np.isclose(mode.stage_elapsed_time, 2.0 * controller.dt)
+
+
 def test_isaac_compact_paths_enable_real_feedback_gates():
     source = (SCRIPTS / "run_sim.py").read_text()
+    real_source = (SCRIPTS / "run_real.py").read_text()
     assert source.count("hardware_execution=True") >= 2
     assert "climb_hardware_execution=True" in source
+    assert "climb_timeout_uses_wall_time=False" in source
+    assert "climb_timeout_uses_wall_time=not self.local_execution" in real_source
 
 
 def test_climb_observation_uses_start_frame_relative_transforms():

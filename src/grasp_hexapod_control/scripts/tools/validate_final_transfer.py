@@ -40,6 +40,12 @@ FIRST = 26
 FOOT_RADIUS_M = 0.0065
 HARD_CLEARANCE_M = 0.015
 PREFERRED_CLEARANCE_M = 0.030
+NEGATIVE_LOW_NORMAL = np.array((-0.20791, 0.0, 0.97815), dtype=np.float64)
+NEGATIVE_LOW_NORMAL /= np.linalg.norm(NEGATIVE_LOW_NORMAL)
+NEGATIVE_LOW_PLANE_OFFSET_M = 0.19516
+NEGATIVE_LOW_X_BOUNDS_M = (-0.27208, -0.14143)
+NEGATIVE_LOW_EDGE_MARGIN_M = 0.015
+C30_LM_AXIS_MAX_DEG = 35.0
 DIRECT = (
     (26, "RB_DIRECT_FINAL", 3),
     (27, "RF_DIRECT_FINAL", 4),
@@ -62,7 +68,7 @@ TAIL_NAMES = (
 FINAL_ANCHORS = np.array([
     [0.3571737724974, -0.21963921590647986, 0.19262685293211096],
     [0.35376607048511516, 0.11059810066223177, 0.1972999976158142],
-    [0.27440314554432327, -0.05747349999999976, 0.16965469007282727],
+    [0.24440314554432327, -0.05747349999999976, 0.16327806072150078],
     [0.5423322377301724, -0.21962874608688565, 0.1923691075872171],
     [0.5477660704851153, 0.11059810066223177, 0.19649999761581421],
     [0.6267854252002603, -0.05747349999999976, 0.16858417926213481],
@@ -427,6 +433,54 @@ def candidate_a_witness(compact):
     return witness
 
 
+def c30_lm_terminal_gate(compact):
+    """Check C30's seeded terminal posture and negative-low landing patch."""
+
+    controller, q = prefix_entry(compact)
+    mode = ClimbMode(None)
+    mode.config = compact
+    transform = None
+    for index in range(FIRST, 30):
+        stage = compact["stages"][index]
+        for time_s in sample_times(stage):
+            _, _, transform, desired = reference(mode, index, time_s)
+            q, residual = solve_exact(controller.kinematic, q, desired)
+            require(float(np.max(residual)) <= 1e-5,
+                    source(stage["name"], time_s, "C30_seed_IK_residual_m",
+                           float(np.max(residual)), 1e-5))
+    axis = transform[:3, :3] @ controller.kinematic.terminal_axes_base(q)[2]
+    axis_angle = float(np.degrees(np.arccos(np.clip(
+        abs(np.dot(axis, NEGATIVE_LOW_NORMAL)), -1.0, 1.0))))
+    require(axis_angle <= C30_LM_AXIS_MAX_DEG,
+            source("LM_DIRECT_FINAL", float(sum(compact["stages"][29]["segment_durations_s"])),
+                   "LM_terminal_axis_angle_deg", axis_angle, C30_LM_AXIS_MAX_DEG))
+    endpoint = np.asarray(compact["stages"][29]["anchor_knots"][-1][2],
+                          dtype=np.float64)
+    local = endpoint - np.asarray(compact["xiaolan_translation"], dtype=np.float64)
+    local_x = float(local[0])
+    edge_margin = min(local_x - NEGATIVE_LOW_X_BOUNDS_M[0],
+                      NEGATIVE_LOW_X_BOUNDS_M[1] - local_x) - FOOT_RADIUS_M
+    require(NEGATIVE_LOW_X_BOUNDS_M[0] <= local_x <= NEGATIVE_LOW_X_BOUNDS_M[1]
+            and edge_margin >= NEGATIVE_LOW_EDGE_MARGIN_M,
+            source("LM_DIRECT_FINAL", 0.0, "negative_low_footprint_edge_margin_m",
+                   edge_margin, NEGATIVE_LOW_EDGE_MARGIN_M))
+    center_plane_distance = (
+        np.dot(NEGATIVE_LOW_NORMAL, local) -
+        NEGATIVE_LOW_PLANE_OFFSET_M / np.linalg.norm((-.20791, 0.0, .97815))
+    )
+    bottom_gap = float(center_plane_distance - FOOT_RADIUS_M)
+    require(-.0005 <= bottom_gap <= .002,
+            {"stage": "LM_DIRECT_FINAL", "metric": "negative_low_bottom_gap_m",
+             "actual": bottom_gap, "lower_threshold": -.0005,
+             "upper_threshold": .002})
+    return {
+        "LM_terminal_axis_angle_deg": axis_angle,
+        "negative_low_local_x_m": local_x,
+        "negative_low_footprint_edge_margin_m": edge_margin,
+        "negative_low_bottom_gap_m": bottom_gap,
+    }
+
+
 def dynamic_gate(compact):
     controller = GraspController(DT)
     q = np.asarray(compact["p0"]["q_rad"], dtype=np.float64)
@@ -498,6 +552,7 @@ def main():
     structural_gate(compact)
     result = {
         "candidate_A_witness": candidate_a_witness(compact),
+        "c30_lm_terminal": c30_lm_terminal_gate(compact),
         "dense_kinematic": dense_kinematic_gate(compact),
         "visual_platform": visual_platform_gate(compact),
         "dynamic_30hz": dynamic_gate(compact),

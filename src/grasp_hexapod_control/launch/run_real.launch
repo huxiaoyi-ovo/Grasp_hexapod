@@ -70,7 +70,6 @@
   <arg name="dock_require_lock_confirmation" default="false"/>
   <arg name="dock_min_stable_frames" default="10"/>
   <arg name="dock_max_perception_age" default="0.35"/>
-  <arg name="dock_update_rate_hz" default="15.0"/>
 
   <include file="$(find grasp_hexapod_control)/launch/control_stack.launch">
     <arg name="control_source" value="$(arg mode)"/>
@@ -123,7 +122,6 @@
     <arg name="dock_require_lock_confirmation" value="$(arg dock_require_lock_confirmation)"/>
     <arg name="dock_min_stable_frames" value="$(arg dock_min_stable_frames)"/>
     <arg name="dock_max_perception_age" value="$(arg dock_max_perception_age)"/>
-    <arg name="dock_update_rate_hz" value="$(arg dock_update_rate_hz)"/>
     <arg name="dock_lock_frame" value="$(arg dock_lock_frame)"/>
     <arg name="dock_pin_frame_prefix" value="$(arg dock_pin_frame_prefix)"/>
   </include>

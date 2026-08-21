@@ -48,7 +48,6 @@ def test_real_launch_starts_only_the_bottom_usb_dock_chain_by_default():
     assert args["dock_camera_info_topic"] == "/dock_camera/camera_info"
     assert args["dock_require_real_calibrated"] == "true"
     assert args["dock_max_perception_age"] == "0.35"
-    assert args["dock_update_rate_hz"] == "15.0"
     assert args["dock_lock_frame"] == "dock_lock_center"
     assert args["dock_pin_frame_prefix"] == "dock_pin_from_tag_"
     perception = real.find(
@@ -124,6 +123,7 @@ def test_dock_mode_reuses_controller_kinematics_and_reads_tf_only():
     assert "rospy.Subscriber" not in source
     assert "PREALIGN_LINEAR_SPEED = 0.050" in source
     assert "DESCENT_LINEAR_SPEED = 0.050" in source
+    assert "PREALIGN_POSITION_REFERENCE = 0.008" in source
 
 
 def test_uncalibrated_dock_configuration_blocks_y_without_override():

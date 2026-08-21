@@ -131,6 +131,13 @@ class ClimbMode:
         with path.open() as file:
             return json.load(file)
 
+    def terminal_joints(self, config=None):
+        """返回配置中明确保存的攀爬末帧关节姿态。"""
+
+        config = self._load_config() if config is None else config
+        self._validate_config(config)
+        return self._array(config, ("terminal_q_rad",), (6, 3)).copy()
+
     def _validate_config(self, config):
         """检查 compact 攀爬配置。"""
 
@@ -143,6 +150,7 @@ class ClimbMode:
             raise ValueError("invalid simulation-only compact climb config")
         self._array(config, ("xiaolan_translation",), (3,))
         p0_q = self._array(config, ("p0", "q_rad"), (6, 3))
+        self._array(config, ("terminal_q_rad",), (6, 3))
         if not np.array_equal(p0_q, Q_STAND):
             raise ValueError("compact P0 must be Q_STAND")
         p0_base = self._array(config, ("p0", "base"), (4,))

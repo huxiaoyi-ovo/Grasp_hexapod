@@ -495,6 +495,9 @@ class GraspController:
 
         self.approach_mode = ApproachMode(self)
         self.climb_mode = ClimbMode(self)
+        # Dock入口的默认姿态来自compact配置的明确末帧快照。
+        # B复位和ClimbMode状态清理都不会清除该缓存。
+        self.climb_terminal_q = self.climb_mode.terminal_joints()
         self.dock_mode = None
         self.mission = MissionStateMachine(self)
         self.mode = self.APPROACH
@@ -783,33 +786,6 @@ class GraspController:
         self.q_des = q_cur.copy()
         return feet_base
 
-    def _safe_direct_joint_target(self, q_candidate, q_cur):
-        """检查DockMode目标，并从反馈姿态按单周期速度安全追赶。"""
-
-        q_cur = np.asarray(q_cur, dtype=np.float64).reshape(6, 3)
-        self.last_update_velocity_limit_clip_count = 0
-        self.last_update_collision_guard_hold_count = 0
-        try:
-            q_candidate = np.asarray(q_candidate, dtype=np.float64).reshape(6, 3)
-        except (TypeError, ValueError):
-            return q_cur.copy(), "dock target shape is invalid"
-        if not np.isfinite(q_candidate).all():
-            return q_cur.copy(), "dock target is non-finite"
-        if (q_candidate < JOINT_LOWER).any() or (q_candidate > JOINT_UPPER).any():
-            return q_cur.copy(), "dock target exceeds joint limits"
-        step = JOINT_VELOCITY_LIMIT * self.dt
-        self.last_update_velocity_limit_clip_count = int(np.count_nonzero(
-            np.abs(q_candidate - q_cur) > step
-        ))
-        q_limited = np.clip(q_candidate, q_cur - step, q_cur + step)
-        accepted = self.collision_guard(q_limited, q_cur)
-        self.last_update_collision_guard_hold_count = int(
-            not np.array_equal(accepted, q_limited)
-        )
-        if self.last_update_collision_guard_hold_count:
-            return q_cur.copy(), "dock target rejected by link collision guard"
-        return accepted, ""
-
     def _commit_workspace_candidate(self, candidate_base):
         """连续投影并提交足端候选，碰撞时才保持旧目标。"""
 
@@ -912,6 +888,9 @@ class GraspController:
             end_stage_index=end_stage_index,
             hardware_execution=hardware_execution,
         )
+        self.climb_terminal_q = self.climb_mode.terminal_joints(
+            self.climb_mode.config
+        )
 
     def attach_dock_mode(self, dock_mode):
         """附接已由ROS入口配置的DockMode。"""
@@ -921,16 +900,19 @@ class GraspController:
         self.dock_mode = dock_mode
 
     def enter_dock(self, q_cur):
-        """同步反馈足端并把DockMode设为唯一活动模式。"""
+        """保存攀爬末姿态并把DockMode设为唯一活动模式。"""
 
         if self.dock_mode is None:
             raise RuntimeError("DockMode is not attached")
-        if self.climb_mode.state == ClimbMode.RUNNING:
-            raise ValueError("DockMode cannot enter while climb is running")
+        q_cur = np.asarray(q_cur, dtype=np.float64).reshape(6, 3)
+        if not np.isfinite(q_cur).all():
+            raise ValueError("q_cur must be finite")
+        # 不依赖ClimbMode当前状态；B回站后仍使用缓存的攀爬末姿态。
+        terminal_q = self.climb_terminal_q.copy()
         self.abort_climb()
-        feet_base = self._sync_actual_feet(q_cur)
+        self._sync_actual_feet(q_cur)
         self.set_mode(self.DOCK)
-        self.dock_mode.enter(feet_base)
+        self.dock_mode.enter(q_cur, terminal_q)
 
     def exit_dock(self, q_cur):
         """结束DockMode并以实际足端作为下一模式入口。"""
@@ -999,19 +981,47 @@ class GraspController:
             if self.dock_mode is None:
                 raise RuntimeError("DockMode is not attached")
             self.last_mode_result = self.dock_mode.update(dock_robot_state)
-            target = self.last_mode_result.joint_positions
-            if target is None:
+            joint_target = self.last_mode_result.joint_positions
+            if joint_target is not None:
+                try:
+                    joint_target = np.asarray(
+                        joint_target, dtype=np.float64
+                    ).reshape(6, 3)
+                except (TypeError, ValueError):
+                    self.dock_mode.fail_execution("dock joint target shape is invalid")
+                    return np.asarray(q_cur, dtype=np.float64).reshape(6, 3).copy()
+                if not np.isfinite(joint_target).all():
+                    self.dock_mode.fail_execution("dock joint target is non-finite")
+                    return np.asarray(q_cur, dtype=np.float64).reshape(6, 3).copy()
+                # 入口轨迹已经按公共关节速度生成，不再叠加Dock专属关节限位。
+                self.q_des = joint_target.copy()
+                return self.q_des
+
+            foot_target = self.last_mode_result.foot_positions_base
+            if foot_target is None:
                 self.q_des = np.asarray(q_cur, dtype=np.float64).reshape(6, 3).copy()
                 return self.q_des
-            self.q_des, reason = self._safe_direct_joint_target(target, q_cur)
-            if reason:
-                self.dock_mode.fail_execution(reason)
-                self.last_mode_result = self.dock_mode.update(dock_robot_state)
-            return self.q_des
+            try:
+                foot_target = np.asarray(
+                    foot_target, dtype=np.float64
+                ).reshape(6, 3)
+            except (TypeError, ValueError):
+                self.dock_mode.fail_execution("dock foot target shape is invalid")
+                return np.asarray(q_cur, dtype=np.float64).reshape(6, 3).copy()
+            if not np.isfinite(foot_target).all():
+                self.dock_mode.fail_execution("dock foot target is non-finite")
+                return np.asarray(q_cur, dtype=np.float64).reshape(6, 3).copy()
+            # 与ApproachMode和ClimbMode相同：模式只写足端目标，统一DLS求关节。
+            self.foot_desired_base[:] = foot_target
+            return self.cal_joint_poses(q_cur)
         else:
             raise ValueError(f"Unknown control mode: {self.mode}")
 
-        return self.cal_joint_poses(q_cur)
+        q_result = self.cal_joint_poses(q_cur)
+        if self.mode == self.CLIMB and self.climb_mode.state == ClimbMode.DONE:
+            # 实际完成攀爬后，用公共DLS的最新末帧覆盖默认快照。
+            self.climb_terminal_q = q_result.copy()
+        return q_result
 
     def cal_joint_poses(self, q_cur):
         """根据足端目标计算下一周期关节目标"""

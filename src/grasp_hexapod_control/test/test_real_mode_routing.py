@@ -78,7 +78,7 @@ finally:
 
 from climb_mode import ClimbMode
 from control import COLLISION_MARGIN, LINK_COLLISION_RADII, GraspController
-from kinematics import JOINT_LOWER, JOINT_UPPER, JOINT_VELOCITY_LIMIT, Q_STAND
+from kinematics import JOINT_LOWER, JOINT_UPPER, Q_STAND
 
 
 class _Mission:
@@ -510,7 +510,7 @@ def test_x_enables_optional_monitoring_when_imu_and_rtk_are_fresh():
     assert node.climb_start_planned_pose is not None
 
 
-def test_y_starts_dock_without_imu_and_rejects_running_climb():
+def test_y_starts_dock_without_requiring_climb_completion():
     class DockController:
         APPROACH = "approach"
         CLIMB = "climb"
@@ -538,10 +538,40 @@ def test_y_starts_dock_without_imu_and_rejects_running_climb():
     node = _button_node()
     node.enable_real_dock = True
     node.controller = DockController(climb_state=ClimbMode.RUNNING)
-    node._ensure_dock_mode = lambda: (_ for _ in ()).throw(AssertionError())
+    ensured = []
+    node._ensure_dock_mode = lambda: ensured.append(True)
     RUN_REAL.RosControlNode._start_real_dock(node, Q_STAND, True)
-    assert node.state == node.HOLD
-    assert node.controller.entered_q_cur is None
+    assert node.state == node.RUNNING
+    assert ensured == [True]
+    assert np.array_equal(node.controller.entered_q_cur, Q_STAND)
+
+
+def test_b_then_y_uses_saved_climb_terminal_joints():
+    class Dock:
+        active = False
+
+        def __init__(self):
+            self.current = None
+            self.terminal = None
+
+        def enter(self, current, terminal):
+            self.current = current.copy()
+            self.terminal = terminal.copy()
+            self.active = True
+
+    controller = GraspController(1.0 / 30.0)
+    dock = Dock()
+    controller.attach_dock_mode(dock)
+    saved_terminal = controller.climb_terminal_q.copy()
+
+    controller.reset_to_stand(Q_STAND)
+    controller.reset_active = False
+    controller.enter_dock(Q_STAND)
+
+    assert np.array_equal(dock.current, Q_STAND)
+    assert np.array_equal(dock.terminal, saved_terminal)
+    assert not np.array_equal(saved_terminal[2], Q_STAND[2])
+    assert not np.array_equal(saved_terminal[5], Q_STAND[5])
 
 
 def test_inactive_optional_monitoring_never_holds_diagnostic_replay():
@@ -556,15 +586,15 @@ def test_inactive_optional_monitoring_never_holds_diagnostic_replay():
     assert hold_calls == []
 
 
-def test_dock_target_guard_rejects_and_keeps_feedback_pose():
+def test_dock_invalid_joint_target_rejects_and_keeps_feedback_pose():
     class Dock:
         active = False
 
         def __init__(self):
             self.failed_reason = ""
 
-        def enter(self, feet):
-            del feet
+        def enter(self, current, terminal):
+            del current, terminal
             self.active = True
 
         def exit(self):
@@ -572,7 +602,10 @@ def test_dock_target_guard_rejects_and_keeps_feedback_pose():
 
         def update(self, state):
             del state
-            return types.SimpleNamespace(joint_positions=np.full((6, 3), 9.0))
+            return types.SimpleNamespace(
+                joint_positions=np.full((6, 3), np.nan),
+                foot_positions_base=None,
+            )
 
         def fail_execution(self, reason):
             self.failed_reason = reason
@@ -583,19 +616,19 @@ def test_dock_target_guard_rejects_and_keeps_feedback_pose():
     controller.enter_dock(Q_STAND)
     q_des = controller.update(Q_STAND, np.zeros(4), dock_robot_state={})
     assert np.array_equal(q_des, Q_STAND)
-    assert "joint limits" in dock.failed_reason
+    assert "non-finite" in dock.failed_reason
 
 
-def test_dock_target_speed_guard_limits_without_terminal_failure():
+def test_dock_foot_target_uses_the_shared_dls_chain():
     class Dock:
         active = False
 
-        def __init__(self, target):
-            self.target = target
+        def __init__(self, target_feet):
+            self.target_feet = target_feet
             self.failed_reason = ""
 
-        def enter(self, feet):
-            del feet
+        def enter(self, current, terminal):
+            del current, terminal
             self.active = True
 
         def exit(self):
@@ -603,31 +636,26 @@ def test_dock_target_speed_guard_limits_without_terminal_failure():
 
         def update(self, state):
             del state
-            return types.SimpleNamespace(joint_positions=self.target)
+            return types.SimpleNamespace(
+                joint_positions=None,
+                foot_positions_base=self.target_feet,
+            )
 
         def fail_execution(self, reason):
             self.failed_reason = reason
 
-    q_target = Q_STAND.copy()
-    q_target[0, 0] += np.deg2rad(20.0)
     controller = GraspController(1.0 / 30.0)
-    dock = Dock(q_target)
+    feet_target = controller.kinematic.forward_base(Q_STAND)
+    feet_target[0, 0] += 0.001
+    dock = Dock(feet_target)
     controller.attach_dock_mode(dock)
     controller.enter_dock(Q_STAND)
 
     q_des = controller.update(Q_STAND, np.zeros(4), dock_robot_state={})
 
-    step = JOINT_VELOCITY_LIMIT * controller.dt
-    assert np.isclose(q_des[0, 0], Q_STAND[0, 0] + step[0, 0])
-    assert np.array_equal(q_des[1:], Q_STAND[1:])
-    assert controller.last_update_velocity_limit_clip_count == 1
-    assert dock.failed_reason == ""
-
-    q_cur = q_des
-    for _ in range(3):
-        q_cur = controller.update(q_cur, np.zeros(4), dock_robot_state={})
-    assert np.allclose(q_cur, q_target)
-    assert controller.last_update_velocity_limit_clip_count == 0
+    assert np.array_equal(controller.foot_desired_base, feet_target)
+    assert not np.array_equal(q_des[0], Q_STAND[0])
+    assert np.allclose(q_des[1:], Q_STAND[1:], atol=1e-12)
     assert dock.failed_reason == ""
 
 

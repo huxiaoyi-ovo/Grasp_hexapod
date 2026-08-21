@@ -45,6 +45,7 @@ import tf2_ros
 import torch
 from geometry_msgs.msg import TransformStamped
 from sensor_msgs.msg import JointState
+from tf.transformations import quaternion_matrix
 
 import dock_mode as body
 from control import GraspController
@@ -57,6 +58,7 @@ from dock_mode import (
 )
 from kinematics import FOOT_RADIUS, Q_STAND
 from utils import (
+    CONTROL_DOF_NAMES,
     build_dof_indices,
     control_to_external,
     external_to_control,
@@ -69,7 +71,6 @@ control_interval = 2
 camera_width, camera_height = 1920, 1080
 # 图像发布由30 Hz降为20 Hz，AprilTag仍按10 Hz检测，降低GPU/ROS负载。
 camera_fov, camera_interval = 120.0, 3
-dock_time_scale = 3.0
 # 仅用于无人值守回归；默认关闭，不改变实体手柄Y键流程。
 auto_dock_entry_test = os.environ.get(
     "DOCK_SIM_AUTO_ENTRY", "0"
@@ -84,14 +85,6 @@ CAMERA_POSITION_IN_LOCK = LOCK_FROM_CAMERA[:3, 3].copy()
 PIN_WORLD = np.array((0.0, -0.028, 0.228))
 TAG_SIZE_M = TAG_SIZE
 PIN_FROM_OPENCV_TAG_ROTATION = np.diag((-1.0, -1.0, 1.0))
-# 攀爬终态相机距标签面约38 mm，16:9画面的垂直视野无法容纳偏离光轴
-# 35 mm的完整40 mm标签。对接请求后先把相机升到旧版已验证的260 mm，
-# 对应标签面上方约69 mm；只有真实图像完整解码后才允许进入DockMode。
-TAG_REACQUIRE_CAMERA_HEIGHT_M = 0.260
-TAG_REACQUIRE_FRESH_S = 1.0
-TAG_REACQUIRE_MIN_RAISE_M = 0.002
-
-
 def create_apriltag_detector():
     dictionary = cv2.aruco.getPredefinedDictionary(
         cv2.aruco.DICT_APRILTAG_36h11
@@ -171,7 +164,7 @@ def _transform_points(transform, points):
 
 
 def load_climb_terminal_state(controller):
-    """读取攀爬配置，并通过正式ClimbMode回放得到终态关节分支。
+    """读取攀爬配置中保存的终态关节分支。
 
     对接仿真中的小蓝位于世界原点，而compact使用自己的世界平移；这里
     统一转换到小蓝坐标系，使攀爬末帧和对接首帧使用同一相对几何。
@@ -183,16 +176,7 @@ def load_climb_terminal_state(controller):
     stages = compact["stages"]
     final_stage = stages[-1]
 
-    p0_joints = np.asarray(compact["p0"]["q_rad"], dtype=np.float64)
-    terminal_joints = controller.replay_climb_prefix(
-        p0_joints,
-        compact,
-        len(stages) - 1,
-        max_ticks=200000,
-    )
-    terminal_joints = np.asarray(
-        terminal_joints, dtype=np.float64
-    ).reshape(6, 3)
+    terminal_joints = controller.climb_terminal_q.copy()
 
     world_from_base = controller.climb_mode._world_from_base(
         np.asarray(final_stage["pose_end"], dtype=np.float64)
@@ -288,66 +272,6 @@ def initialize_from_climb_terminal(controller, terminal, surface):
     controller.actual_feet_base = feet.copy()
     controller.approach_mode.finish_reset()
     return joints, clearance_error
-
-
-def start_tag_reacquisition_raise(
-    controller,
-    q_current,
-    base_position,
-    base_rotation,
-):
-    """锁定实际足端，并用五次关节曲线把相机平滑升到重捕获高度。"""
-    q_current = np.asarray(q_current, dtype=np.float64).reshape(6, 3)
-    base_position = np.asarray(
-        base_position, dtype=np.float64
-    ).reshape(3)
-    base_rotation = np.asarray(
-        base_rotation, dtype=np.float64
-    ).reshape(3, 3)
-    camera_position = (
-        base_position + base_rotation @ CAMERA_POSITION_IN_LOCK
-    )
-    raise_distance = max(
-        0.0,
-        TAG_REACQUIRE_CAMERA_HEIGHT_M - float(camera_position[2]),
-    )
-    if raise_distance < TAG_REACQUIRE_MIN_RAISE_M:
-        return 0.0
-
-    actual_feet_base = controller.kinematic.forward_base(q_current)
-    feet_world = (
-        actual_feet_base @ base_rotation.T + base_position
-    )
-    target_position = base_position.copy()
-    target_position[2] += raise_distance
-    target_feet_base = (
-        feet_world - target_position
-    ) @ base_rotation
-    target_joints, _ = body.solve_joints(
-        controller.kinematic,
-        target_feet_base,
-        q_current,
-    )
-
-    controller.q_init = target_joints.copy()
-    controller.q_des = q_current.copy()
-    controller.reset_start_q = q_current.copy()
-    controller.reset_time = 0.0
-    controller.foot_init_base = target_feet_base.copy()
-    controller.foot_desired_base = actual_feet_base.copy()
-    controller.foot_desired_base_prev = actual_feet_base.copy()
-    controller.foot_init_hip = controller.kinematic.base_to_hip(
-        target_feet_base
-    )
-    controller.foot_desired_hip = controller.kinematic.base_to_hip(
-        actual_feet_base
-    )
-    controller.foot_current_hip = controller.kinematic.forward(q_current)
-    controller.base_height_at_stand = (
-        FOOT_RADIUS - np.mean(target_feet_base[:, 2])
-    )
-    controller.reset_active = True
-    return raise_distance
 
 
 class RosCameraPublisher:
@@ -775,22 +699,6 @@ class SimPerception:
         return self.result
 
 
-class NullPublisher:
-    def publish(self, _message):
-        pass
-
-
-def place_support_foot_on_surface(surface, foot, lock_from_pin, _leg):
-    """仿真只把调足目标落到小蓝表面，不做额外搜索或安全包络。"""
-
-    world_from_lock = body.transform(PIN_WORLD) @ np.linalg.inv(lock_from_pin)
-    world = world_from_lock @ np.r_[np.asarray(foot, dtype=float), 1.0]
-    height = surface.heights(world[None, :2])[0]
-    if np.isfinite(height):
-        world[2] = height + FOOT_RADIUS
-    return (np.linalg.inv(world_from_lock) @ world)[:3]
-
-
 class SimulationResources:
     """集中释放Isaac Gym和OpenCV资源，异常退出时同样生效。"""
 
@@ -885,12 +793,6 @@ def _run_simulation(resources):
     dock = body.DockMode(
         controller,
         perception=sim_perception,
-        subscribe_joint_state=False,
-        publish_trajectory=False,
-        status_publisher=NullPublisher(),
-    )
-    dock.place_support_foot = lambda foot, pose, leg: (
-        place_support_foot_on_surface(back_surface, foot, pose, leg)
     )
     controller.attach_dock_mode(dock)
     initial_rotation = climb_terminal.base_rotation
@@ -1015,8 +917,6 @@ def _run_simulation(resources):
     max_yaw_rate = max_linear_speed / foot_radius
     command = np.zeros(4)
     enabled = False
-    pending_dock_entry = False
-    tag_raise_started = False
     auto_entry_requested = False
     previous_a = previous_b = previous_y = False
     y_armed = False
@@ -1024,7 +924,7 @@ def _run_simulation(resources):
     q_target = q_start.copy()
     step = 0
     last_ids = []
-    local_pin_pose, local_pin_ids, local_pin_stamp = None, (), -np.inf
+    local_pin_pose, local_pin_stamp = None, -np.inf
     realtime_start = time.perf_counter()
     wall_start = time.perf_counter()
     camera_cost = 0.0
@@ -1038,13 +938,13 @@ def _run_simulation(resources):
         )
         body_state = rigid_body_tensor[base_index].detach().cpu().numpy()
         body_position = body_state[:3]
-        body_rotation = body.quaternion_matrix(body_state[3:7])[:3, :3]
+        body_rotation = quaternion_matrix(body_state[3:7])[:3, :3]
         world_from_base = body.transform(body_position, body_rotation)
         lock_from_pin = np.linalg.inv(world_from_base) @ body.transform(PIN_WORLD)
 
         joint_message = JointState()
         joint_message.header.stamp = rospy.Time.now()
-        joint_message.name = list(body.joint_names)
+        joint_message.name = list(CONTROL_DOF_NAMES)
         joint_message.position = q_current.reshape(-1).tolist()
         joint_publisher.publish(joint_message)
 
@@ -1069,13 +969,14 @@ def _run_simulation(resources):
         if (press_y or scripted_y) and controller.mode != controller.DOCK:
             auto_entry_requested |= scripted_y
             y_armed = False
-            pending_dock_entry = True
-            tag_raise_started = False
             enabled = False
+            terminal_reported = False
+            controller.enter_dock(q_current)
             print(
                 "DOCK_SIM_AUTO_ENTRY：自动触发一次Y键对接回归"
                 if scripted_y else "Y键对接请求已接收"
             )
+            print("第一阶段恢复攀爬结束关节姿态，到位后进入视觉闭环")
 
         if press_a and controller.mode != controller.DOCK:
             enabled = not enabled
@@ -1084,8 +985,6 @@ def _run_simulation(resources):
                 controller.reset_to_stand(q_current)
 
         if press_b:
-            pending_dock_entry = False
-            tag_raise_started = False
             terminal_reported = False
             enabled = False
             if controller.dock_mode is not None and controller.dock_mode.active:
@@ -1093,47 +992,6 @@ def _run_simulation(resources):
             controller.set_mode(controller.APPROACH)
             controller.reset_to_stand(q_current)
             print("正在回到初始站姿")
-
-        gait_finished = bool(
-            not controller.reset_active
-            and not controller.approach_mode.gait_started
-            and not controller.approach_mode.transfer_active
-        )
-        complete_tag_ready = bool(
-            local_pin_pose is not None
-            and local_pin_ids
-            and time.monotonic() - local_pin_stamp <= TAG_REACQUIRE_FRESH_S
-        )
-        if pending_dock_entry and gait_finished and not complete_tag_ready:
-            if not tag_raise_started:
-                raise_distance = start_tag_reacquisition_raise(
-                    controller, q_current, body_position, body_rotation
-                )
-                tag_raise_started = True
-                if raise_distance > 0.0:
-                    print(
-                        "保持当前足端并将相机升高{:.1f} mm以重捕获标签".format(
-                            raise_distance * 1000.0
-                        )
-                    )
-                else:
-                    print("等待完整AprilTag")
-
-        if (
-            pending_dock_entry
-            and gait_finished
-            and complete_tag_ready
-            and not press_b
-        ):
-            pending_dock_entry = False
-            terminal_reported = False
-            controller.enter_dock(q_current)
-            print(
-                "完整AprilTag已确认：ID={}；进入对接模式".format(
-                    list(local_pin_ids)
-                )
-            )
-            print("第一阶段恢复climb_compact终态并保持1.5秒")
 
         axes = np.array((right, forward), dtype=float)
         axes /= max(1.0, np.linalg.norm(axes))
@@ -1147,7 +1005,6 @@ def _run_simulation(resources):
         active_control = bool(
             controller.mode == controller.DOCK
             or controller.reset_active
-            or pending_dock_entry
             or enabled
         )
         if step % control_interval == 0 and active_control:
@@ -1199,7 +1056,7 @@ def _run_simulation(resources):
 
         body_state = rigid_body_tensor[base_index].detach().cpu().numpy()
         body_position = body_state[:3]
-        body_rotation = body.quaternion_matrix(body_state[3:7])[:3, :3]
+        body_rotation = quaternion_matrix(body_state[3:7])[:3, :3]
         sensor_position = (
             body_position + body_rotation @ CAMERA_POSITION_IN_LOCK
         )
@@ -1257,7 +1114,6 @@ def _run_simulation(resources):
                             )
                         )
                     local_pin_pose = pose
-                    local_pin_ids = ids
                     local_pin_stamp = time.monotonic()
                     sim_perception.inject(pose, ids)
             cv2.putText(

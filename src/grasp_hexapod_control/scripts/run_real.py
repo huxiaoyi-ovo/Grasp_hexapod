@@ -754,31 +754,19 @@ class RosControlNode:
             return self.controller.dock_mode
         from dock_mode import DockMode, DockPerception
 
-        allow_inference = bool(rospy.get_param("~dock_allow_inference", False))
         perception = DockPerception(
             detections_topic=rospy.get_param(
                 "~dock_detections_topic", "/dock/tag_detections"
             ),
-            image_topic=rospy.get_param(
-                "~dock_image_topic", "/dock_camera/image_raw"
-            ),
-            camera_info_topic=rospy.get_param(
-                "~dock_camera_info_topic", "/dock_camera/camera_info"
-            ),
-            allow_inference=allow_inference,
-            min_stable_frames=int(rospy.get_param("~dock_min_stable_frames", 10)),
             max_age=float(rospy.get_param("~dock_max_perception_age", 0.2)),
             dock_system_path=self.dock_system_config,
         )
         dock_mode = DockMode(
             self.controller,
             perception=perception,
-            allow_inference=allow_inference,
             require_lock_confirmation=bool(
                 rospy.get_param("~dock_require_lock_confirmation", False)
             ),
-            subscribe_joint_state=True,
-            publish_trajectory=False,
         )
         self.controller.attach_dock_mode(dock_mode)
         return dock_mode
@@ -1070,16 +1058,13 @@ class RosControlNode:
         )
 
     def _start_real_dock(self, q_cur, controls_ready):
-        """在实机输入新鲜且没有运行中攀爬时进入DockMode。"""
+        """在实机输入新鲜时进入DockMode并恢复缓存的攀爬末姿态。"""
 
         if not self.enable_real_dock:
             rospy.logwarn_throttle(2.0, "Y ignored: enable_real_dock is false")
             return
         if not controls_ready or self.state != self.HOLD:
             rospy.logwarn_throttle(2.0, "Y ignored: reset must finish and controls must be fresh")
-            return
-        if self.controller.climb_mode.state == ClimbMode.RUNNING:
-            rospy.logwarn_throttle(2.0, "Y ignored: climb is running")
             return
         try:
             if (
@@ -1101,7 +1086,9 @@ class RosControlNode:
         self.command[:] = 0.0
         self.dock_session_started_at = rospy.Time.now().to_sec()
         self.state = self.RUNNING
-        rospy.loginfo("Y accepted: DockMode waiting for stable complete AprilTag input")
+        rospy.loginfo(
+            "Y accepted: entering climb terminal posture, then starting visual docking"
+        )
 
     def arm_local_climb(self, q_entry):
         """把同步 Isaac 场景锁在 C1 入口，等待 X 启动同一实机门控链。"""

@@ -15,7 +15,7 @@
     sensor_msgs/JointState，包含时间戳和三个关节位置。
 
 诊断：
-    每2秒在终端输出本板九个关节的供电电压。
+    ~enable_diagnostics为true时输出时序和供电电压。
 
 ROS侧角度单位统一为rad。
 """
@@ -91,6 +91,9 @@ class ServoSideNode:
         )
         self.command_duration_ms = int(
             rospy.get_param("~command_duration_ms", 33)
+        )
+        self.enable_diagnostics = bool(
+            rospy.get_param("~enable_diagnostics", True)
         )
         self.voltage_report_interval_s = float(
             rospy.get_param("~voltage_report_interval_s", 2.0)
@@ -520,8 +523,9 @@ class ServoSideNode:
                 )
             )
 
-        self._update_voltage_diagnostics()
-        self._record_timing_diagnostics(started_at)
+        if self.enable_diagnostics:
+            self._update_voltage_diagnostics()
+            self._record_timing_diagnostics(started_at)
 
 
 if __name__ == "__main__":

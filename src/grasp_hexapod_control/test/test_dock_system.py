@@ -2,7 +2,6 @@
 """CPU contract checks for the bottom-USB DOCK perception chain."""
 
 import importlib
-import inspect
 from pathlib import Path
 import sys
 import types
@@ -28,6 +27,16 @@ def test_dock_system_yaml_is_the_complete_tag36h11_geometry_source():
     assert config["publish_tf"] is False
     assert config["real_calibrated"] is False
     assert set(config["pin_from_tag_m"]) == {"0", "1", "2", "3"}
+
+
+def test_climb_config_saves_the_default_dock_entry_joint_pose():
+    config = yaml.safe_load((PACKAGE / "config" / "climb_compact.json").read_text())
+    terminal = np.asarray(config["terminal_q_rad"], dtype=float)
+    initial = np.asarray(config["p0"]["q_rad"], dtype=float)
+    assert terminal.shape == (6, 3)
+    assert np.isfinite(terminal).all()
+    assert not np.array_equal(terminal[2], initial[2])
+    assert not np.array_equal(terminal[5], initial[5])
 
 
 def test_real_launch_starts_only_the_bottom_usb_dock_chain_by_default():
@@ -60,16 +69,15 @@ def test_simulation_imports_shared_dock_geometry_and_topics():
     assert '"/dock_camera/camera_info"' in source
 
 
-def test_dock_planner_uses_the_shared_climb_and_approach_joint_speed_limit():
-    from dock_mode import DockPlannerConfig, _leg_motion_plan
-    from kinematics import JOINT_VELOCITY_LIMIT
-
-    shared_limit = float(np.min(JOINT_VELOCITY_LIMIT))
-    support_default = inspect.signature(
-        _leg_motion_plan
-    ).parameters["max_joint_speed"].default
-    assert DockPlannerConfig().max_joint_speed == shared_limit
-    assert support_default == shared_limit
+def test_dock_mode_reuses_the_controller_kinematics_and_existing_topics():
+    source = (SCRIPTS / "dock_mode.py").read_text()
+    assert "self.controller.kinematic.forward_base" in source
+    assert "self.controller._smooth_step" in source
+    assert "solve_joints" not in source
+    assert "JointReader" not in source
+    assert "JointTrajectory" not in source
+    assert "/dock_mode6" not in source
+    assert 'detections_topic="/dock/tag_detections"' in source
 
 
 def test_uncalibrated_dock_configuration_blocks_y_without_override():

@@ -3,6 +3,9 @@
   <arg name="video_device" default="/dev/video0"/>
   <arg name="image_width" default="1280"/>
   <arg name="image_height" default="720"/>
+  <!-- The real camera exposes 1280x720 YUYV at 10 Hz.  Request that mode
+       explicitly so the driver does not negotiate a slower fallback. -->
+  <arg name="framerate" default="10"/>
   <arg name="pixel_format" default="yuyv"/>
   <arg name="color_format" default="yuv422p"/>
   <arg name="camera_name" default="dock_camera"/>
@@ -15,6 +18,7 @@
     <param name="video_device" value="$(arg video_device)"/>
     <param name="image_width" value="$(arg image_width)"/>
     <param name="image_height" value="$(arg image_height)"/>
+    <param name="framerate" value="$(arg framerate)"/>
     <param name="pixel_format" value="$(arg pixel_format)"/>
     <param name="color_format" value="$(arg color_format)"/>
     <param name="camera_name" value="$(arg camera_name)"/>

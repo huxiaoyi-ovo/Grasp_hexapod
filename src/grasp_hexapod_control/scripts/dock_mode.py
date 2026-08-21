@@ -350,6 +350,16 @@ class DockMode:
     SUCCESS = "success"
     FAILED = "failed"
     TERMINAL_STATES = (SUCCESS, FAILED)
+    STATE_LABELS = {
+        IDLE: "待机",
+        CLIMB_TERMINAL_ENTRY: "恢复攀爬末端姿态",
+        WAITING_TAG: "等待AprilTag",
+        PREALIGN: "视觉预对准",
+        DESCENT: "机械导向下降",
+        ALIGNED: "等待锁紧确认",
+        SUCCESS: "对接成功",
+        FAILED: "对接失败",
+    }
 
     ENTRY_TRACKING_TOLERANCE = np.deg2rad(2.0)
     # 只用于从视觉调整切换到机械导向下降，不作为成功或失败限制。
@@ -383,8 +393,17 @@ class DockMode:
         return source.get(name) if isinstance(source, Mapping) else getattr(source, name, None)
 
     def _set_state(self, state, reason):
+        changed = state != self.state
         self.state = state
         self.reason = reason
+        if changed:
+            logger = rospy.logwarn if state == self.FAILED else rospy.loginfo
+            logger(
+                "DockMode阶段: %s (%s) - %s",
+                self.STATE_LABELS.get(state, state),
+                state,
+                reason or "无",
+            )
 
     def enter(self, current_joints, climb_terminal_joints=None):
         """先回到控制器保留的攀爬末关节姿态，再开放视觉伺服。"""

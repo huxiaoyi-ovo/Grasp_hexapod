@@ -58,6 +58,7 @@
   <arg name="dock_video_device" default="/dev/video0"/>
   <arg name="dock_image_width" default="1280"/>
   <arg name="dock_image_height" default="720"/>
+  <arg name="dock_framerate" default="10"/>
   <arg name="dock_pixel_format" default="yuyv"/>
   <arg name="dock_color_format" default="yuv422p"/>
   <arg name="dock_camera_name" default="dock_camera"/>
@@ -121,8 +122,21 @@
     <arg name="dock_min_stable_frames" value="$(arg dock_min_stable_frames)"/>
     <arg name="dock_max_perception_age" value="$(arg dock_max_perception_age)"/>
   </include>
-  <include file="$(find grasp_hexapod_servo)/launch/dock_tag_system.launch"/>
-
+  <include
+    file="$(find grasp_hexapod_control)/launch/dock_tag_system.launch"
+    if="$(arg start_dock_perception)">
+    <arg name="video_device" value="$(arg dock_video_device)"/>
+    <arg name="image_width" value="$(arg dock_image_width)"/>
+    <arg name="image_height" value="$(arg dock_image_height)"/>
+    <arg name="framerate" value="$(arg dock_framerate)"/>
+    <arg name="pixel_format" value="$(arg dock_pixel_format)"/>
+    <arg name="color_format" value="$(arg dock_color_format)"/>
+    <arg name="camera_name" value="$(arg dock_camera_name)"/>
+    <arg name="camera_info_url" value="$(arg dock_camera_info_url)"/>
+    <arg name="camera_frame_id" value="$(arg dock_camera_frame_id)"/>
+    <arg name="dock_system_config" value="$(arg dock_system_config)"/>
+    <arg name="detections_topic" value="$(arg dock_detections_topic)"/>
+  </include>
 
   <include file="$(find grasp_hexapod_servo)/launch/servo_two_boards.launch">
     <arg name="left_port" value="$(arg left_port)"/>

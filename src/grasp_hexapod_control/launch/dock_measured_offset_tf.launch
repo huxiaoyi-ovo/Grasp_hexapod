@@ -1,0 +1,40 @@
+<launch>
+  <!--
+    ID2实测快照的完整TF链：
+    dock_lock_center -> dock_camera_optical_frame
+                     -> dock_tag_2_measured
+                     -> dock_pin_center_measured
+
+    平移单位为m，旋转均为四元数(x, y, z, w)。
+    锁紧机构到相机、标签到插销来自dock_system.yaml；
+    相机到标签来自当前/dock/tag_detections中的ID2实测值。
+  -->
+  <arg name="lock_frame" default="dock_lock_center"/>
+  <arg name="camera_frame" default="dock_camera_optical_frame"/>
+  <arg name="tag_frame" default="dock_tag_2_measured"/>
+  <arg name="pin_frame" default="dock_pin_center_measured"/>
+
+  <!-- ^lock T_camera -->
+  <node
+    pkg="tf"
+    type="static_transform_publisher"
+    name="dock_lock_to_camera_tf"
+    args="0.0 -0.065 -0.0325 1.0 0.0 0.0 0.0 $(arg lock_frame) $(arg camera_frame) 100"
+    output="screen"/>
+
+  <!-- ^camera T_tag2：ID2实测值 -->
+  <node
+    pkg="tf"
+    type="static_transform_publisher"
+    name="dock_camera_to_tag_2_tf"
+    args="0.01338512564 -0.01169127343 0.06725287508 0.99982841023 -0.00513120146 0.00508821580 0.01705669765 $(arg camera_frame) $(arg tag_frame) 100"
+    output="screen"/>
+
+  <!-- ^tag2 T_pin = inverse(^pin T_tag2) -->
+  <node
+    pkg="tf"
+    type="static_transform_publisher"
+    name="dock_tag_2_to_pin_tf"
+    args="0.0 0.100 0.037 0.0 0.0 0.0 1.0 $(arg tag_frame) $(arg pin_frame) 100"
+    output="screen"/>
+</launch>

@@ -24,8 +24,8 @@ def test_dock_system_yaml_is_the_complete_tag36h11_geometry_source():
     assert {item["id"] for item in config["standalone_tags"]} == {0, 1, 2, 3}
     assert all(item["size"] == 0.040 for item in config["standalone_tags"])
     assert config["tag_bundles"] == []
-    assert config["publish_tf"] is False
-    assert config["real_calibrated"] is False
+    assert config["publish_tf"] is True
+    assert config["real_calibrated"] is True
     assert set(config["pin_from_tag_m"]) == {"0", "1", "2", "3"}
 
 
@@ -47,6 +47,18 @@ def test_real_launch_starts_only_the_bottom_usb_dock_chain_by_default():
     assert args["dock_image_topic"] == "/dock_camera/image_raw"
     assert args["dock_camera_info_topic"] == "/dock_camera/camera_info"
     assert args["dock_require_real_calibrated"] == "true"
+    perception = real.find(
+        "include[@file='$(find grasp_hexapod_control)/launch/dock_tag_system.launch']"
+    )
+    assert perception is not None
+    assert perception.attrib["if"] == "$(arg start_dock_perception)"
+    forwarded = {
+        item.attrib["name"]: item.attrib["value"]
+        for item in perception.findall("arg")
+    }
+    assert forwarded["detections_topic"] == "$(arg dock_detections_topic)"
+    assert forwarded["camera_frame_id"] == "$(arg dock_camera_frame_id)"
+    assert forwarded["dock_system_config"] == "$(arg dock_system_config)"
 
     dock = ET.parse(PACKAGE / "launch" / "dock_tag_system.launch")
     nodes = {(item.attrib["pkg"], item.attrib["type"], item.attrib.get("ns"))

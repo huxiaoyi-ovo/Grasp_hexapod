@@ -360,6 +360,7 @@ class DockMode:
     WAITING_TAG = "waiting_tag"
     PREALIGN = "prealign"
     DESCENT = "descent"
+    LEG_LIFT = "leg_lift"
     ALIGNED = "aligned"
     SUCCESS = "success"
     FAILED = "failed"
@@ -370,6 +371,7 @@ class DockMode:
         WAITING_TAG: "等待AprilTag",
         PREALIGN: "视觉预对准",
         DESCENT: "机械导向下降",
+        LEG_LIFT: "腿部腾空",
         ALIGNED: "等待锁紧确认",
         SUCCESS: "对接成功",
         FAILED: "对接失败",
@@ -377,10 +379,11 @@ class DockMode:
 
     ENTRY_TRACKING_TOLERANCE = np.deg2rad(2.0)
     # 只用于从视觉调整切换到机械导向下降，不作为成功或失败限制。
-    PREALIGN_POSITION_REFERENCE = 0.001
+    PREALIGN_POSITION_REFERENCE = 0.0
     PREALIGN_TILT_REFERENCE = MAX_ANGLE_ERROR
-    LINEAR_SPEED_M_S = 0.050
+    LINEAR_SPEED_M_S = 0.030
     PREALIGN_ANGULAR_SPEED = np.deg2rad(10.0)
+    LEG_LIFT_HEIGHT_M = 0.020
     # None表示在进入下降时使用TF的垂直距离；也可在本文件中改为固定米数。
     DESCENT_DISTANCE_M = None
 
@@ -409,6 +412,8 @@ class DockMode:
         self.descent_total = 0.0
         self.descent_remaining = 0.0
         self.descent_duration = 0.0
+        self.leg_lift_start_feet = None
+        self.leg_lift_progress = 0.0
         self.cached_pose = None
         self.cached_ids = ()
 
@@ -447,6 +452,8 @@ class DockMode:
         self.descent_total = 0.0
         self.descent_remaining = 0.0
         self.descent_duration = 0.0
+        self.leg_lift_start_feet = None
+        self.leg_lift_progress = 0.0
         self.cached_pose = None
         self.cached_ids = ()
         self.update_elapsed = max(0.0, self.update_period - self.controller.dt)
@@ -463,6 +470,8 @@ class DockMode:
         self.descent_total = 0.0
         self.descent_remaining = 0.0
         self.descent_duration = 0.0
+        self.leg_lift_start_feet = None
+        self.leg_lift_progress = 0.0
         self.cached_pose = None
         self.cached_ids = ()
         self.update_elapsed = 0.0
@@ -551,10 +560,9 @@ class DockMode:
             transform((0.0, 0.0, step)), self._synced_feet(current)
         )
         if self.descent_remaining <= 1e-9:
-            if self.require_lock_confirmation:
-                self._set_state(self.ALIGNED, "下降完成，等待锁紧机构确认")
-            else:
-                self._set_state(self.SUCCESS, "下降完成，对接结束")
+            self.leg_lift_start_feet = None
+            self.leg_lift_progress = 0.0
+            self._set_state(self.LEG_LIFT, "下降完成，准备将六腿同步抬起20mm")
         else:
             self._set_state(
                 self.DESCENT,
@@ -563,6 +571,31 @@ class DockMode:
                     self.descent_remaining / self.linear_speed_m_s,
                 ),
             )
+        return self._result(feet=feet)
+
+    def _leg_lift_step(self, current):
+        if self.leg_lift_start_feet is None:
+            self.leg_lift_start_feet = self._synced_feet(current).copy()
+
+        if self.leg_lift_progress >= self.LEG_LIFT_HEIGHT_M:
+            if self.require_lock_confirmation:
+                self._set_state(self.ALIGNED, "六腿已抬起20mm，等待锁紧机构确认")
+            else:
+                self._set_state(self.SUCCESS, "六腿已抬起20mm，对接结束")
+            return self._result(joints=current.copy())
+
+        self.leg_lift_progress = min(
+            self.LEG_LIFT_HEIGHT_M,
+            self.leg_lift_progress + self.linear_speed_m_s * self.update_dt,
+        )
+        feet = self.leg_lift_start_feet.copy()
+        feet[:, 2] += self.leg_lift_progress
+        self._set_state(
+            self.LEG_LIFT,
+            "六腿同步抬起中：{:.1f}/20.0mm".format(
+                self.leg_lift_progress * 1000.0
+            ),
+        )
         return self._result(feet=feet)
 
     def update(self, robot_state=None):
@@ -614,14 +647,16 @@ class DockMode:
         if self.state == self.CLIMB_TERMINAL_ENTRY:
             return self._update_entry(current)
 
+        # 下降开始后不再依赖AprilTag，避免标签离开视野时中断机械对接。
+        if self.state == self.DESCENT:
+            return self._descent_step(current)
+        if self.state == self.LEG_LIFT:
+            return self._leg_lift_step(current)
+
         confirmed = self._field(robot_state, "lock_confirmed")
         if confirmed is True:
             self._set_state(self.SUCCESS, "锁紧机构已确认，对接成功")
             return self._result(joints=current.copy())
-
-        # 下降开始后不再依赖AprilTag，避免标签离开视野时中断机械对接。
-        if self.state == self.DESCENT:
-            return self._descent_step(current)
         if self.state == self.ALIGNED:
             return self._result(joints=current.copy())
 
@@ -634,7 +669,7 @@ class DockMode:
         horizontal = float(np.linalg.norm(pose[:2, 3]))
         tilt = float(np.arccos(np.clip(pose[2, 2], -1.0, 1.0)))
         ready = (
-            horizontal <= self.PREALIGN_POSITION_REFERENCE
+            horizontal <= self.PREALIGN_POSITION_REFERENCE + 1e-9
             and tilt <= self.PREALIGN_TILT_REFERENCE
         )
         tags = ",".join(
@@ -675,7 +710,9 @@ class DockMode:
         return self._result(feet=feet)
 
     def descent_has_started(self):
-        return self.state in (self.DESCENT, self.ALIGNED, self.SUCCESS)
+        return self.state in (
+            self.DESCENT, self.LEG_LIFT, self.ALIGNED, self.SUCCESS
+        )
 
 
 def self_check():
@@ -736,7 +773,7 @@ def self_check():
     cached_result = dropout.update(dropout_state)
     if "最后完整帧推算" not in cached_result.reason:
         raise AssertionError("last complete frame fallback self-check failed")
-    for _ in range(10):
+    for _ in range(20):
         if dropout.update(dropout_state).state == dropout.DESCENT:
             break
     if dropout.state != dropout.DESCENT:
@@ -772,10 +809,20 @@ def self_check():
     mode.perception.latest = lambda: (_ for _ in ()).throw(
         AssertionError("descent must not read AprilTag again")
     )
-    while mode.state == mode.DESCENT:
-        mode.update(state)
+    highest_lift = 0.0
+    for _ in range(50):
+        result = mode.update(state)
+        if result.state == mode.LEG_LIFT and result.foot_positions_base is not None:
+            highest_lift = max(
+                highest_lift,
+                float(np.max(result.foot_positions_base[:, 2])),
+            )
+        if mode.state in mode.TERMINAL_STATES:
+            break
     if mode.state != mode.SUCCESS:
-        raise AssertionError("descent completion self-check failed")
+        raise AssertionError("dock completion self-check failed")
+    if not np.isclose(highest_lift, mode.LEG_LIFT_HEIGHT_M):
+        raise AssertionError("20mm leg lift self-check failed")
     return True
 
 

@@ -50,7 +50,7 @@
   <arg name="dock_require_lock_confirmation" default="false"/>
   <arg name="dock_min_stable_frames" default="10"/>
   <arg name="dock_max_perception_age" default="0.35"/>
-  <arg name="dock_linear_speed_m_s" default="0.05"/>
+  <arg name="dock_linear_speed_m_s" default="0.03"/>
   <arg name="dock_update_rate_hz" default="10.0"/>
   <arg name="dock_lock_frame" default="dock_lock_center"/>
   <arg name="dock_pin_frame_prefix" default="dock_pin_from_tag_"/>

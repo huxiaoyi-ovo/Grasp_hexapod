@@ -766,7 +766,7 @@ class RosControlNode:
             self.controller,
             perception=perception,
             linear_speed_m_s=float(
-                rospy.get_param("~dock_linear_speed_m_s", 0.05)
+                rospy.get_param("~dock_linear_speed_m_s", 0.03)
             ),
             update_rate_hz=float(rospy.get_param("~dock_update_rate_hz", 10.0)),
             require_lock_confirmation=bool(

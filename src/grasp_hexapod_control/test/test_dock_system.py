@@ -27,7 +27,7 @@ def test_dock_system_yaml_is_the_complete_tag36h11_geometry_source():
     assert config["publish_tf"] is True
     assert config["real_calibrated"] is True
     assert set(config["pin_from_tag_m"]) == {"0", "1", "2", "3"}
-    assert config["pin_from_tag_m"]["2"] == [0.0, -0.120, -0.037]
+    assert config["pin_from_tag_m"]["2"] == [0.0, -0.200, -0.037]
 
 
 def test_climb_config_saves_the_default_dock_entry_joint_pose():
@@ -95,7 +95,7 @@ def test_dock_tf_chain_represents_all_four_tag_axes():
     expected = {
         0: ["0", "-0.100", "0.037"],
         1: ["-0.100", "0", "0.037"],
-        2: ["0", "0.120", "0.037"],
+        2: ["0", "0.200", "0.037"],
         3: ["0.100", "0", "0.037"],
     }
     for tag_id, translation in expected.items():

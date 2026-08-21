@@ -377,21 +377,28 @@ class DockMode:
 
     ENTRY_TRACKING_TOLERANCE = np.deg2rad(2.0)
     # 只用于从视觉调整切换到机械导向下降，不作为成功或失败限制。
-    PREALIGN_POSITION_REFERENCE = 0.008
+    PREALIGN_POSITION_REFERENCE = 0.003
     PREALIGN_TILT_REFERENCE = MAX_ANGLE_ERROR
-    LINEAR_SPEED_M_S = 0.100
+    LINEAR_SPEED_M_S = 0.050
     PREALIGN_ANGULAR_SPEED = np.deg2rad(10.0)
     # None表示在进入下降时使用TF的垂直距离；也可在本文件中改为固定米数。
     DESCENT_DISTANCE_M = None
 
     def __init__(self, controller, perception=None, require_lock_confirmation=False,
-                 linear_speed_m_s=LINEAR_SPEED_M_S):
+                 linear_speed_m_s=LINEAR_SPEED_M_S, update_rate_hz=10.0):
         self.controller = controller
         self.perception = perception or DockPerception()
         self.require_lock_confirmation = bool(require_lock_confirmation)
         self.linear_speed_m_s = float(linear_speed_m_s)
         if not np.isfinite(self.linear_speed_m_s) or self.linear_speed_m_s <= 0.0:
             raise ValueError("dock linear_speed_m_s must be finite and positive")
+        self.update_rate_hz = float(update_rate_hz)
+        if not np.isfinite(self.update_rate_hz) or self.update_rate_hz <= 0.0:
+            raise ValueError("dock update_rate_hz must be finite and positive")
+        self.update_period = 1.0 / self.update_rate_hz
+        self.update_elapsed = 0.0
+        self.update_dt = float(self.controller.dt)
+        self.last_update_result = None
         self.active = False
         self.state = self.IDLE
         self.reason = ""
@@ -402,6 +409,8 @@ class DockMode:
         self.descent_total = 0.0
         self.descent_remaining = 0.0
         self.descent_duration = 0.0
+        self.cached_pose = None
+        self.cached_ids = ()
 
     @staticmethod
     def _field(source, name):
@@ -438,6 +447,11 @@ class DockMode:
         self.descent_total = 0.0
         self.descent_remaining = 0.0
         self.descent_duration = 0.0
+        self.cached_pose = None
+        self.cached_ids = ()
+        self.update_elapsed = max(0.0, self.update_period - self.controller.dt)
+        self.update_dt = self.update_period
+        self.last_update_result = None
         ratio = np.abs(target - current) / JOINT_VELOCITY_LIMIT
         self.entry_duration = max(0.5, 1.875 * float(np.max(ratio)))
         self._set_state(self.CLIMB_TERMINAL_ENTRY, "正在进入攀爬结束关节姿态")
@@ -449,6 +463,10 @@ class DockMode:
         self.descent_total = 0.0
         self.descent_remaining = 0.0
         self.descent_duration = 0.0
+        self.cached_pose = None
+        self.cached_ids = ()
+        self.update_elapsed = 0.0
+        self.last_update_result = None
         self._set_state(self.IDLE, "")
 
     def fail_execution(self, reason):
@@ -461,7 +479,12 @@ class DockMode:
         if raw is None:
             observed = self.perception.latest()
             if not getattr(observed, "valid", False):
-                return None, (), observed.reason
+                if self.cached_pose is None:
+                    return None, (), observed.reason
+                return (
+                    self.cached_pose.copy(), self.cached_ids,
+                    "使用最后完整AprilTag帧推算",
+                )
             raw = observed.lock_from_pin
             decoded_ids = tuple(observed.decoded_ids)
         try:
@@ -470,6 +493,8 @@ class DockMode:
             return None, (), "invalid lock_from_pin shape"
         if not np.isfinite(pose).all():
             return None, (), "non-finite lock_from_pin"
+        self.cached_pose = pose.copy()
+        self.cached_ids = decoded_ids
         return pose, decoded_ids, ""
 
     def _actual_feet(self, joints):
@@ -482,7 +507,7 @@ class DockMode:
         )
 
     def _update_entry(self, current):
-        self.entry_elapsed = min(self.entry_duration, self.entry_elapsed + self.controller.dt)
+        self.entry_elapsed = min(self.entry_duration, self.entry_elapsed + self.update_dt)
         phase = self.entry_elapsed / self.entry_duration
         blend = self.controller._smooth_step(phase)
         command = (1.0 - blend) * self.entry_start + blend * self.entry_target
@@ -510,14 +535,15 @@ class DockMode:
         body_correction[2, 3] = 0.0
         increment = limited_transform(
             body_correction,
-            self.linear_speed_m_s * self.controller.dt,
-            self.PREALIGN_ANGULAR_SPEED * self.controller.dt,
+            self.linear_speed_m_s * self.update_dt,
+            self.PREALIGN_ANGULAR_SPEED * self.update_dt,
         )
+        self.cached_pose = increment @ pose
         return transform_points(increment, actual_feet)
 
     def _descent_step(self, current):
         step = min(
-            self.linear_speed_m_s * self.controller.dt,
+            self.linear_speed_m_s * self.update_dt,
             self.descent_remaining,
         )
         self.descent_remaining -= step
@@ -542,6 +568,22 @@ class DockMode:
     def update(self, robot_state=None):
         if not self.active:
             raise RuntimeError("enter() must be called before update()")
+        if self.state in self.TERMINAL_STATES:
+            return self._update_once(robot_state)
+
+        self.update_elapsed += self.controller.dt
+        if (
+            self.last_update_result is not None
+            and self.update_elapsed + 1e-12 < self.update_period
+        ):
+            return self.last_update_result
+
+        self.update_dt = self.update_elapsed
+        self.update_elapsed = 0.0
+        self.last_update_result = self._update_once(robot_state)
+        return self.last_update_result
+
+    def _update_once(self, robot_state=None):
         # 终态优先返回，避免run_real进入HOLD、不再注入DockRobotState后
         # 把已经确认的SUCCESS覆盖成关节反馈缺失FAILED。
         if self.state in self.TERMINAL_STATES:
@@ -586,8 +628,7 @@ class DockMode:
         pose, decoded_ids, perception_reason = self._perception_pose(robot_state)
         if pose is None:
             self._set_state(self.WAITING_TAG, "等待完整AprilTag：" + perception_reason)
-            # 没有视觉方向时直接保持当前关节，避免把实时FK反复送入DLS
-            # 前馈链路而形成无目标漂移。
+            # 本次对接尚未得到过完整标签时保持当前位置。
             return self._result(joints=current.copy())
 
         horizontal = float(np.linalg.norm(pose[:2, 3]))
@@ -600,6 +641,8 @@ class DockMode:
             "ID{}({})".format(tag_id, TAG_DIRECTIONS[tag_id])
             for tag_id in decoded_ids
         ) or "外部TF"
+        if perception_reason:
+            tags += "[最后完整帧推算]"
         if ready:
             # 水平和姿态已经进入导向锥可接管的预期区域。只锁存向下
             # 行程，后续不再用视觉修正横向位置或姿态。
@@ -672,6 +715,53 @@ def self_check():
             return PerceptionResult(
                 valid=True, lock_from_pin=self.pose, decoded_ids=(2,)
             )
+
+    class DropoutPerception(Perception):
+        def __init__(self, pose):
+            super().__init__(pose)
+            self.calls = 0
+
+        def latest(self):
+            self.calls += 1
+            if self.calls == 1:
+                return super().latest()
+            return PerceptionResult(reason="simulated tag loss")
+
+    dropout = DockMode(
+        Controller(), DropoutPerception(transform((0.025, 0.0, -0.030)))
+    )
+    dropout.active, dropout.state = True, dropout.WAITING_TAG
+    dropout_state = {"joints": np.zeros((6, 3))}
+    dropout.update(dropout_state)
+    cached_result = dropout.update(dropout_state)
+    if "最后完整帧推算" not in cached_result.reason:
+        raise AssertionError("last complete frame fallback self-check failed")
+    for _ in range(10):
+        if dropout.update(dropout_state).state == dropout.DESCENT:
+            break
+    if dropout.state != dropout.DESCENT:
+        raise AssertionError("cached pose descent transition self-check failed")
+
+    class FastController(Controller):
+        dt = 1.0 / 30.0
+
+    class CountingPerception(Perception):
+        def __init__(self, pose):
+            super().__init__(pose)
+            self.calls = 0
+
+        def latest(self):
+            self.calls += 1
+            return super().latest()
+
+    counted = CountingPerception(transform((0.030, 0.0, -0.030)))
+    rate_mode = DockMode(FastController(), counted, update_rate_hz=10.0)
+    rate_mode.enter(np.zeros((6, 3)))
+    rate_mode.state = rate_mode.WAITING_TAG
+    for _ in range(4):
+        rate_mode.update(dropout_state)
+    if counted.calls != 2:
+        raise AssertionError("10Hz dock update self-check failed")
 
     pose = transform((0.0, 0.0, -0.030))
     mode = DockMode(Controller(), Perception(pose))

@@ -50,7 +50,8 @@
   <arg name="dock_require_lock_confirmation" default="false"/>
   <arg name="dock_min_stable_frames" default="10"/>
   <arg name="dock_max_perception_age" default="0.35"/>
-  <arg name="dock_linear_speed_m_s" default="0.10"/>
+  <arg name="dock_linear_speed_m_s" default="0.05"/>
+  <arg name="dock_update_rate_hz" default="10.0"/>
   <arg name="dock_lock_frame" default="dock_lock_center"/>
   <arg name="dock_pin_frame_prefix" default="dock_pin_from_tag_"/>
 
@@ -122,6 +123,7 @@
     <param name="dock_min_stable_frames" value="$(arg dock_min_stable_frames)"/>
     <param name="dock_max_perception_age" value="$(arg dock_max_perception_age)"/>
     <param name="dock_linear_speed_m_s" value="$(arg dock_linear_speed_m_s)"/>
+    <param name="dock_update_rate_hz" value="$(arg dock_update_rate_hz)"/>
     <param name="dock_lock_frame" value="$(arg dock_lock_frame)"/>
     <param name="dock_pin_frame_prefix" value="$(arg dock_pin_frame_prefix)"/>
   </node>

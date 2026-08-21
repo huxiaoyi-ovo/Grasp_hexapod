@@ -20,6 +20,7 @@
     <arg name="lock_frame" value="$(arg lock_frame)"/>
     <arg name="camera_frame" value="$(arg camera_frame_id)"/>
     <arg name="pin_frame_prefix" value="$(arg pin_frame_prefix)"/>
+    <arg name="dock_system_config" value="$(arg dock_system_config)"/>
   </include>
 
   <node pkg="usb_cam" type="usb_cam_node" name="usb_cam" ns="dock_camera" output="screen">

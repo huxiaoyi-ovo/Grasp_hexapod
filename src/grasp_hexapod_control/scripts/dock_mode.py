@@ -71,6 +71,14 @@ def load_dock_system(path=None):
         for item in descriptions
     ):
         raise ValueError("dock_system.yaml standalone_tags must match tag_ids/size")
+    tag_frames = {
+        int(item["id"]): str(item.get("name", "")).strip()
+        for item in descriptions
+    }
+    if any(not frame for frame in tag_frames.values()) or len(
+        set(tag_frames.values())
+    ) != len(tag_frames):
+        raise ValueError("dock_system.yaml tag names must be nonempty and unique")
     lock = config.get("lock_from_camera", {})
     lock_translation = np.asarray(lock.get("translation_m"), dtype=float)
     lock_rotation = np.asarray(lock.get("rotation"), dtype=float)
@@ -97,6 +105,7 @@ def load_dock_system(path=None):
         "path": str(config_path),
         "tag_ids": tag_ids,
         "tag_size_m": tag_size,
+        "tag_frames": tag_frames,
         "lock_from_camera": transform(lock_translation, lock_rotation),
         "pin_from_tag": pin_from_tag,
         "real_calibrated": config["real_calibrated"],

@@ -9,18 +9,13 @@
   <arg name="lock_frame" default="dock_lock_center"/>
   <arg name="camera_frame" default="dock_camera_optical_frame"/>
   <arg name="pin_frame_prefix" default="dock_pin_from_tag_"/>
+  <arg name="dock_system_config" default="$(find grasp_hexapod_control)/config/dock_system.yaml"/>
 
-  <!-- ^lock T_camera：相机位于锁紧机构中心-y 65 mm、-z 32.5 mm。 -->
-  <node pkg="tf2_ros" type="static_transform_publisher" name="dock_lock_to_camera_tf"
-        args="0 -0.065 -0.0325 1 0 0 0 $(arg lock_frame) $(arg camera_frame)"/>
-
-  <!-- ^tag T_pin = inverse(^pin T_tag)，0/2沿y，1/3沿x。 -->
-  <node pkg="tf2_ros" type="static_transform_publisher" name="dock_tag_0_to_pin_tf"
-        args="0 -0.100 0.037 0 0 0 1 dock_tag_0 $(arg pin_frame_prefix)0"/>
-  <node pkg="tf2_ros" type="static_transform_publisher" name="dock_tag_1_to_pin_tf"
-        args="-0.100 0 0.037 0 0 0 1 dock_tag_1 $(arg pin_frame_prefix)1"/>
-  <node pkg="tf2_ros" type="static_transform_publisher" name="dock_tag_2_to_pin_tf"
-        args="0 0.200 0.037 0 0 0 1 dock_tag_2 $(arg pin_frame_prefix)2"/>
-  <node pkg="tf2_ros" type="static_transform_publisher" name="dock_tag_3_to_pin_tf"
-        args="0.100 0 0.037 0 0 0 1 dock_tag_3 $(arg pin_frame_prefix)3"/>
+  <node pkg="grasp_hexapod_control" type="dock_static_tf.py"
+        name="dock_static_tf" output="screen" required="true">
+    <param name="dock_system_config" value="$(arg dock_system_config)"/>
+    <param name="lock_frame" value="$(arg lock_frame)"/>
+    <param name="camera_frame" value="$(arg camera_frame)"/>
+    <param name="pin_frame_prefix" value="$(arg pin_frame_prefix)"/>
+  </node>
 </launch>

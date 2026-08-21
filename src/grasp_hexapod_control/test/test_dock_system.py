@@ -78,32 +78,46 @@ def test_real_launch_starts_only_the_bottom_usb_dock_chain_by_default():
     assert ("nodelet", "nodelet", None) in nodes
     assert ("apriltag_ros", "apriltag_ros_continuous_node", "dock") in nodes
     assert dock.find(".//include[@file='$(find image_proc)/launch/image_proc.launch']") is not None
-    assert dock.find(
+    tf_chain = dock.find(
         "include[@file='$(find grasp_hexapod_control)/launch/dock_tf_chain.launch']"
-    ) is not None
+    )
+    assert tf_chain is not None
+    tf_args = {
+        item.attrib["name"]: item.attrib["value"]
+        for item in tf_chain.findall("arg")
+    }
+    assert tf_args["dock_system_config"] == "$(arg dock_system_config)"
     detector = dock.find("node[@name='apriltag']")
     assert detector.find("remap[@from='image_rect']").attrib["to"] == "/dock_camera/image_rect_color"
 
 
-def test_dock_tf_chain_represents_all_four_tag_axes():
+def test_dock_tf_chain_reads_all_mechanical_geometry_from_yaml():
     chain = ET.parse(PACKAGE / "launch" / "dock_tf_chain.launch")
-    nodes = {node.attrib["name"]: node.attrib["args"].split()
-             for node in chain.findall("node")}
-    assert nodes["dock_lock_to_camera_tf"][:7] == [
-        "0", "-0.065", "-0.0325", "1", "0", "0", "0",
-    ]
-    expected = {
-        0: ["0", "-0.100", "0.037"],
-        1: ["-0.100", "0", "0.037"],
-        2: ["0", "0.200", "0.037"],
-        3: ["0.100", "0", "0.037"],
+    args = {
+        item.attrib["name"]: item.attrib.get("default")
+        for item in chain.findall("arg")
     }
-    for tag_id, translation in expected.items():
-        args = nodes["dock_tag_{}_to_pin_tf".format(tag_id)]
-        assert args[:3] == translation
-        assert args[7] == "dock_tag_{}".format(tag_id)
-        assert args[8] == "$(arg"
-        assert args[9] == "pin_frame_prefix){}".format(tag_id)
+    assert args["dock_system_config"] == (
+        "$(find grasp_hexapod_control)/config/dock_system.yaml"
+    )
+    publisher = chain.find("node[@name='dock_static_tf']")
+    assert publisher.attrib["pkg"] == "grasp_hexapod_control"
+    assert publisher.attrib["type"] == "dock_static_tf.py"
+    assert publisher.attrib["required"] == "true"
+    params = {
+        item.attrib["name"]: item.attrib["value"]
+        for item in publisher.findall("param")
+    }
+    assert params["dock_system_config"] == "$(arg dock_system_config)"
+    assert params["lock_frame"] == "$(arg lock_frame)"
+    assert params["camera_frame"] == "$(arg camera_frame)"
+    assert params["pin_frame_prefix"] == "$(arg pin_frame_prefix)"
+    assert not chain.findall("node[@pkg='tf2_ros']")
+
+    source = (SCRIPTS / "dock_static_tf.py").read_text()
+    assert 'dock_system["lock_from_camera"]' in source
+    assert 'dock_system["pin_from_tag"][tag_id]' in source
+    assert 'dock_system["tag_frames"][tag_id]' in source
 
 
 def test_simulation_imports_shared_dock_geometry_and_topics():

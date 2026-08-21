@@ -125,7 +125,7 @@ def test_dock_mode_reuses_controller_kinematics_and_reads_tf_only():
     assert "rospy.Subscriber" not in source
     assert "LINEAR_SPEED_M_S = 0.050" in source
     assert "update_rate_hz=10.0" in source
-    assert "PREALIGN_POSITION_REFERENCE = 0.003" in source
+    assert "PREALIGN_POSITION_REFERENCE = 0.001" in source
     assert "使用最后完整AprilTag帧推算" in source
 
 

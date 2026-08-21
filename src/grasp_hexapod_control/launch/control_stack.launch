@@ -40,7 +40,6 @@
   <arg name="real_climb_max_angular_speed_deg_s" default="30.0"/>
   <arg name="real_climb_persistence_frames" default="3"/>
   <arg name="lock_confirmed_topic" default="/grasp_hexapod/dock/lock_confirmed"/>
-  <arg name="dock_detections_topic" default="/dock/tag_detections"/>
   <arg name="dock_image_topic" default="/dock_camera/image_raw"/>
   <arg name="dock_camera_info_topic" default="/dock_camera/camera_info"/>
   <arg name="dock_system_config" default="$(find grasp_hexapod_control)/config/dock_system.yaml"/>
@@ -50,7 +49,9 @@
   <arg name="dock_allow_inference" default="false"/>
   <arg name="dock_require_lock_confirmation" default="false"/>
   <arg name="dock_min_stable_frames" default="10"/>
-  <arg name="dock_max_perception_age" default="0.2"/>
+  <arg name="dock_max_perception_age" default="0.35"/>
+  <arg name="dock_lock_frame" default="dock_lock_center"/>
+  <arg name="dock_pin_frame_prefix" default="dock_pin_from_tag_"/>
 
   <node
     pkg="joy"
@@ -109,7 +110,6 @@
     <param name="real_climb_max_angular_speed_deg_s" value="$(arg real_climb_max_angular_speed_deg_s)"/>
     <param name="real_climb_persistence_frames" value="$(arg real_climb_persistence_frames)"/>
     <param name="lock_confirmed_topic" value="$(arg lock_confirmed_topic)"/>
-    <param name="dock_detections_topic" value="$(arg dock_detections_topic)"/>
     <param name="dock_image_topic" value="$(arg dock_image_topic)"/>
     <param name="dock_camera_info_topic" value="$(arg dock_camera_info_topic)"/>
     <param name="dock_system_config" value="$(arg dock_system_config)"/>
@@ -120,5 +120,7 @@
     <param name="dock_require_lock_confirmation" value="$(arg dock_require_lock_confirmation)"/>
     <param name="dock_min_stable_frames" value="$(arg dock_min_stable_frames)"/>
     <param name="dock_max_perception_age" value="$(arg dock_max_perception_age)"/>
+    <param name="dock_lock_frame" value="$(arg dock_lock_frame)"/>
+    <param name="dock_pin_frame_prefix" value="$(arg dock_pin_frame_prefix)"/>
   </node>
 </launch>

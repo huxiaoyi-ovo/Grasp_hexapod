@@ -755,10 +755,11 @@ class RosControlNode:
         from dock_mode import DockMode, DockPerception
 
         perception = DockPerception(
-            detections_topic=rospy.get_param(
-                "~dock_detections_topic", "/dock/tag_detections"
+            max_age=float(rospy.get_param("~dock_max_perception_age", 0.35)),
+            lock_frame=rospy.get_param("~dock_lock_frame", "dock_lock_center"),
+            pin_frame_prefix=rospy.get_param(
+                "~dock_pin_frame_prefix", "dock_pin_from_tag_"
             ),
-            max_age=float(rospy.get_param("~dock_max_perception_age", 0.2)),
             dock_system_path=self.dock_system_config,
         )
         dock_mode = DockMode(

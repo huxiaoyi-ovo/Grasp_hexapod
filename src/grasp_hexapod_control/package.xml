@@ -15,6 +15,7 @@
   <depend>sensor_msgs</depend>
   <depend>std_msgs</depend>
   <depend>tf</depend>
+  <depend>tf2_ros</depend>
   <depend>trajectory_msgs</depend>
   <exec_depend>usb_cam</exec_depend>
   <exec_depend>image_proc</exec_depend>

@@ -1,8 +1,8 @@
 """实机视觉对接模式。
 
-DockMode只负责三件事：接管攀爬结束关节姿态、读取现有AprilTag位姿、
-把闭环机身修正转换为六足base_link目标。关节反馈、DLS逆运动学和舵机
-下发统一走run_real.py -> GraspController链路。
+DockMode只负责三件事：接管攀爬结束关节姿态、读取AprilTag TF、把闭环
+机身修正转换为六足base_link目标。关节反馈、DLS逆运动学和舵机下发
+统一走run_real.py -> GraspController链路。
 """
 
 from dataclasses import dataclass
@@ -11,14 +11,15 @@ from typing import Mapping
 
 import numpy as np
 import rospy
+import tf2_ros
 import yaml
-from apriltag_ros.msg import AprilTagDetectionArray
+from tf.transformations import quaternion_matrix
 
 from kinematics import JOINT_VELOCITY_LIMIT
 from utils import package_config_path, pose_to_transform, transform_points
 
 
-# AprilTag感知：复用/dock/tag_detections，不在DockMode内创建其他ROS话题。
+# AprilTag感知：apriltag_ros发布相机到标签的动态TF，DockMode只查询完整TF链。
 TAG_IDS = (0, 1, 2, 3)
 TAG_SIZE = 0.040
 TAG_DIRECTIONS = {0: "+y", 1: "+x", 2: "-y", 3: "-x"}
@@ -199,38 +200,33 @@ class PerceptionResult:
 
 
 class DockPerception:
-    """只消费现有apriltag_ros检测话题，不重复订阅原图或相机内参。"""
-    def __init__(self, detections_topic="/dock/tag_detections", max_age=0.2,
-                 lock_from_camera=LOCK_FROM_CAMERA, tag_from_pin=None, dock_system_path=None):
+    """通过TF读取每个完整标签对应的锁紧机构到插销位姿。"""
+    def __init__(self, max_age=0.35, lock_frame="dock_lock_center",
+                 pin_frame_prefix="dock_pin_from_tag_", tf_buffer=None,
+                 dock_system_path=None):
         dock_system = load_dock_system(dock_system_path)
         self.max_age = float(max_age)
-        self.lock_from_camera = np.asarray(
-            dock_system["lock_from_camera"] if lock_from_camera is LOCK_FROM_CAMERA else lock_from_camera,
-            dtype=float,
-        ).reshape(4, 4).copy()
-        source = (
-            {tag_id: invert_transform(pose) for tag_id, pose in dock_system["pin_from_tag"].items()}
-            if tag_from_pin is None else tag_from_pin
-        )
-        self.tag_from_pin = {
-            int(tag_id): np.asarray(pose, dtype=float).reshape(4, 4).copy()
-            for tag_id, pose in source.items()
+        self.lock_from_camera = dock_system["lock_from_camera"]
+        self.lock_frame = str(lock_frame)
+        self.pin_frames = {
+            tag_id: "{}{}".format(pin_frame_prefix, tag_id) for tag_id in TAG_IDS
         }
+        self.tf_buffer = tf_buffer or tf2_ros.Buffer()
+        self.tf_listener = (
+            None if tf_buffer is not None
+            else tf2_ros.TransformListener(self.tf_buffer)
+        )
         self.stamp = None
-        self.detections = {}
         self.result = PerceptionResult()
-        self.subscriber = rospy.Subscriber(
-            detections_topic, AprilTagDetectionArray, self._callback, queue_size=1
-        )
 
-    def _callback(self, message):
-        self.stamp = message.header.stamp
-        self.detections = {
-            int(tag_id): detection
-            for detection in message.detections
-            for tag_id in detection.id
-            if int(tag_id) in TAG_IDS
-        }
+    @staticmethod
+    def _matrix(transform_stamped):
+        transform_msg = transform_stamped.transform
+        quaternion = transform_msg.rotation
+        pose = quaternion_matrix((quaternion.x, quaternion.y, quaternion.z, quaternion.w))
+        translation = transform_msg.translation
+        pose[:3, 3] = (translation.x, translation.y, translation.z)
+        return pose
 
     def _invalid(self, reason):
         self.result = PerceptionResult(stamp=self.stamp, reason=reason)
@@ -242,28 +238,46 @@ class DockPerception:
     def latest(self, max_age=None):
         max_age = self.max_age if max_age is None else float(max_age)
         now = rospy.Time.now()
-        fresh = self.stamp is not None and 0.0 <= (now - self.stamp).to_sec() <= max_age
         candidates = []
-        if fresh:
-            for tag_id, detection in self.detections.items():
-                try:
-                    pose = pin_pose_from_detection(
-                        tag_id, detection, self.lock_from_camera, self.tag_from_pin
-                    )
-                except (AttributeError, KeyError, TypeError, ValueError):
+        stamps = {}
+        for tag_id, pin_frame in self.pin_frames.items():
+            try:
+                transform_stamped = self.tf_buffer.lookup_transform(
+                    self.lock_frame, pin_frame, rospy.Time(0), rospy.Duration(0.0)
+                )
+                stamp = transform_stamped.header.stamp
+                self.stamp = stamp
+                if abs((now - stamp).to_sec()) > max_age:
                     continue
-                if np.isfinite(pose).all():
-                    candidates.append((tag_id, pose))
+                pose = self._matrix(transform_stamped)
+            except (
+                tf2_ros.LookupException,
+                tf2_ros.ConnectivityException,
+                tf2_ros.ExtrapolationException,
+                AttributeError,
+                TypeError,
+                ValueError,
+            ):
+                continue
+            if np.isfinite(pose).all():
+                candidates.append((tag_id, pose))
+                stamps[tag_id] = stamp
         if not candidates:
-            return self._invalid("no complete tag detection")
+            return self._invalid("no fresh complete dock TF")
+        candidates.sort(
+            key=lambda item: stamps[item[0]].to_sec(), reverse=True
+        )
         poses = consistent_poses(candidates)
         poses_agree = bool(poses)
         # 一致性只作为观测质量诊断。只要存在完整且有限的标签位姿，
-        # 就使用检测消息中的第一个候选，不按ID编号设置优先级。
+        # 就使用时间戳最新的候选，不按ID编号设置优先级。
         if not poses:
             poses = candidates[:1]
         pose, position_spread, angle_spread = fuse_poses(poses)
         decoded = tuple(sorted(tag_id for tag_id, _ in poses))
+        self.stamp = max(
+            (stamps[tag_id] for tag_id in decoded), key=lambda stamp: stamp.to_sec()
+        )
         plausible = pose_is_plausible(pose, self.lock_from_camera)
         tag_text = ",".join(
             "ID{}({})".format(tag_id, TAG_DIRECTIONS[tag_id])

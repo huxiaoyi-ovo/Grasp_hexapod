@@ -47,6 +47,9 @@ def test_real_launch_starts_only_the_bottom_usb_dock_chain_by_default():
     assert args["dock_image_topic"] == "/dock_camera/image_raw"
     assert args["dock_camera_info_topic"] == "/dock_camera/camera_info"
     assert args["dock_require_real_calibrated"] == "true"
+    assert args["dock_max_perception_age"] == "0.35"
+    assert args["dock_lock_frame"] == "dock_lock_center"
+    assert args["dock_pin_frame_prefix"] == "dock_pin_from_tag_"
     perception = real.find(
         "include[@file='$(find grasp_hexapod_control)/launch/dock_tag_system.launch']"
     )
@@ -58,6 +61,8 @@ def test_real_launch_starts_only_the_bottom_usb_dock_chain_by_default():
     }
     assert forwarded["detections_topic"] == "$(arg dock_detections_topic)"
     assert forwarded["camera_frame_id"] == "$(arg dock_camera_frame_id)"
+    assert forwarded["lock_frame"] == "$(arg dock_lock_frame)"
+    assert forwarded["pin_frame_prefix"] == "$(arg dock_pin_frame_prefix)"
     assert forwarded["dock_system_config"] == "$(arg dock_system_config)"
 
     dock = ET.parse(PACKAGE / "launch" / "dock_tag_system.launch")
@@ -67,8 +72,32 @@ def test_real_launch_starts_only_the_bottom_usb_dock_chain_by_default():
     assert ("nodelet", "nodelet", None) in nodes
     assert ("apriltag_ros", "apriltag_ros_continuous_node", "dock") in nodes
     assert dock.find(".//include[@file='$(find image_proc)/launch/image_proc.launch']") is not None
+    assert dock.find(
+        "include[@file='$(find grasp_hexapod_control)/launch/dock_tf_chain.launch']"
+    ) is not None
     detector = dock.find("node[@name='apriltag']")
     assert detector.find("remap[@from='image_rect']").attrib["to"] == "/dock_camera/image_rect_color"
+
+
+def test_dock_tf_chain_represents_all_four_tag_axes():
+    chain = ET.parse(PACKAGE / "launch" / "dock_tf_chain.launch")
+    nodes = {node.attrib["name"]: node.attrib["args"].split()
+             for node in chain.findall("node")}
+    assert nodes["dock_lock_to_camera_tf"][:7] == [
+        "0", "-0.065", "-0.0325", "1", "0", "0", "0",
+    ]
+    expected = {
+        0: ["0", "-0.100", "0.037"],
+        1: ["-0.100", "0", "0.037"],
+        2: ["0", "0.100", "0.037"],
+        3: ["0.100", "0", "0.037"],
+    }
+    for tag_id, translation in expected.items():
+        args = nodes["dock_tag_{}_to_pin_tf".format(tag_id)]
+        assert args[:3] == translation
+        assert args[7] == "dock_tag_{}".format(tag_id)
+        assert args[8] == "$(arg"
+        assert args[9] == "pin_frame_prefix){}".format(tag_id)
 
 
 def test_simulation_imports_shared_dock_geometry_and_topics():
@@ -81,7 +110,7 @@ def test_simulation_imports_shared_dock_geometry_and_topics():
     assert '"/dock_camera/camera_info"' in source
 
 
-def test_dock_mode_reuses_the_controller_kinematics_and_existing_topics():
+def test_dock_mode_reuses_controller_kinematics_and_reads_tf_only():
     source = (SCRIPTS / "dock_mode.py").read_text()
     assert "self.controller.kinematic.forward_base" in source
     assert "self.controller._smooth_step" in source
@@ -89,7 +118,9 @@ def test_dock_mode_reuses_the_controller_kinematics_and_existing_topics():
     assert "JointReader" not in source
     assert "JointTrajectory" not in source
     assert "/dock_mode6" not in source
-    assert 'detections_topic="/dock/tag_detections"' in source
+    assert "lookup_transform(" in source
+    assert "AprilTagDetectionArray" not in source
+    assert "rospy.Subscriber" not in source
 
 
 def test_uncalibrated_dock_configuration_blocks_y_without_override():

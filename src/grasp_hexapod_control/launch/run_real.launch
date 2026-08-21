@@ -64,10 +64,12 @@
   <arg name="dock_camera_name" default="dock_camera"/>
   <arg name="dock_camera_info_url" default="file://$(find grasp_hexapod_control)/config/dock_camera.yaml"/>
   <arg name="dock_camera_frame_id" default="dock_camera_optical_frame"/>
+  <arg name="dock_lock_frame" default="dock_lock_center"/>
+  <arg name="dock_pin_frame_prefix" default="dock_pin_from_tag_"/>
   <arg name="dock_allow_inference" default="false"/>
   <arg name="dock_require_lock_confirmation" default="false"/>
   <arg name="dock_min_stable_frames" default="10"/>
-  <arg name="dock_max_perception_age" default="0.2"/>
+  <arg name="dock_max_perception_age" default="0.35"/>
 
   <include file="$(find grasp_hexapod_control)/launch/control_stack.launch">
     <arg name="control_source" value="$(arg mode)"/>
@@ -110,7 +112,6 @@
     <arg name="real_climb_max_angular_speed_deg_s" value="$(arg real_climb_max_angular_speed_deg_s)"/>
     <arg name="real_climb_persistence_frames" value="$(arg real_climb_persistence_frames)"/>
     <arg name="lock_confirmed_topic" value="$(arg lock_confirmed_topic)"/>
-    <arg name="dock_detections_topic" value="$(arg dock_detections_topic)"/>
     <arg name="dock_image_topic" value="$(arg dock_image_topic)"/>
     <arg name="dock_camera_info_topic" value="$(arg dock_camera_info_topic)"/>
     <arg name="dock_system_config" value="$(arg dock_system_config)"/>
@@ -121,6 +122,8 @@
     <arg name="dock_require_lock_confirmation" value="$(arg dock_require_lock_confirmation)"/>
     <arg name="dock_min_stable_frames" value="$(arg dock_min_stable_frames)"/>
     <arg name="dock_max_perception_age" value="$(arg dock_max_perception_age)"/>
+    <arg name="dock_lock_frame" value="$(arg dock_lock_frame)"/>
+    <arg name="dock_pin_frame_prefix" value="$(arg dock_pin_frame_prefix)"/>
   </include>
   <include
     file="$(find grasp_hexapod_control)/launch/dock_tag_system.launch"
@@ -134,6 +137,8 @@
     <arg name="camera_name" value="$(arg dock_camera_name)"/>
     <arg name="camera_info_url" value="$(arg dock_camera_info_url)"/>
     <arg name="camera_frame_id" value="$(arg dock_camera_frame_id)"/>
+    <arg name="lock_frame" value="$(arg dock_lock_frame)"/>
+    <arg name="pin_frame_prefix" value="$(arg dock_pin_frame_prefix)"/>
     <arg name="dock_system_config" value="$(arg dock_system_config)"/>
     <arg name="detections_topic" value="$(arg dock_detections_topic)"/>
   </include>

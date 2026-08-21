@@ -9,11 +9,12 @@ find_package(
   sensor_msgs
   std_msgs
   tf
+  tf2_ros
   trajectory_msgs
 )
 
 catkin_package(
-  CATKIN_DEPENDS cv_bridge geometry_msgs rospy sensor_msgs std_msgs tf trajectory_msgs
+  CATKIN_DEPENDS cv_bridge geometry_msgs rospy sensor_msgs std_msgs tf tf2_ros trajectory_msgs
 )
 
 catkin_install_python(

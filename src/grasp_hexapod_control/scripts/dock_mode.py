@@ -381,7 +381,7 @@ class DockMode:
     # 只用于从视觉调整切换到机械导向下降，不作为成功或失败限制。
     PREALIGN_POSITION_REFERENCE = 0.001
     PREALIGN_TILT_REFERENCE = MAX_ANGLE_ERROR
-    LINEAR_SPEED_M_S = 0.030
+    LINEAR_SPEED_M_S = 0.150
     PREALIGN_ANGULAR_SPEED = np.deg2rad(10.0)
     LEG_LIFT_HEIGHT_M = 0.020
     # None表示在进入下降时使用TF的垂直距离；也可在本文件中改为固定米数。
@@ -858,8 +858,8 @@ def self_check():
         fast_controller.feet = result.foot_positions_base.copy()
     if counted.calls != 2:
         raise AssertionError("30Hz control/10Hz perception self-check failed")
-    if not np.allclose(frame_steps, 0.001):
-        raise AssertionError("30mm/s continuous target self-check failed")
+    if not np.allclose(frame_steps, 0.005):
+        raise AssertionError("150mm/s continuous target self-check failed")
 
     class MissingPerception(Perception):
         def __init__(self):

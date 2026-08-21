@@ -20,7 +20,7 @@
   <node pkg="tf2_ros" type="static_transform_publisher" name="dock_tag_1_to_pin_tf"
         args="-0.100 0 0.037 0 0 0 1 dock_tag_1 $(arg pin_frame_prefix)1"/>
   <node pkg="tf2_ros" type="static_transform_publisher" name="dock_tag_2_to_pin_tf"
-        args="0 0.100 0.037 0 0 0 1 dock_tag_2 $(arg pin_frame_prefix)2"/>
+        args="0 0.110 0.037 0 0 0 1 dock_tag_2 $(arg pin_frame_prefix)2"/>
   <node pkg="tf2_ros" type="static_transform_publisher" name="dock_tag_3_to_pin_tf"
         args="0.100 0 0.037 0 0 0 1 dock_tag_3 $(arg pin_frame_prefix)3"/>
 </launch>

@@ -775,6 +775,9 @@ class RosControlNode:
             leg_lift_speed_m_s=float(
                 rospy.get_param("~dock_leg_lift_speed_m_s", 0.05)
             ),
+            sit_settle_duration_s=float(
+                rospy.get_param("~dock_sit_settle_duration_s", 0.5)
+            ),
             require_lock_confirmation=bool(
                 rospy.get_param("~dock_require_lock_confirmation", False)
             ),

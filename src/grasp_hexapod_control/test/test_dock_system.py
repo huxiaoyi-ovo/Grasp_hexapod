@@ -27,7 +27,7 @@ def test_dock_system_yaml_is_the_complete_tag36h11_geometry_source():
     assert config["publish_tf"] is True
     assert config["real_calibrated"] is True
     assert set(config["pin_from_tag_m"]) == {"0", "1", "2", "3"}
-    assert config["pin_from_tag_m"]["2"] == [0.0, -0.110, -0.037]
+    assert config["pin_from_tag_m"]["2"] == [0.0, -0.120, -0.037]
 
 
 def test_climb_config_saves_the_default_dock_entry_joint_pose():
@@ -53,6 +53,7 @@ def test_real_launch_starts_only_the_bottom_usb_dock_chain_by_default():
     assert args["dock_update_rate_hz"] == "30.0"
     assert args["dock_perception_rate_hz"] == "10.0"
     assert args["dock_leg_lift_speed_m_s"] == "0.05"
+    assert args["dock_sit_settle_duration_s"] == "0.5"
     assert args["dock_lock_frame"] == "dock_lock_center"
     assert args["dock_pin_frame_prefix"] == "dock_pin_from_tag_"
     perception = real.find(
@@ -94,7 +95,7 @@ def test_dock_tf_chain_represents_all_four_tag_axes():
     expected = {
         0: ["0", "-0.100", "0.037"],
         1: ["-0.100", "0", "0.037"],
-        2: ["0", "0.110", "0.037"],
+        2: ["0", "0.120", "0.037"],
         3: ["0.100", "0", "0.037"],
     }
     for tag_id, translation in expected.items():
@@ -132,6 +133,7 @@ def test_dock_mode_reuses_controller_kinematics_and_reads_tf_only():
     assert "PREALIGN_POSITION_REFERENCE = 0.001" in source
     assert "LEG_LIFT_HEIGHT_M = 0.020" in source
     assert "LEG_LIFT_SPEED_M_S = 0.050" in source
+    assert "SIT_SETTLE_DURATION_S = 0.5" in source
     assert "使用最后完整AprilTag帧推算" in source
 
 

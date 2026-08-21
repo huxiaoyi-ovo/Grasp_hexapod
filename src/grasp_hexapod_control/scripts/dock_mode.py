@@ -360,6 +360,7 @@ class DockMode:
     WAITING_TAG = "waiting_tag"
     PREALIGN = "prealign"
     DESCENT = "descent"
+    SIT_SETTLE = "sit_settle"
     LEG_LIFT = "leg_lift"
     ALIGNED = "aligned"
     SUCCESS = "success"
@@ -371,6 +372,7 @@ class DockMode:
         WAITING_TAG: "等待AprilTag",
         PREALIGN: "视觉预对准",
         DESCENT: "机械导向下降",
+        SIT_SETTLE: "下坐稳定等待",
         LEG_LIFT: "腿部腾空",
         ALIGNED: "等待锁紧确认",
         SUCCESS: "对接成功",
@@ -385,13 +387,15 @@ class DockMode:
     PREALIGN_ANGULAR_SPEED = np.deg2rad(10.0)
     LEG_LIFT_HEIGHT_M = 0.020
     LEG_LIFT_SPEED_M_S = 0.050
+    SIT_SETTLE_DURATION_S = 0.5
     # None表示在进入下降时使用TF的垂直距离；也可在本文件中改为固定米数。
     DESCENT_DISTANCE_M = None
 
     def __init__(self, controller, perception=None, require_lock_confirmation=False,
                  linear_speed_m_s=LINEAR_SPEED_M_S, update_rate_hz=30.0,
                  perception_rate_hz=10.0,
-                 leg_lift_speed_m_s=LEG_LIFT_SPEED_M_S):
+                 leg_lift_speed_m_s=LEG_LIFT_SPEED_M_S,
+                 sit_settle_duration_s=SIT_SETTLE_DURATION_S):
         self.controller = controller
         self.perception = perception or DockPerception()
         self.require_lock_confirmation = bool(require_lock_confirmation)
@@ -404,6 +408,12 @@ class DockMode:
             or self.leg_lift_speed_m_s <= 0.0
         ):
             raise ValueError("dock leg_lift_speed_m_s must be finite and positive")
+        self.sit_settle_duration_s = float(sit_settle_duration_s)
+        if (
+            not np.isfinite(self.sit_settle_duration_s)
+            or self.sit_settle_duration_s < 0.0
+        ):
+            raise ValueError("dock sit_settle_duration_s must be finite and nonnegative")
         self.update_rate_hz = float(update_rate_hz)
         if not np.isfinite(self.update_rate_hz) or self.update_rate_hz <= 0.0:
             raise ValueError("dock update_rate_hz must be finite and positive")
@@ -432,6 +442,8 @@ class DockMode:
         self.descent_total = 0.0
         self.descent_remaining = 0.0
         self.descent_duration = 0.0
+        self.sit_settle_elapsed = 0.0
+        self.sit_settle_feet = None
         self.leg_lift_start_feet = None
         self.leg_lift_progress = 0.0
         self.cached_pose = None
@@ -472,6 +484,8 @@ class DockMode:
         self.descent_total = 0.0
         self.descent_remaining = 0.0
         self.descent_duration = 0.0
+        self.sit_settle_elapsed = 0.0
+        self.sit_settle_feet = None
         self.leg_lift_start_feet = None
         self.leg_lift_progress = 0.0
         self.cached_pose = None
@@ -496,6 +510,8 @@ class DockMode:
         self.descent_total = 0.0
         self.descent_remaining = 0.0
         self.descent_duration = 0.0
+        self.sit_settle_elapsed = 0.0
+        self.sit_settle_feet = None
         self.leg_lift_start_feet = None
         self.leg_lift_progress = 0.0
         self.cached_pose = None
@@ -612,9 +628,14 @@ class DockMode:
             transform((0.0, 0.0, step)), self._synced_feet(current)
         )
         if self.descent_remaining <= 1e-9:
+            self.sit_settle_elapsed = 0.0
+            self.sit_settle_feet = feet.copy()
             self.leg_lift_start_feet = None
             self.leg_lift_progress = 0.0
-            self._set_state(self.LEG_LIFT, "下降完成，准备将六腿同步抬起20mm")
+            self._set_state(
+                self.SIT_SETTLE,
+                "下坐完成，稳定等待{:.1f}s".format(self.sit_settle_duration_s),
+            )
         else:
             self._set_state(
                 self.DESCENT,
@@ -624,6 +645,22 @@ class DockMode:
                 ),
             )
         return self._result(feet=feet)
+
+    def _sit_settle_step(self, current):
+        self.sit_settle_elapsed = min(
+            self.sit_settle_duration_s,
+            self.sit_settle_elapsed + self.update_dt,
+        )
+        if self.sit_settle_elapsed >= self.sit_settle_duration_s:
+            self._set_state(self.LEG_LIFT, "下坐稳定完成，开始将六腿同步抬起20mm")
+            return self._leg_lift_step(current)
+        self._set_state(
+            self.SIT_SETTLE,
+            "下坐稳定等待中：{:.2f}/{:.2f}s".format(
+                self.sit_settle_elapsed, self.sit_settle_duration_s
+            ),
+        )
+        return self._result(feet=self.sit_settle_feet.copy())
 
     def _leg_lift_step(self, current):
         if self.leg_lift_start_feet is None:
@@ -702,6 +739,8 @@ class DockMode:
         # 下降开始后不再依赖AprilTag，避免标签离开视野时中断机械对接。
         if self.state == self.DESCENT:
             return self._descent_step(current)
+        if self.state == self.SIT_SETTLE:
+            return self._sit_settle_step(current)
         if self.state == self.LEG_LIFT:
             return self._leg_lift_step(current)
 
@@ -763,7 +802,8 @@ class DockMode:
 
     def descent_has_started(self):
         return self.state in (
-            self.DESCENT, self.LEG_LIFT, self.ALIGNED, self.SUCCESS
+            self.DESCENT, self.SIT_SETTLE, self.LEG_LIFT,
+            self.ALIGNED, self.SUCCESS
         )
 
 
@@ -901,8 +941,11 @@ def self_check():
     )
     highest_lift = 0.0
     lift_targets = []
+    settle_frames = 0
     for _ in range(50):
         result = mode.update(state)
+        if result.state == mode.SIT_SETTLE:
+            settle_frames += 1
         if result.state == mode.LEG_LIFT and result.foot_positions_base is not None:
             lift_height = float(np.max(result.foot_positions_base[:, 2]))
             highest_lift = max(
@@ -915,6 +958,8 @@ def self_check():
             break
     if mode.state != mode.SUCCESS:
         raise AssertionError("dock completion self-check failed")
+    if not np.isclose(settle_frames * mode.controller.dt, 0.5):
+        raise AssertionError("0.5s sit settle self-check failed")
     if not np.isclose(highest_lift, mode.LEG_LIFT_HEIGHT_M):
         raise AssertionError("20mm leg lift self-check failed")
     if not np.allclose(np.diff([0.0] + lift_targets), 0.005):

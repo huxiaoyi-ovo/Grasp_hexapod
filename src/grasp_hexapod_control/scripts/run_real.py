@@ -765,6 +765,7 @@ class RosControlNode:
         dock_mode = DockMode(
             self.controller,
             perception=perception,
+            update_rate_hz=float(rospy.get_param("~dock_update_rate_hz", 15.0)),
             require_lock_confirmation=bool(
                 rospy.get_param("~dock_require_lock_confirmation", False)
             ),

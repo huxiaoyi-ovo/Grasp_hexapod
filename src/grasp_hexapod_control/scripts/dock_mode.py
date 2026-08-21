@@ -379,16 +379,25 @@ class DockMode:
     # 只用于从视觉调整切换到机械导向下降，不作为成功或失败限制。
     PREALIGN_POSITION_REFERENCE = TAG_SIZE / 2.0
     PREALIGN_TILT_REFERENCE = MAX_ANGLE_ERROR
-    PREALIGN_LINEAR_SPEED = 0.012
+    PREALIGN_LINEAR_SPEED = 0.050
     PREALIGN_ANGULAR_SPEED = np.deg2rad(10.0)
     # None表示在进入下降时使用TF的垂直距离；也可在本文件中改为固定米数。
     DESCENT_DISTANCE_M = None
-    DESCENT_LINEAR_SPEED = 0.012
+    DESCENT_LINEAR_SPEED = 0.050
 
-    def __init__(self, controller, perception=None, require_lock_confirmation=False):
+    def __init__(self, controller, perception=None, require_lock_confirmation=False,
+                 update_rate_hz=15.0):
         self.controller = controller
         self.perception = perception or DockPerception()
         self.require_lock_confirmation = bool(require_lock_confirmation)
+        update_rate_hz = float(update_rate_hz)
+        if not np.isfinite(update_rate_hz) or update_rate_hz <= 0.0:
+            raise ValueError("dock update_rate_hz must be finite and positive")
+        self.update_rate_hz = update_rate_hz
+        self.update_period = 1.0 / update_rate_hz
+        self.update_elapsed = 0.0
+        self.update_dt = float(controller.dt)
+        self.last_update_result = None
         self.active = False
         self.state = self.IDLE
         self.reason = ""
@@ -435,6 +444,8 @@ class DockMode:
         self.descent_total = 0.0
         self.descent_remaining = 0.0
         self.descent_duration = 0.0
+        self.update_elapsed = max(0.0, self.update_period - self.controller.dt)
+        self.last_update_result = None
         ratio = np.abs(target - current) / JOINT_VELOCITY_LIMIT
         self.entry_duration = max(0.5, 1.875 * float(np.max(ratio)))
         self._set_state(self.CLIMB_TERMINAL_ENTRY, "正在进入攀爬结束关节姿态")
@@ -446,6 +457,8 @@ class DockMode:
         self.descent_total = 0.0
         self.descent_remaining = 0.0
         self.descent_duration = 0.0
+        self.update_elapsed = 0.0
+        self.last_update_result = None
         self._set_state(self.IDLE, "")
 
     def fail_execution(self, reason):
@@ -479,7 +492,7 @@ class DockMode:
         )
 
     def _update_entry(self, current):
-        self.entry_elapsed = min(self.entry_duration, self.entry_elapsed + self.controller.dt)
+        self.entry_elapsed = min(self.entry_duration, self.entry_elapsed + self.update_dt)
         phase = self.entry_elapsed / self.entry_duration
         blend = self.controller._smooth_step(phase)
         command = (1.0 - blend) * self.entry_start + blend * self.entry_target
@@ -507,14 +520,14 @@ class DockMode:
         body_correction[2, 3] = 0.0
         increment = limited_transform(
             body_correction,
-            self.PREALIGN_LINEAR_SPEED * self.controller.dt,
-            self.PREALIGN_ANGULAR_SPEED * self.controller.dt,
+            self.PREALIGN_LINEAR_SPEED * self.update_dt,
+            self.PREALIGN_ANGULAR_SPEED * self.update_dt,
         )
         return transform_points(increment, actual_feet)
 
     def _descent_step(self, current):
         step = min(
-            self.DESCENT_LINEAR_SPEED * self.controller.dt,
+            self.DESCENT_LINEAR_SPEED * self.update_dt,
             self.descent_remaining,
         )
         self.descent_remaining -= step
@@ -537,8 +550,24 @@ class DockMode:
         return self._result(feet=feet)
 
     def update(self, robot_state=None):
+        """按DockMode独立频率更新目标，其余控制周期复用上次结果。"""
         if not self.active:
             raise RuntimeError("enter() must be called before update()")
+        if self.state in self.TERMINAL_STATES:
+            self.last_update_result = self._update_once(robot_state)
+            return self.last_update_result
+        self.update_elapsed += self.controller.dt
+        if (
+            self.last_update_result is not None
+            and self.update_elapsed + 1e-12 < self.update_period
+        ):
+            return self.last_update_result
+        self.update_dt = self.update_elapsed
+        self.update_elapsed = 0.0
+        self.last_update_result = self._update_once(robot_state)
+        return self.last_update_result
+
+    def _update_once(self, robot_state=None):
         # 终态优先返回，避免run_real进入HOLD、不再注入DockRobotState后
         # 把已经确认的SUCCESS覆盖成关节反馈缺失FAILED。
         if self.state in self.TERMINAL_STATES:
@@ -661,16 +690,30 @@ def self_check():
     class Perception:
         def __init__(self, pose):
             self.pose = pose
+            self.calls = 0
 
         def reset(self):
             pass
 
         def latest(self):
+            self.calls += 1
             return PerceptionResult(
                 valid=True, lock_from_pin=self.pose, decoded_ids=(2,)
             )
 
-    pose = transform((0.0, 0.0, -0.003))
+    class FastController(Controller):
+        dt = 1.0 / 30.0
+
+    perception = Perception(transform((0.03, 0.0, -0.003)))
+    rate_mode = DockMode(FastController(), perception, update_rate_hz=15.0)
+    rate_mode.active, rate_mode.state = True, rate_mode.WAITING_TAG
+    rate_state = {"joints": np.zeros((6, 3))}
+    for _ in range(3):
+        rate_mode.update(rate_state)
+    if perception.calls != 2:
+        raise AssertionError("DockMode 15 Hz update divider self-check failed")
+
+    pose = transform((0.0, 0.0, -0.030))
     mode = DockMode(Controller(), Perception(pose))
     mode.active, mode.state = True, mode.WAITING_TAG
     state = {"joints": np.zeros((6, 3))}

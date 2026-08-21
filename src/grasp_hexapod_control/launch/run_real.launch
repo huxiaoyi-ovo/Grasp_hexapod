@@ -73,6 +73,7 @@
   <arg name="dock_linear_speed_m_s" default="0.15"/>
   <arg name="dock_update_rate_hz" default="30.0"/>
   <arg name="dock_perception_rate_hz" default="10.0"/>
+  <arg name="dock_leg_lift_speed_m_s" default="0.05"/>
 
   <include file="$(find grasp_hexapod_control)/launch/control_stack.launch">
     <arg name="control_source" value="$(arg mode)"/>
@@ -128,6 +129,7 @@
     <arg name="dock_linear_speed_m_s" value="$(arg dock_linear_speed_m_s)"/>
     <arg name="dock_update_rate_hz" value="$(arg dock_update_rate_hz)"/>
     <arg name="dock_perception_rate_hz" value="$(arg dock_perception_rate_hz)"/>
+    <arg name="dock_leg_lift_speed_m_s" value="$(arg dock_leg_lift_speed_m_s)"/>
     <arg name="dock_lock_frame" value="$(arg dock_lock_frame)"/>
     <arg name="dock_pin_frame_prefix" value="$(arg dock_pin_frame_prefix)"/>
   </include>

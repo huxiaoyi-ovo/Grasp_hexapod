@@ -772,6 +772,9 @@ class RosControlNode:
             perception_rate_hz=float(
                 rospy.get_param("~dock_perception_rate_hz", 10.0)
             ),
+            leg_lift_speed_m_s=float(
+                rospy.get_param("~dock_leg_lift_speed_m_s", 0.05)
+            ),
             require_lock_confirmation=bool(
                 rospy.get_param("~dock_require_lock_confirmation", False)
             ),

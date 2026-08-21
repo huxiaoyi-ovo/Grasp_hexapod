@@ -384,18 +384,26 @@ class DockMode:
     LINEAR_SPEED_M_S = 0.150
     PREALIGN_ANGULAR_SPEED = np.deg2rad(10.0)
     LEG_LIFT_HEIGHT_M = 0.020
+    LEG_LIFT_SPEED_M_S = 0.050
     # None表示在进入下降时使用TF的垂直距离；也可在本文件中改为固定米数。
     DESCENT_DISTANCE_M = None
 
     def __init__(self, controller, perception=None, require_lock_confirmation=False,
                  linear_speed_m_s=LINEAR_SPEED_M_S, update_rate_hz=30.0,
-                 perception_rate_hz=10.0):
+                 perception_rate_hz=10.0,
+                 leg_lift_speed_m_s=LEG_LIFT_SPEED_M_S):
         self.controller = controller
         self.perception = perception or DockPerception()
         self.require_lock_confirmation = bool(require_lock_confirmation)
         self.linear_speed_m_s = float(linear_speed_m_s)
         if not np.isfinite(self.linear_speed_m_s) or self.linear_speed_m_s <= 0.0:
             raise ValueError("dock linear_speed_m_s must be finite and positive")
+        self.leg_lift_speed_m_s = float(leg_lift_speed_m_s)
+        if (
+            not np.isfinite(self.leg_lift_speed_m_s)
+            or self.leg_lift_speed_m_s <= 0.0
+        ):
+            raise ValueError("dock leg_lift_speed_m_s must be finite and positive")
         self.update_rate_hz = float(update_rate_hz)
         if not np.isfinite(self.update_rate_hz) or self.update_rate_hz <= 0.0:
             raise ValueError("dock update_rate_hz must be finite and positive")
@@ -630,7 +638,7 @@ class DockMode:
 
         self.leg_lift_progress = min(
             self.LEG_LIFT_HEIGHT_M,
-            self.leg_lift_progress + self.linear_speed_m_s * self.update_dt,
+            self.leg_lift_progress + self.leg_lift_speed_m_s * self.update_dt,
         )
         feet = self.leg_lift_start_feet.copy()
         feet[:, 2] += self.leg_lift_progress
@@ -892,19 +900,25 @@ def self_check():
         AssertionError("descent must not read AprilTag again")
     )
     highest_lift = 0.0
+    lift_targets = []
     for _ in range(50):
         result = mode.update(state)
         if result.state == mode.LEG_LIFT and result.foot_positions_base is not None:
+            lift_height = float(np.max(result.foot_positions_base[:, 2]))
             highest_lift = max(
                 highest_lift,
-                float(np.max(result.foot_positions_base[:, 2])),
+                lift_height,
             )
+            if result.reason.startswith("六腿同步抬起中"):
+                lift_targets.append(lift_height)
         if mode.state in mode.TERMINAL_STATES:
             break
     if mode.state != mode.SUCCESS:
         raise AssertionError("dock completion self-check failed")
     if not np.isclose(highest_lift, mode.LEG_LIFT_HEIGHT_M):
         raise AssertionError("20mm leg lift self-check failed")
+    if not np.allclose(np.diff([0.0] + lift_targets), 0.005):
+        raise AssertionError("50mm/s leg lift self-check failed")
     return True
 
 

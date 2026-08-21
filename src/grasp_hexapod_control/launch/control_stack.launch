@@ -53,6 +53,7 @@
   <arg name="dock_linear_speed_m_s" default="0.15"/>
   <arg name="dock_update_rate_hz" default="30.0"/>
   <arg name="dock_perception_rate_hz" default="10.0"/>
+  <arg name="dock_leg_lift_speed_m_s" default="0.05"/>
   <arg name="dock_lock_frame" default="dock_lock_center"/>
   <arg name="dock_pin_frame_prefix" default="dock_pin_from_tag_"/>
 
@@ -126,6 +127,7 @@
     <param name="dock_linear_speed_m_s" value="$(arg dock_linear_speed_m_s)"/>
     <param name="dock_update_rate_hz" value="$(arg dock_update_rate_hz)"/>
     <param name="dock_perception_rate_hz" value="$(arg dock_perception_rate_hz)"/>
+    <param name="dock_leg_lift_speed_m_s" value="$(arg dock_leg_lift_speed_m_s)"/>
     <param name="dock_lock_frame" value="$(arg dock_lock_frame)"/>
     <param name="dock_pin_frame_prefix" value="$(arg dock_pin_frame_prefix)"/>
   </node>

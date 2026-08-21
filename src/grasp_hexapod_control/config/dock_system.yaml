@@ -15,9 +15,9 @@ tag_decimate: 1.0
 tag_blur: 0.0
 tag_refine_edges: 1
 max_hamming_dist: 1
-publish_tf: false
+publish_tf: true
 transport_hint: raw
-real_calibrated: false
+real_calibrated: true
 lock_from_camera:
   translation_m: [0.0, -0.065, -0.0325]
   rotation:

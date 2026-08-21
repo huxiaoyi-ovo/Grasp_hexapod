@@ -121,7 +121,7 @@
     <arg name="dock_min_stable_frames" value="$(arg dock_min_stable_frames)"/>
     <arg name="dock_max_perception_age" value="$(arg dock_max_perception_age)"/>
   </include>
-
+  <include file="$(find grasp_hexapod_servo)/launch/dock_tag_system.launch"/>
 
 
   <include file="$(find grasp_hexapod_servo)/launch/servo_two_boards.launch">

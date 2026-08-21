@@ -152,6 +152,8 @@ def test_real_launches_enable_dock_by_default():
             for argument in launch.findall("arg")
         }
         assert arguments["enable_real_dock"] == "true"
+        assert arguments["max_feedback_age"] == "0.30"
+        assert arguments["max_feedback_skew"] == "0.20"
 
 
 def test_dual_board_frame_waits_until_all_six_legs_are_new():

@@ -344,10 +344,10 @@ class RosControlNode:
             rospy.get_param("~enable_link_collision_check", True)
         )
         self.max_feedback_age = float(
-            rospy.get_param("~max_feedback_age", 0.15)
+            rospy.get_param("~max_feedback_age", 0.30)
         )
         self.max_feedback_skew = float(
-            rospy.get_param("~max_feedback_skew", 0.10)
+            rospy.get_param("~max_feedback_skew", 0.20)
         )
         if (
             self.max_feedback_skew <= 0.0
@@ -607,7 +607,7 @@ class RosControlNode:
         last_control_feedback_stamp,
         now,
         max_feedback_age,
-        max_feedback_skew=0.10,
+        max_feedback_skew=0.20,
     ):
         """区分“反馈有效”和“两块板六条腿均已更新”。"""
 

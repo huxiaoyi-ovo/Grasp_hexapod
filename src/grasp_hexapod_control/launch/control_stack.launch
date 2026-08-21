@@ -4,8 +4,8 @@
   <arg name="joy_dev" default="/dev/input/js0"/>
   <arg name="controller_rate_hz" default="30.0"/>
   <arg name="enable_link_collision_check" default="true"/>
-  <arg name="max_feedback_age" default="0.15"/>
-  <arg name="max_feedback_skew" default="0.10"/>
+  <arg name="max_feedback_age" default="0.30"/>
+  <arg name="max_feedback_skew" default="0.20"/>
   <arg name="climb_foot_gate_m" default="0.02"/>
   <arg name="max_joy_age" default="0.2"/>
   <arg name="joy_deadzone" default="0.20"/>

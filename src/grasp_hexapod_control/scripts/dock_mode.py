@@ -379,16 +379,19 @@ class DockMode:
     # 只用于从视觉调整切换到机械导向下降，不作为成功或失败限制。
     PREALIGN_POSITION_REFERENCE = 0.008
     PREALIGN_TILT_REFERENCE = MAX_ANGLE_ERROR
-    PREALIGN_LINEAR_SPEED = 0.050
+    LINEAR_SPEED_M_S = 0.100
     PREALIGN_ANGULAR_SPEED = np.deg2rad(10.0)
     # None表示在进入下降时使用TF的垂直距离；也可在本文件中改为固定米数。
     DESCENT_DISTANCE_M = None
-    DESCENT_LINEAR_SPEED = 0.050
 
-    def __init__(self, controller, perception=None, require_lock_confirmation=False):
+    def __init__(self, controller, perception=None, require_lock_confirmation=False,
+                 linear_speed_m_s=LINEAR_SPEED_M_S):
         self.controller = controller
         self.perception = perception or DockPerception()
         self.require_lock_confirmation = bool(require_lock_confirmation)
+        self.linear_speed_m_s = float(linear_speed_m_s)
+        if not np.isfinite(self.linear_speed_m_s) or self.linear_speed_m_s <= 0.0:
+            raise ValueError("dock linear_speed_m_s must be finite and positive")
         self.active = False
         self.state = self.IDLE
         self.reason = ""
@@ -507,14 +510,14 @@ class DockMode:
         body_correction[2, 3] = 0.0
         increment = limited_transform(
             body_correction,
-            self.PREALIGN_LINEAR_SPEED * self.controller.dt,
+            self.linear_speed_m_s * self.controller.dt,
             self.PREALIGN_ANGULAR_SPEED * self.controller.dt,
         )
         return transform_points(increment, actual_feet)
 
     def _descent_step(self, current):
         step = min(
-            self.DESCENT_LINEAR_SPEED * self.controller.dt,
+            self.linear_speed_m_s * self.controller.dt,
             self.descent_remaining,
         )
         self.descent_remaining -= step
@@ -531,7 +534,7 @@ class DockMode:
                 self.DESCENT,
                 "机械导向下降中，剩余{:.1f}mm，预计{:.2f}s".format(
                     self.descent_remaining * 1000.0,
-                    self.descent_remaining / self.DESCENT_LINEAR_SPEED,
+                    self.descent_remaining / self.linear_speed_m_s,
                 ),
             )
         return self._result(feet=feet)
@@ -608,7 +611,7 @@ class DockMode:
             )
             self.descent_remaining = self.descent_total
             self.descent_duration = (
-                self.descent_total / self.DESCENT_LINEAR_SPEED
+                self.descent_total / self.linear_speed_m_s
             )
             self._set_state(
                 self.DESCENT,

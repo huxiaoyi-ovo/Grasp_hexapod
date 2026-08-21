@@ -379,7 +379,7 @@ class DockMode:
 
     ENTRY_TRACKING_TOLERANCE = np.deg2rad(2.0)
     # 只用于从视觉调整切换到机械导向下降，不作为成功或失败限制。
-    PREALIGN_POSITION_REFERENCE = 0.0
+    PREALIGN_POSITION_REFERENCE = 0.001
     PREALIGN_TILT_REFERENCE = MAX_ANGLE_ERROR
     LINEAR_SPEED_M_S = 0.030
     PREALIGN_ANGULAR_SPEED = np.deg2rad(10.0)
@@ -388,7 +388,8 @@ class DockMode:
     DESCENT_DISTANCE_M = None
 
     def __init__(self, controller, perception=None, require_lock_confirmation=False,
-                 linear_speed_m_s=LINEAR_SPEED_M_S, update_rate_hz=10.0):
+                 linear_speed_m_s=LINEAR_SPEED_M_S, update_rate_hz=30.0,
+                 perception_rate_hz=10.0):
         self.controller = controller
         self.perception = perception or DockPerception()
         self.require_lock_confirmation = bool(require_lock_confirmation)
@@ -398,10 +399,21 @@ class DockMode:
         self.update_rate_hz = float(update_rate_hz)
         if not np.isfinite(self.update_rate_hz) or self.update_rate_hz <= 0.0:
             raise ValueError("dock update_rate_hz must be finite and positive")
+        self.perception_rate_hz = float(perception_rate_hz)
+        if (
+            not np.isfinite(self.perception_rate_hz)
+            or self.perception_rate_hz <= 0.0
+        ):
+            raise ValueError("dock perception_rate_hz must be finite and positive")
         self.update_period = 1.0 / self.update_rate_hz
+        self.perception_period = 1.0 / self.perception_rate_hz
         self.update_elapsed = 0.0
         self.update_dt = float(self.controller.dt)
         self.last_update_result = None
+        self.perception_elapsed = 0.0
+        self.perception_sampled = False
+        self.last_perception_reason = "no perception result"
+        self.using_last_complete_frame = False
         self.active = False
         self.state = self.IDLE
         self.reason = ""
@@ -459,6 +471,12 @@ class DockMode:
         self.update_elapsed = max(0.0, self.update_period - self.controller.dt)
         self.update_dt = self.update_period
         self.last_update_result = None
+        self.perception_elapsed = max(
+            0.0, self.perception_period - self.controller.dt
+        )
+        self.perception_sampled = False
+        self.last_perception_reason = "no perception result"
+        self.using_last_complete_frame = False
         ratio = np.abs(target - current) / JOINT_VELOCITY_LIMIT
         self.entry_duration = max(0.5, 1.875 * float(np.max(ratio)))
         self._set_state(self.CLIMB_TERMINAL_ENTRY, "正在进入攀爬结束关节姿态")
@@ -476,6 +494,10 @@ class DockMode:
         self.cached_ids = ()
         self.update_elapsed = 0.0
         self.last_update_result = None
+        self.perception_elapsed = 0.0
+        self.perception_sampled = False
+        self.last_perception_reason = "no perception result"
+        self.using_last_complete_frame = False
         self._set_state(self.IDLE, "")
 
     def fail_execution(self, reason):
@@ -486,16 +508,38 @@ class DockMode:
         raw = self._field(robot_state, "lock_from_pin")
         decoded_ids = tuple(self._field(robot_state, "decoded_ids") or ())
         if raw is None:
+            self.perception_elapsed += self.update_dt
+            refresh = (
+                not self.perception_sampled
+                or self.perception_elapsed + 1e-12 >= self.perception_period
+            )
+            if not refresh:
+                if self.cached_pose is None:
+                    return None, (), self.last_perception_reason
+                reason = (
+                    "使用最后完整AprilTag帧推算"
+                    if self.using_last_complete_frame else ""
+                )
+                return self.cached_pose.copy(), self.cached_ids, reason
+
+            self.perception_elapsed = 0.0
             observed = self.perception.latest()
+            self.perception_sampled = True
             if not getattr(observed, "valid", False):
+                self.last_perception_reason = observed.reason
                 if self.cached_pose is None:
                     return None, (), observed.reason
+                self.using_last_complete_frame = True
                 return (
                     self.cached_pose.copy(), self.cached_ids,
                     "使用最后完整AprilTag帧推算",
                 )
             raw = observed.lock_from_pin
             decoded_ids = tuple(observed.decoded_ids)
+            self.last_perception_reason = ""
+            self.using_last_complete_frame = False
+        else:
+            self.using_last_complete_frame = False
         try:
             pose = np.asarray(raw, dtype=np.float64).reshape(4, 4)
         except (TypeError, ValueError):
@@ -669,7 +713,7 @@ class DockMode:
         horizontal = float(np.linalg.norm(pose[:2, 3]))
         tilt = float(np.arccos(np.clip(pose[2, 2], -1.0, 1.0)))
         ready = (
-            horizontal <= self.PREALIGN_POSITION_REFERENCE + 1e-9
+            horizontal <= self.PREALIGN_POSITION_REFERENCE
             and tilt <= self.PREALIGN_TILT_REFERENCE
         )
         tags = ",".join(
@@ -782,6 +826,12 @@ def self_check():
     class FastController(Controller):
         dt = 1.0 / 30.0
 
+        def __init__(self):
+            self.feet = np.zeros((6, 3))
+
+        def _sync_actual_feet(self, joints):
+            return self.feet.copy()
+
     class CountingPerception(Perception):
         def __init__(self, pose):
             super().__init__(pose)
@@ -792,13 +842,45 @@ def self_check():
             return super().latest()
 
     counted = CountingPerception(transform((0.030, 0.0, -0.030)))
-    rate_mode = DockMode(FastController(), counted, update_rate_hz=10.0)
+    fast_controller = FastController()
+    rate_mode = DockMode(
+        fast_controller, counted,
+        update_rate_hz=30.0, perception_rate_hz=10.0,
+    )
     rate_mode.enter(np.zeros((6, 3)))
     rate_mode.state = rate_mode.WAITING_TAG
+    frame_steps = []
     for _ in range(4):
-        rate_mode.update(dropout_state)
+        result = rate_mode.update(dropout_state)
+        frame_steps.append(float(np.max(np.linalg.norm(
+            result.foot_positions_base - fast_controller.feet, axis=1
+        ))))
+        fast_controller.feet = result.foot_positions_base.copy()
     if counted.calls != 2:
-        raise AssertionError("10Hz dock update self-check failed")
+        raise AssertionError("30Hz control/10Hz perception self-check failed")
+    if not np.allclose(frame_steps, 0.001):
+        raise AssertionError("30mm/s continuous target self-check failed")
+
+    class MissingPerception(Perception):
+        def __init__(self):
+            super().__init__(None)
+            self.calls = 0
+
+        def latest(self):
+            self.calls += 1
+            return PerceptionResult(reason="no tag")
+
+    missing = MissingPerception()
+    waiting_mode = DockMode(
+        FastController(), missing,
+        update_rate_hz=30.0, perception_rate_hz=10.0,
+    )
+    waiting_mode.enter(np.zeros((6, 3)))
+    waiting_mode.state = waiting_mode.WAITING_TAG
+    for _ in range(4):
+        waiting_mode.update(dropout_state)
+    if missing.calls != 2:
+        raise AssertionError("waiting TF must remain at 10Hz")
 
     pose = transform((0.0, 0.0, -0.030))
     mode = DockMode(Controller(), Perception(pose))

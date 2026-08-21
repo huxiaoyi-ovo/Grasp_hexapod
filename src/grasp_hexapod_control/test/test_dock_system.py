@@ -49,7 +49,8 @@ def test_real_launch_starts_only_the_bottom_usb_dock_chain_by_default():
     assert args["dock_require_real_calibrated"] == "true"
     assert args["dock_max_perception_age"] == "0.35"
     assert args["dock_linear_speed_m_s"] == "0.03"
-    assert args["dock_update_rate_hz"] == "10.0"
+    assert args["dock_update_rate_hz"] == "30.0"
+    assert args["dock_perception_rate_hz"] == "10.0"
     assert args["dock_lock_frame"] == "dock_lock_center"
     assert args["dock_pin_frame_prefix"] == "dock_pin_from_tag_"
     perception = real.find(
@@ -124,8 +125,9 @@ def test_dock_mode_reuses_controller_kinematics_and_reads_tf_only():
     assert "AprilTagDetectionArray" not in source
     assert "rospy.Subscriber" not in source
     assert "LINEAR_SPEED_M_S = 0.030" in source
-    assert "update_rate_hz=10.0" in source
-    assert "PREALIGN_POSITION_REFERENCE = 0.0" in source
+    assert "update_rate_hz=30.0" in source
+    assert "perception_rate_hz=10.0" in source
+    assert "PREALIGN_POSITION_REFERENCE = 0.001" in source
     assert "LEG_LIFT_HEIGHT_M = 0.020" in source
     assert "使用最后完整AprilTag帧推算" in source
 

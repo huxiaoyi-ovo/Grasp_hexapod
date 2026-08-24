@@ -425,7 +425,7 @@ class DockMode:
     DESCENT_DISTANCE_M = None
 
     def __init__(self, controller, perception=None, require_lock_confirmation=False,
-                 linear_speed_m_s=LINEAR_SPEED_M_S, update_rate_hz=10.0,
+                 linear_speed_m_s=LINEAR_SPEED_M_S, update_rate_hz=30.0,
                  perception_rate_hz=10.0,
                  leg_lift_speed_m_s=LEG_LIFT_SPEED_M_S,
                  sit_settle_duration_s=SIT_SETTLE_DURATION_S):
@@ -1050,7 +1050,7 @@ def self_check():
     fast_controller = FastController()
     rate_mode = DockMode(
         fast_controller, counted,
-        update_rate_hz=10.0, perception_rate_hz=10.0,
+        update_rate_hz=30.0, perception_rate_hz=10.0,
     )
     rate_mode.enter(np.zeros((6, 3)))
     rate_mode.state = rate_mode.WAITING_TAG

@@ -343,6 +343,27 @@ def limited_transform(target, max_translation, max_angle):
     return result
 
 
+def plane_alignment(rotation):
+    """只对齐平面法向，不修正绕法向的yaw。"""
+    normal = np.asarray(rotation, dtype=np.float64).reshape(3, 3)[:, 2]
+    cosine = float(np.clip(normal[2], -1.0, 1.0))
+    axis = np.array((normal[1], -normal[0], 0.0))
+    sine = float(np.linalg.norm(axis))
+    result = np.eye(4, dtype=np.float64)
+    if sine < 1e-9:
+        if cosine < 0.0:
+            result[1, 1] = result[2, 2] = -1.0
+        return result
+    axis /= sine
+    skew = np.array((
+        (0.0, -axis[2], axis[1]),
+        (axis[2], 0.0, -axis[0]),
+        (-axis[1], axis[0], 0.0),
+    ))
+    result[:3, :3] += sine * skew + (1.0 - cosine) * (skew @ skew)
+    return result
+
+
 @dataclass(frozen=True)
 class DockRobotState:
     joints: object = None
@@ -368,6 +389,7 @@ class DockMode:
     CLIMB_TERMINAL_ENTRY = "climb_terminal_entry"
     WAITING_TAG = "waiting_tag"
     PREALIGN = "prealign"
+    PRE_DESCENT_SETTLE = "pre_descent_settle"
     DESCENT = "descent"
     SIT_SETTLE = "sit_settle"
     LEG_LIFT = "leg_lift"
@@ -380,6 +402,7 @@ class DockMode:
         CLIMB_TERMINAL_ENTRY: "恢复攀爬末端姿态",
         WAITING_TAG: "等待AprilTag",
         PREALIGN: "视觉预对准",
+        PRE_DESCENT_SETTLE: "下降前稳定",
         DESCENT: "机械导向下降",
         SIT_SETTLE: "下坐稳定等待",
         LEG_LIFT: "腿部腾空",
@@ -391,9 +414,10 @@ class DockMode:
     ENTRY_TRACKING_TOLERANCE = np.deg2rad(2.0)
     # 只用于从视觉调整切换到机械导向下降，不作为成功或失败限制。
     PREALIGN_POSITION_REFERENCE = 0.001
-    PREALIGN_TILT_REFERENCE = MAX_ANGLE_ERROR
+    PREALIGN_TILT_REFERENCE = np.deg2rad(3.0)
     LINEAR_SPEED_M_S = 0.150
     PREALIGN_ANGULAR_SPEED = np.deg2rad(10.0)
+    PRE_DESCENT_SETTLE_DURATION_S = 0.5
     LEG_LIFT_HEIGHT_M = 0.020
     LEG_LIFT_SPEED_M_S = 0.050
     SIT_SETTLE_DURATION_S = 0.5
@@ -451,12 +475,20 @@ class DockMode:
         self.descent_total = 0.0
         self.descent_remaining = 0.0
         self.descent_duration = 0.0
+        self.pre_descent_elapsed = 0.0
+        self.pre_descent_feet = None
         self.sit_settle_elapsed = 0.0
         self.sit_settle_feet = None
         self.leg_lift_start_feet = None
         self.leg_lift_progress = 0.0
         self.cached_pose = None
         self.cached_ids = ()
+        self.fallback_start_feet = None
+        self.fallback_correction = None
+        self.fallback_pose_after = None
+        self.fallback_elapsed = 0.0
+        self.fallback_duration = 0.0
+        self.last_visual_target = None
 
     @staticmethod
     def _field(source, name):
@@ -493,12 +525,16 @@ class DockMode:
         self.descent_total = 0.0
         self.descent_remaining = 0.0
         self.descent_duration = 0.0
+        self.pre_descent_elapsed = 0.0
+        self.pre_descent_feet = None
         self.sit_settle_elapsed = 0.0
         self.sit_settle_feet = None
         self.leg_lift_start_feet = None
         self.leg_lift_progress = 0.0
         self.cached_pose = None
         self.cached_ids = ()
+        self._clear_fallback()
+        self.last_visual_target = None
         self.update_elapsed = max(0.0, self.update_period - self.controller.dt)
         self.update_dt = self.update_period
         self.last_update_result = None
@@ -519,12 +555,16 @@ class DockMode:
         self.descent_total = 0.0
         self.descent_remaining = 0.0
         self.descent_duration = 0.0
+        self.pre_descent_elapsed = 0.0
+        self.pre_descent_feet = None
         self.sit_settle_elapsed = 0.0
         self.sit_settle_feet = None
         self.leg_lift_start_feet = None
         self.leg_lift_progress = 0.0
         self.cached_pose = None
         self.cached_ids = ()
+        self._clear_fallback()
+        self.last_visual_target = None
         self.update_elapsed = 0.0
         self.last_update_result = None
         self.perception_elapsed = 0.0
@@ -571,8 +611,10 @@ class DockMode:
             decoded_ids = tuple(observed.decoded_ids)
             self.last_perception_reason = ""
             self.using_last_complete_frame = False
+            self._clear_fallback()
         else:
             self.using_last_complete_frame = False
+            self._clear_fallback()
         try:
             pose = np.asarray(raw, dtype=np.float64).reshape(4, 4)
         except (TypeError, ValueError):
@@ -615,17 +657,79 @@ class DockMode:
             if callable(sync_actual_feet) else self._actual_feet(current)
         )
 
+    def _clear_fallback(self):
+        self.fallback_start_feet = None
+        self.fallback_correction = None
+        self.fallback_pose_after = None
+        self.fallback_elapsed = 0.0
+        self.fallback_duration = 0.0
+
+    def _prealign_correction(self, pose):
+        tilt = float(np.arccos(np.clip(pose[2, 2], -1.0, 1.0)))
+        if tilt > self.PREALIGN_TILT_REFERENCE:
+            return plane_alignment(pose[:3, :3]), "姿态对齐"
+        return transform((-pose[0, 3], -pose[1, 3], 0.0)), "水平调整"
+
     def _visual_step(self, current, pose):
         actual_feet = self._synced_feet(current)
-        body_correction = invert_transform(pose)
-        body_correction[2, 3] = 0.0
+        body_correction, _ = self._prealign_correction(pose)
+        if self.using_last_complete_frame:
+            if self.fallback_correction is None:
+                distance = float(np.linalg.norm(body_correction[:2, 3]))
+                angle = rotation_angle(body_correction[:3, :3])
+                self.fallback_start_feet = (
+                    self.last_visual_target.copy()
+                    if self.last_visual_target is not None else actual_feet.copy()
+                )
+                self.fallback_correction = body_correction
+                self.fallback_pose_after = body_correction @ pose
+                self.fallback_elapsed = 0.0
+                self.fallback_duration = max(
+                    self.update_dt,
+                    distance / self.linear_speed_m_s,
+                    angle / self.PREALIGN_ANGULAR_SPEED,
+                )
+            self.fallback_elapsed = min(
+                self.fallback_duration,
+                self.fallback_elapsed + self.update_dt,
+            )
+            phase = self.fallback_elapsed / self.fallback_duration
+            increment = limited_transform(
+                self.fallback_correction,
+                np.linalg.norm(self.fallback_correction[:2, 3]) * phase,
+                rotation_angle(self.fallback_correction[:3, :3]) * phase,
+            )
+            feet = transform_points(increment, self.fallback_start_feet)
+            if phase >= 1.0:
+                self.cached_pose = self.fallback_pose_after.copy()
+                self._clear_fallback()
+            self.last_visual_target = feet.copy()
+            return feet
+
         increment = limited_transform(
             body_correction,
             self.linear_speed_m_s * self.update_dt,
             self.PREALIGN_ANGULAR_SPEED * self.update_dt,
         )
         self.cached_pose = increment @ pose
-        return transform_points(increment, actual_feet)
+        self.last_visual_target = transform_points(increment, actual_feet)
+        return self.last_visual_target
+
+    def _pre_descent_settle_step(self, current):
+        self.pre_descent_elapsed = min(
+            self.PRE_DESCENT_SETTLE_DURATION_S,
+            self.pre_descent_elapsed + self.update_dt,
+        )
+        if self.pre_descent_elapsed >= self.PRE_DESCENT_SETTLE_DURATION_S:
+            self._set_state(self.DESCENT, "下降前姿态已稳定，开始机械导向下降")
+            return self._descent_step(current)
+        self._set_state(
+            self.PRE_DESCENT_SETTLE,
+            "保持预对接姿态：{:.2f}/{:.2f}s".format(
+                self.pre_descent_elapsed, self.PRE_DESCENT_SETTLE_DURATION_S
+            ),
+        )
+        return self._result(feet=self.pre_descent_feet.copy())
 
     def _descent_step(self, current):
         step = min(
@@ -745,7 +849,9 @@ class DockMode:
         if self.state == self.CLIMB_TERMINAL_ENTRY:
             return self._update_entry(current)
 
-        # 下降开始后不再依赖AprilTag，避免标签离开视野时中断机械对接。
+        # 锁存预对接姿态后不再依赖AprilTag，避免标签离开视野时中断机械对接。
+        if self.state == self.PRE_DESCENT_SETTLE:
+            return self._pre_descent_settle_step(current)
         if self.state == self.DESCENT:
             return self._descent_step(current)
         if self.state == self.SIT_SETTLE:
@@ -791,21 +897,28 @@ class DockMode:
             self.descent_duration = (
                 self.descent_total / self.linear_speed_m_s
             )
+            self.pre_descent_elapsed = 0.0
+            self.pre_descent_feet = (
+                self.last_visual_target.copy()
+                if self.last_visual_target is not None
+                else self._synced_feet(current).copy()
+            )
             self._set_state(
-                self.DESCENT,
-                "{}到达下降参考：水平{:.1f}mm，倾斜{:.2f}deg".format(
+                self.PRE_DESCENT_SETTLE,
+                "{}到达下降参考：水平{:.1f}mm，倾斜{:.2f}deg；稳定等待0.5s".format(
                     tags, horizontal * 1000.0, np.rad2deg(tilt)
                 ),
             )
-            return self._descent_step(current)
+            return self._result(feet=self.pre_descent_feet.copy())
 
+        _, adjustment = self._prealign_correction(pose)
         self._set_state(
             self.PREALIGN,
-            "{}视觉调整：水平{:.1f}mm，倾斜{:.2f}deg".format(
-                tags, horizontal * 1000.0, np.rad2deg(tilt)
+            "{}{}：水平{:.1f}mm，倾斜{:.2f}deg".format(
+                tags, adjustment, horizontal * 1000.0, np.rad2deg(tilt)
             ),
         )
-        # 保持当前高度，只调整水平位置并使机身尽量与标签平行。
+        # 先只对齐平面法向，再保持姿态和高度，仅调整X/Y。
         feet = self._visual_step(current, pose)
         return self._result(feet=feet)
 
@@ -865,6 +978,23 @@ def self_check():
                 return super().latest()
             return PerceptionResult(reason="simulated tag loss")
 
+    yaw = np.deg2rad(20.0)
+    yaw_rotation = np.array((
+        (np.cos(yaw), -np.sin(yaw), 0.0),
+        (np.sin(yaw), np.cos(yaw), 0.0),
+        (0.0, 0.0, 1.0),
+    ))
+    geometry_mode = DockMode(Controller(), Perception(np.eye(4)))
+    yaw_correction, yaw_stage = geometry_mode._prealign_correction(
+        transform((0.010, -0.020, -0.030), yaw_rotation)
+    )
+    if yaw_stage != "水平调整" or not np.allclose(
+        yaw_correction[:3, :3], np.eye(3)
+    ):
+        raise AssertionError("prealign must ignore pure yaw")
+    if not np.isclose(yaw_correction[2, 3], 0.0):
+        raise AssertionError("prealign must not adjust Z")
+
     dropout = DockMode(
         Controller(), DropoutPerception(transform((0.025, 0.0, -0.030)))
     )
@@ -879,6 +1009,24 @@ def self_check():
             break
     if dropout.state != dropout.DESCENT:
         raise AssertionError("cached pose descent transition self-check failed")
+
+    roll = np.deg2rad(10.0)
+    roll_rotation = np.array((
+        (1.0, 0.0, 0.0),
+        (0.0, np.cos(roll), -np.sin(roll)),
+        (0.0, np.sin(roll), np.cos(roll)),
+    ))
+    rotation_dropout = DockMode(
+        Controller(), DropoutPerception(transform(rotation=roll_rotation))
+    )
+    rotation_dropout.active = True
+    rotation_dropout.state = rotation_dropout.WAITING_TAG
+    rotation_dropout.update(dropout_state)
+    rotation_dropout.update(dropout_state)
+    frozen_rotation = rotation_dropout.cached_pose[:3, :3].copy()
+    rotation_dropout.update(dropout_state)
+    if not np.allclose(rotation_dropout.cached_pose[:3, :3], frozen_rotation):
+        raise AssertionError("fallback must not accumulate cached rotation")
 
     class FastController(Controller):
         dt = 1.0 / 30.0
@@ -943,11 +1091,16 @@ def self_check():
     mode = DockMode(Controller(), Perception(pose))
     mode.active, mode.state = True, mode.WAITING_TAG
     state = {"joints": np.zeros((6, 3))}
-    if mode.update(state).state != mode.DESCENT:
-        raise AssertionError("descent transition self-check failed")
+    if mode.update(state).state != mode.PRE_DESCENT_SETTLE:
+        raise AssertionError("pre-descent settle transition self-check failed")
     mode.perception.latest = lambda: (_ for _ in ()).throw(
         AssertionError("descent must not read AprilTag again")
     )
+    for _ in range(4):
+        if mode.update(state).state != mode.PRE_DESCENT_SETTLE:
+            raise AssertionError("0.5s pre-descent settle self-check failed")
+    if mode.update(state).state != mode.DESCENT:
+        raise AssertionError("descent transition self-check failed")
     highest_lift = 0.0
     lift_targets = []
     settle_frames = 0

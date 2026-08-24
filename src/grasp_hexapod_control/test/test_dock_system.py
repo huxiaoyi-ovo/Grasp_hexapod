@@ -27,7 +27,7 @@ def test_dock_system_yaml_is_the_complete_tag36h11_geometry_source():
     assert config["publish_tf"] is True
     assert config["real_calibrated"] is True
     assert set(config["pin_from_tag_m"]) == {"0", "1", "2", "3"}
-    assert config["pin_from_tag_m"]["2"] == [0.0, -0.200, -0.037]
+    assert config["pin_from_tag_m"]["2"] == [0.0, -0.100, -0.037]
 
 
 def test_climb_config_saves_the_default_dock_entry_joint_pose():
@@ -49,8 +49,8 @@ def test_real_launch_starts_only_the_bottom_usb_dock_chain_by_default():
     assert args["dock_camera_info_topic"] == "/dock_camera/camera_info"
     assert args["dock_require_real_calibrated"] == "true"
     assert args["dock_max_perception_age"] == "0.35"
-    assert args["dock_linear_speed_m_s"] == "0.15"
-    assert args["dock_update_rate_hz"] == "30.0"
+    assert args["dock_linear_speed_m_s"] == "0.05"
+    assert args["dock_update_rate_hz"] == "10.0"
     assert args["dock_perception_rate_hz"] == "10.0"
     assert args["dock_leg_lift_speed_m_s"] == "0.05"
     assert args["dock_sit_settle_duration_s"] == "0.5"
@@ -141,10 +141,11 @@ def test_dock_mode_reuses_controller_kinematics_and_reads_tf_only():
     assert "lookup_transform(" in source
     assert "AprilTagDetectionArray" not in source
     assert "rospy.Subscriber" not in source
-    assert "LINEAR_SPEED_M_S = 0.150" in source
-    assert "update_rate_hz=30.0" in source
+    assert "LINEAR_SPEED_M_S = 0.050" in source
+    assert "update_rate_hz=10.0" in source
     assert "perception_rate_hz=10.0" in source
-    assert "PREALIGN_POSITION_REFERENCE = 0.001" in source
+    assert "PREALIGN_POSITION_REFERENCE = 0.004" in source
+    assert "PREALIGN_ANGULAR_SPEED = np.deg2rad(15.0)" in source
     assert "LEG_LIFT_HEIGHT_M = 0.020" in source
     assert "LEG_LIFT_SPEED_M_S = 0.050" in source
     assert "SIT_SETTLE_DURATION_S = 0.5" in source

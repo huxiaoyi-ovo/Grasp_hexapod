@@ -413,10 +413,10 @@ class DockMode:
 
     ENTRY_TRACKING_TOLERANCE = np.deg2rad(2.0)
     # 只用于从视觉调整切换到机械导向下降，不作为成功或失败限制。
-    PREALIGN_POSITION_REFERENCE = 0.001
+    PREALIGN_POSITION_REFERENCE = 0.004
     PREALIGN_TILT_REFERENCE = np.deg2rad(3.0)
-    LINEAR_SPEED_M_S = 0.150
-    PREALIGN_ANGULAR_SPEED = np.deg2rad(10.0)
+    LINEAR_SPEED_M_S = 0.050
+    PREALIGN_ANGULAR_SPEED = np.deg2rad(15.0)
     PRE_DESCENT_SETTLE_DURATION_S = 0.5
     LEG_LIFT_HEIGHT_M = 0.020
     LEG_LIFT_SPEED_M_S = 0.050
@@ -425,7 +425,7 @@ class DockMode:
     DESCENT_DISTANCE_M = None
 
     def __init__(self, controller, perception=None, require_lock_confirmation=False,
-                 linear_speed_m_s=LINEAR_SPEED_M_S, update_rate_hz=30.0,
+                 linear_speed_m_s=LINEAR_SPEED_M_S, update_rate_hz=10.0,
                  perception_rate_hz=10.0,
                  leg_lift_speed_m_s=LEG_LIFT_SPEED_M_S,
                  sit_settle_duration_s=SIT_SETTLE_DURATION_S):
@@ -1050,7 +1050,7 @@ def self_check():
     fast_controller = FastController()
     rate_mode = DockMode(
         fast_controller, counted,
-        update_rate_hz=30.0, perception_rate_hz=10.0,
+        update_rate_hz=10.0, perception_rate_hz=10.0,
     )
     rate_mode.enter(np.zeros((6, 3)))
     rate_mode.state = rate_mode.WAITING_TAG
@@ -1062,9 +1062,9 @@ def self_check():
         ))))
         fast_controller.feet = result.foot_positions_base.copy()
     if counted.calls != 2:
-        raise AssertionError("30Hz control/10Hz perception self-check failed")
-    if not np.allclose(frame_steps, 0.005):
-        raise AssertionError("150mm/s continuous target self-check failed")
+        raise AssertionError("10Hz dock/perception on 30Hz control self-check failed")
+    if not np.allclose(frame_steps, (0.005, 0.0, 0.0, 0.005)):
+        raise AssertionError("50mm/s at 10Hz target-step self-check failed")
 
     class MissingPerception(Perception):
         def __init__(self):

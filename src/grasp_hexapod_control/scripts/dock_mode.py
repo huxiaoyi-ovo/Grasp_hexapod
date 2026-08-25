@@ -362,6 +362,7 @@ class DockMode:
     PRE_DESCENT_SETTLE_DURATION_S = 0.5
     LEG_LIFT_HEIGHT_M = 0.060
     LEG_LIFT_SPEED_M_S = 0.050
+    LEG_LIFT_LEVEL_TOLERANCE_M = 0.003
     SIT_SETTLE_DURATION_S = 0.5
     # None表示在进入下降时使用TF的垂直距离；也可在本文件中改为固定米数。
     DESCENT_DISTANCE_M = None
@@ -686,7 +687,10 @@ class DockMode:
             self.sit_settle_elapsed + self.update_dt,
         )
         if self.sit_settle_elapsed >= self.sit_settle_duration_s:
-            self._set_state(self.LEG_LIFT, "下坐稳定完成，开始将六腿同步抬起60mm")
+            self._set_state(
+                self.LEG_LIFT,
+                "下坐稳定完成，开始将六腿收至同一高度（至少抬升60mm）",
+            )
             return self._leg_lift_step(current)
         self._set_state(
             self.SIT_SETTLE,
@@ -699,24 +703,43 @@ class DockMode:
     def _leg_lift_step(self, current):
         if self.leg_lift_start_feet is None:
             self.leg_lift_start_feet = self._synced_feet(current).copy()
+        target_z = (
+            float(np.max(self.leg_lift_start_feet[:, 2]))
+            + self.LEG_LIFT_HEIGHT_M
+        )
+        travel = target_z - float(np.min(self.leg_lift_start_feet[:, 2]))
 
-        if self.leg_lift_progress >= self.LEG_LIFT_HEIGHT_M:
+        if self.leg_lift_progress >= travel:
+            feet = self.leg_lift_start_feet.copy()
+            feet[:, 2] = target_z
+            actual_spread = float(np.ptp(self._actual_feet(current)[:, 2]))
+            if actual_spread > self.LEG_LIFT_LEVEL_TOLERANCE_M:
+                self._set_state(
+                    self.LEG_LIFT,
+                    "统一高度收敛中：实际高度差{:.1f}mm".format(
+                        actual_spread * 1000.0
+                    ),
+                )
+                return self._result(feet=feet)
             if self.require_lock_confirmation:
-                self._set_state(self.ALIGNED, "六腿已抬起60mm，等待锁紧机构确认")
+                self._set_state(self.ALIGNED, "六腿已收至同一高度，等待锁紧机构确认")
             else:
-                self._set_state(self.SUCCESS, "六腿已抬起60mm，对接结束")
+                self._set_state(self.SUCCESS, "六腿已收至同一高度，对接结束")
             return self._result(joints=current.copy())
 
         self.leg_lift_progress = min(
-            self.LEG_LIFT_HEIGHT_M,
+            travel,
             self.leg_lift_progress + self.leg_lift_speed_m_s * self.update_dt,
         )
         feet = self.leg_lift_start_feet.copy()
-        feet[:, 2] += self.leg_lift_progress
+        feet[:, 2] = np.minimum(
+            feet[:, 2] + self.leg_lift_progress,
+            target_z,
+        )
         self._set_state(
             self.LEG_LIFT,
-            "六腿同步抬起中：{:.1f}/60.0mm".format(
-                self.leg_lift_progress * 1000.0
+            "六腿同步抬起中：{:.1f}/{:.1f}mm，目标同高".format(
+                self.leg_lift_progress * 1000.0, travel * 1000.0
             ),
         )
         return self._result(feet=feet)
@@ -1041,6 +1064,37 @@ def self_check():
         raise AssertionError("60mm leg lift self-check failed")
     if not np.allclose(np.diff([0.0] + lift_targets), 0.005):
         raise AssertionError("50mm/s leg lift self-check failed")
+
+    uneven_mode = DockMode(Controller(), Perception(pose))
+    uneven_mode.active, uneven_mode.state = True, uneven_mode.LEG_LIFT
+    uneven_mode.leg_lift_start_feet = np.zeros((6, 3))
+    uneven_mode.leg_lift_start_feet[:, 2] = (
+        -0.020, -0.015, -0.010, -0.005, 0.0, -0.012
+    )
+    final_feet = None
+    for _ in range(30):
+        result = uneven_mode.update(state)
+        if result.foot_positions_base is not None:
+            final_feet = result.foot_positions_base
+        if uneven_mode.state == uneven_mode.SUCCESS:
+            break
+    if final_feet is None or not np.allclose(final_feet[:, 2], 0.060):
+        raise AssertionError("leg lift must finish at one common base Z")
+
+    class UnevenActualController(Controller):
+        kinematic = SimpleNamespace(
+            forward_base=lambda joints: np.column_stack((
+                np.zeros(6), np.zeros(6), np.linspace(0.0, 0.010, 6)
+            ))
+        )
+
+    level_mode = DockMode(UnevenActualController(), Perception(pose))
+    level_mode.active, level_mode.state = True, level_mode.LEG_LIFT
+    level_mode.leg_lift_start_feet = np.zeros((6, 3))
+    level_mode.leg_lift_progress = level_mode.LEG_LIFT_HEIGHT_M
+    level_result = level_mode.update(state)
+    if level_mode.state != level_mode.LEG_LIFT or level_result.foot_positions_base is None:
+        raise AssertionError("uneven actual feet must keep common lift target")
     return True
 
 

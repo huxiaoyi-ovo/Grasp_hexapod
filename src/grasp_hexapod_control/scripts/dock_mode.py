@@ -360,7 +360,7 @@ class DockMode:
     LINEAR_SPEED_M_S = 0.050
     BODY_RAISE_HEIGHT_M = 0.040
     PRE_DESCENT_SETTLE_DURATION_S = 0.5
-    LEG_LIFT_HEIGHT_M = 0.040
+    LEG_LIFT_HEIGHT_M = 0.060
     LEG_LIFT_SPEED_M_S = 0.050
     SIT_SETTLE_DURATION_S = 0.5
     # None表示在进入下降时使用TF的垂直距离；也可在本文件中改为固定米数。
@@ -686,7 +686,7 @@ class DockMode:
             self.sit_settle_elapsed + self.update_dt,
         )
         if self.sit_settle_elapsed >= self.sit_settle_duration_s:
-            self._set_state(self.LEG_LIFT, "下坐稳定完成，开始将六腿同步抬起40mm")
+            self._set_state(self.LEG_LIFT, "下坐稳定完成，开始将六腿同步抬起60mm")
             return self._leg_lift_step(current)
         self._set_state(
             self.SIT_SETTLE,
@@ -702,9 +702,9 @@ class DockMode:
 
         if self.leg_lift_progress >= self.LEG_LIFT_HEIGHT_M:
             if self.require_lock_confirmation:
-                self._set_state(self.ALIGNED, "六腿已抬起40mm，等待锁紧机构确认")
+                self._set_state(self.ALIGNED, "六腿已抬起60mm，等待锁紧机构确认")
             else:
-                self._set_state(self.SUCCESS, "六腿已抬起40mm，对接结束")
+                self._set_state(self.SUCCESS, "六腿已抬起60mm，对接结束")
             return self._result(joints=current.copy())
 
         self.leg_lift_progress = min(
@@ -715,7 +715,7 @@ class DockMode:
         feet[:, 2] += self.leg_lift_progress
         self._set_state(
             self.LEG_LIFT,
-            "六腿同步抬起中：{:.1f}/40.0mm".format(
+            "六腿同步抬起中：{:.1f}/60.0mm".format(
                 self.leg_lift_progress * 1000.0
             ),
         )
@@ -1038,7 +1038,7 @@ def self_check():
     if not np.isclose(settle_frames * mode.controller.dt, 0.5):
         raise AssertionError("0.5s sit settle self-check failed")
     if not np.isclose(highest_lift, mode.LEG_LIFT_HEIGHT_M):
-        raise AssertionError("40mm leg lift self-check failed")
+        raise AssertionError("60mm leg lift self-check failed")
     if not np.allclose(np.diff([0.0] + lift_targets), 0.005):
         raise AssertionError("50mm/s leg lift self-check failed")
     return True

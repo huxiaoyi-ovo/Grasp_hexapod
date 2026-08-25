@@ -150,7 +150,7 @@ def test_dock_mode_reuses_controller_kinematics_and_reads_tf_only():
     assert "plane_alignment" not in source
     assert "increment, self.last_visual_target" in source
     assert "self.pre_descent_feet = self._synced_feet(current).copy()" in source
-    assert "LEG_LIFT_HEIGHT_M = 0.040" in source
+    assert "LEG_LIFT_HEIGHT_M = 0.060" in source
     assert "LEG_LIFT_SPEED_M_S = 0.050" in source
     assert "SIT_SETTLE_DURATION_S = 0.5" in source
     assert "使用最后完整AprilTag帧推算" in source

@@ -145,7 +145,9 @@ def test_dock_mode_reuses_controller_kinematics_and_reads_tf_only():
     assert "update_rate_hz=30.0" in source
     assert "perception_rate_hz=10.0" in source
     assert "PREALIGN_POSITION_REFERENCE = 0.004" in source
-    assert "PREALIGN_ANGULAR_SPEED = np.deg2rad(15.0)" in source
+    assert "plane_alignment" not in source
+    assert "increment, self.last_visual_target" in source
+    assert "self.pre_descent_feet = self._synced_feet(current).copy()" in source
     assert "LEG_LIFT_HEIGHT_M = 0.020" in source
     assert "LEG_LIFT_SPEED_M_S = 0.050" in source
     assert "SIT_SETTLE_DURATION_S = 0.5" in source

@@ -305,65 +305,6 @@ class DockPerception:
         return self.result
 
 
-# 最小闭环状态机。
-def limited_transform(target, max_translation, max_angle):
-    """把视觉误差限制为一个控制周期可执行的小位姿增量。"""
-    target = np.asarray(target, dtype=np.float64).reshape(4, 4)
-    result = np.eye(4, dtype=np.float64)
-    translation = target[:3, 3]
-    distance = float(np.linalg.norm(translation))
-    if distance > max_translation > 0.0:
-        translation = translation * (max_translation / distance)
-    result[:3, 3] = translation
-    rotation = target[:3, :3]
-    angle = rotation_angle(rotation)
-    if angle <= max_angle or angle < 1e-9:
-        result[:3, :3] = rotation
-        return result
-    axis = np.array((
-        rotation[2, 1] - rotation[1, 2],
-        rotation[0, 2] - rotation[2, 0],
-        rotation[1, 0] - rotation[0, 1],
-    ))
-    axis_norm = float(np.linalg.norm(axis))
-    if axis_norm < 1e-9:
-        values, vectors = np.linalg.eigh(rotation)
-        axis = vectors[:, int(np.argmin(np.abs(values - 1.0)))]
-    else:
-        axis /= axis_norm
-    skew = np.array((
-        (0.0, -axis[2], axis[1]),
-        (axis[2], 0.0, -axis[0]),
-        (-axis[1], axis[0], 0.0),
-    ))
-    result[:3, :3] = (
-        np.eye(3) + np.sin(max_angle) * skew
-        + (1.0 - np.cos(max_angle)) * (skew @ skew)
-    )
-    return result
-
-
-def plane_alignment(rotation):
-    """只对齐平面法向，不修正绕法向的yaw。"""
-    normal = np.asarray(rotation, dtype=np.float64).reshape(3, 3)[:, 2]
-    cosine = float(np.clip(normal[2], -1.0, 1.0))
-    axis = np.array((normal[1], -normal[0], 0.0))
-    sine = float(np.linalg.norm(axis))
-    result = np.eye(4, dtype=np.float64)
-    if sine < 1e-9:
-        if cosine < 0.0:
-            result[1, 1] = result[2, 2] = -1.0
-        return result
-    axis /= sine
-    skew = np.array((
-        (0.0, -axis[2], axis[1]),
-        (axis[2], 0.0, -axis[0]),
-        (-axis[1], axis[0], 0.0),
-    ))
-    result[:3, :3] += sine * skew + (1.0 - cosine) * (skew @ skew)
-    return result
-
-
 @dataclass(frozen=True)
 class DockRobotState:
     joints: object = None
@@ -414,9 +355,7 @@ class DockMode:
     ENTRY_TRACKING_TOLERANCE = np.deg2rad(2.0)
     # 只用于从视觉调整切换到机械导向下降，不作为成功或失败限制。
     PREALIGN_POSITION_REFERENCE = 0.004
-    PREALIGN_TILT_REFERENCE = np.deg2rad(3.0)
     LINEAR_SPEED_M_S = 0.050
-    PREALIGN_ANGULAR_SPEED = np.deg2rad(15.0)
     PRE_DESCENT_SETTLE_DURATION_S = 0.5
     LEG_LIFT_HEIGHT_M = 0.020
     LEG_LIFT_SPEED_M_S = 0.050
@@ -483,11 +422,6 @@ class DockMode:
         self.leg_lift_progress = 0.0
         self.cached_pose = None
         self.cached_ids = ()
-        self.fallback_start_feet = None
-        self.fallback_correction = None
-        self.fallback_pose_after = None
-        self.fallback_elapsed = 0.0
-        self.fallback_duration = 0.0
         self.last_visual_target = None
 
     @staticmethod
@@ -533,7 +467,6 @@ class DockMode:
         self.leg_lift_progress = 0.0
         self.cached_pose = None
         self.cached_ids = ()
-        self._clear_fallback()
         self.last_visual_target = None
         self.update_elapsed = max(0.0, self.update_period - self.controller.dt)
         self.update_dt = self.update_period
@@ -563,7 +496,6 @@ class DockMode:
         self.leg_lift_progress = 0.0
         self.cached_pose = None
         self.cached_ids = ()
-        self._clear_fallback()
         self.last_visual_target = None
         self.update_elapsed = 0.0
         self.last_update_result = None
@@ -611,10 +543,8 @@ class DockMode:
             decoded_ids = tuple(observed.decoded_ids)
             self.last_perception_reason = ""
             self.using_last_complete_frame = False
-            self._clear_fallback()
         else:
             self.using_last_complete_frame = False
-            self._clear_fallback()
         try:
             pose = np.asarray(raw, dtype=np.float64).reshape(4, 4)
         except (TypeError, ValueError):
@@ -657,62 +587,18 @@ class DockMode:
             if callable(sync_actual_feet) else self._actual_feet(current)
         )
 
-    def _clear_fallback(self):
-        self.fallback_start_feet = None
-        self.fallback_correction = None
-        self.fallback_pose_after = None
-        self.fallback_elapsed = 0.0
-        self.fallback_duration = 0.0
-
-    def _prealign_correction(self, pose):
-        tilt = float(np.arccos(np.clip(pose[2, 2], -1.0, 1.0)))
-        if tilt > self.PREALIGN_TILT_REFERENCE:
-            return plane_alignment(pose[:3, :3]), "姿态对齐"
-        return transform((-pose[0, 3], -pose[1, 3], 0.0)), "水平调整"
-
     def _visual_step(self, current, pose):
-        actual_feet = self._synced_feet(current)
-        body_correction, _ = self._prealign_correction(pose)
-        if self.using_last_complete_frame:
-            if self.fallback_correction is None:
-                distance = float(np.linalg.norm(body_correction[:2, 3]))
-                angle = rotation_angle(body_correction[:3, :3])
-                self.fallback_start_feet = (
-                    self.last_visual_target.copy()
-                    if self.last_visual_target is not None else actual_feet.copy()
-                )
-                self.fallback_correction = body_correction
-                self.fallback_pose_after = body_correction @ pose
-                self.fallback_elapsed = 0.0
-                self.fallback_duration = max(
-                    self.update_dt,
-                    distance / self.linear_speed_m_s,
-                    angle / self.PREALIGN_ANGULAR_SPEED,
-                )
-            self.fallback_elapsed = min(
-                self.fallback_duration,
-                self.fallback_elapsed + self.update_dt,
-            )
-            phase = self.fallback_elapsed / self.fallback_duration
-            increment = limited_transform(
-                self.fallback_correction,
-                np.linalg.norm(self.fallback_correction[:2, 3]) * phase,
-                rotation_angle(self.fallback_correction[:3, :3]) * phase,
-            )
-            feet = transform_points(increment, self.fallback_start_feet)
-            if phase >= 1.0:
-                self.cached_pose = self.fallback_pose_after.copy()
-                self._clear_fallback()
-            self.last_visual_target = feet.copy()
-            return feet
-
-        increment = limited_transform(
-            body_correction,
-            self.linear_speed_m_s * self.update_dt,
-            self.PREALIGN_ANGULAR_SPEED * self.update_dt,
-        )
+        correction = -pose[:2, 3]
+        distance = float(np.linalg.norm(correction))
+        if distance > self.linear_speed_m_s * self.update_dt:
+            correction *= self.linear_speed_m_s * self.update_dt / distance
+        increment = transform((correction[0], correction[1], 0.0))
+        if self.last_visual_target is None:
+            self.last_visual_target = self._actual_feet(current)
         self.cached_pose = increment @ pose
-        self.last_visual_target = transform_points(increment, actual_feet)
+        self.last_visual_target = transform_points(
+            increment, self.last_visual_target
+        )
         return self.last_visual_target
 
     def _pre_descent_settle_step(self, current):
@@ -874,10 +760,7 @@ class DockMode:
 
         horizontal = float(np.linalg.norm(pose[:2, 3]))
         tilt = float(np.arccos(np.clip(pose[2, 2], -1.0, 1.0)))
-        ready = (
-            horizontal <= self.PREALIGN_POSITION_REFERENCE
-            and tilt <= self.PREALIGN_TILT_REFERENCE
-        )
+        ready = horizontal <= self.PREALIGN_POSITION_REFERENCE
         tags = ",".join(
             "ID{}({})".format(tag_id, TAG_DIRECTIONS[tag_id])
             for tag_id in decoded_ids
@@ -885,8 +768,7 @@ class DockMode:
         if perception_reason:
             tags += "[最后完整帧推算]"
         if ready:
-            # 水平和姿态已经进入导向锥可接管的预期区域。只锁存向下
-            # 行程，后续不再用视觉修正横向位置或姿态。
+            # 水平轨迹已进入导向锥可接管区域；冻结实际足端，后续只下降。
             tf_distance = max(0.0, -float(pose[2, 3]))
             self.descent_total = (
                 tf_distance
@@ -898,11 +780,8 @@ class DockMode:
                 self.descent_total / self.linear_speed_m_s
             )
             self.pre_descent_elapsed = 0.0
-            self.pre_descent_feet = (
-                self.last_visual_target.copy()
-                if self.last_visual_target is not None
-                else self._synced_feet(current).copy()
-            )
+            self.pre_descent_feet = self._synced_feet(current).copy()
+            self.last_visual_target = self.pre_descent_feet.copy()
             self._set_state(
                 self.PRE_DESCENT_SETTLE,
                 "{}到达下降参考：水平{:.1f}mm，倾斜{:.2f}deg；稳定等待0.5s".format(
@@ -911,14 +790,13 @@ class DockMode:
             )
             return self._result(feet=self.pre_descent_feet.copy())
 
-        _, adjustment = self._prealign_correction(pose)
         self._set_state(
             self.PREALIGN,
-            "{}{}：水平{:.1f}mm，倾斜{:.2f}deg".format(
-                tags, adjustment, horizontal * 1000.0, np.rad2deg(tilt)
+            "{}水平调整：水平{:.1f}mm，倾斜{:.2f}deg（仅显示）".format(
+                tags, horizontal * 1000.0, np.rad2deg(tilt)
             ),
         )
-        # 先只对齐平面法向，再保持姿态和高度，仅调整X/Y。
+        # 姿态和高度保持不变，只累计X/Y目标。
         feet = self._visual_step(current, pose)
         return self._result(feet=feet)
 
@@ -985,22 +863,24 @@ def self_check():
         (0.0, 0.0, 1.0),
     ))
     geometry_mode = DockMode(Controller(), Perception(np.eye(4)))
-    yaw_correction, yaw_stage = geometry_mode._prealign_correction(
-        transform((0.010, -0.020, -0.030), yaw_rotation)
+    geometry_pose = transform((0.010, -0.020, -0.030), yaw_rotation)
+    geometry_feet = geometry_mode._visual_step(
+        np.zeros((6, 3)), geometry_pose
     )
-    if yaw_stage != "水平调整" or not np.allclose(
-        yaw_correction[:3, :3], np.eye(3)
+    if not np.allclose(geometry_feet[:, 2], 0.0) or not np.allclose(
+        geometry_mode.cached_pose[:3, :3], yaw_rotation
     ):
-        raise AssertionError("prealign must ignore pure yaw")
-    if not np.isclose(yaw_correction[2, 3], 0.0):
-        raise AssertionError("prealign must not adjust Z")
+        raise AssertionError("prealign must only adjust X/Y")
 
     dropout = DockMode(
-        Controller(), DropoutPerception(transform((0.025, 0.0, -0.030)))
+        Controller(), DropoutPerception(
+            transform((0.025, 0.0, -0.030), yaw_rotation)
+        )
     )
     dropout.active, dropout.state = True, dropout.WAITING_TAG
     dropout_state = {"joints": np.zeros((6, 3))}
     dropout.update(dropout_state)
+    frozen_rotation = dropout.cached_pose[:3, :3].copy()
     cached_result = dropout.update(dropout_state)
     if "最后完整帧推算" not in cached_result.reason:
         raise AssertionError("last complete frame fallback self-check failed")
@@ -1009,24 +889,10 @@ def self_check():
             break
     if dropout.state != dropout.DESCENT:
         raise AssertionError("cached pose descent transition self-check failed")
-
-    roll = np.deg2rad(10.0)
-    roll_rotation = np.array((
-        (1.0, 0.0, 0.0),
-        (0.0, np.cos(roll), -np.sin(roll)),
-        (0.0, np.sin(roll), np.cos(roll)),
-    ))
-    rotation_dropout = DockMode(
-        Controller(), DropoutPerception(transform(rotation=roll_rotation))
-    )
-    rotation_dropout.active = True
-    rotation_dropout.state = rotation_dropout.WAITING_TAG
-    rotation_dropout.update(dropout_state)
-    rotation_dropout.update(dropout_state)
-    frozen_rotation = rotation_dropout.cached_pose[:3, :3].copy()
-    rotation_dropout.update(dropout_state)
-    if not np.allclose(rotation_dropout.cached_pose[:3, :3], frozen_rotation):
-        raise AssertionError("fallback must not accumulate cached rotation")
+    if not np.allclose(dropout.cached_pose[:3, :3], frozen_rotation):
+        raise AssertionError("tag fallback must not change rotation")
+    if not np.allclose(dropout.pre_descent_feet, 0.0):
+        raise AssertionError("pre-descent settle must freeze actual feet")
 
     class FastController(Controller):
         dt = 1.0 / 30.0
@@ -1063,8 +929,8 @@ def self_check():
         fast_controller.feet = result.foot_positions_base.copy()
     if counted.calls != 2:
         raise AssertionError("10Hz dock/perception on 30Hz control self-check failed")
-    if not np.allclose(frame_steps, (0.005, 0.0, 0.0, 0.005)):
-        raise AssertionError("50mm/s at 10Hz target-step self-check failed")
+    if not np.allclose(frame_steps, 0.05 / 30.0):
+        raise AssertionError("50mm/s accumulated 30Hz target self-check failed")
 
     class MissingPerception(Perception):
         def __init__(self):

@@ -328,6 +328,7 @@ class DockMode:
     """用任一完整AprilTag到达预对接姿态，再锁存并向下对接。"""
     IDLE = "idle"
     CLIMB_TERMINAL_ENTRY = "climb_terminal_entry"
+    BODY_RAISE = "body_raise"
     WAITING_TAG = "waiting_tag"
     PREALIGN = "prealign"
     PRE_DESCENT_SETTLE = "pre_descent_settle"
@@ -341,6 +342,7 @@ class DockMode:
     STATE_LABELS = {
         IDLE: "待机",
         CLIMB_TERMINAL_ENTRY: "恢复攀爬末端姿态",
+        BODY_RAISE: "对接初始姿态抬升",
         WAITING_TAG: "等待AprilTag",
         PREALIGN: "视觉预对准",
         PRE_DESCENT_SETTLE: "下降前稳定",
@@ -356,6 +358,7 @@ class DockMode:
     # 只用于从视觉调整切换到机械导向下降，不作为成功或失败限制。
     PREALIGN_POSITION_REFERENCE = 0.004
     LINEAR_SPEED_M_S = 0.050
+    BODY_RAISE_HEIGHT_M = 0.040
     PRE_DESCENT_SETTLE_DURATION_S = 0.5
     LEG_LIFT_HEIGHT_M = 0.040
     LEG_LIFT_SPEED_M_S = 0.050
@@ -411,6 +414,8 @@ class DockMode:
         self.entry_target = None
         self.entry_elapsed = 0.0
         self.entry_duration = 0.0
+        self.body_raise_start_feet = None
+        self.body_raise_progress = 0.0
         self.descent_total = 0.0
         self.descent_remaining = 0.0
         self.descent_duration = 0.0
@@ -456,6 +461,8 @@ class DockMode:
         self.entry_start = current.copy()
         self.entry_target = target.copy()
         self.entry_elapsed = 0.0
+        self.body_raise_start_feet = None
+        self.body_raise_progress = 0.0
         self.descent_total = 0.0
         self.descent_remaining = 0.0
         self.descent_duration = 0.0
@@ -485,6 +492,8 @@ class DockMode:
         self.active = False
         self.entry_start = None
         self.entry_target = None
+        self.body_raise_start_feet = None
+        self.body_raise_progress = 0.0
         self.descent_total = 0.0
         self.descent_remaining = 0.0
         self.descent_duration = 0.0
@@ -572,9 +581,11 @@ class DockMode:
         if phase >= 1.0:
             error = float(np.max(np.abs(current - self.entry_target)))
             quality = "达标" if error <= self.ENTRY_TRACKING_TOLERANCE else "仅供参考"
+            self.body_raise_start_feet = self._synced_feet(current).copy()
+            self.body_raise_progress = 0.0
             self._set_state(
-                self.WAITING_TAG,
-                "攀爬结束姿态指令已完成，关节误差{:.2f}deg（{}）；等待完整AprilTag".format(
+                self.BODY_RAISE,
+                "攀爬结束姿态指令已完成，关节误差{:.2f}deg（{}）；开始足端向下移动40mm".format(
                     np.rad2deg(error), quality
                 ),
             )
@@ -586,6 +597,30 @@ class DockMode:
             sync_actual_feet(current)
             if callable(sync_actual_feet) else self._actual_feet(current)
         )
+
+    def _body_raise_step(self, current):
+        if self.body_raise_start_feet is None:
+            self.body_raise_start_feet = self._synced_feet(current).copy()
+        self.body_raise_progress = min(
+            self.BODY_RAISE_HEIGHT_M,
+            self.body_raise_progress + self.linear_speed_m_s * self.update_dt,
+        )
+        feet = self.body_raise_start_feet.copy()
+        feet[:, 2] -= self.body_raise_progress
+        if self.body_raise_progress >= self.BODY_RAISE_HEIGHT_M:
+            self.last_visual_target = feet.copy()
+            self._set_state(
+                self.WAITING_TAG,
+                "足端目标已向下移动40mm，完成初始姿态抬升尝试；等待完整AprilTag",
+            )
+        else:
+            self._set_state(
+                self.BODY_RAISE,
+                "六足同步向下：{:.1f}/40.0mm".format(
+                    self.body_raise_progress * 1000.0
+                ),
+            )
+        return self._result(feet=feet)
 
     def _visual_step(self, current, pose):
         correction = -pose[:2, 3]
@@ -734,6 +769,8 @@ class DockMode:
 
         if self.state == self.CLIMB_TERMINAL_ENTRY:
             return self._update_entry(current)
+        if self.state == self.BODY_RAISE:
+            return self._body_raise_step(current)
 
         # 锁存预对接姿态后不再依赖AprilTag，避免标签离开视野时中断机械对接。
         if self.state == self.PRE_DESCENT_SETTLE:
@@ -855,6 +892,18 @@ def self_check():
             if self.calls == 1:
                 return super().latest()
             return PerceptionResult(reason="simulated tag loss")
+
+    raise_mode = DockMode(Controller(), Perception(np.eye(4)))
+    raise_mode.active, raise_mode.state = True, raise_mode.BODY_RAISE
+    raise_mode.body_raise_start_feet = np.zeros((6, 3))
+    raise_targets = []
+    for _ in range(8):
+        raise_result = raise_mode.update({"joints": np.zeros((6, 3))})
+        raise_targets.append(float(raise_result.foot_positions_base[0, 2]))
+    if raise_mode.state != raise_mode.WAITING_TAG:
+        raise AssertionError("40mm initial body raise transition self-check failed")
+    if not np.allclose(np.diff([0.0] + raise_targets), -0.005):
+        raise AssertionError("initial feet must move down 40mm at 50mm/s")
 
     yaw = np.deg2rad(20.0)
     yaw_rotation = np.array((

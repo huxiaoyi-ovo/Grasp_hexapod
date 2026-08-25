@@ -142,6 +142,8 @@ def test_dock_mode_reuses_controller_kinematics_and_reads_tf_only():
     assert "AprilTagDetectionArray" not in source
     assert "rospy.Subscriber" not in source
     assert "LINEAR_SPEED_M_S = 0.050" in source
+    assert "BODY_RAISE_HEIGHT_M = 0.040" in source
+    assert "feet[:, 2] -= self.body_raise_progress" in source
     assert "update_rate_hz=30.0" in source
     assert "perception_rate_hz=10.0" in source
     assert "PREALIGN_POSITION_REFERENCE = 0.004" in source

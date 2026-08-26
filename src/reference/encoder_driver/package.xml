@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>encoder_driver</name>
+  <version>0.0.0</version>
+  <description>Grasp Hexapod 参考：串口绝对编码器读取、帧解析与角度发布（C++ 实现）。</description>
+  <maintainer email="artrc@todo.todo">artrc</maintainer>
+  <license>TODO</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+  <build_depend>roscpp</build_depend>
+  <build_depend>std_msgs</build_depend>
+  <build_export_depend>roscpp</build_export_depend>
+  <build_export_depend>std_msgs</build_export_depend>
+  <exec_depend>roscpp</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
+</package>

@@ -8,6 +8,7 @@
 .codex/
 .serena/
 .agents/
+.dsh-vision-router/
 .agent/
 .mcp/
 .mcp.json

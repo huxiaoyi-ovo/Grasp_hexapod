@@ -1,0 +1,13 @@
+<launch>
+  <!-- 实机入口：与 run_real.launch 相同，但固定使用 C++ 版舵机驱动
+       （grasp_hexapod_servo_cpp，接口与 Python 版一致，资源占用更低）。
+       需要覆盖控制参数时，可改用 run_real.launch 并加 servo_backend:=cpp。 -->
+  <arg name="servo_backend" value="cpp"/>
+  <arg name="left_port" default="/dev/ttyTHS0"/>
+  <arg name="right_port" default="/dev/ttyACM0"/>
+  <arg name="servo_rate_hz" default="30.0"/>
+  <arg name="command_duration_ms" default="33"/>
+  <arg name="servo_diagnostics" default="true"/>
+
+  <include file="$(find grasp_hexapod_control)/launch/run_real.launch" pass_all_args="true"/>
+</launch>

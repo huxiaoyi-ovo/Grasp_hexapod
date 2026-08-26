@@ -11,6 +11,8 @@
   <arg name="servo_rate_hz" default="30.0"/>
   <arg name="command_duration_ms" default="33"/>
   <arg name="servo_diagnostics" default="true"/>
+  <!-- servo_backend：python（默认，grasp_hexapod_servo）或 cpp（grasp_hexapod_servo_cpp）。 -->
+  <arg name="servo_backend" default="python"/>
   <arg name="max_feedback_age" default="0.30"/>
   <arg name="max_feedback_skew" default="0.20"/>
   <arg name="climb_foot_gate_m" default="0.05"/>
@@ -153,7 +155,16 @@
     <arg name="detections_topic" value="$(arg dock_detections_topic)"/>
   </include>
 
-  <include file="$(find grasp_hexapod_servo)/launch/servo_two_boards.launch">
+  <include if="$(eval arg('servo_backend') == 'cpp')"
+    file="$(find grasp_hexapod_servo_cpp)/launch/servo_two_boards.launch">
+    <arg name="left_port" value="$(arg left_port)"/>
+    <arg name="right_port" value="$(arg right_port)"/>
+    <arg name="servo_rate_hz" value="$(arg servo_rate_hz)"/>
+    <arg name="command_duration_ms" value="$(arg command_duration_ms)"/>
+    <arg name="servo_diagnostics" value="$(arg servo_diagnostics)"/>
+  </include>
+  <include unless="$(eval arg('servo_backend') == 'cpp')"
+    file="$(find grasp_hexapod_servo)/launch/servo_two_boards.launch">
     <arg name="left_port" value="$(arg left_port)"/>
     <arg name="right_port" value="$(arg right_port)"/>
     <arg name="servo_rate_hz" value="$(arg servo_rate_hz)"/>

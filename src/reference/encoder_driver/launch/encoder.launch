@@ -1,0 +1,24 @@
+<launch>
+  <!-- 串口绝对编码器读取节点（参考实现）。 -->
+  <arg name="port" default="/dev/ttyUSB0"/>
+  <arg name="baudrate" default="115200"/>
+  <arg name="slave_id" default="0"/>
+  <arg name="start_reg" default="0"/>
+  <arg name="reg_count" default="2"/>
+  <arg name="rate_hz" default="50"/>
+  <arg name="units" default="deg"/>
+  <arg name="angle_topic" default="encoder_angle"/>
+  <arg name="raw_topic" default="encoder_raw"/>
+
+  <node pkg="encoder_driver" type="encoder_node" name="encoder_node" output="screen">
+    <param name="port" value="$(arg port)"/>
+    <param name="baudrate" value="$(arg baudrate)"/>
+    <param name="slave_id" value="$(arg slave_id)"/>
+    <param name="start_reg" value="$(arg start_reg)"/>
+    <param name="reg_count" value="$(arg reg_count)"/>
+    <param name="rate_hz" value="$(arg rate_hz)"/>
+    <param name="units" value="$(arg units)"/>
+    <param name="angle_topic" value="$(arg angle_topic)"/>
+    <param name="raw_topic" value="$(arg raw_topic)"/>
+  </node>
+</launch>

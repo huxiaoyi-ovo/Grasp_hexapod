@@ -7,6 +7,7 @@
 - `src/grasp_hexapod_control/`：步态、运动学、安全控制和仿真/实机入口。
 - `src/grasp_hexapod_description/`：URDF、网格、RViz 和 Gazebo 配置。
 - `src/grasp_hexapod_servo/`：LX-15D 两板驱动和串口协议。
+- `src/grasp_hexapod_servo_cpp/`：LX-15D 两板驱动的 C++ 版，接口与前者一致，资源占用更低。
 - `src/reference/`：参考代码，不参与运行。
 
 仿真和实机共用 `GraspController`：前者在 Isaac 控制帧内运行，后者通过 ROS 读取反馈并发布关节目标。
@@ -99,6 +100,10 @@ roslaunch grasp_hexapod_control run_real.launch \
   right_port:=/dev/ttyACM0
 ```
 
+使用 C++ 版舵机驱动（`grasp_hexapod_servo_cpp`，接口一致、资源占用更低）时，
+入口换成 `run_real_cpp.launch`，参数相同；也可给 `run_real.launch` 加
+`servo_backend:=cpp`。
+
 首次架空测试可显式降低速度：
 
 ```bash
@@ -172,3 +177,5 @@ conda run --no-capture-output -n grasp_hexapod python3 \
 
 - [启动命令与参数](src/grasp_hexapod_control/launch/README.md)
 - [舵机协议、ID 和方向](src/grasp_hexapod_servo/README.md)
+- [C++ 版舵机驱动](src/grasp_hexapod_servo_cpp/README.md)
+- [参考：编码器帧解析与角度发布](src/reference/encoder_driver/README.md)

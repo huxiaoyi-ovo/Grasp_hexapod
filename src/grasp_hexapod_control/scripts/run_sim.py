@@ -50,7 +50,7 @@ from utils import (
     external_to_control,
     package_config_path,
 )
-from utils.climb import resolve_compact_stage_range
+from utils.climb import resolve_compact_stage_range, select_compact_climb_side
 
 # Isaac Gym的C扩展没有完整类型声明，编辑器无法静态识别其动态属性。
 gymapi: Any = _gymapi
@@ -388,6 +388,12 @@ def parse_arguments():
             "simulation-only compact 配置路径；仅可与 --climb-start、"
             "--climb-scene 或 --full-mission 一起使用"
         ),
+    )
+    parser.add_argument(
+        "--climb-side",
+        choices=("left", "right"),
+        default="left",
+        help="compact 攀爬侧别，默认保持现有 left 场景",
     )
     parser.add_argument(
         "--climb-speed",
@@ -851,6 +857,11 @@ def main() -> None:
             "--full-mission cannot be combined with --climb-start or "
             "--climb-scene"
         )
+    if args.full_mission and args.climb_side != "left":
+        raise ValueError(
+            "--full-mission requires --climb-side left because APPROACH "
+            "remains left-only"
+        )
     if args.full_mission and (
         args.climb_from is not None or args.climb_to is not None
     ):
@@ -1005,6 +1016,7 @@ def main() -> None:
         )
         with compact_path.open() as compact_file:
             compact = json.load(compact_file)
+        compact = select_compact_climb_side(compact, args.climb_side)
         if (
             compact.get("schema") != "SIMULATION_ONLY_CLIMB_COMPACT_V2"
             or compact.get("simulation_only") is not True
@@ -1013,7 +1025,11 @@ def main() -> None:
         ):
             raise ValueError("invalid compact climb scene config")
         ClimbMode(None)._validate_config(compact)
-        print("Compact climb config selected: {}".format(compact_path))
+        print(
+            "Compact climb config selected: {} (side={})".format(
+                compact_path, args.climb_side
+            )
+        )
         climb_start_index, climb_end_index = resolve_compact_stage_range(
             compact, args.climb_from, args.climb_to
         )

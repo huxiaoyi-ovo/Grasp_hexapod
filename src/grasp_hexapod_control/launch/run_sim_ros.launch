@@ -9,6 +9,7 @@
   <!-- 普通仿真默认使用LX-15D 7.4V官方空载速度上限候选。 -->
   <arg name="joint_speed" default="1.2"/>
   <arg name="climb_joint_speed" default="1.2"/>
+  <arg name="climb_side" default="left"/>
   <arg name="climb_scene" default="false"/>
   <arg name="enable_climb" default="$(arg climb_scene)"/>
   <arg name="headless" default="false"/>
@@ -97,7 +98,7 @@
       required="true"
       launch-prefix="$(arg python_executable)"
       unless="$(arg climb_scene)"
-      args="--ros --control-rate $(arg controller_rate_hz) --actuator-rate $(arg actuator_rate_hz) --physics-rate $(arg physics_rate_hz) --joint-speed $(arg joint_speed) --climb-joint-speed $(arg climb_joint_speed)">
+      args="--ros --control-rate $(arg controller_rate_hz) --actuator-rate $(arg actuator_rate_hz) --physics-rate $(arg physics_rate_hz) --joint-speed $(arg joint_speed) --climb-joint-speed $(arg climb_joint_speed) --climb-side $(arg climb_side)">
       <env
         name="PYTHONPATH"
         value="$(arg isaacgym_python_path):$(env PYTHONPATH)"/>
@@ -110,7 +111,7 @@
       required="true"
       launch-prefix="$(arg python_executable)"
       if="$(arg climb_scene)"
-      args="--ros --climb-scene --control-rate $(arg controller_rate_hz) --actuator-rate $(arg actuator_rate_hz) --physics-rate $(arg physics_rate_hz) --joint-speed $(arg joint_speed) --climb-joint-speed $(arg climb_joint_speed)">
+      args="--ros --climb-scene --control-rate $(arg controller_rate_hz) --actuator-rate $(arg actuator_rate_hz) --physics-rate $(arg physics_rate_hz) --joint-speed $(arg joint_speed) --climb-joint-speed $(arg climb_joint_speed) --climb-side $(arg climb_side)">
       <env
         name="PYTHONPATH"
         value="$(arg isaacgym_python_path):$(env PYTHONPATH)"/>
@@ -126,7 +127,7 @@
       required="true"
       launch-prefix="$(arg python_executable)"
       unless="$(arg climb_scene)"
-      args="--ros --headless --control-rate $(arg controller_rate_hz) --actuator-rate $(arg actuator_rate_hz) --physics-rate $(arg physics_rate_hz) --joint-speed $(arg joint_speed) --climb-joint-speed $(arg climb_joint_speed)">
+      args="--ros --headless --control-rate $(arg controller_rate_hz) --actuator-rate $(arg actuator_rate_hz) --physics-rate $(arg physics_rate_hz) --joint-speed $(arg joint_speed) --climb-joint-speed $(arg climb_joint_speed) --climb-side $(arg climb_side)">
       <env
         name="PYTHONPATH"
         value="$(arg isaacgym_python_path):$(env PYTHONPATH)"/>
@@ -139,7 +140,7 @@
       required="true"
       launch-prefix="$(arg python_executable)"
       if="$(arg climb_scene)"
-      args="--ros --headless --climb-scene --control-rate $(arg controller_rate_hz) --actuator-rate $(arg actuator_rate_hz) --physics-rate $(arg physics_rate_hz) --joint-speed $(arg joint_speed) --climb-joint-speed $(arg climb_joint_speed)">
+      args="--ros --headless --climb-scene --control-rate $(arg controller_rate_hz) --actuator-rate $(arg actuator_rate_hz) --physics-rate $(arg physics_rate_hz) --joint-speed $(arg joint_speed) --climb-joint-speed $(arg climb_joint_speed) --climb-side $(arg climb_side)">
       <env
         name="PYTHONPATH"
         value="$(arg isaacgym_python_path):$(env PYTHONPATH)"/>

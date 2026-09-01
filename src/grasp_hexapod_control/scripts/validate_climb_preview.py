@@ -98,12 +98,12 @@ def strict_contract(compact):
             "C4 RB/RF first-platform clearance >= 100 mm")
     c7, c8 = stages[6:8]
     require(np.allclose(c7["pose_end"],
-                        [.06, -.06769449763600001, .19, 0.0, -.38])
+                        [.06, -.06769449763600001, .19, 0.0, -.56])
             and np.allclose(c8["pose_start"], c7["pose_end"])
             and np.allclose(c8["pose_end"],
                             [.06, -.06769449763600001, .19, 0.0, -.3]),
             "C7-C8 RM pitch-assisted transfer")
-    require(c8["segment_durations_s"] == [.38, .58, .38],
+    require(c8["segment_durations_s"] == [.58, .76, .58],
             "C8 RM lift-transfer-touchdown timing")
     c8_durations = np.asarray(c8["segment_durations_s"], dtype=np.float64)
     c8_phase = np.r_[0.0, np.cumsum(c8_durations)] / np.sum(c8_durations)
@@ -124,11 +124,11 @@ def strict_contract(compact):
             "C8 RM base/world path consistency")
     require(np.allclose(c8_world[1:3], [
                 [.20449034338561017, -.06769450166012006,
-                 .1844231715549064],
+                 .2044231715549064],
                 [.2976919472902762, -.130924989575459,
-                 .22031975690161706],
+                 .24031975690161706],
             ], rtol=0.0, atol=1e-12),
-            "C8 RM airborne world path raised 10 mm")
+            "C8 RM airborne world path raised 30 mm")
     require(np.isclose(base_relative_clearances(stages[17])[0], .04),
             "C18 RM relative clearance = 40 mm")
     require(stages[10]["active_legs"] == [3], "C11 RB-only shift")

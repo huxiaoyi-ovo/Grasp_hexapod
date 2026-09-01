@@ -80,8 +80,8 @@ class ApproachMode:
         self.gaits[TRIPOD_A_INDICES] = True
         self.stance_group_index = 0
 
-        # 摆动相0.45 s；0.20 m/s满杆时单相机身位移约100 mm。
-        self.phase_duration = 0.45
+        # 实机优先保持足端轨迹和舵机跟踪平滑，不追求极限步频。
+        self.phase_duration = 0.70
         self.phase_time = 0.0
 
         # 共同支撑目标为50 ms，并量化到最接近的整数控制帧：
@@ -94,10 +94,20 @@ class ApproachMode:
         self.transfer_time = 0.0
         self.transfer_active = False
 
-        self.step_height = 0.030
-        # 梯形剖面加减速段占比, 峰值速度 = step_height/(0.5*T*(1-a))
+        self.step_height = 0.040
+        # 前45%平滑抬起、中间10%保持高位、后45%平滑落下。
+        self.swing_lift_fraction = 0.45
+        # 梯形剖面加减速段占比，峰值速度由单程抬腿时间决定。
         self.lift_accel_fraction = 0.15
-        self.phase_command = np.zeros(4, dtype=np.float64)
+        self.max_linear_acceleration = 0.40
+        self.max_yaw_acceleration = 2.0
+        # 合并平移和偏航后，限制标准足端的平面速度预算。
+        self.max_foot_planar_speed = 0.12
+        self.nominal_foot_radius = float(np.mean(
+            np.linalg.norm(controller.foot_init_base[:, :2], axis=1)
+        ))
+        self.requested_command = np.zeros(4, dtype=np.float64)
+        self.active_phase_command = np.zeros(4, dtype=np.float64)
         self.stop_requested = False
 
         self.body_height_offset = 0.0
@@ -489,8 +499,7 @@ class ApproachMode:
                 )
                 return False
 
-        self.controller._commit_workspace_candidate(candidate_base)
-        return True
+        return self.controller._commit_workspace_candidate(candidate_base)
 
     @staticmethod
     def _smooth_step(phase):
@@ -559,6 +568,65 @@ class ApproachMode:
         )
         return velocity
 
+    def _slew_requested_command(self, command):
+        """按实机可控加速度追踪平面/偏航指令。"""
+
+        command = np.asarray(command, dtype=np.float64).reshape(4).copy()
+        foot_speed_budget = (
+            np.linalg.norm(command[:2])
+            + self.nominal_foot_radius * abs(command[3])
+        )
+        if foot_speed_budget > self.max_foot_planar_speed:
+            scale = self.max_foot_planar_speed / foot_speed_budget
+            command[:2] *= scale
+            command[3] *= scale
+        linear_delta = command[:2] - self.requested_command[:2]
+        linear_norm = np.linalg.norm(linear_delta)
+        linear_step = self.max_linear_acceleration * self.dt
+        if linear_norm > linear_step:
+            linear_delta *= linear_step / linear_norm
+        self.requested_command[:2] += linear_delta
+
+        yaw_delta = np.clip(
+            command[3] - self.requested_command[3],
+            -self.max_yaw_acceleration * self.dt,
+            self.max_yaw_acceleration * self.dt,
+        )
+        self.requested_command[3] += yaw_delta
+        self.requested_command[2] = command[2]
+
+    def _update_swing_target(self, swing_indices):
+        """根据当前限加速度指令更新本相落点。"""
+
+        controller = self.controller
+        target = controller.foot_init_base.copy()
+        home_xy = controller.foot_init_base[swing_indices, :2]
+        body_velocity_at_home = -self._stance_velocity(
+            home_xy,
+            self.active_phase_command,
+        )
+        support_duration = (
+            self.phase_duration + 2.0 * self.transfer_duration
+        )
+        target[swing_indices, :2] += (
+            0.5 * support_duration * body_velocity_at_home
+        )
+        target[swing_indices, 2] = (
+            controller.foot_init_base[swing_indices, 2]
+            - self.body_height_offset
+        )
+
+        target_feasible = controller._workspace_feasible(target)
+        if not target_feasible[swing_indices].all():
+            target = controller._project_workspace(target)
+        self.swing_target_base[swing_indices] = target[swing_indices]
+        self.swing_target_velocity_xy[swing_indices] = (
+            self._stance_velocity(
+                self.swing_target_base[swing_indices, :2],
+                self.active_phase_command,
+            )
+        )
+
     def reset(self):
         """回正期间清空三角步态状态，完成后从A组重新起步。"""
         self.stance_group_index = 0
@@ -568,7 +636,8 @@ class ApproachMode:
         self.phase_time = 0.0
         self.transfer_time = 0.0
         self.transfer_active = False
-        self.phase_command[:] = 0.0
+        self.requested_command[:] = 0.0
+        self.active_phase_command[:] = 0.0
         self.stop_requested = False
         self.gait_started = False
         self.first_step = True
@@ -584,56 +653,17 @@ class ApproachMode:
         self.swing_start_base[:] = self.controller.foot_init_base
         self.swing_target_base[:] = self.controller.foot_init_base
 
-    def _begin_step(self, command):
-        """开启一个新的三角步态阶段，command=[vx,vy,vz,wz]。"""
+    def _begin_step(self):
+        """开启一个新的三角步态阶段。"""
         controller = self.controller
         self.phase_time = 0.0
-        self.phase_command = np.asarray(
-            command,
-            dtype=np.float64,
-        ).reshape(4).copy()
+        self.active_phase_command[:] = self.requested_command
 
         swing_indices = np.where(~self.gaits)[0]
         self.swing_start_base = controller.foot_desired_base.copy()
         self.swing_target_base = controller.foot_init_base.copy()
         self.swing_start_velocity_xy = self.foot_velocity_xy.copy()
-
-        home_xy = controller.foot_init_base[swing_indices, :2]
-        body_velocity_at_home = -self._stance_velocity(
-            home_xy,
-            self.phase_command,
-        )
-
-        support_duration = (
-            self.phase_duration + 2.0 * self.transfer_duration
-        )
-        self.swing_target_base[swing_indices, :2] += (
-            0.5 * support_duration * body_velocity_at_home
-        )
-        self.swing_target_base[swing_indices, 2] = (
-            controller.foot_init_base[swing_indices, 2]
-            - self.body_height_offset
-        )
-
-        # 越界落点连续压到安全边界，不退回固定工作中心。
-        target_feasible = controller._workspace_feasible(
-            self.swing_target_base
-        )
-        if controller.enable_workspace_check and not target_feasible[swing_indices].all():
-            projected_target = controller._project_workspace(
-                self.swing_target_base
-            )
-            self.swing_target_base[swing_indices] = projected_target[
-                swing_indices
-            ]
-
-        # 落地速度衔接下一段支撑速度，减少触地水平擦动。
-        self.swing_target_velocity_xy[swing_indices] = (
-            self._stance_velocity(
-                self.swing_target_base[swing_indices, :2],
-                self.phase_command,
-            )
-        )
+        self._update_swing_target(swing_indices)
 
     def update(self, command, navigation_state=None):
         """根据手柄或自动接近指令更新六足目标，并返回接近任务状态。"""
@@ -662,6 +692,9 @@ class ApproachMode:
         if controller.reset_active:
             return
 
+        # 每帧过滤操作者请求；本相使用的命令只会在下一次换相时锁存。
+        self._slew_requested_command(command)
+
         velocity_right = command[0]
         velocity_forward = command[1]
         velocity_up = command[2]
@@ -687,7 +720,8 @@ class ApproachMode:
         )
         if not self.gait_started:
             candidate_base[:, 2] = ground_z
-            self._commit_candidate(candidate_base)
+            if not self._commit_candidate(candidate_base):
+                return
             self.foot_velocity_xy[:] = 0.0
 
             if np.linalg.norm(planar_command) < 1e-8:
@@ -695,7 +729,7 @@ class ApproachMode:
 
             self.gait_started = True
             self.stop_requested = False
-            self._begin_step(command)
+            self._begin_step()
         else:
             # 零指令时先让当前摆动组落地，再停止。
             self.stop_requested = (
@@ -709,14 +743,17 @@ class ApproachMode:
             )
             stance_velocity = self._stance_velocity(
                 candidate_base[:, :2],
-                self.phase_command,
+                self.active_phase_command,
             )
             candidate_base[:, :2] += stance_velocity * transfer_dt
             candidate_base[:, 2] = ground_z
+            velocity_before = self.foot_velocity_xy.copy()
             self.foot_velocity_xy[:] = stance_velocity
 
+            if not self._commit_candidate(candidate_base):
+                self.foot_velocity_xy[:] = velocity_before
+                return
             self.transfer_time += transfer_dt
-            self._commit_candidate(candidate_base)
 
             transfer_finished = (
                 self.transfer_time
@@ -738,10 +775,12 @@ class ApproachMode:
             if self.stop_requested:
                 self.gait_started = False
                 self.phase_time = 0.0
+                self.requested_command[:] = 0.0
+                self.active_phase_command[:] = 0.0
                 self.foot_velocity_xy[:] = 0.0
                 return
 
-            self._begin_step(command)
+            self._begin_step()
             return
 
         phase_dt = min(
@@ -751,23 +790,20 @@ class ApproachMode:
         stance_indices = np.where(self.gaits)[0]
         swing_indices = np.where(~self.gaits)[0]
 
-        # 一个phase内冻结平面指令，换相后再采用新方向。
         stance_velocity = self._stance_velocity(
             candidate_base[stance_indices, :2],
-            self.phase_command,
+            self.active_phase_command,
         )
-        if self.first_step:
-            stance_velocity *= 0.5
-
         candidate_base[stance_indices, :2] += (
             stance_velocity * phase_dt
         )
         candidate_base[stance_indices, 2] = ground_z[stance_indices]
+        velocity_before = self.foot_velocity_xy.copy()
         self.foot_velocity_xy[stance_indices] = stance_velocity
 
-        self.phase_time += phase_dt
+        next_phase_time = self.phase_time + phase_dt
         phase = np.clip(
-            self.phase_time / self.phase_duration,
+            next_phase_time / self.phase_duration,
             0.0,
             1.0,
         )
@@ -782,30 +818,39 @@ class ApproachMode:
         candidate_base[swing_indices, :2] = swing_position
         self.foot_velocity_xy[swing_indices] = swing_velocity
 
-        if phase < 0.5:
-            lift_height = self.step_height * self._trapezoid_rise(2.0 * phase)
+        if phase < self.swing_lift_fraction:
+            lift_height = self.step_height * self._trapezoid_rise(
+                phase / self.swing_lift_fraction
+            )
+        elif phase > 1.0 - self.swing_lift_fraction:
+            lift_height = self.step_height * self._trapezoid_rise(
+                (1.0 - phase) / self.swing_lift_fraction
+            )
         else:
-            lift_height = self.step_height * self._trapezoid_rise(2.0 * (1.0 - phase))
+            lift_height = self.step_height
         candidate_base[swing_indices, 2] = (
             ground_z[swing_indices] + lift_height
         )
 
         phase_finished = (
-            self.phase_time >= self.phase_duration - 1e-12
+            next_phase_time >= self.phase_duration - 1e-12
         )
         if phase_finished:
-            self.swing_target_base[swing_indices, 2] = ground_z[
-                swing_indices
-            ]
-            candidate_base[swing_indices] = self.swing_target_base[
-                swing_indices
-            ]
+            endpoint = self.swing_target_base[swing_indices].copy()
+            endpoint[:, 2] = ground_z[swing_indices]
+            candidate_base[swing_indices] = endpoint
             self.foot_velocity_xy[swing_indices] = (
                 self.swing_target_velocity_xy[swing_indices]
             )
 
-        self._commit_candidate(candidate_base)
+        if not self._commit_candidate(candidate_base):
+            self.foot_velocity_xy[:] = velocity_before
+            return
+        self.phase_time = next_phase_time
 
         if phase_finished:
+            self.swing_target_base[swing_indices, 2] = ground_z[
+                swing_indices
+            ]
             self.transfer_active = True
             self.transfer_time = 0.0

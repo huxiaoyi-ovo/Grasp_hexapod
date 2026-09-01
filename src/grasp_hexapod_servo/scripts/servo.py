@@ -51,6 +51,7 @@ class ServoSideNode:
                 "lm": (4, 5, 6),
                 "lb": (7, 8, 9),
             },
+            "gripper": {"id": 99, "direction": -1},
         },
         "right": {
             "port": "/dev/ttyACM0",
@@ -79,6 +80,17 @@ class ServoSideNode:
         self.id_map = config["id_map"]
         self.default_directions = config["directions"]
 
+        # 夹爪：单关节舵机，挂在左板上，独立于九个行走舵机的加卸力逻辑。
+        self.gripper_config = config.get("gripper")
+        self.gripper_id = None
+        if self.gripper_config is not None:
+            self.gripper_id = int(
+                rospy.get_param(
+                    "~gripper_id",
+                    self.gripper_config["id"],
+                )
+            )
+
         self.port = rospy.get_param(
             "~port",
             config["port"],
@@ -91,6 +103,10 @@ class ServoSideNode:
         )
         self.command_duration_ms = int(
             rospy.get_param("~command_duration_ms", 33)
+        )
+        # 夹爪独立运动时间，比行走舵机更慢，避免夹取太快。
+        self.gripper_command_duration_ms = int(
+            rospy.get_param("~gripper_command_duration_ms", 400)
         )
         self.enable_diagnostics = bool(
             rospy.get_param("~enable_diagnostics", True)
@@ -144,6 +160,28 @@ class ServoSideNode:
             for leg in self.legs
         }
 
+        # 夹爪单关节状态：与九个行走舵机独立加卸力。
+        if self.gripper_id is not None:
+            self.gripper_direction = int(
+                rospy.get_param(
+                    "~gripper_direction",
+                    self.gripper_config["direction"],
+                )
+            )
+            self.gripper_received = False
+            self.gripper_power_request = False
+            self.gripper_power_on = False
+            self.gripper_des_pos = 0.0
+            self.gripper_last_sent = None  # 上次发送的脉冲目标
+            self.gripper_last_sent_time = rospy.Time(0)  # 上次发送时间
+            # 夹爪机械限位（脉冲），留余量避免顶到物理死区空转打齿。
+            self.gripper_pulse_min = int(
+                rospy.get_param("~gripper_pulse_min", 280)
+            )
+            self.gripper_pulse_max = int(
+                rospy.get_param("~gripper_pulse_max", 750)
+            )
+
         # 时序汇总本身不增加串口读写或改变定时器节拍。
         self._timing_window_started = None
         self._timing_callbacks = 0
@@ -155,6 +193,9 @@ class ServoSideNode:
         self._timing_read_failures = {
             servo_id: 0 for servo_id in self.servo_ids
         }
+        if self.gripper_id is not None:
+            self._timing_read_retries[self.gripper_id] = 0
+            self._timing_read_failures[self.gripper_id] = 0
 
         # 每个控制周期最多读一个电压，避免一次连读九个占用总线。
         self._voltage_labels = {
@@ -174,6 +215,8 @@ class ServoSideNode:
         # 启动时整块板全部卸力。
         # 此时仍然可以读取舵机位置。
         self._set_board_power(False)
+        if self.gripper_id is not None:
+            self.control.unload_servo(self.gripper_id, 0)
 
         self.des_subs = {}
         self.pos_pubs = {}
@@ -192,6 +235,20 @@ class ServoSideNode:
                 queue_size=1,
             )
 
+        # 夹爪独立话题：[power, position]，单关节。
+        if self.gripper_id is not None:
+            self.gripper_des_sub = rospy.Subscriber(
+                "/gripper_des",
+                Float64MultiArray,
+                self._gripper_des_callback,
+                queue_size=1,
+            )
+            self.gripper_pos_pub = rospy.Publisher(
+                "/gripper_pos",
+                JointState,
+                queue_size=1,
+            )
+
         # 统计窗口从定时器启用前开始，不把启动卸力和pub/sub创建计入。
         self._timing_window_started = time.monotonic()
         self.timer = rospy.Timer(
@@ -203,12 +260,13 @@ class ServoSideNode:
 
         rospy.loginfo(
             "Servo board ready: side=%s port=%s legs=%s "
-            "ids=%s rate=%.1fHz",
+            "ids=%s rate=%.1fHz gripper_id=%s",
             self.side,
             self.port,
             ",".join(self.legs),
             self.servo_ids,
             self.servo_rate_hz,
+            self.gripper_id,
         )
 
     def _load_directions(self):
@@ -327,6 +385,44 @@ class ServoSideNode:
 
         return callback
 
+    def _gripper_des_callback(self, message):
+        """夹爪目标回调：[power, position]，单关节。"""
+
+        data = list(message.data)
+        if len(data) != 2:
+            rospy.logwarn_throttle(
+                1.0,
+                f"/gripper_des must contain 2 values "
+                f"[power, position], got {len(data)}",
+            )
+            return
+
+        power_value = float(data[0])
+        position = float(data[1])
+
+        if power_value not in (0.0, 1.0):
+            rospy.logwarn_throttle(
+                1.0,
+                "/gripper_des power must be 0 or 1",
+            )
+            return
+
+        if not math.isfinite(position):
+            rospy.logwarn_throttle(
+                1.0,
+                "/gripper_des contains non-finite position",
+            )
+            return
+
+        with self.lock:
+            first_message = not self.gripper_received
+            self.gripper_des_pos = position
+            self.gripper_power_request = bool(power_value)
+            self.gripper_received = True
+
+        if first_message:
+            rospy.loginfo("Received first target for gripper")
+
     def rad_to_servo(self, angle_rad, direction):
         """ROS关节角rad转换为LX-15D脉冲。"""
 
@@ -405,6 +501,9 @@ class ServoSideNode:
         self._timing_read_failures = {
             servo_id: 0 for servo_id in self.servo_ids
         }
+        if self.gripper_id is not None:
+            self._timing_read_retries[self.gripper_id] = 0
+            self._timing_read_failures[self.gripper_id] = 0
 
     def _update_voltage_diagnostics(self):
         """分散读取本板电压，完成九路后统一输出。"""
@@ -468,9 +567,32 @@ class ServoSideNode:
                 leg: tuple(self.des_pos[leg])
                 for leg in self.legs
             }
+            # 夹爪快照。
+            gripper_snapshot = None
+            if self.gripper_id is not None:
+                gripper_snapshot = (
+                    self.gripper_des_pos,
+                    self.gripper_received
+                    and self.gripper_power_request,
+                )
 
         if requested_on != self.power_on:
             self._set_board_power(requested_on)
+
+        # 夹爪独立加卸力，不依赖九个行走舵机的上电状态。
+        if self.gripper_id is not None:
+            gripper_requested_on = gripper_snapshot[1]
+            if gripper_requested_on != self.gripper_power_on:
+                self.control.unload_servo(
+                    self.gripper_id,
+                    1 if gripper_requested_on else 0,
+                )
+                self.gripper_power_on = gripper_requested_on
+                self.gripper_last_sent = None  # 卸力/加载后重置，确保下次发送
+                rospy.loginfo(
+                    "Gripper power: %s",
+                    "ON" if gripper_requested_on else "OFF",
+                )
 
         # 一、优先写入最新目标，避免反馈读取占用本周期命令延迟。
         if self.power_on:
@@ -487,6 +609,35 @@ class ServoSideNode:
                         servo_position,
                         self.command_duration_ms,
                     )
+
+        # 夹爪写目标：在行走舵机写入之后。
+        if self.gripper_id is not None and self.gripper_power_on:
+            servo_position = self.rad_to_servo(
+                gripper_snapshot[0],
+                self.gripper_direction,
+            )
+            # 钳制到夹爪机械限位，留余量避免顶到物理死区空转打齿。
+            servo_position = max(
+                self.gripper_pulse_min,
+                min(self.gripper_pulse_max, servo_position),
+            )
+            # 目标变化时用慢速 duration；补发保持力矩用 duration=0（立即到位）。
+            now = rospy.Time.now()
+            need_send = False
+            is_refresh = False
+            if self.gripper_last_sent != servo_position:
+                need_send = True
+            elif (now - self.gripper_last_sent_time).to_sec() > 0.2:
+                need_send = True
+                is_refresh = True
+            if need_send:
+                self.control.set_servo_position(
+                    self.gripper_id,
+                    servo_position,
+                    0 if is_refresh else self.gripper_command_duration_ms,
+                )
+                self.gripper_last_sent = servo_position
+                self.gripper_last_sent_time = now
 
         # 二、一条腿三个位置都有效时才发布一帧带时间戳的反馈。
         for leg in self.legs:
@@ -522,6 +673,28 @@ class ServoSideNode:
                     position=read_position,
                 )
             )
+
+        # 夹爪读反馈：在行走舵机反馈之后。
+        if self.gripper_id is not None:
+            raw_position = self._read_position(self.gripper_id)
+            if raw_position is not None:
+                self.gripper_pos_pub.publish(
+                    JointState(
+                        header=Header(stamp=rospy.Time.now()),
+                        name=["gripper_joint"],
+                        position=[
+                            self.servo_to_rad(
+                                raw_position,
+                                self.gripper_direction,
+                            )
+                        ],
+                    )
+                )
+            else:
+                rospy.logwarn_throttle(
+                    1.0,
+                    "Gripper feedback unavailable",
+                )
 
         if self.enable_diagnostics:
             self._update_voltage_diagnostics()

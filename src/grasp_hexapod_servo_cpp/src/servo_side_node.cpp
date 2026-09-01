@@ -103,6 +103,25 @@ void ServoSideNode::loadParams(ros::NodeHandle& nh_private) {
   for (size_t i = 0; i < servo_ids_.size(); ++i) {
     directions_[servo_ids_[i]] = directions[i];
   }
+
+  // 夹爪参数（仅左板支持）。
+  if (side_ == "left") {
+    const int default_gripper_id = 99;
+    if (nh_private.hasParam("gripper_id")) {
+      gripper_id_ = nh_private.param("gripper_id", default_gripper_id);
+      has_gripper_ = (gripper_id_ > 0);
+    } else {
+      gripper_id_ = default_gripper_id;
+      has_gripper_ = true;
+    }
+    if (has_gripper_) {
+      gripper_direction_ = nh_private.param("gripper_direction", -1);
+      gripper_command_duration_ms_ =
+          nh_private.param("gripper_command_duration_ms", 400);
+      gripper_pulse_min_ = nh_private.param("gripper_pulse_min", 280);
+      gripper_pulse_max_ = nh_private.param("gripper_pulse_max", 750);
+    }
+  }
 }
 
 ServoSideNode::ServoSideNode(ros::NodeHandle& nh,
@@ -115,6 +134,11 @@ ServoSideNode::ServoSideNode(ros::NodeHandle& nh,
   // 启动时整块板全部卸力，此时仍可读取舵机位置。
   setBoardPower(false);
 
+  // 夹爪卸力。
+  if (has_gripper_) {
+    control_->unloadServo(gripper_id_, 0);
+  }
+
   for (const std::string& leg : legs_) {
     des_subs_[leg] = nh.subscribe<std_msgs::Float64MultiArray>(
         "/" + leg + "_des", 1,
@@ -122,6 +146,14 @@ ServoSideNode::ServoSideNode(ros::NodeHandle& nh,
                     leg));
     pos_pubs_[leg] =
         nh.advertise<sensor_msgs::JointState>("/" + leg + "_pos", 1);
+  }
+
+  // 夹爪订阅/发布。
+  if (has_gripper_) {
+    gripper_des_sub_ = nh.subscribe<std_msgs::Float64MultiArray>(
+        "/gripper_des", 1, &ServoSideNode::onGripperDesired, this);
+    gripper_pos_pub_ =
+        nh.advertise<sensor_msgs::JointState>("/gripper_pos", 1);
   }
 
   // 电压标签：leg_joint，顺序与 id_map 一致。
@@ -158,9 +190,11 @@ ServoSideNode::ServoSideNode(ros::NodeHandle& nh,
     ids_text << servo_ids_[i];
   }
   ids_text << ")";
-  ROS_INFO("Servo board ready: side=%s port=%s legs=%s ids=%s rate=%.1fHz",
+  ROS_INFO("Servo board ready: side=%s port=%s legs=%s ids=%s rate=%.1fHz"
+           " gripper_id=%s",
            side_.c_str(), port_.c_str(), legs_text.str().c_str(),
-           ids_text.str().c_str(), servo_rate_hz_);
+           ids_text.str().c_str(), servo_rate_hz_,
+           has_gripper_ ? std::to_string(gripper_id_).c_str() : "none");
 }
 
 ServoSideNode::~ServoSideNode() = default;
@@ -217,6 +251,36 @@ void ServoSideNode::onDesired(
   // 运动时间，第一版实机控制不使用速度字段。
 }
 
+void ServoSideNode::onGripperDesired(
+    const std_msgs::Float64MultiArray::ConstPtr& message) {
+  const std::vector<double>& data = message->data;
+  if (data.size() != 2) {
+    ROS_WARN_THROTTLE(1.0, "/gripper_des must contain 2 values [power, pos]");
+    return;
+  }
+  const double power = data[0];
+  const double position = data[1];
+  if (power != 0.0 && power != 1.0) {
+    ROS_WARN_THROTTLE(1.0, "/gripper_des power must be 0 or 1");
+    return;
+  }
+  if (!std::isfinite(position)) {
+    ROS_WARN_THROTTLE(1.0, "/gripper_des contains non-finite position");
+    return;
+  }
+  bool first_message = false;
+  {
+    std::lock_guard<std::mutex> lock(mutex_);
+    first_message = !gripper_received_;
+    gripper_des_pos_ = position;
+    gripper_power_request_ = (power != 0.0);
+    gripper_received_ = true;
+  }
+  if (first_message) {
+    ROS_INFO("Received first target for gripper");
+  }
+}
+
 std::optional<int> ServoSideNode::readPositionWithRetry(int servo_id) {
   // 读取失败只追加一次即时重试，仍失败则跳过本腿本周期反馈。
   std::optional<uint16_t> position = control_->getServoPosition(servo_id);
@@ -246,9 +310,17 @@ void ServoSideNode::controlLoop(const ros::TimerEvent&) {
 
   // 回调只更新缓存；串口操作期间不持有缓存锁。
   std::map<std::string, LegTarget> snapshot;
+  bool gripper_snapshot_valid = false;
+  bool gripper_snapshot_power = false;
+  double gripper_snapshot_pos = 0.0;
   {
     std::lock_guard<std::mutex> lock(mutex_);
     snapshot = leg_targets_;
+    if (has_gripper_) {
+      gripper_snapshot_valid = gripper_received_;
+      gripper_snapshot_power = gripper_power_request_;
+      gripper_snapshot_pos = gripper_des_pos_;
+    }
   }
 
   std::vector<bool> received;
@@ -276,6 +348,37 @@ void ServoSideNode::controlLoop(const ros::TimerEvent&) {
       }
     }
 
+    // 夹爪写目标：独立于行走舵机加卸力，到位后每秒补发保持力矩。
+    if (has_gripper_ && gripper_snapshot_valid) {
+      const bool gripper_requested_on = gripper_snapshot_power;
+      if (gripper_requested_on != gripper_power_on_) {
+        control_->unloadServo(gripper_id_, gripper_requested_on ? 1 : 0);
+        gripper_power_on_ = gripper_requested_on;
+        gripper_last_sent_pulse_ = -1;  // 卸力/加载后重置
+        ROS_INFO("Gripper power: %s", gripper_requested_on ? "ON" : "OFF");
+      }
+      if (gripper_power_on_) {
+        int pulse = radToServo(gripper_snapshot_pos, gripper_direction_);
+        pulse = std::max(gripper_pulse_min_, std::min(gripper_pulse_max_, pulse));
+        const auto now = std::chrono::steady_clock::now();
+        bool need_send = false;
+        bool is_refresh = false;
+        if (pulse != gripper_last_sent_pulse_) {
+          need_send = true;
+        } else if (std::chrono::duration<double>(
+                       now - gripper_last_sent_time_).count() > 0.2) {
+          need_send = true;
+          is_refresh = true;
+        }
+        if (need_send) {
+          control_->setServoPosition(gripper_id_, pulse,
+                                     is_refresh ? 0 : gripper_command_duration_ms_);
+          gripper_last_sent_pulse_ = pulse;
+          gripper_last_sent_time_ = now;
+        }
+      }
+    }
+
     // 二、一条腿三个位置都有效时才发布一帧带时间戳的反馈。
     for (const std::string& leg : legs_) {
       std::vector<double> read_positions;
@@ -294,6 +397,18 @@ void ServoSideNode::controlLoop(const ros::TimerEvent&) {
         continue;
       }
       publishLeg(leg, read_positions);
+    }
+
+    // 夹爪反馈。
+    if (has_gripper_) {
+      std::optional<uint16_t> raw = control_->getServoPosition(gripper_id_);
+      if (raw) {
+        sensor_msgs::JointState msg;
+        msg.header.stamp = ros::Time::now();
+        msg.name = {"gripper_joint"};
+        msg.position = {servoToRad(*raw, gripper_direction_)};
+        gripper_pos_pub_.publish(msg);
+      }
     }
   } catch (const serial::SerialException& e) {
     ROS_ERROR_THROTTLE(1.0, "Serial error in control loop: %s", e.what());

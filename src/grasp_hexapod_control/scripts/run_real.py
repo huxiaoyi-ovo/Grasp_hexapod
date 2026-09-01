@@ -417,6 +417,8 @@ class RosControlNode:
         self.button_b = int(rospy.get_param("~button_b", 1))
         self.button_x = int(rospy.get_param("~button_x", 2))
         self.button_y = int(rospy.get_param("~button_y", 3))
+        self.axis_gripper = int(rospy.get_param("~axis_gripper", 6))  # 方向键轴：+1=张开, -1=闭合
+        self.gripper_last_cmd = None
         self.axis_right = int(rospy.get_param("~axis_right", 0))
         self.axis_forward = int(rospy.get_param("~axis_forward", 1))
         self.axis_yaw = int(rospy.get_param("~axis_yaw", 3))
@@ -518,6 +520,11 @@ class RosControlNode:
                 )
                 for leg in LEG_NAMES
             }
+            self.gripper_pub = rospy.Publisher(
+                "/gripper_des",
+                Float64MultiArray,
+                queue_size=1,
+            )
 
         # Subscriber的回调只保存最新消息，控制计算统一放在step()中。
         self.subscribers = [
@@ -1272,6 +1279,18 @@ class RosControlNode:
             joy_fresh and feedback_ready,
             q_cur,
         )
+
+        # 夹爪控制：方向键轴 +1=张开, -1=闭合, 仅在变化时发送。
+        if joy_fresh and not self.local_execution:
+            dpad = float(self._read(axes, self.axis_gripper))
+            if dpad > 0.5 and self.gripper_last_cmd != "open":
+                self.gripper_pub.publish(Float64MultiArray(data=[1.0, 1.5]))
+                rospy.loginfo("Gripper: open")
+                self.gripper_last_cmd = "open"
+            elif dpad < -0.5 and self.gripper_last_cmd != "close":
+                self.gripper_pub.publish(Float64MultiArray(data=[1.0, -1.5]))
+                rospy.loginfo("Gripper: close")
+                self.gripper_last_cmd = "close"
 
         if not joy_fresh:
             self._hold_motion("joystick lost")

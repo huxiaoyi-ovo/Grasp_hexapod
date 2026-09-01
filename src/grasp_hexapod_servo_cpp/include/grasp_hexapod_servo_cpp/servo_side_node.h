@@ -73,6 +73,23 @@ class ServoSideNode {
   std::map<int, int> directions_;  // servo_id -> 方向系数（1 或 -1）。
   std::vector<int> servo_ids_;     // 按腿顺序展开的 9 个舵机 ID。
 
+  // ---- 夹爪（仅左板）----
+  bool has_gripper_ = false;
+  int gripper_id_ = 0;
+  int gripper_direction_ = -1;
+  int gripper_command_duration_ms_ = 400;
+  int gripper_pulse_min_ = 280;
+  int gripper_pulse_max_ = 750;
+  bool gripper_received_ = false;
+  bool gripper_power_request_ = false;
+  bool gripper_power_on_ = false;
+  double gripper_des_pos_ = 0.0;
+  int gripper_last_sent_pulse_ = -1;
+  std::chrono::steady_clock::time_point gripper_last_sent_time_;
+  ros::Subscriber gripper_des_sub_;
+  ros::Publisher gripper_pos_pub_;
+  void onGripperDesired(const std_msgs::Float64MultiArray::ConstPtr& message);
+
   // ---- 运行时状态 ----
   std::mutex mutex_;
   std::map<std::string, LegTarget> leg_targets_;

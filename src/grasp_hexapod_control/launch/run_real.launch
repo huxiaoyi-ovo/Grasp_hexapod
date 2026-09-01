@@ -26,6 +26,7 @@
   <arg name="button_b" default="1"/>
   <arg name="button_x" default="2"/>
   <arg name="button_y" default="3"/>
+  <arg name="axis_gripper" default="6"/>
   <arg name="axis_right" default="0"/>
   <arg name="axis_forward" default="1"/>
   <arg name="axis_yaw" default="3"/>
@@ -58,8 +59,10 @@
   <arg name="dock_allow_uncalibrated" default="false"/>
   <arg name="dock_lock_confirmation_max_age_s" default="0.5"/>
   <arg name="dock_video_device" default="/dev/video0"/>
-  <arg name="dock_image_width" default="1280"/>
-  <arg name="dock_image_height" default="720"/>
+  <!-- <arg name="dock_image_width" default="1280"/>
+  <arg name="dock_image_height" default="720"/> -->
+  <arg name="dock_image_width" default="640"/>
+  <arg name="dock_image_height" default="480"/>
   <arg name="dock_framerate" default="10"/>
   <arg name="dock_pixel_format" default="yuyv"/>
   <arg name="dock_color_format" default="yuv422p"/>
@@ -96,6 +99,7 @@
     <arg name="button_b" value="$(arg button_b)"/>
     <arg name="button_x" value="$(arg button_x)"/>
     <arg name="button_y" value="$(arg button_y)"/>
+    <arg name="axis_gripper" value="$(arg axis_gripper)"/>
     <arg name="axis_right" value="$(arg axis_right)"/>
     <arg name="axis_forward" value="$(arg axis_forward)"/>
     <arg name="axis_yaw" value="$(arg axis_yaw)"/>
@@ -162,6 +166,11 @@
     <arg name="servo_rate_hz" value="$(arg servo_rate_hz)"/>
     <arg name="command_duration_ms" value="$(arg command_duration_ms)"/>
     <arg name="servo_diagnostics" value="$(arg servo_diagnostics)"/>
+    <arg name="gripper_id" value="99"/>
+    <arg name="gripper_direction" value="-1"/>
+    <arg name="gripper_command_duration_ms" value="400"/>
+    <arg name="gripper_pulse_min" value="280"/>
+    <arg name="gripper_pulse_max" value="750"/>
   </include>
   <include unless="$(eval arg('servo_backend') == 'cpp')"
     file="$(find grasp_hexapod_servo)/launch/servo_two_boards.launch">
@@ -170,5 +179,10 @@
     <arg name="servo_rate_hz" value="$(arg servo_rate_hz)"/>
     <arg name="command_duration_ms" value="$(arg command_duration_ms)"/>
     <arg name="servo_diagnostics" value="$(arg servo_diagnostics)"/>
+    <arg name="gripper_id" value="99"/>
+    <arg name="gripper_direction" value="-1"/>
+    <arg name="gripper_command_duration_ms" value="400"/>
+    <arg name="gripper_pulse_min" value="280"/>
+    <arg name="gripper_pulse_max" value="750"/>
   </include>
 </launch>

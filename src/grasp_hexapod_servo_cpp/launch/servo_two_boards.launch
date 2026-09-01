@@ -7,6 +7,11 @@
   <arg name="servo_rate_hz" default="30.0"/>
   <arg name="command_duration_ms" default="33"/>
   <arg name="servo_diagnostics" default="true"/>
+  <arg name="gripper_id" default="99"/>
+  <arg name="gripper_direction" default="-1"/>
+  <arg name="gripper_command_duration_ms" default="400"/>
+  <arg name="gripper_pulse_min" default="280"/>
+  <arg name="gripper_pulse_max" default="750"/>
 
   <node pkg="grasp_hexapod_servo_cpp" type="servo_node" name="servo_left_node" output="screen">
     <param name="side" value="left"/>
@@ -15,6 +20,14 @@
     <param name="servo_rate_hz" value="$(arg servo_rate_hz)"/>
     <param name="command_duration_ms" value="$(arg command_duration_ms)"/>
     <param name="enable_diagnostics" value="$(arg servo_diagnostics)"/>
+    <param name="gripper_id" value="$(arg gripper_id)"/>
+    <param name="gripper_direction" value="$(arg gripper_direction)"/>
+    <param name="gripper_command_duration_ms" value="$(arg gripper_command_duration_ms)"/>
+    <param name="gripper_pulse_min" value="$(arg gripper_pulse_min)"/>
+    <param name="gripper_pulse_max" value="$(arg gripper_pulse_max)"/>
+    <!-- zzw加-->
+    <!-- <rosparam file="$(find grasp_hexapod_servo_cpp)/config/left.yaml" command="load"/> -->
+    <rosparam param="directions">[1,1,1,1,1,1,1,1,1]</rosparam>
   </node>
 
   <node pkg="grasp_hexapod_servo_cpp" type="servo_node" name="servo_right_node" output="screen">
@@ -24,5 +37,8 @@
     <param name="servo_rate_hz" value="$(arg servo_rate_hz)"/>
     <param name="command_duration_ms" value="$(arg command_duration_ms)"/>
     <param name="enable_diagnostics" value="$(arg servo_diagnostics)"/>
+    <!-- zzw加-->
+    <!-- <rosparam file="$(find grasp_hexapod_servo_cpp)/config/right.yaml" command="load"/> -->
+    <rosparam param="directions">[1, -1, -1, 1, -1, -1, 1, -1, -1]</rosparam>
   </node>
 </launch>

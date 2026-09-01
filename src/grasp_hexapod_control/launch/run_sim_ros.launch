@@ -20,7 +20,6 @@
   <arg
     name="isaacgym_python_path"
     default="/home/artrc/isaacgym/python"/>
-
   <arg name="button_a" default="0"/>
   <arg name="button_b" default="1"/>
   <arg name="button_x" default="2"/>

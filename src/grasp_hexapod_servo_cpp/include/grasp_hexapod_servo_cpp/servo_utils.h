@@ -36,6 +36,13 @@ inline double servoToRad(int servo_pulse, int direction) {
          (M_PI / 180.0);
 }
 
+// 夹爪盲控目标钳位到真实机械行程 [open_pulse, clamp_pulse]。
+// 话题目标是连续 rad 值，钳到行程端点后，方向键两极即"完全打开/完全夹紧"，
+// 避免命令超出机械限位导致堵转卸载（夹爪打开后又收回的根因）。
+inline int clampGripperTravel(int pulse, int open_pulse, int clamp_pulse) {
+  return std::max(open_pulse, std::min(clamp_pulse, pulse));
+}
+
 // 板级上电决策：三条腿都收到过完整目标 且 都请求加载，才返回 true。
 // 对应 Python 版 control_loop 中的 targets_ready && all(power_request)。
 inline bool computeRequestedOn(const std::vector<bool>& received,

@@ -118,9 +118,9 @@ void ServoSideNode::loadParams(ros::NodeHandle& nh_private) {
       gripper_direction_ = nh_private.param("gripper_direction", -1);
       gripper_command_duration_ms_ =
           nh_private.param("gripper_command_duration_ms", 400);
-      // 话题盲控路径的安全钳位；服务路径的目标见 ~gripper_open/clamp_pulse。
-      gripper_pulse_min_ = nh_private.param("gripper_pulse_min", 280);
-      gripper_pulse_max_ = nh_private.param("gripper_pulse_max", 750);
+      // 注意：~gripper_pulse_min/max 已废弃（仅为 launch 兼容保留）。
+      // 盲控行程现钳位到 ~gripper_open_pulse~gripper_clamp_pulse 真实机械
+      // 行程，否则方向键会把夹爪命令到限位外导致堵转收回。
     }
   }
 }
@@ -356,6 +356,14 @@ void ServoSideNode::controlLoop(const ros::TimerEvent&) {
     // 同一舵机；isBusy 为原子读，不阻塞腿部循环。
     if (has_gripper_ && gripper_snapshot_valid &&
         !(gripper_manager_ && gripper_manager_->isBusy())) {
+      // 服务/自检刚完成：把盲控补发基准对齐到服务验证到的位置，
+      // 防止旧缓存目标把服务结果拖回（"打开后收回"根因之一）。
+      const GripperSync gripper_sync = gripper_manager_->lastSync();
+      if (gripper_sync.generation != gripper_sync_generation_) {
+        gripper_sync_generation_ = gripper_sync.generation;
+        gripper_last_sent_pulse_ = gripper_sync.pulse;
+        gripper_last_sent_time_ = std::chrono::steady_clock::now();
+      }
       const bool gripper_requested_on = gripper_snapshot_power;
       if (gripper_requested_on != gripper_power_on_) {
         control_->unloadServo(gripper_id_, gripper_requested_on ? 1 : 0);
@@ -364,8 +372,11 @@ void ServoSideNode::controlLoop(const ros::TimerEvent&) {
         ROS_INFO("Gripper power: %s", gripper_requested_on ? "ON" : "OFF");
       }
       if (gripper_power_on_) {
+        // 钳位到真实机械行程 [打开 683, 夹紧 840]：方向键两极即完全
+        // 打开/完全夹紧，不再命令到限位外（280）造成堵转卸载而收回。
         int pulse = radToServo(gripper_snapshot_pos, gripper_direction_);
-        pulse = std::max(gripper_pulse_min_, std::min(gripper_pulse_max_, pulse));
+        pulse = clampGripperTravel(pulse, gripper_manager_->openPulse(),
+                                   gripper_manager_->clampPulse());
         const auto now = std::chrono::steady_clock::now();
         bool need_send = false;
         bool is_refresh = false;

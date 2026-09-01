@@ -48,10 +48,16 @@ void GripperManager::loadParams(ros::NodeHandle& nh_private) {
   if (command_duration_ms_ < 0 || command_duration_ms_ > 30000) {
     throw std::runtime_error("~gripper_command_duration_ms must be in [0, 30000]");
   }
+  if (open_pulse_ < 0 || open_pulse_ > 1000 || clamp_pulse_ < 0 ||
+      clamp_pulse_ > 1000 || open_pulse_ >= clamp_pulse_) {
+    throw std::runtime_error(
+        "~gripper_open_pulse/clamp_pulse must satisfy 0 <= open < clamp <= 1000");
+  }
 }
 
 void GripperManager::init() {
   busy_ = true;
+  last_seen_pulse_.reset();
   ensureLoaded();
 
   // 一次读取即判定在线：无位置反馈 = 不在线。
@@ -67,6 +73,7 @@ void GripperManager::init() {
       GripperPositionClass::kOpen) {
     setState(GripperState::kOpen);
     busy_ = false;
+    publishSync();
     ROS_INFO("Gripper init: online and open at pulse %d", *pulse);
     return;
   }
@@ -88,11 +95,26 @@ void GripperManager::init() {
              verified ? std::to_string(*verified).c_str() : "no feedback");
   }
   busy_ = false;
+  publishSync();
 }
 
 bool GripperManager::isBusy() const { return busy_; }
 
 GripperState GripperManager::state() const { return state_; }
+
+GripperSync GripperManager::lastSync() const {
+  std::lock_guard<std::mutex> lock(sync_mutex_);
+  return sync_;
+}
+
+void GripperManager::publishSync() {
+  if (!last_seen_pulse_) {
+    return;  // 本次命令从未读到位置（离线），无位置可同步。
+  }
+  std::lock_guard<std::mutex> lock(sync_mutex_);
+  sync_.pulse = *last_seen_pulse_;
+  sync_.generation++;
+}
 
 bool GripperManager::handleCommand(GripperCommand::Request& request,
                                    GripperCommand::Response& response) {
@@ -103,6 +125,7 @@ bool GripperManager::handleCommand(GripperCommand::Request& request,
     response.message = "busy: another gripper command in progress";
     return true;
   }
+  last_seen_pulse_.reset();
   busy_ = true;
   if (request.command == "open") {
     doOpen(response);
@@ -113,6 +136,7 @@ bool GripperManager::handleCommand(GripperCommand::Request& request,
     response.message = "unknown command '" + request.command + "' (open|clamp)";
   }
   busy_ = false;
+  publishSync();
   return true;
 }
 
@@ -269,6 +293,7 @@ std::optional<int> GripperManager::readPulse() {
   if (!pulse) {
     return std::nullopt;
   }
+  last_seen_pulse_ = *pulse;  // 供命令完成后向盲控路径同步位置。
   return *pulse;
 }
 

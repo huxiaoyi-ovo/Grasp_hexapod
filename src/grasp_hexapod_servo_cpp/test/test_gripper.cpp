@@ -3,12 +3,14 @@
 #include <gtest/gtest.h>
 
 #include "grasp_hexapod_servo_cpp/gripper_manager.h"
+#include "grasp_hexapod_servo_cpp/servo_utils.h"
 
 namespace ghsc = grasp_hexapod_servo_cpp;
 
 using ghsc::ClampVerdict;
 using ghsc::GripperPositionClass;
 using ghsc::GripperState;
+using ghsc::clampGripperTravel;
 using G = ghsc::GripperManager;
 
 // ---- 位置分类：683 左右为打开，840 左右为夹紧 ----
@@ -70,6 +72,27 @@ TEST(TestGripperRestricted, ClampBlockedOnlyInRestrictedState) {
   EXPECT_TRUE(G::clampAllowed(GripperState::kOpen));
   EXPECT_TRUE(G::clampAllowed(GripperState::kClamped));
   EXPECT_FALSE(G::clampAllowed(GripperState::kRestricted));
+}
+
+// ---- 盲控行程钳位：方向键目标收敛到真实机械行程，杜绝超程堵转 ----
+
+TEST(TestGripperTravel, DpadTargetsMapToTravelEndpoints) {
+  // 方向键 ±1.5 rad 换算 142/858，钳位后恰为打开 683 / 夹紧 840。
+  EXPECT_EQ(clampGripperTravel(142, 683, 840), 683);
+  EXPECT_EQ(clampGripperTravel(858, 683, 840), 840);
+}
+
+TEST(TestGripperTravel, InTravelValueUnchanged) {
+  EXPECT_EQ(clampGripperTravel(700, 683, 840), 700);
+  EXPECT_EQ(clampGripperTravel(683, 683, 840), 683);
+  EXPECT_EQ(clampGripperTravel(840, 683, 840), 840);
+}
+
+TEST(TestGripperTravel, OvershootClampedBothSides) {
+  // 超出打开位（<683）与超出夹紧位（>840）都收敛到端点。
+  EXPECT_EQ(clampGripperTravel(0, 683, 840), 683);
+  EXPECT_EQ(clampGripperTravel(280, 683, 840), 683);
+  EXPECT_EQ(clampGripperTravel(1000, 683, 840), 840);
 }
 
 int main(int argc, char** argv) {

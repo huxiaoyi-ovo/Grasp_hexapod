@@ -42,6 +42,13 @@ enum class ClampVerdict {
   kInTransit,       // 中间偏差：继续轮询。
 };
 
+// 服务/自检完成后的位置同步：供话题盲控路径把 0.2s 补发目标对齐到
+// 服务验证到的脉冲，避免两条路径互相拖拽同一舵机。
+struct GripperSync {
+  uint32_t generation = 0;  // 完成计数，每完成一次自检/服务命令 +1。
+  int pulse = 0;            // 完成时读到的脉冲位置。
+};
+
 class GripperManager {
  public:
   // control 与腿部循环共享（控制器内部按操作互斥）；nh 用于全局服务
@@ -58,6 +65,12 @@ class GripperManager {
   bool isBusy() const;
 
   GripperState state() const;
+
+  // ---- 供节点同步/钳位使用 ----
+  int openPulse() const { return open_pulse_; }
+  int clampPulse() const { return clamp_pulse_; }
+  // 最近一次自检/服务命令完成时的位置（generation 变化即有新结果）。
+  GripperSync lastSync() const;
 
   // ---- 纯静态判定（可单测，不依赖串口） ----
   static GripperPositionClass classifyPulse(int pulse, int open_pulse,
@@ -79,6 +92,8 @@ class GripperManager {
   void ensureLoaded();
   void sleepFor(double seconds) const;
   void setState(GripperState state);
+  // 完成一次自检/服务命令后发布位置同步（若本次读到过位置）。
+  void publishSync();
 
   HiwonderServoController* control_;
   int gripper_id_;
@@ -100,6 +115,12 @@ class GripperManager {
   std::atomic<GripperState> state_{GripperState::kUnknown};
   std::atomic<bool> busy_{false};
   ros::ServiceServer service_;
+
+  // ---- 完成位置同步（30Hz 线程轮询，小锁保护）----
+  mutable std::mutex sync_mutex_;
+  GripperSync sync_;
+  // 本次自检/服务命令内最近一次成功读取的位置（命令开始时重置）。
+  std::optional<int> last_seen_pulse_;
 };
 
 }  // namespace grasp_hexapod_servo_cpp

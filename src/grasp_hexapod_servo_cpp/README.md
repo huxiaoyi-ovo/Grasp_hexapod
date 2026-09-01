@@ -64,10 +64,11 @@
 
 | 路径 | 接口 | 行为 |
 |------|------|------|
-| 话题盲控 | `/gripper_des`（`Float64MultiArray [power, pos_rad]`） | 只写不读的连续位置控制（手柄方向键沿用此路径），脉冲钳位 `~gripper_pulse_min/max` |
+| 话题盲控 | `/gripper_des`（`Float64MultiArray [power, pos_rad]`） | 只写不读的连续位置控制（手柄方向键沿用此路径），目标钳位到 `[gripper_open_pulse, gripper_clamp_pulse]` 真实机械行程 |
 | 服务控制 | `/gripper_command`（本包自定义 `GripperCommand.srv`） | 状态机管理：启动自检、开/合到位验证、夹紧失败受限 |
 
-> 使用约定：两条路径不要同时使用。服务处理期间（移动/验证）话题写入自动暂停。
+> 使用约定：两条路径不要同时使用。服务处理期间（移动/验证）话题写入自动暂停；
+> 服务/自检完成后，盲控补发基准自动对齐到服务验证到的位置，不会把结果拖回旧目标。
 
 ### 服务 `/gripper_command`
 
@@ -108,7 +109,7 @@ gripper_tolerance` 算到位。夹紧验证：小偏差算夹紧；偏差较大�
 | `~gripper_id` | `int` | `99` | 夹爪 ID；≤0 禁用夹爪（仅左板生效） |
 | `~gripper_direction` | `int` | `-1` | 话题盲控路径 rad→脉冲方向系数 |
 | `~gripper_command_duration_ms` | `int` | `400` | 单次开/合移动目标耗时 |
-| `~gripper_pulse_min` / `~gripper_pulse_max` | `int` | `280` / `750` | 话题盲控路径安全钳位 |
+| `~gripper_pulse_min` / `~gripper_pulse_max` | `int` | （已废弃） | 仅为 launch 传参兼容保留；盲控行程现以 open/clamp 脉冲为准 |
 | `~gripper_open_pulse` | `int` | `683` | 打开目标脉冲 |
 | `~gripper_clamp_pulse` | `int` | `840` | 夹紧目标脉冲 |
 | `~gripper_tolerance` | `int` | `20` | 到位容差（"683/840 左右"） |
@@ -124,6 +125,9 @@ gripper_tolerance` 算到位。夹紧验证：小偏差算夹紧；偏差较大�
 - **启动自检阻塞**：节点构造期（腿部定时器启动前）同步执行，最坏 ~2.5 秒，
   不影响之后行走控制的时序。
 - 自检后夹爪保持扭矩（hold 位置）；每次服务移动前幂等重新加载。
+- **盲控行程钳位**：话题目标（如方向键 ±1.5 rad → 脉冲 142/858）钳位到
+  `[gripper_open_pulse, gripper_clamp_pulse]`，方向键两极即"完全打开(683)/
+  完全夹紧(840)"，避免命令到限位外（旧 280）导致堵转、夹爪打开后又被拉回。
 
 ## 坐标与方向约定
 - 角度单位：**rad**（ROS 侧）↔ **度**（舵机总线侧）。

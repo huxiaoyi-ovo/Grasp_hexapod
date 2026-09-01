@@ -10,8 +10,10 @@
   <arg name="gripper_id" default="99"/>
   <arg name="gripper_direction" default="-1"/>
   <arg name="gripper_command_duration_ms" default="400"/>
-  <arg name="gripper_pulse_min" default="280"/>
-  <arg name="gripper_pulse_max" default="750"/>
+  <!-- gripper_pulse_min/max 已废弃：盲控行程现钳位到 open/clamp 脉冲。
+       仅为与 run_real.launch 传参兼容而保留声明。 -->
+  <arg name="gripper_pulse_min" default="683"/>
+  <arg name="gripper_pulse_max" default="840"/>
   <!-- 服务路径（/gripper_command）参数：开/合目标脉冲与夹紧验证判定。 -->
   <arg name="gripper_open_pulse" default="683"/>
   <arg name="gripper_clamp_pulse" default="840"/>

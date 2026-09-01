@@ -77,12 +77,13 @@ class ServoSideNode {
   // ---- 夹爪（仅左板）----
   // 两条并存路径：/gripper_des 话题只写盲控（本类成员）；服务 open/clamp
   // 状态机（GripperManager，含启动自检与夹紧验证，空闲零串口读）。
+  // 服务/自检完成后通过 GripperSync 把 0.2s 补发目标对齐到服务结果位置，
+  // 避免盲控路径把服务结果拖回旧目标。
   bool has_gripper_ = false;
   int gripper_id_ = 0;
   int gripper_direction_ = -1;
   int gripper_command_duration_ms_ = 400;
-  int gripper_pulse_min_ = 280;
-  int gripper_pulse_max_ = 750;
+  uint32_t gripper_sync_generation_ = 0;  // 已消费的 GripperSync 代数。
   bool gripper_received_ = false;
   bool gripper_power_request_ = false;
   bool gripper_power_on_ = false;

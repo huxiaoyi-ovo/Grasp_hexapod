@@ -20,6 +20,7 @@
 #include <sensor_msgs/JointState.h>
 #include <std_msgs/Float64MultiArray.h>
 
+#include "grasp_hexapod_servo_cpp/gripper_manager.h"
 #include "grasp_hexapod_servo_cpp/hiwonder_servo_controller.h"
 
 namespace grasp_hexapod_servo_cpp {
@@ -74,6 +75,8 @@ class ServoSideNode {
   std::vector<int> servo_ids_;     // 按腿顺序展开的 9 个舵机 ID。
 
   // ---- 夹爪（仅左板）----
+  // 两条并存路径：/gripper_des 话题只写盲控（本类成员）；服务 open/clamp
+  // 状态机（GripperManager，含启动自检与夹紧验证，空闲零串口读）。
   bool has_gripper_ = false;
   int gripper_id_ = 0;
   int gripper_direction_ = -1;
@@ -87,7 +90,7 @@ class ServoSideNode {
   int gripper_last_sent_pulse_ = -1;
   std::chrono::steady_clock::time_point gripper_last_sent_time_;
   ros::Subscriber gripper_des_sub_;
-  ros::Publisher gripper_pos_pub_;
+  std::unique_ptr<GripperManager> gripper_manager_;
   void onGripperDesired(const std_msgs::Float64MultiArray::ConstPtr& message);
 
   // ---- 运行时状态 ----

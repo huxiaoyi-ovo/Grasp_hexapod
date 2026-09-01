@@ -15,8 +15,9 @@ int main(int argc, char** argv) {
   try {
     auto node =
         std::make_unique<grasp_hexapod_servo_cpp::ServoSideNode>(nh, nh_private);
-    // 两个线程：订阅回调与定时控制循环并发（对应 rospy 的线程模型）。
-    ros::AsyncSpinner spinner(2);
+    // 三个线程：定时控制循环、订阅回调、夹爪服务处理（同步阻塞式 open/clamp
+    // 最多占用一个线程数秒，腿部 30Hz 循环在其余线程不受影响）。
+    ros::AsyncSpinner spinner(3);
     spinner.start();
     ros::waitForShutdown();
   } catch (const std::exception& e) {

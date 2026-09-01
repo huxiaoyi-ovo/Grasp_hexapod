@@ -118,6 +118,7 @@ void ServoSideNode::loadParams(ros::NodeHandle& nh_private) {
       gripper_direction_ = nh_private.param("gripper_direction", -1);
       gripper_command_duration_ms_ =
           nh_private.param("gripper_command_duration_ms", 400);
+      // 话题盲控路径的安全钳位；服务路径的目标见 ~gripper_open/clamp_pulse。
       gripper_pulse_min_ = nh_private.param("gripper_pulse_min", 280);
       gripper_pulse_max_ = nh_private.param("gripper_pulse_max", 750);
     }
@@ -134,9 +135,12 @@ ServoSideNode::ServoSideNode(ros::NodeHandle& nh,
   // 启动时整块板全部卸力，此时仍可读取舵机位置。
   setBoardPower(false);
 
-  // 夹爪卸力。
+  // 夹爪服务路径：启动自检 —— 加载扭矩、判定在线与开合、未打开则打开并复核。
+  // 同步阻塞（最坏 ~2.5s），在腿部定时器启动前完成，不影响行走控制时序。
   if (has_gripper_) {
-    control_->unloadServo(gripper_id_, 0);
+    gripper_manager_.reset(
+        new GripperManager(nh, nh_private, control_.get(), gripper_id_));
+    gripper_manager_->init();
   }
 
   for (const std::string& leg : legs_) {
@@ -148,12 +152,11 @@ ServoSideNode::ServoSideNode(ros::NodeHandle& nh,
         nh.advertise<sensor_msgs::JointState>("/" + leg + "_pos", 1);
   }
 
-  // 夹爪订阅/发布。
+  // 夹爪话题订阅（盲控只写路径；服务路径由 gripper_manager 提供
+  // /gripper_command）。空闲时夹爪无任何串口读，故不再发布 /gripper_pos。
   if (has_gripper_) {
     gripper_des_sub_ = nh.subscribe<std_msgs::Float64MultiArray>(
         "/gripper_des", 1, &ServoSideNode::onGripperDesired, this);
-    gripper_pos_pub_ =
-        nh.advertise<sensor_msgs::JointState>("/gripper_pos", 1);
   }
 
   // 电压标签：leg_joint，顺序与 id_map 一致。
@@ -349,7 +352,10 @@ void ServoSideNode::controlLoop(const ros::TimerEvent&) {
     }
 
     // 夹爪写目标：独立于行走舵机加卸力，到位后每秒补发保持力矩。
-    if (has_gripper_ && gripper_snapshot_valid) {
+    // 服务路径（open/clamp 移动/验证）处理期间暂停，避免两条路径交替写
+    // 同一舵机；isBusy 为原子读，不阻塞腿部循环。
+    if (has_gripper_ && gripper_snapshot_valid &&
+        !(gripper_manager_ && gripper_manager_->isBusy())) {
       const bool gripper_requested_on = gripper_snapshot_power;
       if (gripper_requested_on != gripper_power_on_) {
         control_->unloadServo(gripper_id_, gripper_requested_on ? 1 : 0);
@@ -398,18 +404,7 @@ void ServoSideNode::controlLoop(const ros::TimerEvent&) {
       }
       publishLeg(leg, read_positions);
     }
-
-    // 夹爪反馈。
-    if (has_gripper_) {
-      std::optional<uint16_t> raw = control_->getServoPosition(gripper_id_);
-      if (raw) {
-        sensor_msgs::JointState msg;
-        msg.header.stamp = ros::Time::now();
-        msg.name = {"gripper_joint"};
-        msg.position = {servoToRad(*raw, gripper_direction_)};
-        gripper_pos_pub_.publish(msg);
-      }
-    }
+    // 夹爪位置不再周期读取：空闲零串口读（见 gripper_manager 的服务路径）。
   } catch (const serial::SerialException& e) {
     ROS_ERROR_THROTTLE(1.0, "Serial error in control loop: %s", e.what());
   } catch (const serial::IOException& e) {

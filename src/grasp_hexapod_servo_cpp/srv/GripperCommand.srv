@@ -1,0 +1,10 @@
+# 夹爪控制命令（ID 99 夹爪舵机，仅左板）。
+# 请求 command 取值：
+#   "open"  — 打开夹爪（目标脉冲 gripper_open_pulse，默认 683），可复位受限状态；
+#   "clamp" — 夹紧夹爪（目标脉冲 gripper_clamp_pulse，默认 840），带到位验证。
+# 响应 success 为最终结果：true=命令完成并验证到位；false=失败（message 给出原因：
+# 受限/离线/超时/未知 command 等）。
+string command
+---
+bool success
+string message

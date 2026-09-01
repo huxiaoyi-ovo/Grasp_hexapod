@@ -8,7 +8,7 @@
 |--------|----------------------------------|----------------|
 | 语言/运行时 | Python 3 + rospy（解释器、GIL、动态分配） | C++17 + roscpp（原生、零 GC） |
 | 协议层 | pyserial | `serial`（ros-noetic-serial） |
-| 实时性 | rospy 线程池 + 定时器 | `ros::AsyncSpinner(2)` + `ros::Timer` |
+| 实时性 | rospy 线程池 + 定时器 | `ros::AsyncSpinner(3)` + `ros::Timer` |
 | 单位换算 | `round()` 银行家舍入 | `std::nearbyint`（同语义） |
 
 ## 节点：`servo_node`（`ServoSideNode`）
@@ -57,8 +57,75 @@
 方向系数。一条腿三个关节全部读取成功时才发布新反馈；读取失败最多即时重试一次，
 仍失败则跳过本腿本周期反馈。
 
-## 坐标与方向约定
+## 夹爪（ID 99，仅左板）
 
+左板节点额外管理夹爪舵机（LX-15D，ID 99，挂在 `/dev/ttyTHS0` 总线上）。夹爪有两条
+**并存**的控制路径：
+
+| 路径 | 接口 | 行为 |
+|------|------|------|
+| 话题盲控 | `/gripper_des`（`Float64MultiArray [power, pos_rad]`） | 只写不读的连续位置控制（手柄方向键沿用此路径），脉冲钳位 `~gripper_pulse_min/max` |
+| 服务控制 | `/gripper_command`（本包自定义 `GripperCommand.srv`） | 状态机管理：启动自检、开/合到位验证、夹紧失败受限 |
+
+> 使用约定：两条路径不要同时使用。服务处理期间（移动/验证）话题写入自动暂停。
+
+### 服务 `/gripper_command`
+
+```bash
+rosservice call /gripper_command "command: 'open'"   # 打开（≈脉冲 683）
+rosservice call /gripper_command "command: 'clamp'"  # 夹紧（≈脉冲 840）
+```
+
+```text
+string command    # "open" | "clamp"
+---
+bool success      # true=命令完成并验证到位；false=失败
+string message    # 结果说明：到位脉冲 / 受限 / 离线 / 超时原因
+```
+
+服务为同步阻塞：响应即最终结果（最坏 `gripper_command_duration_ms +
+gripper_max_total_polls / gripper_poll_hz` ≈ 4.4 秒）。服务处理期间腿部 30Hz 循环
+在独立线程继续运行；夹爪每次读取约 1.5ms、每秒 2 次，对行走控制影响可忽略。
+
+### 状态机
+
+```text
+启动自检 → OPEN（已打开）/ OFFLINE（无位置反馈）/ UNKNOWN（自检打开失败）
+OPEN ⇄ CLAMPED      # 服务验证到位后切换
+CLAMPED → RESTRICTED  # 夹紧失败：偏差 ≥ gripper_fail_deviation 连续
+                      # gripper_max_checks 次（默认 50×4 次）
+RESTRICTED --open 成功--> OPEN  # 受限后 clamp 直接失败，必须先 open 复位
+```
+
+在线判定：**读取位置无反馈 = 不在线**。位置判定：`|脉冲 − 开/合目标| ≤
+gripper_tolerance` 算到位。夹紧验证：小偏差算夹紧；偏差较大（默认 50）且连续多次
+（默认 4 次）未到位算夹紧失败 → 受限状态。
+
+### 夹爪参数
+
+| 参数名 | 类型 | 默认值 | 说明 |
+|--------|------|--------|------|
+| `~gripper_id` | `int` | `99` | 夹爪 ID；≤0 禁用夹爪（仅左板生效） |
+| `~gripper_direction` | `int` | `-1` | 话题盲控路径 rad→脉冲方向系数 |
+| `~gripper_command_duration_ms` | `int` | `400` | 单次开/合移动目标耗时 |
+| `~gripper_pulse_min` / `~gripper_pulse_max` | `int` | `280` / `750` | 话题盲控路径安全钳位 |
+| `~gripper_open_pulse` | `int` | `683` | 打开目标脉冲 |
+| `~gripper_clamp_pulse` | `int` | `840` | 夹紧目标脉冲 |
+| `~gripper_tolerance` | `int` | `20` | 到位容差（"683/840 左右"） |
+| `~gripper_fail_deviation` | `int` | `50` | 夹紧失败的大偏差阈值 |
+| `~gripper_max_checks` | `int` | `4` | 连续大偏差次数上限 → 受限 |
+| `~gripper_max_total_polls` | `int` | `8` | 单次命令总轮询上限 → 超时失败 |
+| `~gripper_poll_hz` | `float` | `2.0` | 验证轮询频率（Hz） |
+
+### 资源占用约定
+
+- **空闲零串口读**：夹爪不使用时对 ID99 无任何读写；不再发布 `/gripper_pos`
+  （旧版每 30Hz 读取一次已移除）。
+- **启动自检阻塞**：节点构造期（腿部定时器启动前）同步执行，最坏 ~2.5 秒，
+  不影响之后行走控制的时序。
+- 自检后夹爪保持扭矩（hold 位置）；每次服务移动前幂等重新加载。
+
+## 坐标与方向约定
 - 角度单位：**rad**（ROS 侧）↔ **度**（舵机总线侧）。
 - 舵机原始量程：0~1000 脉冲，对应 0°~240°，中位 500；分辨率 `1000/240` 脉冲/度。
 - 方向系数：`~directions` 参数（`1` 正方向，`-1` 反方向），抵消机械安装反向。
@@ -123,19 +190,24 @@ grasp_hexapod_servo_cpp/
 ├── CMakeLists.txt
 ├── package.xml
 ├── README.md
+├── srv/
+│   └── GripperCommand.srv           # 夹爪服务定义（command → success/message）
 ├── include/grasp_hexapod_servo_cpp/
-│   ├── hiwonder_servo_cmd.h        # 协议命令常量（对应 hiwonder_servo_cmd.py）
-│   ├── hiwonder_servo_controller.h # LX-15D 串口协议控制器
-│   ├── servo_side_node.h           # 单板节点类
-│   └── servo_utils.h               # 纯函数：换算/方向解析/上电决策
+│   ├── gripper_manager.h            # 夹爪状态机 + open/clamp 服务
+│   ├── hiwonder_servo_cmd.h         # 协议命令常量（对应 hiwonder_servo_cmd.py）
+│   ├── hiwonder_servo_controller.h  # LX-15D 串口协议控制器
+│   ├── servo_side_node.h            # 单板节点类
+│   └── servo_utils.h                # 纯函数：换算/方向解析/上电决策
 ├── src/
+│   ├── gripper_manager.cpp
 │   ├── hiwonder_servo_controller.cpp
 │   ├── servo_side_node.cpp
-│   └── servo_node.cpp              # 节点入口
+│   └── servo_node.cpp               # 节点入口
 ├── launch/
 │   └── servo_two_boards.launch
 └── test/
-    └── test_servo_protocol.cpp     # catkin gtest：协议/换算/方向/决策
+    ├── test_servo_protocol.cpp      # catkin gtest：协议/换算/方向/决策
+    └── test_gripper.cpp             # catkin gtest：夹爪判定/受限门控
 ```
 
 ## 测试与构建
@@ -148,7 +220,8 @@ catkin_test_results build/test_results
 ```
 
 单元测试全部为纯 CPU 回归（不依赖真实串口）：协议封包与校验和、响应帧解析、
-rad↔脉冲换算（含银行家舍入与钳位）、方向参数解析、板级上电决策。
+rad↔脉冲换算（含银行家舍入与钳位）、方向参数解析、板级上电决策、夹爪位置分类与
+夹紧偏差三态判定、受限门控。
 
 ## 与原 Python 包的关系
 

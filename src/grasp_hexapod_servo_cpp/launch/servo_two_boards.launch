@@ -12,6 +12,14 @@
   <arg name="gripper_command_duration_ms" default="400"/>
   <arg name="gripper_pulse_min" default="280"/>
   <arg name="gripper_pulse_max" default="750"/>
+  <!-- 服务路径（/gripper_command）参数：开/合目标脉冲与夹紧验证判定。 -->
+  <arg name="gripper_open_pulse" default="683"/>
+  <arg name="gripper_clamp_pulse" default="840"/>
+  <arg name="gripper_tolerance" default="20"/>
+  <arg name="gripper_fail_deviation" default="50"/>
+  <arg name="gripper_max_checks" default="4"/>
+  <arg name="gripper_max_total_polls" default="8"/>
+  <arg name="gripper_poll_hz" default="2.0"/>
 
   <node pkg="grasp_hexapod_servo_cpp" type="servo_node" name="servo_left_node" output="screen">
     <param name="side" value="left"/>
@@ -25,6 +33,13 @@
     <param name="gripper_command_duration_ms" value="$(arg gripper_command_duration_ms)"/>
     <param name="gripper_pulse_min" value="$(arg gripper_pulse_min)"/>
     <param name="gripper_pulse_max" value="$(arg gripper_pulse_max)"/>
+    <param name="gripper_open_pulse" value="$(arg gripper_open_pulse)"/>
+    <param name="gripper_clamp_pulse" value="$(arg gripper_clamp_pulse)"/>
+    <param name="gripper_tolerance" value="$(arg gripper_tolerance)"/>
+    <param name="gripper_fail_deviation" value="$(arg gripper_fail_deviation)"/>
+    <param name="gripper_max_checks" value="$(arg gripper_max_checks)"/>
+    <param name="gripper_max_total_polls" value="$(arg gripper_max_total_polls)"/>
+    <param name="gripper_poll_hz" value="$(arg gripper_poll_hz)"/>
     <!-- zzw加-->
     <!-- <rosparam file="$(find grasp_hexapod_servo_cpp)/config/left.yaml" command="load"/> -->
     <rosparam param="directions">[1,1,1,1,1,1,1,1,1]</rosparam>

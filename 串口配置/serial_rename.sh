@@ -33,10 +33,10 @@
 
 # 1. 当前插入的串口设备(要被重命名的设备)
 #    留空 "" 时,脚本会列出检测到的串口让你交互选择
-CURRENT_PORT="/dev/ttyUSB0"
+CURRENT_PORT="/dev/ttyACM3"
 
 # 2. 修改后的串口名称(软链接名,不带 /dev/ 前缀)
-NEW_NAME="ttyMyDevice"
+NEW_NAME="RTK"
 
 # 3. 串口设备权限 (udev MODE 属性)
 #    留空 "" 表示不改权限; 常用值:

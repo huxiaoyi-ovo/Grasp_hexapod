@@ -7,7 +7,7 @@
   <arg name="right_port" default="/dev/ttyACM0"/>
 
   <arg name="controller_rate_hz" default="30.0"/>
-  <arg name="enable_link_collision_check" default="false"/>
+  <arg name="enable_link_collision_check" default="true"/>
   <arg name="servo_rate_hz" default="30.0"/>
   <arg name="command_duration_ms" default="33"/>
   <arg name="servo_diagnostics" default="true"/>
@@ -19,6 +19,7 @@
   <arg name="max_joy_age" default="0.2"/>
   <arg name="joy_deadzone" default="0.20"/>
   <arg name="enable_real_climb" default="true"/>
+  <arg name="climb_side" default="left"/>
   <arg name="enable_real_dock" default="true"/>
   <arg name="start_dock_perception" default="true"/>
 
@@ -94,6 +95,7 @@
     <arg name="max_joy_age" value="$(arg max_joy_age)"/>
     <arg name="joy_deadzone" value="$(arg joy_deadzone)"/>
     <arg name="enable_real_climb" value="$(arg enable_real_climb)"/>
+    <arg name="climb_side" value="$(arg climb_side)"/>
     <arg name="enable_real_dock" value="$(arg enable_real_dock)"/>
     <arg name="button_a" value="$(arg button_a)"/>
     <arg name="button_b" value="$(arg button_b)"/>

@@ -10,6 +10,7 @@
   <arg name="max_joy_age" default="0.2"/>
   <arg name="joy_deadzone" default="0.20"/>
   <arg name="enable_real_climb" default="false"/>
+  <arg name="climb_side" default="left"/>
   <arg name="enable_real_dock" default="true"/>
 
   <arg name="button_a" default="0"/>
@@ -87,6 +88,7 @@
     <param name="climb_foot_gate_m" value="$(arg climb_foot_gate_m)"/>
     <param name="max_joy_age" value="$(arg max_joy_age)"/>
     <param name="enable_real_climb" value="$(arg enable_real_climb)"/>
+    <param name="climb_side" value="$(arg climb_side)"/>
     <param name="enable_real_dock" value="$(arg enable_real_dock)"/>
     <param name="button_a" value="$(arg button_a)"/>
     <param name="button_b" value="$(arg button_b)"/>

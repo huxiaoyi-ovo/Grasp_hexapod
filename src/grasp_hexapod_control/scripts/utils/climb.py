@@ -3,6 +3,7 @@
 这些函数只做确定性模型计算；几何支撑诊断不证明真实接触、承载或稳定性。
 """
 
+from copy import deepcopy
 from dataclasses import dataclass
 import numpy as np
 
@@ -487,3 +488,88 @@ def resolve_compact_stage_range(config, start=None, end=None):
     if start_index > end_index:
         raise ValueError("--climb-from must not be after --climb-to")
     return start_index, end_index
+
+
+_COMPACT_CLIMB_SIDES = ("left", "right")
+_MIRROR_LEG_ORDER = (3, 4, 5, 0, 1, 2)
+_MIRROR_LEG_INDEX = {0: 3, 1: 4, 2: 5, 3: 0, 4: 1, 5: 2}
+_MIRROR_NAME_TOKENS = {
+    "LB": "RB",
+    "LF": "RF",
+    "LM": "RM",
+    "RB": "LB",
+    "RF": "LF",
+    "RM": "LM",
+    "LEFT": "RIGHT",
+    "RIGHT": "LEFT",
+}
+
+
+def validate_compact_climb_side(side):
+    """验证 compact 攀爬侧别；只接受用户可见的 left/right 枚举。"""
+
+    if side not in _COMPACT_CLIMB_SIDES:
+        raise ValueError("climb side must be left or right")
+    return side
+
+
+def _mirror_world_anchor_rows(rows, center_x):
+    """按 compact 腿槽位镜像一组世界锚点，保留 JSON 列表表示。"""
+
+    mirrored = [deepcopy(rows[index]) for index in _MIRROR_LEG_ORDER]
+    for point in mirrored:
+        point[0] = 2.0 * center_x - point[0]
+    return mirrored
+
+
+def _mirror_compact_stage_name(name):
+    """镜像由下划线分隔的运行时阶段名中的左右腿/侧别 token。"""
+
+    return "_".join(
+        _MIRROR_NAME_TOKENS.get(token, token)
+        for token in name.split("_")
+    )
+
+
+def select_compact_climb_side(config, side):
+    """返回 compact 的独立侧别副本，right 按小蓝 world x 中心镜像。"""
+
+    side = validate_compact_climb_side(side)
+    selected = deepcopy(config)
+    if side == "left":
+        return selected
+
+    center_x = selected["xiaolan_translation"][0]
+    p0 = selected["p0"]
+    p0["base"][0] = 2.0 * center_x - p0["base"][0]
+    p0["base"][3] = -p0["base"][3]
+    p0["anchors_world_m"] = _mirror_world_anchor_rows(
+        p0["anchors_world_m"], center_x
+    )
+    selected["terminal_q_rad"] = [
+        [-value for value in selected["terminal_q_rad"][index]]
+        for index in _MIRROR_LEG_ORDER
+    ]
+
+    for stage in selected["stages"]:
+        for pose_key in ("pose_start", "pose_end"):
+            pose = stage[pose_key]
+            pose[0] = 2.0 * center_x - pose[0]
+            pose[4] = -pose[4]
+        stage["anchor_knots"] = [
+            _mirror_world_anchor_rows(knot, center_x)
+            for knot in stage["anchor_knots"]
+        ]
+        stage["active_legs"] = [
+            _MIRROR_LEG_INDEX[index] for index in stage["active_legs"]
+        ]
+        for knot in stage.get("active_base_knots_m", ()):
+            for point in knot:
+                point[0] = -point[0]
+        stage["name"] = _mirror_compact_stage_name(stage["name"])
+
+    selected["visual_validation_deferred_for_sim_finish"] = [
+        _mirror_compact_stage_name(name)
+        for name in selected["visual_validation_deferred_for_sim_finish"]
+    ]
+    return selected

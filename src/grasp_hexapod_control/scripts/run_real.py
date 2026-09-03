@@ -39,6 +39,7 @@ from climb_mode import ClimbMode
 from control import GraspController
 from kinematics import LEG_NAMES
 from utils import NavigationState, package_config_path, pose_to_transform
+from utils.climb import select_compact_climb_side, validate_compact_climb_side
 
 
 def load_fixed_approach_config():
@@ -362,6 +363,9 @@ class RosControlNode:
         )
         self.enable_real_climb = bool(
             rospy.get_param("~enable_real_climb", False)
+        )
+        self.climb_side = validate_compact_climb_side(
+            rospy.get_param("~climb_side", "left")
         )
         self.climb_foot_gate_m = self._climb_foot_gate_m(
             rospy.get_param("~climb_foot_gate_m", 0.02)
@@ -1040,6 +1044,8 @@ class RosControlNode:
         imu = self.imu.snapshot()
         try:
             config = self.controller.climb_mode._load_config()
+            climb_side = getattr(self, "climb_side", "left")
+            config = select_compact_climb_side(config, climb_side)
             gate_m = getattr(self, "climb_foot_gate_m", 0.02)
             config["settle_gate"]["max_foot_target_error_m"] = gate_m
             self.controller.enter_climb(
@@ -1048,6 +1054,7 @@ class RosControlNode:
         except ValueError as error:
             rospy.logwarn("X ignored: compact entry gate failed: %s", error)
             return
+        rospy.loginfo("Compact climb side selected: %s", climb_side)
         self.real_climb_monitor_active = navigation.valid and imu["valid"]
         if self.real_climb_monitor_active:
             self.climb_start_navigation = navigation

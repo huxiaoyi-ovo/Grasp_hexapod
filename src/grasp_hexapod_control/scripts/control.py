@@ -474,7 +474,8 @@ class GraspController:
 
         self.foot_desired_base = self.foot_init_base.copy()
         self.foot_desired_base_prev = self.foot_desired_base.copy()  # 前馈差分用
-        self.enable_workspace_check = False  # 越界足端直接提交, 不投影
+        # 普通行走每帧只保留廉价的足端工作空间/间距门。
+        self.enable_workspace_check = True
         self.foot_desired_hip = self.foot_init_hip.copy()  # shape == (6, 3)
 
         self.base_height_at_stand = (
@@ -753,7 +754,7 @@ class GraspController:
         return collision_free
 
     def collision_guard(self, q_candidate, q_current):
-        """候选整机姿态全部安全才提交，否则整体保持当前姿态。"""
+        """普通行走跳过整机扫描，其他模式按配置检查连杆。"""
 
         q_candidate = np.asarray(
             q_candidate,
@@ -763,6 +764,11 @@ class GraspController:
             q_current,
             dtype=np.float64,
         ).reshape(6, 3)
+        if self.mode == self.APPROACH:
+            # 普通行走的足端轨迹已经过工作空间投影和足间距。
+            # 连续从站姿出发时不再每帧执行整机胶囊扫描。
+            self.last_link_collision_free[:] = True
+            return q_candidate
         if not self.enable_link_collision_check:
             # 仅绕过耗时的整机连杆胶囊碰撞检查。候选姿态在到达这里前
             # 仍经过工作空间、足端间距和关节限位约束。
@@ -803,8 +809,10 @@ class GraspController:
         ):
             safe_candidate = self._project_workspace(candidate_base)
 
-        if self._foot_collision_free(safe_candidate).all():
-            self.foot_desired_base[:] = safe_candidate
+        if not self._foot_collision_free(safe_candidate).all():
+            return False
+        self.foot_desired_base[:] = safe_candidate
+        return True
 
     def reset_to_stand(self, q_cur):
         """从当前关节角平滑回到标准站姿。"""
@@ -1075,9 +1083,13 @@ class GraspController:
             damped_inverse @ position_error[..., np.newaxis]
         ).squeeze(-1)
 
-        # 前馈: 足端目标速度(差分)转关节速度, 消除P控制追赶滞后
+        # 前馈: Jacobian 定义在各腿 hip 系，因此先把上一帧目标
+        # 转到同一坐标系再差分；禁止将 base_link 速度直接乘 hip Jacobian。
+        foot_desired_hip_prev = self.kinematic.base_to_hip(
+            self.foot_desired_base_prev
+        )
         vel_ff = (
-            self.foot_desired_base - self.foot_desired_base_prev
+            self.foot_desired_hip - foot_desired_hip_prev
         ) / self.dt
         self.foot_desired_base_prev = self.foot_desired_base.copy()
         joint_ff = (
@@ -1099,8 +1111,8 @@ class GraspController:
         ))
         q_candidate = np.clip(q_candidate, q_cur - step, q_cur + step)
 
-        # 关节目标下发前检查完整连杆胶囊；
-        # 一旦候选姿态碰撞，整机本周期保持当前位置。
+        # 普通行走已在足端层完成工作空间/间距检查；
+        # CLIMB/DOCK可按配置再做完整连杆胶囊检查。
         accepted = self.collision_guard(q_candidate, q_cur)
         self.last_update_collision_guard_hold_count = int(
             not np.array_equal(accepted, q_candidate)

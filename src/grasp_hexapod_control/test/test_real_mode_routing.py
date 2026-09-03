@@ -78,7 +78,9 @@ finally:
 
 from climb_mode import ClimbMode
 from control import COLLISION_MARGIN, LINK_COLLISION_RADII, GraspController
-from kinematics import JOINT_LOWER, JOINT_UPPER, Q_STAND
+from kinematics import JOINT_LOWER, JOINT_UPPER, JOINT_VELOCITY_LIMIT, Q_STAND
+from utils.climb import select_compact_climb_side
+from validate_climb_preview import replay, strict_contract
 
 
 class _Mission:
@@ -142,6 +144,169 @@ def test_run_real_launch_enables_climb_by_default():
         for argument in launch.findall("arg")
     }
     assert arguments["enable_real_climb"] == "true"
+    assert arguments["enable_link_collision_check"] == "true"
+
+
+def _load_compact_config():
+    return json.loads(
+        (SCRIPTS.parent / "config" / "climb_compact.json").read_text()
+    )
+
+
+def _assert_nested_allclose(actual, expected):
+    if isinstance(expected, dict):
+        assert actual.keys() == expected.keys()
+        for key in expected:
+            _assert_nested_allclose(actual[key], expected[key])
+    elif isinstance(expected, list):
+        assert len(actual) == len(expected)
+        for actual_item, expected_item in zip(actual, expected):
+            _assert_nested_allclose(actual_item, expected_item)
+    elif isinstance(expected, float):
+        assert np.isclose(actual, expected, rtol=0.0, atol=1e-12)
+    else:
+        assert actual == expected
+
+
+def test_compact_left_selection_is_independent_and_unchanged():
+    source = _load_compact_config()
+    selected = select_compact_climb_side(source, "left")
+    assert selected == source
+    assert selected is not source
+    selected["p0"]["base"][0] += 1.0
+    assert selected["p0"]["base"][0] != source["p0"]["base"][0]
+
+
+def test_compact_right_selection_mirrors_runtime_fields_only():
+    source = _load_compact_config()
+    source_before = json.dumps(source, sort_keys=True)
+    right = select_compact_climb_side(source, "right")
+    assert json.dumps(source, sort_keys=True) == source_before
+    center_x = source["xiaolan_translation"][0]
+    order = [3, 4, 5, 0, 1, 2]
+    index_map = {0: 3, 1: 4, 2: 5, 3: 0, 4: 1, 5: 2}
+
+    assert np.array_equal(right["p0"]["q_rad"], source["p0"]["q_rad"])
+    assert np.isclose(right["p0"]["base"][0], 2.0 * center_x - source["p0"]["base"][0])
+    assert np.isclose(right["p0"]["base"][3], -source["p0"]["base"][3])
+    np.testing.assert_allclose(
+        np.asarray(right["p0"]["anchors_world_m"]),
+        np.column_stack((
+            2.0 * center_x - np.asarray(source["p0"]["anchors_world_m"])[order, 0],
+            np.asarray(source["p0"]["anchors_world_m"])[order, 1:],
+        )),
+    )
+    np.testing.assert_allclose(
+        np.asarray(right["terminal_q_rad"]),
+        -np.asarray(source["terminal_q_rad"])[order],
+    )
+    assert right["settle_gate"] == source["settle_gate"]
+
+    for original, mirrored in zip(source["stages"], right["stages"]):
+        assert np.isclose(mirrored["pose_start"][0], 2.0 * center_x - original["pose_start"][0])
+        assert np.isclose(mirrored["pose_end"][0], 2.0 * center_x - original["pose_end"][0])
+        assert np.isclose(mirrored["pose_start"][3], original["pose_start"][3])
+        assert np.isclose(mirrored["pose_end"][3], original["pose_end"][3])
+        assert np.isclose(mirrored["pose_start"][4], -original["pose_start"][4])
+        assert np.isclose(mirrored["pose_end"][4], -original["pose_end"][4])
+        original_knots = np.asarray(original["anchor_knots"])
+        expected_knots = original_knots[:, order, :].copy()
+        expected_knots[:, :, 0] = 2.0 * center_x - expected_knots[:, :, 0]
+        np.testing.assert_allclose(mirrored["anchor_knots"], expected_knots)
+        assert mirrored["active_legs"] == [
+            index_map[index] for index in original["active_legs"]
+        ]
+        if "active_base_knots_m" in original:
+            np.testing.assert_allclose(
+                np.asarray(mirrored["active_base_knots_m"])[:, :, 0],
+                -np.asarray(original["active_base_knots_m"])[:, :, 0],
+            )
+        else:
+            assert "active_base_knots_m" not in mirrored
+        assert mirrored["segment_durations_s"] == original["segment_durations_s"]
+        assert mirrored["settle_s"] == original["settle_s"]
+
+    assert right["stages"][17]["name"] == "LM_LEFT_SYMMETRY"
+    assert right["visual_validation_deferred_for_sim_finish"][17] == "LM_LEFT_SYMMETRY"
+    assert source["front_v1_receipt"] == right["front_v1_receipt"]
+    assert source["source_traces"] == right["source_traces"]
+
+
+def test_compact_right_selection_is_involutive_and_rejects_invalid_side():
+    source = _load_compact_config()
+    restored = select_compact_climb_side(
+        select_compact_climb_side(source, "right"), "right"
+    )
+    _assert_nested_allclose(restored, source)
+    with pytest.raises(ValueError, match="left or right"):
+        select_compact_climb_side(source, "RIGHT")
+
+
+def test_compact_left_and_right_full_replays_are_kinematically_symmetric():
+    source = _load_compact_config()
+    left = select_compact_climb_side(source, "left")
+    right = select_compact_climb_side(source, "right")
+    strict_contract(left)
+
+    left_report = replay(left, strict=True)
+    right_report = replay(right, strict=False)
+
+    assert left_report["state"] == right_report["state"] == ClimbMode.DONE
+    assert left_report["ticks"] == right_report["ticks"]
+    assert np.isclose(
+        left_report["min_joint_margin_rad"],
+        right_report["min_joint_margin_rad"],
+        atol=2e-8,
+    )
+    assert np.isclose(
+        left_report["global_peak_command_speed_rad_s"],
+        right_report["global_peak_command_speed_rad_s"],
+        atol=2e-8,
+    )
+
+
+def test_climb_side_launch_and_real_routing_are_explicit():
+    launch_dir = SCRIPTS.parent / "launch"
+    for name in (
+        "control_stack.launch",
+        "run_real.launch",
+        "run_sim_ros.launch",
+        "run_sim_ros_climb.launch",
+    ):
+        root = ET.parse(launch_dir / name).getroot()
+        arguments = {
+            item.attrib["name"]: item.attrib.get("default")
+            for item in root.findall("arg")
+        }
+        assert arguments["climb_side"] == "left"
+    sim_root = ET.parse(launch_dir / "run_sim_ros.launch").getroot()
+    sim_nodes = [item for item in sim_root.iter("node") if item.attrib.get("type") == "run_sim.py"]
+    assert len(sim_nodes) == 4
+    assert all("--climb-side $(arg climb_side)" in item.attrib["args"] for item in sim_nodes)
+    climb_root = ET.parse(launch_dir / "run_sim_ros_climb.launch").getroot()
+    assert any(
+        item.attrib.get("name") == "climb_side"
+        and item.attrib.get("value") == "$(arg climb_side)"
+        for item in climb_root.iter("arg")
+    )
+    control_root = ET.parse(launch_dir / "control_stack.launch").getroot()
+    assert any(
+        item.attrib.get("name") == "climb_side"
+        and item.attrib.get("value") == "$(arg climb_side)"
+        for item in control_root.iter("param")
+    )
+    real_root = ET.parse(launch_dir / "run_real.launch").getroot()
+    assert any(
+        item.attrib.get("name") == "climb_side"
+        and item.attrib.get("value") == "$(arg climb_side)"
+        for item in real_root.iter("arg")
+    )
+    source = (SCRIPTS / "run_real.py").read_text()
+    assert 'rospy.get_param("~climb_side", "left")' in source
+    assert "select_compact_climb_side(config, climb_side)" in source
+    assert "--full-mission requires --climb-side left" in (
+        SCRIPTS / "run_sim.py"
+    ).read_text()
 
 
 def test_real_launches_enable_dock_by_default():
@@ -661,31 +826,222 @@ def test_dock_foot_target_uses_the_shared_dls_chain():
     assert dock.failed_reason == ""
 
 
-def test_l_shaped_ankle_keeps_the_30mm_teleop_swing_moving():
+def test_ordinary_walking_uses_40mm_swing_and_lands_before_stop():
     controller = GraspController(1.0 / 30.0)
-    assert np.isclose(controller.approach_mode.step_height, 0.030)
+    mode = controller.approach_mode
+    assert np.isclose(mode.step_height, 0.040)
+    assert np.isclose(mode.phase_duration, 0.70)
     q_cur = Q_STAND.copy()
-    former_false_positive = False
-    clearance = (
-        LINK_COLLISION_RADII[0]
-        + LINK_COLLISION_RADII[2]
-        + COLLISION_MARGIN
-    )
-    for _ in range(5):
+    maximum_lift = 0.0
+    minimum_joint_margin = np.inf
+    for _ in range(25):
         q_cur = controller.update(q_cur, np.array([0.20, 0.0, 0.0, 0.0]))
-        points = controller.kinematic.link_points_base(q_cur)
-        former_false_positive |= bool(np.any([
-            controller._segment_distance(
-                points[leg_index, 0], points[leg_index, 1],
-                points[leg_index, 2], points[leg_index, 3],
-            ) < clearance
-            for leg_index in range(6)
-        ]))
+        ground_z = controller.foot_init_base[:, 2] - mode.body_height_offset
+        maximum_lift = max(
+            maximum_lift,
+            float(np.max(controller.foot_desired_base[:, 2] - ground_z)),
+        )
+        minimum_joint_margin = min(
+            minimum_joint_margin,
+            float(np.min(q_cur - JOINT_LOWER)),
+            float(np.min(JOINT_UPPER - q_cur)),
+        )
         assert controller.last_update_collision_guard_hold_count == 0
-    assert former_false_positive
-    assert controller._same_leg_collision_free(
-        controller.kinematic.collision_points_base(q_cur)
-    ).all()
+    assert maximum_lift >= 0.0399
+    assert minimum_joint_margin > 0.02
+
+    for _ in range(30):
+        q_cur = controller.update(q_cur, np.zeros(4))
+        if not mode.gait_started:
+            break
+    assert not mode.gait_started
+    assert not mode.transfer_active
+    assert np.allclose(mode.requested_command, 0.0)
+    assert np.allclose(mode.active_phase_command, 0.0)
+    assert np.allclose(
+        controller.foot_desired_base[:, 2],
+        controller.foot_init_base[:, 2],
+    )
+
+
+def test_walking_command_switch_is_slew_limited_and_latches_active_phase():
+    controller = GraspController(1.0 / 30.0)
+    mode = controller.approach_mode
+    q_cur = Q_STAND.copy()
+    commands = (
+        [np.array([0.20, 0.0, 0.0, 0.0])] * 8
+        + [np.array([-0.20, 0.0, 0.0, 0.0])] * 8
+        + [np.array([0.0, 0.20, 0.0, 1.2])] * 8
+    )
+    previous_requested_command = mode.requested_command.copy()
+    previous_target = controller.foot_desired_base.copy()
+    previous_q = q_cur.copy()
+    maximum_target_step = 0.0
+    maximum_joint_speed = 0.0
+    minimum_joint_margin = np.inf
+    active_endpoint = None
+    requested_changed_while_active = False
+
+    for index, command in enumerate(commands):
+        q_cur = controller.update(q_cur, command)
+        requested_command = mode.requested_command.copy()
+        linear_acceleration = np.linalg.norm(
+            requested_command[:2] - previous_requested_command[:2]
+        ) / controller.dt
+        yaw_acceleration = abs(
+            requested_command[3] - previous_requested_command[3]
+        ) / controller.dt
+        assert linear_acceleration <= mode.max_linear_acceleration + 1e-10
+        assert yaw_acceleration <= mode.max_yaw_acceleration + 1e-10
+        assert (
+            np.linalg.norm(requested_command[:2])
+            + mode.nominal_foot_radius * abs(requested_command[3])
+            <= mode.max_foot_planar_speed + 1e-10
+        )
+        if index == 0:
+            assert np.array_equal(
+                mode.active_phase_command, requested_command
+            )
+            assert requested_command[0] < command[0]
+        if index == 1:
+            active_endpoint = mode.swing_target_base.copy()
+        if index >= 8 and mode.stance_group_index == 0:
+            assert np.array_equal(mode.swing_target_base, active_endpoint)
+            requested_changed_while_active |= not np.array_equal(
+                requested_command, mode.active_phase_command
+            )
+        maximum_target_step = max(
+            maximum_target_step,
+            float(np.max(np.linalg.norm(
+                controller.foot_desired_base - previous_target,
+                axis=1,
+            ))),
+        )
+        maximum_joint_speed = max(
+            maximum_joint_speed,
+            float(np.max(np.abs(q_cur - previous_q))) / controller.dt,
+        )
+        minimum_joint_margin = min(
+            minimum_joint_margin,
+            float(np.min(q_cur - JOINT_LOWER)),
+            float(np.min(JOINT_UPPER - q_cur)),
+        )
+        previous_requested_command = requested_command
+        previous_target = controller.foot_desired_base.copy()
+        previous_q = q_cur.copy()
+
+    assert active_endpoint is not None
+    assert requested_changed_while_active
+    assert maximum_target_step <= 0.012
+    assert maximum_joint_speed <= float(np.max(JOINT_VELOCITY_LIMIT)) + 1e-10
+    assert minimum_joint_margin > 0.02
+    assert np.max(np.abs(q_cur - Q_STAND)) > 0.01
+
+
+def test_84_frame_abrupt_command_witness_remains_continuous_and_safe():
+    controller = GraspController(1.0 / 30.0)
+    q_cur = Q_STAND.copy()
+    commands = (
+        [np.array([0.20, 0.0, 0.0, 0.0])] * 18
+        + [np.array([-0.20, 0.0, 0.0, 0.0])] * 18
+        + [np.array([0.0, 0.20, 0.0, 1.2])] * 18
+        + [np.zeros(4)] * 30
+    )
+    maximum_target_step = 0.0
+    velocity_clips = 0
+    minimum_joint_margin = np.inf
+    offline_link_collision_frames = 0
+
+    for command in commands:
+        previous_target = controller.foot_desired_base.copy()
+        q_cur = controller.update(q_cur, command)
+        maximum_target_step = max(
+            maximum_target_step,
+            float(np.max(np.linalg.norm(
+                controller.foot_desired_base - previous_target,
+                axis=1,
+            ))),
+        )
+        velocity_clips += controller.last_update_velocity_limit_clip_count
+        minimum_joint_margin = min(
+            minimum_joint_margin,
+            float(np.min(q_cur - JOINT_LOWER)),
+            float(np.min(JOINT_UPPER - q_cur)),
+        )
+        offline_link_collision_frames += int(
+            not controller._link_collision_free(q_cur).all()
+        )
+
+    assert len(commands) == 84
+    assert maximum_target_step <= 0.013
+    assert velocity_clips <= 7
+    assert minimum_joint_margin > 0.02
+    assert offline_link_collision_frames == 0
+    assert not controller.approach_mode.gait_started
+    assert not controller.approach_mode.transfer_active
+
+
+def test_approach_skips_full_link_scan_but_climb_retains_it(monkeypatch):
+    controller = GraspController(
+        1.0 / 30.0,
+        enable_link_collision_check=True,
+    )
+    assert controller.enable_workspace_check
+    calls = []
+
+    def scan(joint_angles):
+        calls.append(np.asarray(joint_angles).copy())
+        return np.ones(6, dtype=bool)
+
+    monkeypatch.setattr(controller, "_link_collision_free", scan)
+    q_candidate = Q_STAND.copy()
+    assert np.array_equal(
+        controller.collision_guard(q_candidate, Q_STAND),
+        q_candidate,
+    )
+    assert calls == []
+
+    controller.mode = controller.CLIMB
+    assert np.array_equal(
+        controller.collision_guard(q_candidate, Q_STAND),
+        q_candidate,
+    )
+    assert len(calls) == 1
+
+
+def test_rejected_approach_candidate_keeps_phase_and_transfer_clocks(monkeypatch):
+    controller = GraspController(1.0 / 30.0)
+    mode = controller.approach_mode
+    desired_before = controller.foot_desired_base.copy()
+    original_foot_collision_free = controller._foot_collision_free
+    monkeypatch.setattr(
+        controller,
+        "_foot_collision_free",
+        lambda candidate: np.zeros(6, dtype=bool),
+    )
+    assert not controller._commit_workspace_candidate(desired_before)
+    assert np.array_equal(controller.foot_desired_base, desired_before)
+    monkeypatch.setattr(
+        controller, "_foot_collision_free", original_foot_collision_free
+    )
+
+    q_cur = controller.update(Q_STAND, np.array([0.20, 0.0, 0.0, 0.0]))
+    phase_time = mode.phase_time
+    velocity = mode.foot_velocity_xy.copy()
+    monkeypatch.setattr(
+        controller, "_commit_workspace_candidate", lambda candidate: False
+    )
+    controller.update(q_cur, np.array([0.20, 0.0, 0.0, 0.0]))
+    assert mode.phase_time == phase_time
+    assert np.array_equal(mode.foot_velocity_xy, velocity)
+    assert mode._commit_candidate(controller.foot_desired_base.copy()) is False
+
+    mode.transfer_active = True
+    mode.transfer_time = 0.0
+    transfer_velocity = mode.foot_velocity_xy.copy()
+    controller.update(q_cur, np.array([0.20, 0.0, 0.0, 0.0]))
+    assert mode.transfer_time == 0.0
+    assert np.array_equal(mode.foot_velocity_xy, transfer_velocity)
 
 
 def test_l_shaped_ankle_rejects_a_real_deep_fold_within_joint_limits():

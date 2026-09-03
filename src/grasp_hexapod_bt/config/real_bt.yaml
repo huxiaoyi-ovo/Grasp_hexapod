@@ -1,0 +1,40 @@
+# 行为树仿真配置（供 sim_feedback.py 读取；run_real_bt.py 纯真实、不读本文件）。
+# interfaces.<name>.simulate:
+#   true  = 该接口由 sim_feedback（独立进程）模拟发布/应答（真实节点缺失时的回退）；
+#   false = 依赖真实节点提供该话题/服务（标准名不变）。
+# LoRa：**话题级仿真**——sim_feedback 注入 /lora/command、观测 /lora/status；
+# 串口读取**不仿真**（真实串口由 reference/lora 的 lora_node.py 负责）。
+# 接真实地面站时把 lora_command simulate 改为 false，由 lora_node 接管。
+
+interfaces:
+  sensor_health:   { simulate: true,  topic: /grasp_hexapod/sensor_health }
+  encoder_state:   { simulate: true,  topic: /grasp_hexapod/encoder_state }
+  fix:             { simulate: true,  topic: /fix }
+  # LoRa 话题级仿真（串口读取不仿真，由真实 lora_node 负责）
+  lora_command:    { simulate: true,  topic: /lora/command }
+  lora_status:     { simulate: true,  topic: /lora/status }
+  remote_cmd:      { simulate: true,  topic: /grasp_hexapod/remote_cmd }
+  switch_mode:     { simulate: true,  service: /grasp_hexapod/switch_mode }
+  gripper_act:     { simulate: true,  service: /grasp_hexapod/gripper_act }
+
+simulation:
+  mission: recover          # 话题级注入的任务命令：RELEASE / RECOVER
+  remote_test: ""           # 非空则跑遥控测试链：home|walk|climb|dock|spin_search|release
+  # 时间线（秒，模拟编码器落地/绞盘/各模式完成）
+  deploy: 7.0
+  landing_t: 9.0
+  winch_done: 80.0
+  mode_home: 5.0
+  mode_release: 11.0
+  mode_spin_search: 13.0
+  mode_approach: 22.0
+  mode_tag_nav: 24.0
+  mode_climb: 45.0
+  mode_dock: 65.0
+  # 故障注入
+  clamp_fail: false         # true → dock 模式最终 FAILED（夹爪受限）
+  open_fail: false          # true → release 模式最终 FAILED（夹爪松开失败）
+  switch_fail_mode: ""      # 非空 → 切该模式立即被拒
+  cov_bad_windows: []       # RTK 协方差超限时段，如 "13-16,20-22"
+
+rtk_max_covariance: 0.04    # /fix 协方差阈值（m²）

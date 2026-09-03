@@ -1,0 +1,198 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  六足机器人 · 空地协同回收任务行为树（Groot2 可视化规划稿）—— 统一模式执行版
+  ============================================================
+  对照实现：src/grasp_hexapod_bt/scripts/hexapod_bt.py（py_trees）
+  契约文档：src/docs/BT_INTERFACES.md
+
+  本文件是设计与可视化交付物，可被 Groot2 直接打开查看/编辑；
+  目前不接入 BT.CPP 运行时，叶子节点尚未注册为可执行代码（与 py_trees
+  实现人工保持一致：改树须同步两侧）。
+
+  架构（一模式一节点）：
+    - 所有运动/任务动作统一为“模式”：home / walk / climb / dock /
+      spin_search / release / approach / tag_nav；
+    - RunMode(mode) 节点调 ~/switch_mode（SwitchMode.srv：阻塞式，自动执行
+      该模式的完整连续性流程，响应即最终结果 success/message）；
+    - dock 模式内部自动完成：tag 导引到充电桩 ㉙ + 六腿抬起 + 夹爪 clamp +
+      结束确认（不在树中单列）；release 模式内部完成夹爪 open（⑪）；
+    - home = 回到初始姿态（含复位），替换遥控 B 复位/回站/A 使能；
+    - 编码器 = 订阅 /grasp_hexapod/encoder_state（topic，持续反馈三态）；
+    - 夹爪 = ~/gripper_act（GripperAct.srv），由 release/dock 模式内部调用；
+    - 主链不含遥控（遥控测试见 RemoteTestTree 子树）。
+
+  时序图阶段映射：
+    ⑤/⑲ 任务命令     -> WaitTaskCommand（/lora/command）
+    ① 自检           -> WaitSensorsReady + RunMode(home)
+    ⑨ 绞盘下放       -> WaitDeployment
+    ⑩/㉔ 落地判断    -> IsLandingConfirmed（/grasp_hexapod/encoder_state）
+    ⑪ 释放小蓝       -> RunMode(release)（内部夹爪 open）
+    ㉕ 落地回传       -> ReportStatus(status=LANDED)
+    ㉖ 自转搜索       -> RunMode(spin_search)
+    ㉗ 粗导航到tag    -> RunMode(approach)（WaitRtkPrecise 协方差监护）
+    识别tag→攀爬点   -> RunMode(tag_nav)
+    ㉘ 攀爬          -> RunMode(climb)
+    ㉙㉚ 对接夹紧     -> RunMode(dock)（内部：tag导引+抬腿+夹爪clamp）
+    ㉛ 回传夹紧完成   -> ReportStatus(status=CLAMPED)
+    ⑫/㉜ 拉升回收    -> WaitWinchHoisted
+    ㊱ 完成通知       -> ReportStatus(status=DONE)
+-->
+<root BTCPP_format="4" main_tree_to_execute="HexapodMission">
+
+  <!-- ====================== 主任务树 ====================== -->
+  <BehaviorTree ID="HexapodMission">
+    <!--
+      外层 Fallback：主流程任一步失败 -> 失败处理分支（尽力 home 回初始姿态
+      + 上报 FAILED）。ReactiveSequence 使 IsSensorDataOk 每 tick 复检：
+      任一传感器数据异常立即中断主流程。
+    -->
+    <Fallback name="任务失败回退">
+      <ReactiveSequence name="主流程_带安全监视">
+        <Condition ID="IsSensorDataOk" name="传感器数据健康监护_每tick"/>
+        <Sequence name="任务阶段序列">
+          <Action ID="WaitTaskCommand" name="等待任务命令_⑤⑲"/>
+          <Sequence name="SafetyInit 安全初始化">
+            <Timeout msec="10000">
+              <Condition ID="WaitSensorsReady" name="传感器链路上线"/>
+            </Timeout>
+            <Action ID="RunMode" name="回到初始姿态_含复位" mode="home"/>
+          </Sequence>
+          <Sequence name="DeployAndLand 下放落地">
+            <Timeout msec="120000">
+              <Action ID="WaitDeployment" name="绞盘下放开始_⑨"/>
+            </Timeout>
+            <Timeout msec="120000">
+              <Condition ID="IsLandingConfirmed" name="编码器确认落地_⑩㉔"/>
+            </Timeout>
+          </Sequence>
+          <!-- 释放/回收分流：落地后按任务命令分流 -->
+          <Fallback name="释放或回收分流">
+            <!-- 释放分支（⑤ 任务）：release 模式内部完成（含夹爪 open） -->
+            <Sequence name="释放分支_释放小蓝">
+              <Condition ID="IsReleaseMission" name="任务=释放⑤"/>
+              <Action ID="RunMode" name="释放小蓝_⑪" mode="release"/>
+              <Action ID="ReportStatus" name="回传RELEASED" status="RELEASED"/>
+              <Action ID="WaitWinchHoisted" name="拉升绞盘回收_⑫"/>
+            </Sequence>
+            <!-- 回收分支（⑲ 任务） -->
+            <Sequence name="回收分支_抓取回收">
+              <Condition ID="IsRecoveryMission" name="任务=回收⑲"/>
+              <Action ID="ReportStatus" name="落地状态回传_㉕" status="LANDED"/>
+              <!-- 定位导航：WaitRtkPrecise 每 tick 复检协方差，超限停走等待恢复 -->
+              <ReactiveSequence name="定位导航_带RTK监护">
+                <Timeout msec="60000">
+                  <Condition ID="WaitRtkPrecise" name="RTK协方差监护"/>
+                </Timeout>
+                <Sequence name="定位导航步骤">
+                  <Action ID="RunMode" name="自转搜索小蓝_㉖" mode="spin_search"/>
+                  <Action ID="RunMode" name="粗导航到可视tag_㉗" mode="approach"/>
+                </Sequence>
+              </ReactiveSequence>
+              <Action ID="RunMode" name="tag精导航到攀爬点" mode="tag_nav"/>
+              <Action ID="RunMode" name="攀爬到小蓝上_㉘" mode="climb"/>
+              <Action ID="RunMode" name="对接夹紧_㉙㉚" mode="dock"/>
+              <Action ID="ReportStatus" name="回传夹紧完成_㉛" status="CLAMPED"/>
+              <Action ID="WaitWinchHoisted" name="拉升绞盘回收_㉜"/>
+            </Sequence>
+          </Fallback>
+          <Action ID="ReportStatus" name="完成通知_㊱" status="DONE"/>
+        </Sequence>
+      </ReactiveSequence>
+      <!-- 失败处理：home 尽力回初始姿态（含复位），无论成败必报 FAILED -->
+      <Sequence name="失败处理">
+        <Fallback name="回到初始姿态_尽力">
+          <Action ID="RunMode" name="回到初始姿态_含复位" mode="home"/>
+          <Action ID="AlwaysSucceed" name="home不可用也继续"/>
+        </Fallback>
+        <Action ID="ReportStatus" name="上报失败" status="FAILED"/>
+      </Sequence>
+    </Fallback>
+  </BehaviorTree>
+
+  <!-- ====================== 遥控独立测试链 ====================== -->
+  <!-- 与主链分离、仅供测试：每个功能可直接 RunMode 切换，不必走完整流程；
+       主链不含本树。 -->
+  <BehaviorTree ID="RemoteTestTree">
+    <Fallback name="遥控器测试链">
+      <Sequence name="测试_home">
+        <Condition ID="CheckRemoteCmd" name="遥控选择home" mode="home"/>
+        <Action ID="RunMode" mode="home"/>
+      </Sequence>
+      <Sequence name="测试_walk">
+        <Condition ID="CheckRemoteCmd" name="遥控选择walk" mode="walk"/>
+        <Action ID="RunMode" mode="walk"/>
+      </Sequence>
+      <Sequence name="测试_climb">
+        <Condition ID="CheckRemoteCmd" name="遥控选择climb" mode="climb"/>
+        <Action ID="RunMode" mode="climb"/>
+      </Sequence>
+      <Sequence name="测试_dock">
+        <Condition ID="CheckRemoteCmd" name="遥控选择dock" mode="dock"/>
+        <Action ID="RunMode" mode="dock"/>
+      </Sequence>
+      <Sequence name="测试_spin_search">
+        <Condition ID="CheckRemoteCmd" name="遥控选择spin_search" mode="spin_search"/>
+        <Action ID="RunMode" mode="spin_search"/>
+      </Sequence>
+      <Sequence name="测试_release">
+        <Condition ID="CheckRemoteCmd" name="遥控选择release" mode="release"/>
+        <Action ID="RunMode" mode="release"/>
+      </Sequence>
+      <Action ID="AlwaysSucceed" name="空闲待命"/>
+    </Fallback>
+  </BehaviorTree>
+
+  <!-- ====================== 节点模型（供 Groot 显示端口与描述） ====================== -->
+  <TreeNodesModel>
+    <!-- 条件节点 -->
+    <Condition ID="IsSensorDataOk">
+      <description>统一传感器数据自检（每 tick）：IMU/GPS/编码器/舵机/双目/单目按频率+新鲜度判健康（订阅 /grasp_hexapod/sensor_health + /grasp_hexapod/encoder_state）。任一不 fresh 立即中断主流程。</description>
+    </Condition>
+    <Condition ID="WaitSensorsReady">
+      <description>传感器链路上线门禁（一次性启动检查）：六路传感器均收到过消息（online）。未全在线则等待（RUNNING），超时走失败回退。</description>
+    </Condition>
+    <Condition ID="IsLandingConfirmed">
+      <description>⑩/㉔ 编码器落地判断：订阅 /grasp_hexapod/encoder_state（持续反馈三态）——landed→成功；not_landed→等待；normal=false→失败。</description>
+    </Condition>
+    <Condition ID="WaitRtkPrecise">
+      <description>RTK 协方差监护（定位导航期间持续）：/fix position_covariance 对角最大 ≤ 0.04 m²；超限→hold_motion 停走等待恢复（暂停非中止），超时(60s)→失败。</description>
+    </Condition>
+    <Condition ID="IsReleaseMission">
+      <description>任务分流：WaitTaskCommand 写入 mission_mode == "release"（⑤ 释放任务）。</description>
+    </Condition>
+    <Condition ID="IsRecoveryMission">
+      <description>任务分流：WaitTaskCommand 写入 mission_mode == "recover"（⑲ 回收任务）。</description>
+    </Condition>
+    <Condition ID="CheckRemoteCmd">
+      <description>遥控测试链专用：当前遥控命令 == mode（订阅 /grasp_hexapod/remote_cmd）。主链不使用。</description>
+      <input_port name="mode" default="home">home|walk|climb|dock|spin_search|release</input_port>
+    </Condition>
+
+    <!-- 动作节点：统一模式执行 -->
+    <Action ID="RunMode">
+      <description>执行一个模式：调 ~/switch_mode（SwitchMode.srv，阻塞式）。服务自动执行该模式的完整连续性流程并返回【最终结果】：dock 内含 tag 导引到充电桩 ㉙ + 六腿抬起 + 夹爪 clamp + 结束确认；release 内含夹爪 open ⑪；home 回到初始姿态（含复位）。success=true 完成 / false 失败（message 为问题）。</description>
+      <input_port name="mode" default="home">home / walk / climb / dock / spin_search / release / approach / tag_nav</input_port>
+    </Action>
+
+    <!-- 动作节点：任务 / LoRa -->
+    <Action ID="WaitTaskCommand">
+      <description>⑤/⑲ 等待地面任务命令：订阅 /lora/command（CMD,HEX,RELEASE,…→release；CMD,HEX,RECOVER,…→recover）。</description>
+    </Action>
+    <Action ID="WaitDeployment">
+      <description>⑨ 等待绞盘下放·六足下降开始（订阅 /lora/command CMD,HEX,DEPLOY,…）。</description>
+    </Action>
+    <Action ID="WaitWinchHoisted">
+      <description>⑫/㉜ 等待无人机拉升绞盘回收（订阅 /lora/command CMD,HEX,HOIST_DONE,…）。</description>
+    </Action>
+    <Action ID="ReportStatus">
+      <description>通过 LoRa 广播工作状态：发布 /lora/status STA,HEX,&lt;status&gt;,&lt;x&gt;,&lt;y&gt;。</description>
+      <input_port name="status" default="DONE">LANDED / RELEASED / CLAMPED / DONE / FAILED</input_port>
+    </Action>
+
+    <!-- 占位节点 -->
+    <Action ID="AlwaysSucceed">
+      <description>恒成功占位：用于失败处理“home 尽力”与遥控“空闲待命”，保证后续上报不被前序阻塞。</description>
+    </Action>
+  </TreeNodesModel>
+
+</root>

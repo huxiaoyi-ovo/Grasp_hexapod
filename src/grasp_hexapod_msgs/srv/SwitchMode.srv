@@ -1,0 +1,8 @@
+# 统一模式执行服务（主链/测试链的所有模式都走此服务）。
+# 阻塞式：请求切到目标模式并自动执行该模式的完整连续性流程，模式完成或
+# 失败后返回【最终结果】（success=最终成功、message=最终问题/结果说明）。
+# 不再需要单独的 ModeResult 查询服务。
+string target_mode    # home / walk / climb / dock / spin_search / release / approach / tag_nav
+---
+bool success          # 模式执行最终结果：true=成功；false=失败
+string message        # 最终问题/结果说明（失败原因，如 受限/离线/导航失败）

@@ -8,6 +8,7 @@
 - `src/grasp_hexapod_description/`：URDF、网格、RViz 和 Gazebo 配置。
 - `src/grasp_hexapod_servo/`：LX-15D 两板驱动和串口协议。
 - `src/grasp_hexapod_servo_cpp/`：LX-15D 两板驱动的 C++ 版，接口与前者一致，资源占用更低。
+- `src/grasp_hexapod_msgs/`：自建消息和服务定义（msg/srv），供各包统一引用。
 - `src/reference/`：参考代码，不参与运行。
 
 仿真和实机共用 `GraspController`：前者在 Isaac 控制帧内运行，后者通过 ROS 读取反馈并发布关节目标。
@@ -104,6 +105,23 @@ roslaunch grasp_hexapod_control run_real.launch \
 入口换成 `run_real_cpp.launch`，参数相同；也可给 `run_real.launch` 加
 `servo_backend:=cpp`。
 
+### 开机自启
+
+实机栈可用 systemd 配置为开机自启（在实机上执行）：
+
+```bash
+sudo bash scripts/configure_autostart.sh              # 安装并设置自启（不立即启动）
+sudo bash scripts/configure_autostart.sh start        # 立即启动
+sudo bash scripts/configure_autostart.sh status       # 查看状态
+journalctl -u grasp-hexapod -f                        # 跟踪日志
+sudo bash scripts/configure_autostart.sh uninstall    # 取消自启并删除服务
+```
+
+服务细节：串口（`/dev/ttyTHS0`、`/dev/ttyACM0`）未就绪时等待最多 30s，超时由
+systemd 每 10s 自动重试；进程退出同样自动拉起。启动即运行完整实机栈，夹爪在
+启动自检中会自动打开（若在线）。串口名、运行用户、ROS 目录等可用环境变量覆盖
+后重新 `install`（见脚本头部说明）。
+
 首次架空测试可显式降低速度：
 
 ```bash
@@ -176,6 +194,7 @@ conda run --no-capture-output -n grasp_hexapod python3 \
 ## 包内说明
 
 - [启动命令与参数](src/grasp_hexapod_control/launch/README.md)
+- [自建消息与服务定义](src/grasp_hexapod_msgs/README.md)
 - [舵机协议、ID 和方向](src/grasp_hexapod_servo/README.md)
 - [C++ 版舵机驱动](src/grasp_hexapod_servo_cpp/README.md)
 - [参考：编码器帧解析与角度发布](src/reference/encoder_driver/README.md)

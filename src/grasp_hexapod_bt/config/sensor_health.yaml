@@ -1,0 +1,46 @@
+# 传感器健康监控配置（grasp_hexapod_bt 包 sensor_health_monitor.py 加载）。
+# 结构：sensors.<传感器名>.<话题>: {max_age: 秒, min_freq: Hz(可选)}
+# 判据：online=链路曾经建立；fresh=age<=max_age 且（配了 min_freq 时，
+#       预热 2s 后 freq>=min_freq）。多话题取最差。
+# 编码器不在此列（reference/encoder_driver encoder_status_node 持续发布 encoder_state 状态，判据在其节点内）。
+sensors:
+  imu:            # IMU 驱动（handsfree_ros_imu -> /grasp_hexapod/imu）
+    /grasp_hexapod/imu:
+      max_age: 0.2
+      min_freq: 30.0
+  gps:            # GPS 驱动（gps_ntrip_py -> /fix NavSatFix，含协方差）
+    /fix:
+      max_age: 1.0
+      min_freq: 1.0
+  rtk:            # RTK/导航融合位姿（行为树定位/粗导航数据源）
+    /grasp_hexapod/navigation/base_pose:
+      max_age: 0.5
+    /grasp_hexapod/navigation/xiaolan_pose:
+      max_age: 0.5
+    /grasp_hexapod/navigation/pv_boundary:
+      max_age: 0.5
+  servo:          # 舵机 18 关节反馈（6 路 JointState）
+    /lf_pos:
+      max_age: 0.5
+      min_freq: 10.0
+    /lm_pos:
+      max_age: 0.5
+      min_freq: 10.0
+    /lb_pos:
+      max_age: 0.5
+      min_freq: 10.0
+    /rf_pos:
+      max_age: 0.5
+      min_freq: 10.0
+    /rm_pos:
+      max_age: 0.5
+      min_freq: 10.0
+    /rb_pos:
+      max_age: 0.5
+      min_freq: 10.0
+  stereo:         # 双目相机状态（相机节点心跳）
+    /grasp_hexapod/stereo_ok:
+      max_age: 1.0
+  mono:           # 单目相机状态（相机节点心跳）
+    /grasp_hexapod/mono_ok:
+      max_age: 1.0

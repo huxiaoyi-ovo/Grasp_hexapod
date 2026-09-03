@@ -44,3 +44,10 @@ install(DIRECTORY include/${PROJECT_NAME}/
 install(DIRECTORY launch/
   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/launch
 )
+
+# 编码器状态节点（Python：持续发布 /grasp_hexapod/encoder_state）
+catkin_install_python(
+  PROGRAMS
+    scripts/encoder_status_node.py
+  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)

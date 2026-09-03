@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>lora</name>
+  <version>0.1.0</version>
+  <description>Grasp Hexapod LoRa 串口节点：/dev/lora@115200 与 ROS 之间的桥接。
+    下行：串口 CMD,HEX,... 帧（含校验）-> /lora/command 净帧；
+    上行：订阅 /lora/status 净帧 -> STA,HEX,... 带校验帧写串口。</description>
+  <maintainer email="artrc@todo.todo">artrc</maintainer>
+  <license>BSD-3-Clause</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+  <depend>rospy</depend>
+  <depend>std_msgs</depend>
+  <exec_depend>python3-serial</exec_depend>
+</package>

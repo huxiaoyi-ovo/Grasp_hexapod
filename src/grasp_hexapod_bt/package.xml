@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>grasp_hexapod_bt</name>
+  <version>0.1.0</version>
+  <description>Grasp Hexapod 行为树功能包（统一模式执行版）：
+    hexapod_bt.py 主链+遥控测试树（py_trees，不 import ROS）；
+    bt_mock_world.py 联调模拟节点；sensor_health_monitor.py 传感器健康判断层；
+    remote_control.py 遥控语义化；含 Groot2 设计稿与传感器健康配置。</description>
+  <maintainer email="artrc@todo.todo">artrc</maintainer>
+  <license>BSD-3-Clause</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+  <depend>rospy</depend>
+  <depend>std_msgs</depend>
+  <depend>sensor_msgs</depend>
+  <depend>geometry_msgs</depend>
+  <depend>grasp_hexapod_msgs</depend>
+  <exec_depend>python3-yaml</exec_depend>
+  <exec_depend>python3-serial</exec_depend>
+  <!-- 运行时另需 py_trees 2.2.x（Python 库，无 rosdep 键，见 README 说明） -->
+</package>

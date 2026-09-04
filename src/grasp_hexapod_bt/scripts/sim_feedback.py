@@ -99,7 +99,8 @@ class SimClock:
         self.timeline = dict(DEFAULT_TIMELINE)
         for key, val in (("landing", sim.get("landing_t")),
                          ("deploy", sim.get("deploy")),
-                         ("winch_done", sim.get("winch_done"))):
+                         ("winch_done", sim.get("winch_done")),
+                         ("home_cmd", sim.get("home_cmd"))):
             if val is not None:
                 self.timeline[key] = float(val)
         self.start = rospy.get_time() if start_wall is None else start_wall
@@ -172,11 +173,9 @@ def activate(interfaces=None, sim=None, verbose=True):
             landed = clock.now >= clock.mode_done_at("landing")
             m = EncoderState()
             m.header.stamp = rospy.Time.now()
-            m.normal = True
             m.landed = bool(landed)
-            m.not_landed = not landed
-            m.angle = 150.0 if landed else 120.0
-            m.reason = "已检测到接触突变" if landed else "值固定未突变"
+            m.angle = 135.0 if landed else 45.0
+            m.reason = "已落地" if landed else "未落地"
             _pub.publish(m)
 
         rt.timers.append(rospy.Timer(rospy.Duration(0.1), lambda _e: _pub_enc()))
@@ -221,6 +220,8 @@ def activate(interfaces=None, sim=None, verbose=True):
                 due.append(("deploy", "CMD,HEX,DEPLOY,NOW"))
             if "winch" not in rt._lora["sent"] and t >= clock.mode_done_at("winch_done"):
                 due.append(("winch", "CMD,HEX,HOIST_DONE,NOW"))
+            if "home_cmd" not in rt._lora["sent"] and t >= clock.mode_done_at("home_cmd"):
+                due.append(("home_cmd", "CMD,HEX,HOME,NOW"))
             for key, frame in due:
                 rt._lora["sent"].add(key)
                 rt._lora["pub"].publish(rt._lora["cls"](data=frame))
@@ -335,7 +336,7 @@ def run():
     rospy.init_node("sim_feedback", anonymous=True)
     interfaces, sim = load_config(rospy.get_param("~config", DEFAULT_CONFIG_PATH))
     # rosparam 覆盖（与 bt_mock_world 同风格）
-    for key in ("remote_test", "clamp_fail", "open_fail",
+    for key in ("mission", "remote_test", "clamp_fail", "open_fail",
                 "switch_fail_mode", "cov_bad_windows", "landing_t"):
         v = rospy.get_param("~" + key, None)
         if v is not None:

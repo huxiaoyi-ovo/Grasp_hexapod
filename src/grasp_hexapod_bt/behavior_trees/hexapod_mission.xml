@@ -25,7 +25,7 @@
     ⑤/⑲ 任务命令     -> WaitTaskCommand（/lora/command）
     ① 自检           -> WaitSensorsReady + RunMode(home)
     ⑨ 绞盘下放       -> WaitDeployment
-    ⑩/㉔ 落地判断    -> IsLandingConfirmed（/grasp_hexapod/encoder_state）
+    ⑩/㉔ 落地判断    -> IsLandingConfirmed（/grasp_hexapod/encoder_state，角度 90-180°=落地）
     ⑪ 释放小蓝       -> RunMode(release)（内部夹爪 open）
     ㉕ 落地回传       -> ReportStatus(status=LANDED)
     ㉖ 自转搜索       -> RunMode(spin_search)
@@ -35,6 +35,9 @@
     ㉙㉚ 对接夹紧     -> RunMode(dock)（内部：tag导引+抬腿+夹爪clamp）
     ㉛ 回传夹紧完成   -> ReportStatus(status=CLAMPED)
     ⑫/㉜ 拉升回收    -> WaitWinchHoisted
+    恢复初始命令     -> WaitHomeCmd（/lora/command CMD,HEX,HOME,…）
+    归位执行         -> RunMode(home)
+    归位完成回传     -> ReportStatus(status=RESET_DONE)
     ㊱ 完成通知       -> ReportStatus(status=DONE)
 -->
 <root BTCPP_format="4" main_tree_to_execute="HexapodMission">
@@ -44,11 +47,14 @@
     <!--
       外层 Fallback：主流程任一步失败 -> 失败处理分支（尽力 home 回初始姿态
       + 上报 FAILED）。ReactiveSequence 使 IsSensorDataOk 每 tick 复检：
-      任一传感器数据异常立即中断主流程。
+      任一传感器数据异常 -> hold_motion 停走并暂停主流程（暂停非中止）；
+      连续异常超过 Timeout(10s) -> FAILURE 走失败回退。
     -->
     <Fallback name="任务失败回退">
       <ReactiveSequence name="主流程_带安全监视">
-        <Condition ID="IsSensorDataOk" name="传感器数据健康监护_每tick"/>
+        <Timeout msec="10000">
+          <Condition ID="IsSensorDataOk" name="传感器数据健康监护_每tick"/>
+        </Timeout>
         <Sequence name="任务阶段序列">
           <Action ID="WaitTaskCommand" name="等待任务命令_⑤⑲"/>
           <Sequence name="SafetyInit 安全初始化">
@@ -73,6 +79,9 @@
               <Action ID="RunMode" name="释放小蓝_⑪" mode="release"/>
               <Action ID="ReportStatus" name="回传RELEASED" status="RELEASED"/>
               <Action ID="WaitWinchHoisted" name="拉升绞盘回收_⑫"/>
+              <Action ID="WaitHomeCmd" name="等待恢复初始命令"/>
+              <Action ID="RunMode" name="恢复初始姿态" mode="home"/>
+              <Action ID="ReportStatus" name="回传RESET_DONE" status="RESET_DONE"/>
             </Sequence>
             <!-- 回收分支（⑲ 任务） -->
             <Sequence name="回收分支_抓取回收">
@@ -93,6 +102,9 @@
               <Action ID="RunMode" name="对接夹紧_㉙㉚" mode="dock"/>
               <Action ID="ReportStatus" name="回传夹紧完成_㉛" status="CLAMPED"/>
               <Action ID="WaitWinchHoisted" name="拉升绞盘回收_㉜"/>
+              <Action ID="WaitHomeCmd" name="等待恢复初始命令"/>
+              <Action ID="RunMode" name="恢复初始姿态" mode="home"/>
+              <Action ID="ReportStatus" name="回传RESET_DONE" status="RESET_DONE"/>
             </Sequence>
           </Fallback>
           <Action ID="ReportStatus" name="完成通知_㊱" status="DONE"/>
@@ -146,13 +158,13 @@
   <TreeNodesModel>
     <!-- 条件节点 -->
     <Condition ID="IsSensorDataOk">
-      <description>统一传感器数据自检（每 tick）：IMU/GPS/编码器/舵机/双目/单目按频率+新鲜度判健康（订阅 /grasp_hexapod/sensor_health + /grasp_hexapod/encoder_state）。任一不 fresh 立即中断主流程。</description>
+      <description>统一传感器数据自检（每 tick）：IMU/GPS/编码器/舵机/双目/单目按频率+新鲜度判健康（订阅 /grasp_hexapod/sensor_health + /grasp_hexapod/encoder_state）。任一不 fresh → hold_motion 停走、RUNNING 暂停等待恢复（暂停非中止，恢复即继续）；连续异常超过外层 Timeout(10s) → FAILURE 走失败回退。</description>
     </Condition>
     <Condition ID="WaitSensorsReady">
       <description>传感器链路上线门禁（一次性启动检查）：六路传感器均收到过消息（online）。未全在线则等待（RUNNING），超时走失败回退。</description>
     </Condition>
     <Condition ID="IsLandingConfirmed">
-      <description>⑩/㉔ 编码器落地判断：订阅 /grasp_hexapod/encoder_state（持续反馈三态）——landed→成功；not_landed→等待；normal=false→失败。</description>
+      <description>⑩/㉔ 编码器落地判断：订阅 /grasp_hexapod/encoder_state（持续反馈两态）——landed（角度 ∈ [90,180]deg）→成功；否则（未落地/无数据）→等待。</description>
     </Condition>
     <Condition ID="WaitRtkPrecise">
       <description>RTK 协方差监护（定位导航期间持续）：/fix position_covariance 对角最大 ≤ 0.04 m²；超限→hold_motion 停走等待恢复（暂停非中止），超时(60s)→失败。</description>
@@ -184,9 +196,12 @@
     <Action ID="WaitWinchHoisted">
       <description>⑫/㉜ 等待无人机拉升绞盘回收（订阅 /lora/command CMD,HEX,HOIST_DONE,…）。</description>
     </Action>
+    <Action ID="WaitHomeCmd">
+      <description>等待地面「恢复初始」命令（订阅 /lora/command CMD,HEX,HOME,…）。收到后执行 home 模式归位并上报 RESET_DONE。</description>
+    </Action>
     <Action ID="ReportStatus">
       <description>通过 LoRa 广播工作状态：发布 /lora/status STA,HEX,&lt;status&gt;,&lt;x&gt;,&lt;y&gt;。</description>
-      <input_port name="status" default="DONE">LANDED / RELEASED / CLAMPED / DONE / FAILED</input_port>
+      <input_port name="status" default="DONE">LANDED / RELEASED / CLAMPED / RESET_DONE / DONE / FAILED</input_port>
     </Action>
 
     <!-- 占位节点 -->

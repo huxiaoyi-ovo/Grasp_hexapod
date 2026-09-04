@@ -5,7 +5,8 @@
   <description>Grasp Hexapod 行为树功能包（统一模式执行版）：
     hexapod_bt.py 主链+遥控测试树（py_trees，不 import ROS）；
     bt_mock_world.py 联调模拟节点；sensor_health_monitor.py 传感器健康判断层；
-    remote_control.py 遥控语义化；含 Groot2 设计稿与传感器健康配置。</description>
+    remote_control.py 遥控语义化；bt_monitor.py（终端）/ bt_dashboard.py（Web）
+    实时可视化 /grasp_hexapod/bt_state；含 Groot2 设计稿与传感器健康配置。</description>
   <maintainer email="artrc@todo.todo">artrc</maintainer>
   <license>BSD-3-Clause</license>
 

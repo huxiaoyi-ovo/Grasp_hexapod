@@ -1,8 +1,42 @@
 # encoder_driver
 
-`src/reference/encoder_driver/` 下的参考功能包（C++ / roscpp）：读取串口绝对编码器的
-角度数据，解析响应帧并发布编码器角度。属于参考代码，不参与 `run_real.launch`
-等运行链路。
+`src/reference/encoder_driver/`：串口绝对编码器驱动。两个实现：
+
+- **`scripts/encoder_status_node.py`（Python，行为树运行链路使用）**：读角度并
+  在节点内做落地判断，持续发布 `/grasp_hexapod/encoder_state`
+  （`grasp_hexapod_msgs/EncoderState`），供行为树 `IsLandingConfirmed` 消费。
+- C++ 参考实现（roscpp）：只解析帧、发布角度/原始值，不做落地判断，不参与
+  运行链路（见下文）。
+
+## 编码器状态节点（落地判断，运行链路）
+
+复用与 C++ 版相同的串口协议（Modbus RTU 读保持寄存器），按**角度范围两态**
+判定并在每收到有效帧时发布状态：
+
+**落地判据**：最近有效角度 ∈ **[90, 180] deg**（边界含）→ `landed=true`（已落地）；
+越界 → `landed=false`（未落地）。无数据时不发布（订阅方保持上次状态）。
+
+```bash
+rosrun encoder_driver encoder_status_node.py _port:=/dev/ttyUSB0
+python3 scripts/encoder_status_node.py --selftest   # 离线自检（假串口）
+```
+
+| 参数 | 默认值 | 说明 |
+|---|---|---|
+| `~port` | `/dev/ttyUSB0` | 串口设备 |
+| `~baud` | `115200` | 波特率 |
+| `~slave_id` | `0` | 模块地址 |
+| `~start_reg` / `~reg_count` | `0` / `2` | 读保持寄存器（4 字节 → 18 位值） |
+| `~poll_hz` | `10` | 轮询频率 |
+| `~landing_min` / `~landing_max` | `90` / `180` | 落地角度范围（deg，闭区间） |
+| `~state_topic` | `/grasp_hexapod/encoder_state` | 状态话题 |
+
+发布：`EncoderState{ header, bool landed, float64 angle, string reason }`——
+`landed` 由角度范围决定，`reason` 为人读说明（含具体角度）。
+消费方：行为树落地确认（超时 120s 走失败回退）。详见
+`src/docs/BT_MODE_INTERFACES.md` §1.2。
+
+## C++ 参考实现（不参与运行链路）
 
 ## 数据帧格式
 
@@ -27,13 +61,14 @@
 
 其中 `262144 = 2**18`，即 18 位绝对编码器。
 
-## 目录结构
+## 目录结构（C++ 参考）
 
 ```text
 include/encoder_driver/encoder_frame.hpp   协议头（不依赖 ROS）
 src/encoder_frame.cpp                      协议实现 + 离线自检
 src/encoder_node.cpp                       roscpp 节点
 launch/encoder.launch                      启动文件
+scripts/encoder_status_node.py             落地判断节点（运行链路，见上）
 ```
 
 ## 构建

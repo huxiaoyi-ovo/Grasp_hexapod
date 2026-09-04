@@ -16,9 +16,13 @@ GripperManager::GripperManager(ros::NodeHandle& nh,
   loadParams(nh_private);
   service_ = nh.advertiseService("gripper_command",
                                  &GripperManager::handleCommand, this);
+  // 行为树契约服务用绝对名：与节点命名空间无关，供模式执行端（mode_server）
+  // 按标准名调用；仅左板（存在夹爪）提供，全系统恰有一个提供者。
+  act_service_ = nh.advertiseService("/grasp_hexapod/gripper_act",
+                                     &GripperManager::handleAct, this);
   ROS_INFO("Gripper manager ready: id=%d open_pulse=%d clamp_pulse=%d "
            "tolerance=%d fail_deviation=%d max_checks=%d max_polls=%d "
-           "poll_hz=%.1f duration_ms=%d",
+           "poll_hz=%.1f duration_ms=%d act=/grasp_hexapod/gripper_act",
            gripper_id_, open_pulse_, clamp_pulse_, tolerance_,
            fail_deviation_, max_checks_, max_total_polls_, poll_hz_,
            command_duration_ms_);
@@ -56,6 +60,9 @@ void GripperManager::loadParams(ros::NodeHandle& nh_private) {
 }
 
 void GripperManager::init() {
+  // 服务在构造期已注册：自检持锁执行，避免自检期间到达的服务命令与自检的
+  // 串口读写交错（此时服务方收到 busy 拒绝，与并发命令同语义）。
+  std::lock_guard<std::mutex> lock(operation_mutex_);
   busy_ = true;
   last_seen_pulse_.reset();
   ensureLoaded();
@@ -125,19 +132,47 @@ bool GripperManager::handleCommand(GripperCommand::Request& request,
     response.message = "busy: another gripper command in progress";
     return true;
   }
+  execute(request.command, response);
+  return true;
+}
+
+bool GripperManager::handleAct(
+    grasp_hexapod_msgs::GripperAct::Request& request,
+    grasp_hexapod_msgs::GripperAct::Response& response) {
+  // 与 /gripper_command 同语义的行为树契约入口：先做 action 校验（不触碰
+  // busy 状态），再走同一互斥与执行路径；并发命令同样 busy 拒绝。
+  if (request.action != "open" && request.action != "clamp") {
+    response.success = false;
+    response.message = "unknown action '" + request.action + "' (open|clamp)";
+    return true;
+  }
+  std::unique_lock<std::mutex> lock(operation_mutex_, std::try_to_lock);
+  if (!lock.owns_lock()) {
+    response.success = false;
+    response.message = "busy: another gripper command in progress";
+    return true;
+  }
+  GripperCommand::Response inner;
+  execute(request.action, inner);
+  response.success = inner.success;
+  response.message = inner.message;
+  return true;
+}
+
+void GripperManager::execute(const std::string& command,
+                             GripperCommand::Response& response) {
   last_seen_pulse_.reset();
   busy_ = true;
-  if (request.command == "open") {
+  if (command == "open") {
     doOpen(response);
-  } else if (request.command == "clamp") {
+  } else if (command == "clamp") {
     doClamp(response);
   } else {
     response.success = false;
-    response.message = "unknown command '" + request.command + "' (open|clamp)";
+    response.message = "unknown command '" + command + "' (open|clamp)";
   }
   busy_ = false;
   publishSync();
-  return true;
 }
 
 bool GripperManager::doOpen(GripperCommand::Response& response) {

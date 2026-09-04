@@ -1,18 +1,17 @@
 #!/usr/bin/env python3
-"""编码器状态节点：节点内判断「正常 / 落地 / 未落地」，持续发布当前状态。
+"""编码器状态节点：节点内判断「落地 / 未落地」，持续发布当前状态。
 
 与 reference/encoder_driver 的区别：
     - encoder_driver 持续发布 encoder_angle/encoder_raw，只读不判断；
     - 本节点复用同一串口协议（ID CMD Len Data CRC，Modbus RTU 读保持寄存器），
-      内部低频轮询维护角度环缓冲并做落地判断，**持续发布**当前状态到
+      内部低频轮询读取角度并做落地判断，**持续发布**当前状态到
       /grasp_hexapod/encoder_state（grasp_hexapod_msgs/EncoderState：
-      normal / landed / not_landed / angle / reason），供行为树
-      is_landing_confirmed / sensor_health 订阅。
+      landed / angle / reason），供行为树 is_landing_confirmed /
+      sensor_health 订阅。
 
-三态判据（对齐空地协同时序图 ⑩/㉔：未接触值固定 -> 接触后突变）：
-    normal      串口帧 CRC 合法且最近 stale_timeout_s 内有有效读数；
-    not_landed  未检测到突变（窗口内值固定或尚未稳定基线）；
-    landed      相对稳定基线出现 |Δ| > jump_threshold 的突变（检测后锁定）。
+落地判据（两态，按角度范围）：最近有效角度 ∈ [90,180] deg -> 已落地；
+否则未落地。阈值可配 ~landing_min/~landing_max；仅收到有效帧时发布状态
+（无数据不发布，订阅方保持上次状态）。
 
 用法：
     rosrun encoder_driver encoder_status_node.py _port:=/dev/ttyUSB0
@@ -21,12 +20,15 @@
 
 import argparse
 import time
-from collections import deque
 
 # 编码器参数（与 encoder_driver/encoder_frame.hpp 一致）
 RESOLUTION = 262144.0     # 18 位分辨率 2**18
 FULL_CIRCLE = 360.0
 CMD_READ = 0x03
+
+# 落地角度范围（deg）：[LANDING_ANGLE_MIN, LANDING_ANGLE_MAX] 视为落地
+LANDING_ANGLE_MIN = 90.0
+LANDING_ANGLE_MAX = 180.0
 
 
 # --------------------------------------------------------------------------
@@ -169,67 +171,27 @@ class FakeSerialLink:
 # 落地判断（纯逻辑，可离线测试）
 # --------------------------------------------------------------------------
 class EncoderLandingJudge:
-    """角度环缓冲 + 突变检测三态判断。
+    """角度范围两态判断：有效角度 ∈ [min,max] -> 已落地；否则未落地。
 
-    feed() 仅在收到有效帧时调用；judge() 随时可查询三态。
+    无状态：只对收到的有效角度样本判定，无数据时不产生输出。
     """
 
-    def __init__(self, jump_threshold_deg=5.0, window_size=20,
-                 min_baseline=3, stabilize_samples=5, stale_timeout_s=1.0):
-        if jump_threshold_deg <= 0 or window_size < 2:
-            raise ValueError("非法参数")
-        self.jump_threshold = jump_threshold_deg
-        self.window = deque(maxlen=window_size)     # 突变前基线
-        self.post_jump = deque(maxlen=max(2, stabilize_samples))  # 突变后近段样本
-        self.min_baseline = min_baseline
-        self.stale_timeout_s = stale_timeout_s
-        self.landed = False
-        self.jump_detected = False
-        self.last_angle = None
-        self.last_read_time = None
+    def __init__(self, landing_min=LANDING_ANGLE_MIN,
+                 landing_max=LANDING_ANGLE_MAX):
+        if landing_min >= landing_max:
+            raise ValueError("落地角度范围非法: [{},{}]".format(
+                landing_min, landing_max))
+        self.landing_min = landing_min
+        self.landing_max = landing_max
 
-    def feed(self, angle, t):
-        """收到有效角度样本（deg）时调用。"""
-        if not self.landed and not self.jump_detected:
-            if len(self.window) >= self.min_baseline:
-                baseline = sum(self.window) / len(self.window)
-                # 基线需稳定（窗口跨度小于阈值）才算有效参照
-                spread = max(self.window) - min(self.window)
-                if spread < self.jump_threshold and abs(angle - baseline) > self.jump_threshold:
-                    self.jump_detected = True
-        if self.jump_detected:
-            self.post_jump.append(angle)
-        self.window.append(angle)
-        self.last_angle = angle
-        self.last_read_time = t
-
-    def _stabilized_after_jump(self):
-        """突变后近段样本重新固定（跨度小于阈值）即确认落地。"""
-        if len(self.post_jump) < 2:
-            return False
-        spread = max(self.post_jump) - min(self.post_jump)
-        return spread < self.jump_threshold
-
-    def judge(self, now):
-        """查询三态。返回 dict(normal, landed, not_landed, angle, reason)。"""
-        if self.last_read_time is None or now - self.last_read_time > self.stale_timeout_s:
-            return {"normal": False, "landed": False, "not_landed": False,
-                    "angle": self.last_angle if self.last_angle is not None else 0.0,
-                    "reason": "串口无数据"}
-        if self.jump_detected and not self.landed and self._stabilized_after_jump():
-            self.landed = True
-        if self.landed:
-            state = {"normal": True, "landed": True, "not_landed": False,
-                     "angle": self.last_angle, "reason": "已检测到接触突变"}
-        elif self.window:
-            spread = max(self.window) - min(self.window)
-            reason = "值固定未突变" if spread < self.jump_threshold else "值波动未检测到突变"
-            state = {"normal": True, "landed": False, "not_landed": True,
-                     "angle": self.last_angle, "reason": reason}
-        else:
-            state = {"normal": True, "landed": False, "not_landed": True,
-                     "angle": self.last_angle, "reason": "样本不足"}
-        return state
+    def judge(self, angle):
+        """按角度范围判定两态。返回 dict(landed, angle, reason)。"""
+        landed = self.landing_min <= angle <= self.landing_max
+        reason = ("已落地: 角度 {:.1f}° ∈ [{},{}]".format(
+            angle, self.landing_min, self.landing_max) if landed
+            else "未落地: 角度 {:.1f}° ∉ [{},{}]".format(
+            angle, self.landing_min, self.landing_max))
+        return {"landed": landed, "angle": angle, "reason": reason}
 
 
 # --------------------------------------------------------------------------
@@ -248,38 +210,31 @@ def run_node(args):
     poll_hz = float(rospy.get_param("~poll_hz", 10.0))
     state_topic = rospy.get_param(
         "~state_topic", "/grasp_hexapod/encoder_state")
-    jump_threshold = float(rospy.get_param("~jump_threshold", 5.0))
-    window_size = int(rospy.get_param("~window_size", 20))
-    stale_timeout = float(rospy.get_param("~stale_timeout_s", 1.0))
+    landing_min = float(rospy.get_param("~landing_min", LANDING_ANGLE_MIN))
+    landing_max = float(rospy.get_param("~landing_max", LANDING_ANGLE_MAX))
 
-    judge = EncoderLandingJudge(jump_threshold_deg=jump_threshold,
-                                window_size=window_size,
-                                stale_timeout_s=stale_timeout)
+    judge = EncoderLandingJudge(landing_min=landing_min,
+                                landing_max=landing_max)
     query = build_read_query(slave_id, start_reg, reg_count)
     link = SerialLink(port, baudrate)
     pub = rospy.Publisher(state_topic, EncoderState, queue_size=1)
-    lock = __import__("threading").Lock()
 
     def poll(_event):
         frames = link.query(query, timeout_s=1.0 / poll_hz)
-        with lock:
-            for frame in frames:
-                info = parse_response(frame)
-                judge.feed(raw_to_angle(info["raw"]), rospy.get_time())
-            state = judge.judge(rospy.get_time())
-        msg = EncoderState()
-        msg.header.stamp = rospy.Time.now()
-        msg.normal = bool(state["normal"])
-        msg.landed = bool(state["landed"])
-        msg.not_landed = bool(state["not_landed"])
-        msg.angle = state["angle"]
-        msg.reason = state["reason"]
-        pub.publish(msg)
+        for frame in frames:           # 仅收到有效帧时发布；无数据不发
+            info = parse_response(frame)
+            state = judge.judge(raw_to_angle(info["raw"]))
+            msg = EncoderState()
+            msg.header.stamp = rospy.Time.now()
+            msg.landed = bool(state["landed"])
+            msg.angle = state["angle"]
+            msg.reason = state["reason"]
+            pub.publish(msg)
 
     rospy.Timer(rospy.Duration(1.0 / poll_hz), poll)
-    rospy.loginfo("编码器状态节点就绪: %s@%d slave=0x%02X 跳变阈值=%.1fdeg "
-                  "（持续发布 %s，%gHz）",
-                  port, baudrate, slave_id, jump_threshold,
+    rospy.loginfo("编码器状态节点就绪: %s@%d slave=0x%02X 落地角度范围=[%.1f,%.1f]deg "
+                  "（收到有效帧即发布 %s，%gHz）",
+                  port, baudrate, slave_id, landing_min, landing_max,
                   state_topic, poll_hz)
     rospy.on_shutdown(link.close)
     rospy.spin()
@@ -307,64 +262,51 @@ def selftest():
         pass
     print("[OK] 协议往返: CRC/请求/响应/损坏帧拒绝")
 
-    # --- 2. 三态判断：值固定 -> 未落地 ---
-    judge = EncoderLandingJudge(jump_threshold_deg=5.0)
-    for i in range(20):
-        judge.feed(120.0 + 0.1 * (i % 2), t=0.1 * i)
-    state = judge.judge(1.0)
-    assert state["normal"] and state["not_landed"] and not state["landed"], state
-    print("[OK] 值固定: {} reason={}".format(
-        "not_landed" if state["not_landed"] else "?", state["reason"]))
+    # --- 2. 角度在 [90,180] 内 -> 落地 ---
+    judge = EncoderLandingJudge()
+    state = judge.judge(120.0)
+    assert state["landed"] and state["angle"] == 120.0, state
+    print("[OK] 角度 120° ∈ [90,180] -> 落地: reason={}".format(state["reason"]))
 
-    # --- 3. 三态判断：突变 -> 稳定 -> 落地（锁定） ---
-    for i in range(10):
-        judge.feed(120.0, t=2.0 + 0.1 * i)
-    judge.feed(150.0, t=3.1)   # 突变 +30deg
-    for i in range(5):
-        judge.feed(150.0, t=3.2 + 0.1 * i)
-    state = judge.judge(4.0)
-    assert state["normal"] and state["landed"] and not state["not_landed"], state
-    for i in range(5):  # 突变后继续读到同值，仍锁定落地
-        judge.feed(150.0, t=4.1 + 0.1 * i)
-    assert judge.judge(5.0)["landed"]
-    print("[OK] 突变落地锁定: reason={}".format(state["reason"]))
+    # --- 3. 角度越界 -> 未落地（下界/上界） ---
+    assert not judge.judge(45.0)["landed"], "45° 应未落地"
+    assert not judge.judge(200.0)["landed"], "200° 应未落地"
+    # 边界值：90 / 180 视为落地
+    assert judge.judge(90.0)["landed"], "90° 边界应落地"
+    assert judge.judge(180.0)["landed"], "180° 边界应落地"
+    print("[OK] 角度越界 -> 未落地；边界 90/180 -> 落地")
 
-    # --- 4. 串口无数据 -> normal=false ---
-    judge2 = EncoderLandingJudge(stale_timeout_s=1.0)
-    judge2.feed(100.0, t=0.0)
-    state = judge2.judge(now=5.0)
-    assert not state["normal"] and "无数据" in state["reason"], state
-    print("[OK] 串口无数据: reason={}".format(state["reason"]))
-
-    # --- 5. 假串口端到端：固定值流 -> 服务三态未落地 ---
-    script = [(0.1 * i, 80000) for i in range(30)]
+    # --- 4. 假串口端到端：角度 <90 未落地 -> 角度入范围落地 ---
+    script = [(0.1 * i, 32768) for i in range(10)]   # 45° -> 未落地
     link = FakeSerialLink(script)
     judge3 = EncoderLandingJudge()
     t = 0.0
+    last_state = None
     for _ in range(10):
         frames = link.query(build_read_query(0, 0, 2), timeout_s=0.1)
         t += 0.1
         for frame in frames:
-            judge3.feed(raw_to_angle(parse_response(frame)["raw"]), t)
-    state = judge3.judge(t)
-    assert state["normal"] and state["not_landed"], state
-    # 追加突变段（先清掉预置脚本的剩余条目）
+            last_state = judge3.judge(
+                raw_to_angle(parse_response(frame)["raw"]))
+    assert last_state is not None and not last_state["landed"], last_state
+    # 换成 135°（raw=98304）入范围段
     link.script.clear()
     for i in range(10):
-        link.script.append((t + 0.1, 100000))
+        link.script.append((t + 0.1, 98304))
     for _ in range(10):
         frames = link.query(build_read_query(0, 0, 2), timeout_s=0.1)
         t += 0.1
         for frame in frames:
-            judge3.feed(raw_to_angle(parse_response(frame)["raw"]), t)
-    assert judge3.judge(t)["landed"], "假串口突变后应确认落地"
-    print("[OK] 假串口端到端: 固定值未落地 -> 突变后落地")
+            last_state = judge3.judge(
+                raw_to_angle(parse_response(frame)["raw"]))
+    assert last_state["landed"], "角度入 [90,180] 后应确认落地"
+    print("[OK] 假串口端到端: 45° 未落地 -> 135° 落地")
 
     print("selftest 全部通过")
 
 
 def main():
-    parser = argparse.ArgumentParser(description="编码器状态节点（三态判断，持续发布 /grasp_hexapod/encoder_state）")
+    parser = argparse.ArgumentParser(description="编码器状态节点（角度范围两态判断，持续发布 /grasp_hexapod/encoder_state）")
     parser.add_argument("--selftest", action="store_true", help="离线自检（不依赖 ROS）")
     args, ros_args = parser.parse_known_args()
 

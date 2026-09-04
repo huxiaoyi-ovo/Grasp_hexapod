@@ -23,7 +23,10 @@ catkin_install_python(
     scripts/sensor_health_monitor.py
     scripts/remote_control.py
     scripts/sim_feedback.py
+    scripts/sim_manual.py
     scripts/run_real_bt.py
+    scripts/bt_monitor.py
+    scripts/bt_dashboard.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 

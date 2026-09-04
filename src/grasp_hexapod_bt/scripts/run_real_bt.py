@@ -10,6 +10,8 @@ sim_feedback.py（按 config/real_bt.yaml 对 simulate:true 的接口模拟发�
           /fix、/lora/command、/lora/status、/grasp_hexapod/remote_cmd
     服务：/grasp_hexapod/switch_mode（阻塞式，返回最终 success/message）、
           /grasp_hexapod/gripper_act（release/dock 模式内部调用）
+    发布：/grasp_hexapod/bt_state（BtStateArray，≤5Hz 的行为树状态快照，
+          供 bt_monitor.py 终端 / bt_dashboard.py Web 实时可视化）
 
 依赖的真实节点/服务：
     - encoder_driver/encoder_status_node → /grasp_hexapod/encoder_state
@@ -43,6 +45,17 @@ from py_trees.common import Status
 SWITCH_MODE_SERVICE = "/grasp_hexapod/switch_mode"
 
 
+class _ModeCall(object):
+    """一次 switch_mode 后台调用的句柄：result 为 None 表示仍在执行。"""
+
+    __slots__ = ("mode", "thread", "result")
+
+    def __init__(self, mode):
+        self.mode = mode
+        self.thread = None
+        self.result = None
+
+
 class RosBridgeContext(hexapod_bt.BridgeContext):
     """真实机器桥接：只订阅/调用标准名话题与服务（无仿真逻辑）。"""
 
@@ -50,6 +63,7 @@ class RosBridgeContext(hexapod_bt.BridgeContext):
         super().__init__()
         self.n = node
         self._lock = threading.Lock()
+        self._mode_call = None
         self._encoder = None
         self._sensor_health = None
         self._fix = None
@@ -57,6 +71,7 @@ class RosBridgeContext(hexapod_bt.BridgeContext):
         self._task = None
         self._deploy_done = False
         self._winch_done = False
+        self._home_cmd = False
 
     # ---- 话题缓存 ----
     def on_sensor_health(self, msg):
@@ -65,9 +80,7 @@ class RosBridgeContext(hexapod_bt.BridgeContext):
 
     def on_encoder_state(self, msg):
         with self._lock:
-            self._encoder = {"normal": bool(msg.normal),
-                             "landed": bool(msg.landed),
-                             "not_landed": bool(msg.not_landed),
+            self._encoder = {"landed": bool(msg.landed),
                              "angle": msg.angle, "reason": msg.reason}
 
     def on_fix(self, msg):
@@ -94,6 +107,8 @@ class RosBridgeContext(hexapod_bt.BridgeContext):
                 self._deploy_done = True
             elif op == "HOIST_DONE":
                 self._winch_done = True
+            elif op == "HOME":
+                self._home_cmd = True
             else:
                 self.n.loginfo("未知指令透传: %s", text)
 
@@ -111,9 +126,8 @@ class RosBridgeContext(hexapod_bt.BridgeContext):
                                   "age_s": h.age_s,
                                   "reason": h.reason}
         if enc is not None:
-            report["encoder"] = {"online": enc["normal"], "fresh": enc["normal"],
-                                 "freq_hz": 0.0, "age_s": 0.0,
-                                 "reason": "" if enc["normal"] else enc["reason"]}
+            report["encoder"] = {"online": True, "fresh": True,
+                                 "freq_hz": 0.0, "age_s": 0.0, "reason": ""}
         else:
             report["encoder"] = {"online": False, "fresh": False, "freq_hz": 0.0,
                                  "age_s": 99.0,
@@ -125,8 +139,6 @@ class RosBridgeContext(hexapod_bt.BridgeContext):
             enc = self._encoder
         if enc is None:
             return False
-        if not enc["normal"]:
-            return None
         return enc["landed"]
 
     def rtk_covariance_ok(self):
@@ -140,28 +152,59 @@ class RosBridgeContext(hexapod_bt.BridgeContext):
 
     def hold_motion(self, reason):
         self.n.logwarn_throttle(5.0, "[HOLD] 请求停走 reason=%s"
-                                      "（协方差超限，依赖模式执行端停走）", reason)
+                                      "（安全监护暂停，依赖模式执行端停走）", reason)
 
-    # ---- 模式执行（阻塞式服务，响应即最终结果） ----
+    # ---- 模式执行（~/switch_mode 服务端为阻塞式语义：响应=最终结果；
+    #      这里把调用放到后台线程，tick 侧立即返回 RUNNING，保证模式执行
+    #      期间树持续 tick、bt_state 快照与终端日志不间断） ----
+    def _switch_worker(self, call):
+        import rospy
+        try:
+            proxy = self.n.switch_proxy()
+            if proxy is None:
+                call.result = ("FAILED", "{} 不可用（需实机 mode_server 或 sim_feedback）"
+                               .format(SWITCH_MODE_SERVICE))
+                return
+            try:
+                resp = proxy(call.mode)
+            except Exception as exc:  # noqa: BLE001
+                if rospy.is_shutdown():
+                    call.result = ("RUNNING", "shutdown")
+                    return
+                self.n.logerr("%s(%s) 调用失败: %s",
+                              SWITCH_MODE_SERVICE, call.mode, exc)
+                call.result = ("FAILED", "switch 调用失败: {}".format(exc))
+                return
+            call.result = ("SUCCESS" if resp.success else "FAILED", resp.message)
+        except Exception as exc:  # noqa: BLE001
+            call.result = ("FAILED", "switch 线程异常: {}".format(exc))
+
     def switch_mode(self, target_mode):
+        """执行目标模式（~/switch_mode，SwitchMode.srv），非阻塞三态。
+
+        同模式调用在途期间返回 RUNNING；后台线程拿到终态后原样返回一次并
+        清除，之后复检视为新的切换请求（反应式父级每 tick 复检不会重复
+        触发同一模式的执行）。
+        """
         import rospy
         if rospy.is_shutdown():
             return ("RUNNING", "shutdown")
         if target_mode not in hexapod_bt.MODE_LABELS:
             return ("FAILED", "未知模式 {}".format(target_mode))
-        proxy = self.n.switch_proxy()
-        if proxy is None:
-            return ("FAILED", "{} 不可用（需实机 mode_server 或 sim_feedback）"
-                    .format(SWITCH_MODE_SERVICE))
-        try:
-            resp = proxy(target_mode)
-        except Exception as exc:  # noqa: BLE001
-            if rospy.is_shutdown():
-                return ("RUNNING", "shutdown")
-            self.n.logerr("%s(%s) 调用失败: %s",
-                          SWITCH_MODE_SERVICE, target_mode, exc)
-            return ("FAILED", "switch 调用失败: {}".format(exc))
-        return ("SUCCESS" if resp.success else "FAILED", resp.message)
+        with self._lock:
+            call = self._mode_call
+            if call is not None and call.mode == target_mode:
+                if call.result is None:
+                    return ("RUNNING", "")
+                self._mode_call = None
+                return call.result
+            # 模式变化（失败回退等）：只保留最新一次在途调用，旧的作废
+            call = _ModeCall(target_mode)
+            self._mode_call = call
+        call.thread = threading.Thread(target=self._switch_worker,
+                                       args=(call,), daemon=True)
+        call.thread.start()
+        return ("RUNNING", "")
 
     # ---- 任务 / LoRa ----
     def receive_task_command(self):
@@ -180,6 +223,12 @@ class RosBridgeContext(hexapod_bt.BridgeContext):
         with self._lock:
             done = self._winch_done
             self._winch_done = False
+        return done
+
+    def wait_home_cmd(self, dt):
+        with self._lock:
+            done = self._home_cmd
+            self._home_cmd = False
         return done
 
     def report_status(self, status, dt=0.0):
@@ -222,7 +271,8 @@ def run():
     import rospy
     from std_msgs.msg import String
     from sensor_msgs.msg import NavSatFix
-    from grasp_hexapod_msgs.msg import SensorHealthArray, EncoderState, RemoteCmd
+    from grasp_hexapod_msgs.msg import (SensorHealthArray, EncoderState, RemoteCmd,
+                                        BtStateArray, BtNodeState)
     from grasp_hexapod_msgs.srv import SwitchMode
 
     rospy.init_node("run_real_bt", anonymous=True)
@@ -240,6 +290,8 @@ def run():
     node.String = String
     node.rtk_max_cov = rtk_max_cov
     node.pub_status = rospy.Publisher("/lora/status", String, queue_size=10)
+    node.pub_bt = rospy.Publisher("/grasp_hexapod/bt_state", BtStateArray,
+                                  queue_size=5)
     node.pos_xy = lambda: (pos_x, pos_y)
     node.loginfo = lambda *a: rospy.loginfo(*a)
     node.logwarn = lambda *a: rospy.logwarn(*a)
@@ -276,13 +328,43 @@ def run():
             tree = hexapod_bt.build_hexapod_tree(bridge)
             rospy.loginfo("行为树启动: 主链（loop=%s，等待 LoRa 任务命令）", loop)
         last_tip = time.time()
+        node.bt_last_key = None
+        node.bt_last_t = 0.0
         finished = False
         while not rospy.is_shutdown() and not finished:
             dt = 1.0 / rate_hz
-            for node in tree.iterate():
-                node.dt = dt
+            for tree_node in tree.iterate():
+                tree_node.dt = dt
             tree.tick_once()
             state = tree.status
+            # ---- 发布 /grasp_hexapod/bt_state（≤5Hz；状态变化或终态立即发）----
+            mission_status = bridge.status_log[-1] if bridge.status_log else ""
+            tree_label = "遥控测试链" if remote_test else "主链"
+            snap = hexapod_bt.snapshot_tree(tree, mission_status=mission_status,
+                                            tree_name=tree_label)
+            key = (snap["root_status"], snap["mission_status"],
+                   snap["active_phase"])
+            now_t = rospy.get_time()
+            if (state != Status.RUNNING or key != node.bt_last_key
+                    or now_t - node.bt_last_t >= 0.2):
+                msg = BtStateArray()
+                msg.header.stamp = rospy.Time.now()
+                msg.tree_name = snap["tree_name"]
+                msg.root_status = snap["root_status"]
+                msg.mission_status = snap["mission_status"]
+                msg.active_phase = snap["active_phase"]
+                msg.active_feedback = snap["active_feedback"]
+                for n in snap["nodes"]:
+                    entry = BtNodeState()
+                    entry.name = n["name"]
+                    entry.status = n["status"]
+                    entry.feedback = n["feedback"]
+                    entry.depth = n["depth"]
+                    entry.is_leaf = n["is_leaf"]
+                    msg.nodes.append(entry)
+                node.pub_bt.publish(msg)
+                node.bt_last_key = key
+                node.bt_last_t = now_t
             if verbose and time.time() - last_tip >= log_tip_s:
                 last_tip = time.time()
                 running = [n for n in tree.iterate()

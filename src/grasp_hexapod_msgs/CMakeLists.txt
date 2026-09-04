@@ -15,6 +15,8 @@ add_message_files(
   SensorHealthArray.msg
   RemoteCmd.msg
   EncoderState.msg
+  BtNodeState.msg
+  BtStateArray.msg
 )
 
 # 自建服务：把 .srv 文件放进 srv/ 后在 FILES 中列出文件名。
@@ -22,6 +24,7 @@ add_service_files(
   FILES
   SwitchMode.srv
   GripperAct.srv
+  SimInject.srv
 )
 
 generate_messages(

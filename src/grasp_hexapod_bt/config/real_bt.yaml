@@ -24,6 +24,7 @@ simulation:
   deploy: 7.0
   landing_t: 9.0
   winch_done: 80.0
+  home_cmd: 82.0           # 恢复初始命令帧（CMD,HEX,HOME,NOW）
   mode_home: 5.0
   mode_release: 11.0
   mode_spin_search: 13.0

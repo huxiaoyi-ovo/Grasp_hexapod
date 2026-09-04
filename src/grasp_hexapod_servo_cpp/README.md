@@ -66,6 +66,7 @@
 |------|------|------|
 | 话题盲控 | `/gripper_des`（`Float64MultiArray [power, pos_rad]`） | 只写不读的连续位置控制（手柄方向键沿用此路径），目标钳位到 `[gripper_open_pulse, gripper_clamp_pulse]` 真实机械行程 |
 | 服务控制 | `/gripper_command`（本包自定义 `GripperCommand.srv`） | 状态机管理：启动自检、开/合到位验证、夹紧失败受限 |
+| 行为树契约 | `/grasp_hexapod/gripper_act`（`grasp_hexapod_msgs/GripperAct`） | 与 `/gripper_command` **完全共用**同一执行路径/互斥/状态机，仅请求字段名不同（`action`） |
 
 > 使用约定：两条路径不要同时使用。服务处理期间（移动/验证）话题写入自动暂停；
 > 服务/自检完成后，盲控补发基准自动对齐到服务验证到的位置，不会把结果拖回旧目标。
@@ -87,6 +88,29 @@ string message    # 结果说明：到位脉冲 / 受限 / 离线 / 超时原因
 服务为同步阻塞：响应即最终结果（最坏 `gripper_command_duration_ms +
 gripper_max_total_polls / gripper_poll_hz` ≈ 4.4 秒）。服务处理期间腿部 30Hz 循环
 在独立线程继续运行；夹爪每次读取约 1.5ms、每秒 2 次，对行走控制影响可忽略。
+
+### 服务 `/grasp_hexapod/gripper_act`（行为树契约）
+
+```bash
+rosservice call /grasp_hexapod/gripper_act "action: 'open'"   # 松开（≈脉冲 683）
+rosservice call /grasp_hexapod/gripper_act "action: 'clamp'"  # 夹紧（≈脉冲 840）
+```
+
+```text
+string action     # "open"（松开载荷） | "clamp"（夹紧对接）
+---
+bool success      # true=动作完成并验证到位；false=失败
+string message    # 结果说明：到位脉冲 / 受限 / 离线 / 超时 / 忙
+```
+
+- 由模式执行端（mode_server）在 `release`/`dock` 模式内部调用（行为树中不单列），
+  契约见 `src/docs/BT_MODE_INTERFACES.md` §2.2。
+- 与 `/gripper_command` 共用 `operation_mutex_`：两个入口互为并发命令，交叉调用
+  立即 `busy` 拒绝；受限状态语义一致（clamp 失败受限后必须先 open 复位）。
+- 以**绝对名**注册，与节点命名空间无关；仅左板节点（存在夹爪）提供，全系统恰有
+  一个提供者。
+- 对主控制线路无额外影响：服务回调占用 `AsyncSpinner(3)` 中的服务线程，30Hz
+  腿部循环不受阻塞；处理期间盲控写入按 busy 原子量暂停；空闲时零串口读写。
 
 ### 状态机
 

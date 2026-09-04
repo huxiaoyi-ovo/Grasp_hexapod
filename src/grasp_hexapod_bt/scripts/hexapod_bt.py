@@ -63,7 +63,7 @@ class BridgeContext:
 
         订阅 /grasp_hexapod/sensor_health（SensorHealthArray，
         sensor_health_monitor 发布）+ 订阅 /grasp_hexapod/encoder_state
-        （EncoderState，持续发布），其 normal 字段映射为 "encoder" 条目。
+        （EncoderState，持续发布），其"是否收到帧"映射为 "encoder" 条目。
         返回 {name: {online,fresh,freq_hz,age_s,reason}}。
         """
         raise NotImplementedError
@@ -71,7 +71,8 @@ class BridgeContext:
     def is_landing_confirmed(self):
         """⑩/㉔ 编码器落地判断（订阅 /grasp_hexapod/encoder_state，持续反馈）：
 
-        landed → True；not_landed → False；normal=false → None（失败）。"""
+        两态：landed=true（角度 ∈ [90,180]）→ True；否则（未落地/无数据）
+        → False（继续等待）。"""
         raise NotImplementedError
 
     def rtk_covariance_ok(self):
@@ -108,6 +109,10 @@ class BridgeContext:
         """⑫/㉜ 订阅 /lora/command 的 CMD,HEX,HOIST_DONE,…。True=回收完成。"""
         raise NotImplementedError
 
+    def wait_home_cmd(self, dt):
+        """订阅 /lora/command 的 CMD,HEX,HOME,…。True=收到恢复初始命令。"""
+        raise NotImplementedError
+
     def report_status(self, status, dt=0.0):
         """LoRa 状态上报：发布 /lora/status STA,HEX,<status>,<x>,<y>。"""
         self.status_log.append(status)
@@ -126,7 +131,9 @@ class BridgeContext:
 # 叶子节点
 # --------------------------------------------------------------------------
 class IsSensorDataOk(py_trees.behaviour.Behaviour):
-    """统一传感器数据自检（每 tick）：任一传感器不 fresh 即中断主流程。"""
+    """统一传感器数据自检（每 tick）：任一传感器不 fresh 即 hold_motion
+    停走并 RUNNING 暂停主流程（暂停非中止），恢复后继续；连续异常时长
+    由外层 Timeout 限定，超时 FAILURE 走失败回退。"""
 
     def __init__(self, ctx, name="IsSensorDataOk"):
         super().__init__(name)
@@ -140,8 +147,10 @@ class IsSensorDataOk(py_trees.behaviour.Behaviour):
             if not entry.get("fresh", False)
         ]
         if bad:
-            self.feedback_message = "传感器异常: " + ",".join(sorted(bad))
-            return Status.FAILURE
+            self.ctx.hold_motion("sensor_not_fresh")
+            self.feedback_message = ("传感器异常: " + ",".join(sorted(bad))
+                                     + "，停走等待恢复")
+            return Status.RUNNING
         self.feedback_message = "传感器数据全部正常"
         return Status.SUCCESS
 
@@ -265,18 +274,14 @@ class WaitDeployment(py_trees.behaviour.Behaviour):
 
 
 class IsLandingConfirmed(py_trees.behaviour.Behaviour):
-    """⑩/㉔ 编码器落地判断（topic 持续反馈三态）。"""
+    """⑩/㉔ 编码器落地判断（topic 持续反馈两态）。"""
 
     def __init__(self, ctx, name="IsLandingConfirmed"):
         super().__init__(name)
         self.ctx = ctx
 
     def update(self):
-        result = self.ctx.is_landing_confirmed()
-        if result is None:
-            self.feedback_message = "编码器故障"
-            return Status.FAILURE
-        if result:
+        if self.ctx.is_landing_confirmed():
             self.feedback_message = "编码器确认落地"
             return Status.SUCCESS
         self.feedback_message = "未落地，继续等待"
@@ -304,6 +309,17 @@ class WaitWinchHoisted(py_trees.behaviour.Behaviour):
         return _action_status(self.ctx.wait_winch_hoisted(self.dt))
 
 
+class WaitHomeCmd(py_trees.behaviour.Behaviour):
+    """等待地面「恢复初始」命令（订阅 /lora/command CMD,HEX,HOME,…）。"""
+
+    def __init__(self, ctx, name="WaitHomeCmd"):
+        super().__init__(name)
+        self.ctx = ctx
+
+    def update(self):
+        return _action_status(self.ctx.wait_home_cmd(self.dt))
+
+
 # --------------------------------------------------------------------------
 # 树构建
 # --------------------------------------------------------------------------
@@ -321,21 +337,25 @@ def _run_mode(ctx, mode):
 
 
 def build_hexapod_tree(ctx, deploy_timeout_s=120.0, landing_timeout_s=120.0,
-                       comms_timeout_s=10.0, rtk_wait_timeout_s=60.0):
+                       comms_timeout_s=10.0, rtk_wait_timeout_s=60.0,
+                       sensor_fresh_timeout_s=10.0):
     """构建主链完整行为树（无遥控）。
 
     结构：
       任务失败回退（Selector）
-      ├─ 主流程_带安全监视（Sequence memory=False：IsSensorDataOk 每 tick 复检）
+      ├─ 主流程_带安全监视（Sequence memory=False：IsSensorDataOk 每 tick
+      │   复检，异常停走暂停，连续异常超 sensor_fresh_timeout_s 判失败）
       │   └─ 任务阶段序列（memory=True）
       │       ├─ WaitTaskCommand ⑤/⑲
       │       ├─ SafetyInit：上线门禁 → home 回到初始姿态(含复位)
       │       ├─ DeployAndLand ⑨ → ⑩/㉔
       │       ├─ 释放/回收分流（Selector）
       │       │   ├─ 释放分支：RunMode("release") → RELEASED → ⑫
+      │       │   │            → WaitHomeCmd → RunMode("home") → RESET_DONE
       │       │   └─ 回收分支：LANDED → [spin_search→approach(RTK监护)]
       │       │            → RunMode("tag_nav") → RunMode("climb")
       │       │            → RunMode("dock") → CLAMPED → ㉜
+      │       │            → WaitHomeCmd → RunMode("home") → RESET_DONE
       │       └─ ReportStatus DONE ㊱
       └─ 失败处理：home(尽力) → ReportStatus FAILED
     """
@@ -373,6 +393,9 @@ def build_hexapod_tree(ctx, deploy_timeout_s=120.0, landing_timeout_s=120.0,
             _run_mode(ctx, "release"),
             ReportStatus(ctx, status="RELEASED"),
             WaitWinchHoisted(ctx),
+            WaitHomeCmd(ctx),                          # 等地面恢复初始命令
+            _run_mode(ctx, "home"),                    # 恢复初始姿态
+            ReportStatus(ctx, status="RESET_DONE"),    # 归位完成回传
         ])
 
     # ---- 定位导航（spin_search + approach）带 RTK 协方差监护 ----
@@ -403,6 +426,9 @@ def build_hexapod_tree(ctx, deploy_timeout_s=120.0, landing_timeout_s=120.0,
             _run_mode(ctx, "dock"),                    # ㉙㉚ 对接(导引+抬腿+夹爪)
             ReportStatus(ctx, status="CLAMPED"),       # ㉛ 回传夹紧完成
             WaitWinchHoisted(ctx),                     # ㉜ 拉升绞盘回收
+            WaitHomeCmd(ctx),                          # 等地面恢复初始命令
+            _run_mode(ctx, "home"),                    # 恢复初始姿态
+            ReportStatus(ctx, status="RESET_DONE"),    # 归位完成回传
         ])
 
     # ---- 释放/回收分流 ----
@@ -412,10 +438,15 @@ def build_hexapod_tree(ctx, deploy_timeout_s=120.0, landing_timeout_s=120.0,
             recover_branch,
         ])
 
-    # ---- 主流程：IsSensorDataOk 每 tick 复检 ----
+    # ---- 主流程：IsSensorDataOk 每 tick 复检；异常停走暂停，
+    # 连续异常超过容忍时长(10s) -> Timeout FAILURE -> 失败回退 ----
     mission_flow = py_trees.composites.Sequence(
         name="主流程_带安全监视", memory=False, children=[
-            IsSensorDataOk(ctx),
+            Timeout(
+                name="传感器恢复超时",
+                child=IsSensorDataOk(ctx),
+                duration=sensor_fresh_timeout_s,
+            ),
             py_trees.composites.Sequence(
                 name="任务阶段序列", memory=True, children=[
                     WaitTaskCommand(ctx),
@@ -486,7 +517,8 @@ class FakeBridge(BridgeContext):
       switch_fail_modes [mode, ...]          切这些模式立即 FAILED
       mode_fail         {mode: {"at": t, "message": str}}  到时刻返回 FAILED
       mode_never        [mode, ...]          模式结果永 RUNNING
-      sensor_bad / sensor_offline / cov_bad_windows / cov_always_bad
+      sensor_bad / sensor_bad_windows / sensor_offline /
+      cov_bad_windows / cov_always_bad
       remote_target     "home|walk|climb|dock|spin_search|release"
     times 键：
       task_cmd, deploy, landing, winch_done, 以及各模式完成时刻（mode_<mode>）
@@ -498,7 +530,7 @@ class FakeBridge(BridgeContext):
         self.times = {
             "task_cmd": 0.5,
             "deploy": 5.0, "landing": 8.0,
-            "winch_done": 70.0,
+            "winch_done": 70.0, "home_cmd": 72.0,
             "mode_home": 2.0,
             "mode_release": 10.0,
             "mode_spin_search": 11.0,
@@ -513,6 +545,7 @@ class FakeBridge(BridgeContext):
         self.mode_fail = {}
         self.mode_never = []
         self.sensor_bad = None
+        self.sensor_bad_windows = {}
         self.sensor_offline = None
         self.cov_bad_windows = []
         self.cov_always_bad = False
@@ -522,7 +555,8 @@ class FakeBridge(BridgeContext):
         if script:
             self.times.update(script)
             for key in ("mission", "task_cmd_value", "switch_fail_modes",
-                        "mode_fail", "mode_never", "sensor_bad", "sensor_offline",
+                        "mode_fail", "mode_never", "sensor_bad",
+                        "sensor_bad_windows", "sensor_offline",
                         "cov_bad_windows", "cov_always_bad", "remote_target"):
                 if key in script:
                     setattr(self, "mission_mode_cmd" if key == "mission" else key,
@@ -541,6 +575,11 @@ class FakeBridge(BridgeContext):
             entry = report[self.sensor_bad]
             entry.update({"fresh": False, "freq_hz": 0.0,
                           "age_s": 9.99, "reason": "频率 0Hz"})
+        for name, windows in self.sensor_bad_windows.items():
+            if name in report and any(s <= self.t <= e for s, e in windows):
+                entry = report[name]
+                entry.update({"fresh": False, "freq_hz": 0.0,
+                              "age_s": 9.99, "reason": "瞬时数据中断"})
         if self.sensor_offline and self.sensor_offline in report:
             entry = report[self.sensor_offline]
             entry.update({"online": False, "fresh": False, "freq_hz": 0.0,
@@ -549,7 +588,7 @@ class FakeBridge(BridgeContext):
 
     def is_landing_confirmed(self):
         if not self.sensor_health()["encoder"]["fresh"]:
-            return None
+            return False        # 编码器数据中断：视为未落地，等待恢复
         return self._done("landing")
 
     def rtk_covariance_ok(self):
@@ -590,6 +629,9 @@ class FakeBridge(BridgeContext):
     def wait_winch_hoisted(self, dt):
         return self._done("winch_done")
 
+    def wait_home_cmd(self, dt):
+        return self._done("home_cmd")
+
     # ---- 遥控（仅测试链） ----
     def read_remote_cmd(self):
         return {"mode": self.remote_target,
@@ -608,6 +650,80 @@ def print_tree(tree):
             walk(child, depth + 1)
 
     walk(tree)
+
+
+# --------------------------------------------------------------------------
+# 实时状态快照与渲染（ROS-free，供运行器发布 / bt_monitor / bt_dashboard 复用）
+# --------------------------------------------------------------------------
+STATUS_SYMBOLS = {"RUNNING": "\u25cf", "SUCCESS": "\u2713",
+                  "FAILURE": "\u2717", "INVALID": "\u00b7"}
+STATUS_COLORS = {"RUNNING": "\033[34m", "SUCCESS": "\033[32m",
+                 "FAILURE": "\033[31m", "INVALID": "\033[90m"}
+_COLOR_RESET = "\033[0m"
+
+
+def snapshot_tree(tree, mission_status="", tree_name=None):
+    """前序快照整棵树节点状态为纯数据结构（不 import ROS）。
+
+    读取每个节点的 name/status/feedback_message/children 并自算 depth
+    （py_trees Behaviour 无内置 depth）；active_phase = 最深 RUNNING 节点
+    （即“当前运行阶段”，与运行器打印的 tip 同义）。
+
+    返回 dict：{tree_name, root_status, mission_status, active_phase,
+    active_feedback, nodes:[{name,status,feedback,depth,is_leaf}]}。
+    注意：主链根为失败回退 Selector，任务失败后 root_status 仍为 SUCCESS，
+    因此 mission_status（调用方从 ctx.status_log 末值传入）才是任务结果。
+    """
+    nodes = []
+
+    def walk(node, depth):
+        nodes.append({
+            "name": node.name,
+            "status": node.status.name,
+            "feedback": node.feedback_message or "",
+            "depth": depth,
+            "is_leaf": not node.children,
+        })
+        for child in node.children:
+            walk(child, depth + 1)
+
+    walk(tree, 0)
+    running = [n for n in nodes if n["status"] == "RUNNING"]
+    active = max(running, key=lambda n: n["depth"]) if running else None
+    return {
+        "tree_name": tree_name or tree.name,
+        "root_status": tree.status.name,
+        "mission_status": mission_status or "",
+        "active_phase": active["name"] if active else "",
+        "active_feedback": active["feedback"] if active else "",
+        "nodes": nodes,
+    }
+
+
+def render_ascii_tree(snapshot, colored=True):
+    """把 snapshot_tree() 的输出渲染为缩进状态树文本。
+
+    colored=True 用 ANSI 色：RUNNING 蓝 / SUCCESS 绿 / FAILURE 红 / INVALID 灰
+    （反馈信息灰字）；False 用 ●/✓/✗/· 字符标记（适合非终端/日志）。
+    """
+    lines = []
+    for node in snapshot["nodes"]:
+        indent = "  " * node["depth"]
+        status = node["status"]
+        mark = STATUS_SYMBOLS.get(status, "?")
+        if colored:
+            color = STATUS_COLORS.get(status, "")
+            head = "{}{} {:<8s}{}".format(color, mark, status, _COLOR_RESET)
+        else:
+            head = "{} {:<8s}".format(mark, status)
+        line = "{}{} {}".format(indent, head, node["name"])
+        if node["feedback"]:
+            if colored:
+                line += "  \033[90m\u2014 {}\033[0m".format(node["feedback"])
+            else:
+                line += "  \u2014 " + node["feedback"]
+        lines.append(line)
+    return "\n".join(lines)
 
 
 def run_until_done(tree, ctx, dt=0.5, max_steps=400, wall_sleep=0.0):
@@ -641,10 +757,10 @@ def selftest():
     tree = build_hexapod_tree(ctx)
     status = run_until_done(tree, ctx)
     assert status == Status.SUCCESS, "recover: {}".format(status)
-    assert ctx.status_log == ["LANDED", "CLAMPED", "DONE"], ctx.status_log
+    assert ctx.status_log == ["LANDED", "CLAMPED", "RESET_DONE", "DONE"], ctx.status_log
     switched = [m for _, m in ctx.switch_log]
     assert switched == ["home", "spin_search", "approach",
-                        "tag_nav", "climb", "dock"], switched
+                        "tag_nav", "climb", "dock", "home"], switched
     print("[OK] 回收任务: 模式序列 =", switched, "状态上报 =", ctx.status_log)
 
     # --- 2. 释放任务正常推进（release 模式内部完成夹爪 open） ---
@@ -652,9 +768,9 @@ def selftest():
     tree2 = build_hexapod_tree(ctx2)
     status2 = run_until_done(tree2, ctx2)
     assert status2 == Status.SUCCESS, "release: {}".format(status2)
-    assert ctx2.status_log == ["RELEASED", "DONE"], ctx2.status_log
+    assert ctx2.status_log == ["RELEASED", "RESET_DONE", "DONE"], ctx2.status_log
     switched2 = [m for _, m in ctx2.switch_log]
-    assert switched2 == ["home", "release"], switched2
+    assert switched2 == ["home", "release", "home"], switched2
     print("[OK] 释放任务: 模式序列 =", switched2, "状态上报 =", ctx2.status_log)
 
     # --- 3. 模式执行被拒绝（home）-> 失败回退 ---
@@ -691,14 +807,28 @@ def selftest():
         ctx6.status_log)
     print("[OK] tag_nav 最终结果失败回退: 状态上报 =", ctx6.status_log)
 
-    # --- 7. 传感器数据异常（任一）-> 失败回退 ---
+    # --- 7. 传感器数据瞬时异常：停走暂停，恢复后继续到 DONE ---
     for sensor in SENSOR_NAMES:
-        ctx7 = FakeBridge(script={"sensor_bad": sensor})
+        ctx7 = FakeBridge(script={"sensor_bad_windows": {sensor: [(6.0, 9.0)]}})
         tree7 = build_hexapod_tree(ctx7)
         status7 = run_until_done(tree7, ctx7)
-        assert status7 == Status.SUCCESS and ctx7.status_log == ["FAILED"], (
+        assert status7 == Status.SUCCESS
+        assert ctx7.status_log == ["LANDED", "CLAMPED", "RESET_DONE", "DONE"], (
             "{} {}".format(sensor, ctx7.status_log))
-    print("[OK] 传感器数据异常回退")
+        assert [m for _, m in ctx7.switch_log] == [
+            "home", "spin_search", "approach", "tag_nav", "climb", "dock",
+            "home"], (
+            "{} {}".format(sensor, ctx7.switch_log))
+    print("[OK] 传感器数据瞬时异常停走恢复后继续")
+
+    # --- 7b. 传感器数据持续异常超过容忍时长 -> 失败回退 ---
+    for sensor in ("imu", "gps"):
+        ctx7b = FakeBridge(script={"sensor_bad": sensor})
+        tree7b = build_hexapod_tree(ctx7b, sensor_fresh_timeout_s=0.2)
+        status7b = run_until_done(tree7b, ctx7b, wall_sleep=0.05)
+        assert status7b == Status.SUCCESS and ctx7b.status_log == ["FAILED"], (
+            "{} {}".format(sensor, ctx7b.status_log))
+    print("[OK] 传感器数据持续异常超时回退")
 
     # --- 8. 传感器通信离线 -> 上线门禁超时 -> 失败回退 ---
     ctx8 = FakeBridge(script={"sensor_offline": "gps"})
@@ -725,7 +855,7 @@ def selftest():
     ctx11 = FakeBridge(script={"cov_bad_windows": [(21.5, 23.0)]})
     tree11 = build_hexapod_tree(ctx11)
     status11 = run_until_done(tree11, ctx11)
-    assert status11 == Status.SUCCESS and ctx11.status_log == ["LANDED", "CLAMPED", "DONE"], (
+    assert status11 == Status.SUCCESS and ctx11.status_log == ["LANDED", "CLAMPED", "RESET_DONE", "DONE"], (
         ctx11.status_log)
     print("[OK] RTK 协方差超限停走恢复后继续: 状态上报 =", ctx11.status_log)
 
@@ -754,6 +884,32 @@ def selftest():
         switched13 = [m for _, m in ctx13.switch_log]
         assert switched13 == [mode], "{} {}".format(mode, switched13)
         print("[OK] 遥控测试链单切: {} -> SUCCESS".format(mode))
+
+    # --- 14. snapshot_tree：深度/active_phase/渲染；终态 mission_status ---
+    ctx14 = FakeBridge(script={"mission": "recover"})
+    tree14 = build_hexapod_tree(ctx14)
+    _tick(tree14, ctx14, 1.0)              # t=1.0：已收任务，正执行 home
+    snap14 = snapshot_tree(tree14)
+    assert snap14["root_status"] == "RUNNING", snap14["root_status"]
+    home_node = next(n for n in snap14["nodes"]
+                     if n["name"] == "执行 回到初始姿态(含复位)")
+    assert home_node["depth"] == 4 and home_node["is_leaf"], home_node
+    assert snap14["active_phase"] == home_node["name"], snap14["active_phase"]
+    assert snap14["nodes"][0]["name"] == "任务失败回退"
+    assert snap14["nodes"][0]["depth"] == 0
+    text = render_ascii_tree(snap14, colored=False)
+    assert "执行 回到初始姿态" in text and "RUNNING" in text
+    assert "\033[" in render_ascii_tree(snap14, colored=True)   # ANSI 色
+    # 任务终态：root=SUCCESS（失败回退 Selector），mission_status 取 status_log 末值
+    ctx15 = FakeBridge(script={"mission": "recover"})
+    tree15 = build_hexapod_tree(ctx15)
+    status15 = run_until_done(tree15, ctx15)
+    assert status15 == Status.SUCCESS
+    snap15 = snapshot_tree(tree15, mission_status=(
+        ctx15.status_log[-1] if ctx15.status_log else ""))
+    assert snap15["root_status"] == "SUCCESS"
+    assert snap15["mission_status"] == "DONE", snap15["mission_status"]
+    print("[OK] snapshot_tree: 深度/active_phase/ascii 渲染/终态 mission_status")
 
     print("selftest 全部通过")
 

@@ -4,6 +4,10 @@
 //     以 gripper_poll_hz（默认 2Hz）读取位置验证；
 //   - 与 /gripper_des 话题盲控路径并存：服务处理期间（busy）话题写入暂停；
 //   - 服务为同步阻塞：响应即最终结果（成功/失败 + 原因）。
+// 两个等价服务入口共用同一执行路径/互斥/状态机：
+//   - /gripper_command（GripperCommand，本包调试直控）；
+//   - /grasp_hexapod/gripper_act（GripperAct，行为树契约，模式内部调用，
+//     绝对名与节点命名空间无关）。
 #ifndef GRASP_HEXAPOD_SERVO_CPP_GRIPPER_MANAGER_H_
 #define GRASP_HEXAPOD_SERVO_CPP_GRIPPER_MANAGER_H_
 
@@ -13,6 +17,8 @@
 #include <string>
 
 #include <ros/ros.h>
+
+#include <grasp_hexapod_msgs/GripperAct.h>
 
 #include "grasp_hexapod_servo_cpp/GripperCommand.h"
 #include "grasp_hexapod_servo_cpp/hiwonder_servo_controller.h"
@@ -84,6 +90,12 @@ class GripperManager {
   void loadParams(ros::NodeHandle& nh_private);
   bool handleCommand(GripperCommand::Request& request,
                      GripperCommand::Response& response);
+  // 行为树契约入口：action open/clamp 转发到与 handleCommand 相同的执行路径。
+  bool handleAct(grasp_hexapod_msgs::GripperAct::Request& request,
+                 grasp_hexapod_msgs::GripperAct::Response& response);
+  // 公共执行体（须持有 operation_mutex_）：busy 置位 → 派发 doOpen/doClamp →
+  // busy 清除 → 发布位置同步。
+  void execute(const std::string& command, GripperCommand::Response& response);
   bool doOpen(GripperCommand::Response& response);
   bool doClamp(GripperCommand::Response& response);
   // 一次位置读取 + 一次即时重试；nullopt = 无反馈（不在线）。
@@ -115,6 +127,7 @@ class GripperManager {
   std::atomic<GripperState> state_{GripperState::kUnknown};
   std::atomic<bool> busy_{false};
   ros::ServiceServer service_;
+  ros::ServiceServer act_service_;
 
   // ---- 完成位置同步（30Hz 线程轮询，小锁保护）----
   mutable std::mutex sync_mutex_;

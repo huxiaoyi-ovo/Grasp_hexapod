@@ -5,6 +5,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(catkin REQUIRED COMPONENTS
+  grasp_hexapod_msgs
   message_generation
   roscpp
   sensor_msgs
@@ -22,7 +23,7 @@ generate_messages()
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES grasp_hexapod_servo_cpp
-  CATKIN_DEPENDS message_runtime roscpp sensor_msgs serial std_msgs
+  CATKIN_DEPENDS grasp_hexapod_msgs message_runtime roscpp sensor_msgs serial std_msgs
 )
 
 include_directories(

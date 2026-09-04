@@ -40,6 +40,7 @@ DEFAULT_TIMELINE = {
     "deploy": 7.0,         # ⑨ 绞盘下放开始
     "landing": 9.0,        # ⑩/㉔ 编码器确认落地
     "winch_done": 80.0,    # ⑫/㉜ 绞盘回收完成
+    "home_cmd": 82.0,      # 恢复初始命令（CMD,HEX,HOME,NOW）
     # 各模式完成时刻（模拟 control 端执行耗时）
     "mode_home": 5.0,          # 回到初始姿态(含复位)
     "mode_release": 11.0,      # 释放小蓝（夹爪 open 到位）
@@ -114,19 +115,19 @@ class MockRosBridge(hexapod_bt.BridgeContext):
     def sensor_health(self):
         report = self.node.registry.snapshot(self.t)
         state = self.node.encoder_state()
-        report["encoder"] = {
-            "online": bool(state["normal"]),
-            "fresh": bool(state["normal"]),
-            "freq_hz": 0.0,
-            "age_s": 0.0,
-            "reason": "" if state["normal"] else state["reason"],
-        }
+        if state is None:          # 编码器拨断：无帧 -> 离线
+            report["encoder"] = {"online": False, "fresh": False,
+                                 "freq_hz": 0.0, "age_s": 99.0,
+                                 "reason": "无 encoder_state 帧"}
+        else:
+            report["encoder"] = {"online": True, "fresh": True,
+                                 "freq_hz": 0.0, "age_s": 0.0, "reason": ""}
         return report
 
     def is_landing_confirmed(self):
         state = self.node.encoder_state()
-        if not state["normal"]:
-            return None
+        if state is None:
+            return False        # 无数据：视为未落地，继续等待
         return state["landed"]
 
     def rtk_covariance_ok(self):
@@ -153,6 +154,9 @@ class MockRosBridge(hexapod_bt.BridgeContext):
 
     def wait_winch_hoisted(self, dt):
         return self._done("winch_done")
+
+    def wait_home_cmd(self, dt):
+        return self._done("home_cmd")
 
     def report_status(self, status, dt=0.0):
         super().report_status(status, dt)
@@ -183,7 +187,8 @@ def run_node():
     from std_msgs.msg import Bool, String
     from grasp_hexapod_msgs.srv import (SwitchMode, SwitchModeResponse,
                                         GripperAct, GripperActResponse)
-    from grasp_hexapod_msgs.msg import EncoderState, SensorHealthArray
+    from grasp_hexapod_msgs.msg import (EncoderState, SensorHealthArray,
+                                        BtStateArray, BtNodeState)
     from py_trees.common import Status
 
     rospy.init_node("bt_mock_world")
@@ -240,6 +245,8 @@ def run_node():
             self.pub_health = rospy.Publisher(
                 "/grasp_hexapod/sensor_health", SensorHealthArray, queue_size=2)
             self.pub_state = rospy.Publisher("/grasp_hexapod/state", String, queue_size=5)
+            self.pub_bt = rospy.Publisher("/grasp_hexapod/bt_state", BtStateArray,
+                                          queue_size=5)
 
             # ---- 订阅（观测） ----
             rospy.Subscriber("/lora/status", String, self.on_status, queue_size=5)
@@ -317,15 +324,14 @@ def run_node():
             success, message = self.gripper_act_impl(req.action, mode)
             return GripperActResponse(success=success, message=message)
 
-        # ---- 编码器（落地判断，持续发布 EncoderState topic） ----
+        # ---- 编码器（落地判断，持续发布 EncoderState topic；拨断则不发布） ----
         def encoder_state(self):
             if self.drop_sensor == "encoder" and self.now >= self.drop_at:
-                return {"normal": False, "landed": False, "not_landed": False,
-                        "angle": 0.0, "reason": "串口无数据"}
+                return None
             landed = self.now >= self.timeline["landing"]
-            return {"normal": True, "landed": landed, "not_landed": not landed,
-                    "angle": 150.0 if landed else 120.0,
-                    "reason": "已检测到接触突变" if landed else "值固定未突变"}
+            return {"landed": landed,
+                    "angle": 135.0 if landed else 45.0,
+                    "reason": "已落地" if landed else "未落地"}
 
         # ---- 原始传感器发布（发布即喂健康注册表） ----
         def publish_sensors(self):
@@ -373,20 +379,20 @@ def run_node():
                     pub = self.pub_stereo if name == "stereo" else self.pub_mono
                     pub.publish(Bool(data=True))
                     self.registry.feed(name, "/grasp_hexapod/{}_ok".format(name), self.now)
-            # 编码器状态持续发布（topic，替代原服务）
+            # 编码器状态持续发布（topic，替代原服务；拨断则不发布）
             enc = self.encoder_state()
-            enc_msg = EncoderState()
-            enc_msg.header.stamp = stamp
-            enc_msg.normal = bool(enc["normal"])
-            enc_msg.landed = bool(enc["landed"])
-            enc_msg.not_landed = bool(enc["not_landed"])
-            enc_msg.angle = enc["angle"]
-            enc_msg.reason = enc["reason"]
-            self.pub_encoder.publish(enc_msg)
+            if enc is not None:
+                enc_msg = EncoderState()
+                enc_msg.header.stamp = stamp
+                enc_msg.landed = bool(enc["landed"])
+                enc_msg.angle = enc["angle"]
+                enc_msg.reason = enc["reason"]
+                self.pub_encoder.publish(enc_msg)
             # /lora/command 时间线
             for key, frame in (("task_cmd", "CMD,HEX,{},NOW".format(self.mission.upper())),
                                ("deploy", "CMD,HEX,DEPLOY,NOW"),
-                               ("winch_done", "CMD,HEX,HOIST_DONE,NOW")):
+                               ("winch_done", "CMD,HEX,HOIST_DONE,NOW"),
+                               ("home_cmd", "CMD,HEX,HOME,NOW")):
                 if key not in self.lora_sent and self.now >= self.timeline[key]:
                     self.lora_sent.add(key)
                     self.pub_lora_cmd.publish(String(data=frame))
@@ -415,6 +421,37 @@ def run_node():
         def on_status(self, message):
             pass
 
+        def publish_bt_state(self):
+            """发布 /grasp_hexapod/bt_state（≤5Hz；状态变化或终态立即发）。"""
+            mission_status = (self.bridge.status_log[-1]
+                              if self.bridge.status_log else "")
+            tree_label = "遥控测试链" if self.remote_test else "主链"
+            snap = hexapod_bt.snapshot_tree(
+                self.tree, mission_status=mission_status, tree_name=tree_label)
+            key = (snap["root_status"], snap["mission_status"],
+                   snap["active_phase"])
+            state = self.tree.status
+            if (state != Status.RUNNING or key != getattr(self, "_bt_key", None)
+                    or self.now - getattr(self, "_bt_t", -1.0) >= 0.2):
+                msg = BtStateArray()
+                msg.header.stamp = rospy.Time.now()
+                msg.tree_name = snap["tree_name"]
+                msg.root_status = snap["root_status"]
+                msg.mission_status = snap["mission_status"]
+                msg.active_phase = snap["active_phase"]
+                msg.active_feedback = snap["active_feedback"]
+                for n in snap["nodes"]:
+                    entry = BtNodeState()
+                    entry.name = n["name"]
+                    entry.status = n["status"]
+                    entry.feedback = n["feedback"]
+                    entry.depth = n["depth"]
+                    entry.is_leaf = n["is_leaf"]
+                    msg.nodes.append(entry)
+                self.pub_bt.publish(msg)
+                self._bt_key = key
+                self._bt_t = self.now
+
         # ---- 主循环 ----
         def tick(self, _event=None):
             if self.finished:
@@ -437,14 +474,15 @@ def run_node():
                         self.now, tip.name, tip.feedback_message))
                 self.last_print = self.now
             self.pub_state.publish(String(data=state.name))
+            self.publish_bt_state()
             if state != Status.RUNNING:
                 self.finished = True
                 self.log("=" * 60)
                 self.log("行为树终态: {}   状态上报顺序: {}".format(
                     state.name, self.bridge.status_log))
                 expected = {
-                    "release": ["RELEASED", "DONE"],
-                    "recover": ["LANDED", "CLAMPED", "DONE"],
+                    "release": ["RELEASED", "RESET_DONE", "DONE"],
+                    "recover": ["LANDED", "CLAMPED", "RESET_DONE", "DONE"],
                 }.get(self.mission, [])
                 if state == Status.SUCCESS and self.bridge.status_log == expected:
                     self.log("[通过] {} 任务按预期完成".format(self.mission))
@@ -507,8 +545,9 @@ def selftest():
 
         def encoder_state(self):
             landed = self.now >= self.timeline["landing"]
-            return {"normal": True, "landed": landed, "not_landed": not landed,
-                    "angle": 0.0, "reason": ""}
+            return {"landed": landed,
+                    "angle": 135.0 if landed else 45.0,
+                    "reason": "已落地" if landed else "未落地"}
 
         def publish_status(self, status):
             pass

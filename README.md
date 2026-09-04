@@ -198,3 +198,7 @@ conda run --no-capture-output -n grasp_hexapod python3 \
 - [舵机协议、ID 和方向](src/grasp_hexapod_servo/README.md)
 - [C++ 版舵机驱动](src/grasp_hexapod_servo_cpp/README.md)
 - [参考：编码器帧解析与角度发布](src/reference/encoder_driver/README.md)
+
+## Repository Activity
+
+![Repobeats analytics image](https://repobeats.axiom.co/api/embed/859fd5df85ba8f10eab3b9abe78ae79040f68f89.svg)

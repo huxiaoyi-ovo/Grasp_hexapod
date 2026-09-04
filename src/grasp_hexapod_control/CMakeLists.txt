@@ -5,6 +5,7 @@ find_package(
   catkin REQUIRED COMPONENTS
   cv_bridge
   geometry_msgs
+  grasp_hexapod_msgs
   rospy
   sensor_msgs
   std_msgs
@@ -14,7 +15,7 @@ find_package(
 )
 
 catkin_package(
-  CATKIN_DEPENDS cv_bridge geometry_msgs rospy sensor_msgs std_msgs tf tf2_ros trajectory_msgs
+  CATKIN_DEPENDS cv_bridge geometry_msgs grasp_hexapod_msgs rospy sensor_msgs std_msgs tf tf2_ros trajectory_msgs
 )
 
 catkin_install_python(

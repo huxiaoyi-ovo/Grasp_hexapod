@@ -18,7 +18,7 @@ sim_feedback.py（按 config/real_bt.yaml 对 simulate:true 的接口模拟发�
     - grasp_hexapod_bt/sensor_health_monitor → /grasp_hexapod/sensor_health
     - GPS/RTK 驱动 → /fix
     - lora（reference/lora）→ /lora/command、/lora/status
-    - 控制栈 mode_server → /grasp_hexapod/switch_mode（真实执行端，尚未实现）
+    - grasp_hexapod_control/run_real.py → /grasp_hexapod/switch_mode（真实/Isaac执行端）
     - remote_control（遥控测试链用）→ /grasp_hexapod/remote_cmd
     （任一缺失且未用 sim_feedback 模拟 → 树将等待（如传感器上线）或失败回退）
 
@@ -43,6 +43,7 @@ import hexapod_bt
 from py_trees.common import Status
 
 SWITCH_MODE_SERVICE = "/grasp_hexapod/switch_mode"
+HOLD_MOTION_TOPIC = "/grasp_hexapod/hold_motion"
 
 
 class _ModeCall(object):
@@ -151,8 +152,11 @@ class RosBridgeContext(hexapod_bt.BridgeContext):
         return max(diag) <= self.n.rtk_max_cov
 
     def hold_motion(self, reason):
+        # 行为树在安全条件未恢复期间每tick都会调用这里。以短租约心跳而非
+        # 一次性停机命令表达暂停，控制端可在心跳停止后从原内部状态继续。
+        self.n.pub_hold.publish(self.n.String(data=str(reason)))
         self.n.logwarn_throttle(5.0, "[HOLD] 请求停走 reason=%s"
-                                      "（安全监护暂停，依赖模式执行端停走）", reason)
+                                      "（BT租约暂停，依赖模式执行端保持状态）", reason)
 
     # ---- 模式执行（~/switch_mode 服务端为阻塞式语义：响应=最终结果；
     #      这里把调用放到后台线程，tick 侧立即返回 RUNNING，保证模式执行
@@ -292,6 +296,7 @@ def run():
     node.pub_status = rospy.Publisher("/lora/status", String, queue_size=10)
     node.pub_bt = rospy.Publisher("/grasp_hexapod/bt_state", BtStateArray,
                                   queue_size=5)
+    node.pub_hold = rospy.Publisher(HOLD_MOTION_TOPIC, String, queue_size=5)
     node.pos_xy = lambda: (pos_x, pos_y)
     node.loginfo = lambda *a: rospy.loginfo(*a)
     node.logwarn = lambda *a: rospy.logwarn(*a)

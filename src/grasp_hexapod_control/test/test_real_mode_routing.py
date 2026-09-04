@@ -5,7 +5,8 @@ import importlib.util
 import json
 from pathlib import Path
 import sys
-from threading import Lock
+import threading
+from threading import Condition, Lock
 import types
 import xml.etree.ElementTree as ET
 
@@ -137,6 +138,398 @@ def _button_node():
     node.real_climb_monitor_active = False
     node.real_climb_speed_diagnostic = None
     return node
+
+
+def _bt_node():
+    """不初始化ROS的BT服务/租约测试节点。"""
+
+    node = _button_node()
+    node.bt_condition = Condition(Lock())
+    node.bt_request = None
+    node.bt_hold_deadline = 0.0
+    node.bt_hold_active = False
+    node.bt_hold_lease_s = 0.15
+    node.bt_remote = None
+    node.gripper_act_proxy = None
+    node._switch_mode_response = lambda success, message: types.SimpleNamespace(
+        success=success, message=message
+    )
+    node.local_execution = True
+    return node
+
+
+def _bt_request(mode):
+    return {
+        "mode": mode,
+        "started": True,
+        "final": None,
+        "waiters": 0,
+        "dock_clamped": False,
+    }
+
+
+def test_bt_mode_validation_and_unsupported_modes_fail_closed(monkeypatch):
+    node = _bt_node()
+    monkeypatch.setattr(RUN_REAL.rospy, "is_shutdown", lambda: False,
+                        raising=False)
+
+    unknown = RUN_REAL.RosControlNode._switch_mode_callback(
+        node, types.SimpleNamespace(target_mode="bogus")
+    )
+    unsupported = RUN_REAL.RosControlNode._switch_mode_callback(
+        node, types.SimpleNamespace(target_mode="spin_search")
+    )
+
+    assert not unknown.success and "unknown mode" in unknown.message
+    assert not unsupported.success
+    assert unsupported.message == "executor not implemented: spin_search"
+
+
+def test_bt_same_mode_waiters_share_terminal_and_different_mode_is_busy(monkeypatch):
+    node = _bt_node()
+    monkeypatch.setattr(RUN_REAL.rospy, "is_shutdown", lambda: False,
+                        raising=False)
+    replies = []
+
+    def call(mode):
+        replies.append(RUN_REAL.RosControlNode._switch_mode_callback(
+            node, types.SimpleNamespace(target_mode=mode)
+        ))
+
+    first = threading.Thread(target=call, args=("home",))
+    second = threading.Thread(target=call, args=("home",))
+    first.start()
+    second.start()
+    for _ in range(100):
+        with node.bt_condition:
+            if node.bt_request is not None and node.bt_request["waiters"] == 2:
+                break
+        threading.Event().wait(0.001)
+    busy = RUN_REAL.RosControlNode._switch_mode_callback(
+        node, types.SimpleNamespace(target_mode="walk")
+    )
+    request = node.bt_request
+    RUN_REAL.RosControlNode._finish_bt_request(node, request, True, "done")
+    first.join(timeout=1.0)
+    second.join(timeout=1.0)
+
+    assert not busy.success and "busy: home" in busy.message
+    assert sorted((item.success, item.message) for item in replies) == [
+        (True, "done"), (True, "done")
+    ]
+    assert node.bt_request is None
+
+
+def test_b_aborts_bt_before_existing_reset_path():
+    node = _bt_node()
+    request = _bt_request("climb")
+    node.bt_request = request
+    RUN_REAL.RosControlNode._process_buttons(
+        node, np.array([0, 1, 0, 0]), False, Q_STAND
+    )
+
+    assert request["final"] == (False, "aborted by B")
+    assert node.state == node.RESETTING
+    assert node.controller.mission.cancelled
+
+
+def test_bt_hold_only_freezes_active_request_and_resumes_climb_without_reentry():
+    node = _bt_node()
+    node.bt_request = _bt_request("climb")
+    node.controller.mode = node.controller.CLIMB
+    calls = []
+    node.controller.hold_climb = lambda: calls.append("hold")
+    node.controller.resume_climb = lambda: calls.append("resume")
+    node.bt_hold_deadline = 2.0
+
+    assert RUN_REAL.RosControlNode._bt_hold_is_active(node, 1.9)
+    assert RUN_REAL.RosControlNode._bt_hold_is_active(node, 1.95)
+    assert not RUN_REAL.RosControlNode._bt_hold_is_active(node, 2.01)
+    assert calls == ["hold", "resume"]
+
+
+def test_bt_hold_freezes_approach_without_running_legacy_cancel_path():
+    node = _bt_node()
+    request = _bt_request("approach")
+    node.bt_request = request
+    node.bt_hold_deadline = 2.0
+    node.state = node.RUNNING
+    node.controller = types.SimpleNamespace(
+        APPROACH="approach",
+        CLIMB="climb",
+        DOCK="dock",
+        mode="approach",
+        q_des=Q_STAND.copy(),
+        update=lambda *args: pytest.fail("BT HOLD must not advance ApproachMode"),
+    )
+
+    held = RUN_REAL.RosControlNode._update_control(
+        node, Q_STAND, np.empty(0), np.zeros(4), 0.0, 1.0,
+        feedback_ready=True,
+    )
+
+    assert np.array_equal(held, Q_STAND)
+    assert node.state == node.RUNNING
+
+
+def test_bt_gripper_act_maps_response_and_fails_when_missing_or_raising():
+    node = _bt_node()
+    calls = []
+    node.gripper_act_proxy = lambda action: calls.append(action) or types.SimpleNamespace(
+        success=True, message="open confirmed"
+    )
+    assert RUN_REAL.RosControlNode._bt_actuate_gripper(node, "open") == (
+        True, "open confirmed"
+    )
+    assert calls == ["open"]
+
+    node.gripper_act_proxy = None
+    assert RUN_REAL.RosControlNode._bt_actuate_gripper(node, "open") == (
+        False, "gripper_act service is unavailable"
+    )
+    node.gripper_act_proxy = lambda action: (_ for _ in ()).throw(
+        RuntimeError("offline")
+    )
+    ok, message = RUN_REAL.RosControlNode._bt_actuate_gripper(node, "clamp")
+    assert not ok and "offline" in message
+
+
+def test_bt_home_resets_before_calling_gripper_act():
+    node = _bt_node()
+    actions = []
+    node.gripper_act_proxy = lambda action: actions.append(action) or types.SimpleNamespace(
+        success=True, message="open confirmed"
+    )
+    request = _bt_request("home")
+    request["started"] = False
+    node.bt_request = request
+
+    RUN_REAL.RosControlNode._start_bt_request(node, request, Q_STAND)
+    assert node.state == node.RESETTING
+    assert actions == []
+
+    node.state = node.HOLD
+    node.controller.reset_active = False
+    RUN_REAL.RosControlNode._finish_bt_mode_if_terminal(node, request)
+    assert actions == ["open"]
+    assert request["final"] == (True, "open confirmed")
+
+
+def test_bt_dock_clamps_only_after_dock_terminal_hold():
+    node = _bt_node()
+    actions = []
+    node.gripper_act_proxy = lambda action: actions.append(action) or types.SimpleNamespace(
+        success=True, message="clamp confirmed"
+    )
+    request = _bt_request("dock")
+    node.bt_request = request
+    node.controller.dock_mode = types.SimpleNamespace(
+        SUCCESS="success", FAILED="failed", state="success", reason=""
+    )
+    node.state = node.RUNNING
+
+    RUN_REAL.RosControlNode._finish_bt_mode_if_terminal(node, request)
+    assert actions == []
+    assert request["final"] is None
+
+    node.state = node.HOLD
+    RUN_REAL.RosControlNode._finish_bt_mode_if_terminal(node, request)
+    assert actions == ["clamp"]
+    assert request["final"] == (True, "clamp confirmed")
+
+
+def test_bt_interfaces_register_for_local_execution(monkeypatch):
+    node = object.__new__(RUN_REAL.RosControlNode)
+    node.subscribers = []
+    node.local_execution = True
+    events = []
+    monkeypatch.setattr(
+        RUN_REAL.rospy, "ServiceProxy",
+        lambda name, kind: events.append(("proxy", name, kind)) or object(),
+        raising=False,
+    )
+    monkeypatch.setattr(
+        RUN_REAL.rospy, "Service",
+        lambda name, kind, callback: events.append(("service", name, kind)) or object(),
+        raising=False,
+    )
+    monkeypatch.setattr(
+        RUN_REAL.rospy, "Subscriber",
+        lambda name, kind, callback, **kwargs: events.append(("sub", name, kind)) or object(),
+        raising=False,
+    )
+    remote_type, string_type, switch_type, response_type, gripper_type = (
+        object(), object(), object(), object(), object(),
+    )
+
+    RUN_REAL.RosControlNode._register_bt_interfaces(
+        node, remote_type, string_type, switch_type, response_type, gripper_type
+    )
+
+    assert ("proxy", "/grasp_hexapod/gripper_act", gripper_type) in events
+    assert ("service", "/grasp_hexapod/switch_mode", switch_type) in events
+    assert ("sub", "/grasp_hexapod/remote_cmd", remote_type) in events
+    assert ("sub", "/grasp_hexapod/hold_motion", string_type) in events
+    assert len(node.subscribers) == 2
+
+
+def test_bt_activity_blocks_manual_dpad_gripper_publish():
+    node = _bt_node()
+    node.local_execution = False
+    published = []
+    node.gripper_pub = types.SimpleNamespace(publish=lambda message: published.append(message))
+    request = _bt_request("approach")
+    node.bt_request = request
+    node.state = node.RUNNING
+    node.controller = types.SimpleNamespace(
+        APPROACH="approach",
+        CLIMB="climb",
+        DOCK="dock",
+        mode="approach",
+        q_des=Q_STAND.copy(),
+        climb_mode=types.SimpleNamespace(state=ClimbMode.IDLE),
+        approach_mode=types.SimpleNamespace(
+            approach_plan=types.SimpleNamespace(
+                failed=False, ready_for_climb=False, reason=""
+            )
+        ),
+        update=lambda *args: Q_STAND.copy(),
+    )
+    node.navigation = types.SimpleNamespace(snapshot=lambda: "navigation")
+    node.control_source = "navigation"
+    node._warn_hardware_climb_phase_hold = lambda: None
+    node._info_hardware_climb_active_trace = lambda: None
+    node._make_command = lambda axes: np.zeros(4)
+    axes = np.zeros(7)
+    axes[node.axis_gripper] = 1.0
+
+    RUN_REAL.RosControlNode._update_control(
+        node, Q_STAND, axes, np.zeros(4), 1.0, 1.0, feedback_ready=True,
+    )
+
+    assert published == []
+
+
+def test_bt_hold_lease_rejects_a_single_30hz_tick_or_less():
+    for value in (0.0, 1.0 / 30.0, float("nan")):
+        with pytest.raises(ValueError):
+            RUN_REAL.RosControlNode._bt_hold_lease(value)
+    assert RUN_REAL.RosControlNode._bt_hold_lease(0.15) == 0.15
+
+
+def test_bt_terminal_mapping_for_auto_modes_and_gripper_failures():
+    node = _bt_node()
+    node.state = node.HOLD
+    node.controller.reset_active = False
+    home = _bt_request("home")
+    node.gripper_act_proxy = lambda action: types.SimpleNamespace(
+        success=False, message="open rejected"
+    )
+    node.bt_request = home
+    RUN_REAL.RosControlNode._finish_bt_mode_if_terminal(node, home)
+    assert home["final"] == (False, "open rejected")
+
+    approach = _bt_request("approach")
+    node.bt_request = approach
+    node.controller.approach_mode = types.SimpleNamespace(
+        approach_plan=types.SimpleNamespace(
+            failed=False, ready_for_climb=True, reason=""
+        )
+    )
+    node.state = node.RUNNING
+    RUN_REAL.RosControlNode._finish_bt_mode_if_terminal(node, approach)
+    assert approach["final"] == (True, "ready for climb")
+    assert node.state == node.HOLD
+
+
+def test_bt_automatic_approach_advances_without_fresh_joy():
+    node = _bt_node()
+    request = _bt_request("approach")
+    node.bt_request = request
+    node.state = node.RUNNING
+    updates = []
+    node.controller = types.SimpleNamespace(
+        APPROACH="approach",
+        CLIMB="climb",
+        DOCK="dock",
+        mode="approach",
+        q_des=Q_STAND.copy(),
+        climb_mode=types.SimpleNamespace(state=ClimbMode.IDLE),
+        approach_mode=types.SimpleNamespace(
+            approach_plan=types.SimpleNamespace(
+                failed=False, ready_for_climb=False, reason=""
+            )
+        ),
+        update=lambda *args: updates.append(args) or Q_STAND.copy(),
+    )
+    node.navigation = types.SimpleNamespace(snapshot=lambda: "navigation")
+    node.control_source = "navigation"
+    node._warn_hardware_climb_phase_hold = lambda: None
+    node._info_hardware_climb_active_trace = lambda: None
+    node._make_command = lambda axes: np.zeros(4)
+
+    RUN_REAL.RosControlNode._update_control(
+        node, Q_STAND, np.empty(0), np.zeros(4), 0.0, 1.0,
+        feedback_ready=True,
+    )
+
+    assert node.state == node.RUNNING
+    assert updates and updates[0][2] == "navigation"
+
+
+def _bt_walk_node():
+    node = _bt_node()
+    request = _bt_request("walk")
+    node.bt_request = request
+    node.state = node.RUNNING
+    commands = []
+    stopped = []
+    node.controller = types.SimpleNamespace(
+        APPROACH="approach",
+        CLIMB="climb",
+        DOCK="dock",
+        mode="approach",
+        q_des=Q_STAND.copy(),
+        climb_mode=types.SimpleNamespace(state=ClimbMode.IDLE),
+        approach_mode=types.SimpleNamespace(
+            cancel_autonomous_approach=lambda reason: stopped.append(reason),
+        ),
+        hold_climb=lambda: stopped.append("hold_climb"),
+        update=lambda q_cur, command, *args: commands.append(command.copy()) or Q_STAND.copy(),
+    )
+    node.control_source = "navigation"
+    node._make_command = lambda axes: np.array([0.12, -0.03, 0.0, 0.4])
+    node._warn_hardware_climb_phase_hold = lambda: None
+    node._info_hardware_climb_active_trace = lambda: None
+    return node, request, commands, stopped
+
+
+def test_bt_walk_stale_joy_zeros_command_and_fails_service():
+    node, request, commands, stopped = _bt_walk_node()
+
+    RUN_REAL.RosControlNode._update_control(
+        node, Q_STAND, np.ones(4), np.zeros(4), 0.1, 1.0,
+        feedback_ready=True,
+    )
+
+    assert commands and np.array_equal(commands[-1], np.zeros(4))
+    assert request["final"] == (False, "joystick lost")
+    assert node.state == node.HOLD
+    assert stopped == ["joystick lost", "hold_climb"]
+
+
+def test_bt_walk_fresh_joy_keeps_raw_command_path():
+    node, request, commands, stopped = _bt_walk_node()
+    node.bt_remote = types.SimpleNamespace(mode="walk", reset_edge=False)
+
+    RUN_REAL.RosControlNode._update_control(
+        node, Q_STAND, np.ones(4), np.zeros(4), 1.0, 1.0,
+        feedback_ready=True,
+    )
+
+    np.testing.assert_allclose(commands[-1], [0.12, -0.03, 0.0, 0.4])
+    assert request["final"] is None
+    assert stopped == []
 
 
 def test_run_real_launch_enables_climb_by_default():

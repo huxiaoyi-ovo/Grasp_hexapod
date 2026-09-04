@@ -16,7 +16,7 @@
 import json
 from pathlib import Path
 import sys
-from threading import Lock
+from threading import Condition, Lock
 
 import numpy as np
 import rospy
@@ -328,6 +328,18 @@ class RosControlNode:
         ("right", ("rf", "rm", "rb")),
     )
     LEG_INDEX = {name: index for index, name in enumerate(LEG_NAMES)}
+    BT_MODE_LABELS = {
+        "home": "return to stand",
+        "walk": "manual approach gait",
+        "approach": "navigation approach",
+        "climb": "compact climb",
+        "dock": "dock and clamp",
+        "release": "open gripper",
+        "spin_search": "not implemented",
+        "tag_nav": "not implemented",
+    }
+    BT_UNSUPPORTED_MODES = ("spin_search", "tag_nav")
+    BT_DEFAULT_TICK_HZ = 30.0
 
     @staticmethod
     def _climb_foot_gate_m(value):
@@ -336,6 +348,17 @@ class RosControlNode:
         value = float(value)
         if not np.isfinite(value) or not 0.0 < value <= 0.10:
             raise ValueError("~climb_foot_gate_m must be finite and in (0, 0.10]")
+        return value
+
+    @classmethod
+    def _bt_hold_lease(cls, value):
+        """HOLD租约必须覆盖至少一个默认行为树tick间隔。"""
+
+        value = float(value)
+        if not np.isfinite(value) or value <= 1.0 / cls.BT_DEFAULT_TICK_HZ:
+            raise ValueError(
+                "~bt_hold_lease_s must exceed one 30 Hz BT tick interval"
+            )
         return value
 
     def __init__(self, local_execution=False, controller_rate_hz=None):
@@ -408,6 +431,16 @@ class RosControlNode:
             climb_timeout_uses_wall_time=not self.local_execution,
         )
         self.lock = Lock()
+        # 行为树服务只登记一次请求并等待控制循环给出终态；服务回调绝不
+        # 直接推进控制器，避免与手柄/反馈线程并发改写模式。
+        self.bt_condition = Condition(Lock())
+        self.bt_request = None
+        self.bt_hold_deadline = 0.0
+        self.bt_hold_active = False
+        self.bt_hold_lease_s = self._bt_hold_lease(
+            rospy.get_param("~bt_hold_lease_s", 0.15)
+        )
+        self.bt_remote = None
         if not self.enable_link_collision_check:
             rospy.logwarn(
                 "LINK COLLISION CHECK DISABLED: joint limits, workspace "
@@ -547,7 +580,6 @@ class RosControlNode:
                 Float64MultiArray,
                 queue_size=1,
             )
-
         # Subscriber的回调只保存最新消息，控制计算统一放在step()中。
         self.subscribers = [
             rospy.Subscriber(
@@ -559,6 +591,17 @@ class RosControlNode:
                 tcp_nodelay=True,
             )
         ]
+        # 延迟导入：纯CPU单元测试不需要已生成的行为树接口类型。标准BT
+        # 接口同时用于实机和Isaac ROS联调；sim_feedback可提供夹爪服务。
+        from grasp_hexapod_msgs.msg import RemoteCmd
+        from grasp_hexapod_msgs.srv import (
+            GripperAct, SwitchMode, SwitchModeResponse,
+        )
+        from std_msgs.msg import String
+        self._register_bt_interfaces(
+            RemoteCmd, String, SwitchMode, SwitchModeResponse, GripperAct,
+        )
+
         if not self.local_execution:
             for leg_index, leg_name in enumerate(LEG_NAMES):
                 self.subscribers.append(
@@ -603,6 +646,243 @@ class RosControlNode:
             self.axes = axes.copy()
             self.buttons = buttons.copy()
             self.joy_stamp = rospy.Time.now().to_sec()
+
+    def _remote_cmd_callback(self, message):
+        """缓存行为树遥控测试链的模式结束信号；不直接驱动控制器。"""
+
+        with self.bt_condition:
+            self.bt_remote = message
+
+    def _register_bt_interfaces(
+        self,
+        remote_cmd_type,
+        string_type,
+        switch_mode_type,
+        switch_mode_response_type,
+        gripper_act_type,
+    ):
+        """注册实机/Isaac共用的BT标准服务和订阅。"""
+
+        self._switch_mode_response = switch_mode_response_type
+        self.gripper_act_proxy = rospy.ServiceProxy(
+            "/grasp_hexapod/gripper_act", gripper_act_type,
+        )
+        self.bt_service = rospy.Service(
+            "/grasp_hexapod/switch_mode", switch_mode_type,
+            self._switch_mode_callback,
+        )
+        self.subscribers.extend((
+            rospy.Subscriber(
+                "/grasp_hexapod/remote_cmd", remote_cmd_type,
+                self._remote_cmd_callback, queue_size=5,
+            ),
+            rospy.Subscriber(
+                "/grasp_hexapod/hold_motion", string_type,
+                self._bt_hold_callback, queue_size=5,
+            ),
+        ))
+
+    def _bt_hold_callback(self, message):
+        """续约BT专用HOLD；没有活动BT请求时不影响人工控制。"""
+
+        del message
+        now = rospy.Time.now().to_sec()
+        with self.bt_condition:
+            if self.bt_request is not None and self.bt_request["final"] is None:
+                self.bt_hold_deadline = now + self.bt_hold_lease_s
+
+    def _bt_request_snapshot(self):
+        condition = getattr(self, "bt_condition", None)
+        if condition is None:
+            # 旧的纯CPU夹具会绕过__init__；它们没有BT服务请求。
+            return None
+        with condition:
+            request = self.bt_request
+            if request is None or request["final"] is not None:
+                return None
+            return request
+
+    def _finish_bt_request(self, request, success, message):
+        """由控制循环写入最终结果，并唤醒所有同模式阻塞调用者。"""
+
+        with self.bt_condition:
+            if self.bt_request is request and request["final"] is None:
+                request["final"] = (bool(success), str(message))
+                self.bt_hold_deadline = 0.0
+                self.bt_hold_active = False
+                self.bt_condition.notify_all()
+
+    def _abort_bt_request(self, reason):
+        request = self._bt_request_snapshot()
+        if request is not None:
+            self._finish_bt_request(request, False, reason)
+
+    def _switch_mode_callback(self, request):
+        """阻塞式BT服务：只提交请求/等待控制循环终态，不执行运动。"""
+
+        mode = str(request.target_mode).strip().lower()
+        response = self._switch_mode_response
+        if mode not in self.BT_MODE_LABELS:
+            return response(False, "unknown mode: {}".format(mode))
+        if mode in self.BT_UNSUPPORTED_MODES:
+            return response(False, "executor not implemented: {}".format(mode))
+        with self.bt_condition:
+            active = self.bt_request
+            if active is not None and active["final"] is None:
+                if active["mode"] != mode:
+                    return response(False, "busy: {} is running".format(active["mode"]))
+                active["waiters"] += 1
+            else:
+                active = {
+                    "mode": mode,
+                    "started": False,
+                    "final": None,
+                    "waiters": 1,
+                    "dock_clamped": False,
+                }
+                self.bt_request = active
+                self.bt_hold_deadline = 0.0
+                self.bt_hold_active = False
+            while active["final"] is None and not rospy.is_shutdown():
+                self.bt_condition.wait(timeout=0.1)
+            final = active["final"] or (False, "ROS shutdown")
+            active["waiters"] -= 1
+            if active["waiters"] == 0 and self.bt_request is active:
+                self.bt_request = None
+            return response(final[0], final[1])
+
+    def _bt_actuate_gripper(self, action):
+        """经标准GripperAct服务执行并原样返回到位结果。"""
+
+        try:
+            proxy = self.gripper_act_proxy
+            if proxy is None:
+                return False, "gripper_act service is unavailable"
+            wait_for_service = getattr(rospy, "wait_for_service", None)
+            if wait_for_service is not None:
+                wait_for_service("/grasp_hexapod/gripper_act", timeout=0.2)
+            response = proxy(action)
+        except Exception as error:  # noqa: BLE001 - ROS transport surface
+            return False, "gripper_act {} failed: {}".format(action, error)
+        return bool(response.success), str(response.message)
+
+    def _start_bt_request(self, request, q_cur):
+        """在已有反馈帧内一次性进入现有模式；后续只由update推进。"""
+
+        if request["started"]:
+            return
+        mode = request["mode"]
+        request["started"] = True
+        self.command[:] = 0.0
+        self.manual_override = False
+        if mode == "home":
+            self.controller.mission.cancel("BT home")
+            self.controller.abort_climb()
+            if self.controller.dock_mode is not None and self.controller.dock_mode.active:
+                self.controller.dock_mode.exit()
+            self.controller.reset_active = False
+            self.state = self.RESETTING
+            return
+        if mode == "walk":
+            self.controller.mission.cancel("BT walk")
+            self.controller.abort_climb()
+            self.controller.exit_dock(q_cur)
+            self.controller.set_mode(self.controller.APPROACH)
+            self.controller.approach_mode.cancel_autonomous_approach("BT walk")
+            self.state = self.RUNNING
+            return
+        if mode == "approach":
+            if self.control_source != "navigation":
+                self._finish_bt_request(
+                    request,
+                    False,
+                    "approach requires ~control_source:=navigation",
+                )
+                return
+            self.controller.mission.cancel("BT approach")
+            self.controller.abort_climb()
+            self.controller.exit_dock(q_cur)
+            self.controller.set_mode(self.controller.APPROACH)
+            result = self.controller.start_autonomous_approach(
+                self.navigation.snapshot()
+            )
+            if result.failed:
+                self._finish_bt_request(request, False, result.reason)
+                return
+            self.state = self.RUNNING
+            return
+        if mode == "climb":
+            self.state = self.HOLD
+            before = self.state
+            self._start_real_climb(q_cur, True)
+            if self.state != self.RUNNING or before != self.HOLD:
+                self._finish_bt_request(request, False, "climb entry rejected")
+            return
+        if mode == "dock":
+            self.state = self.HOLD
+            self._start_real_dock(q_cur, True)
+            if self.state != self.RUNNING:
+                self._finish_bt_request(request, False, "dock entry rejected")
+            return
+        if mode == "release":
+            ok, message = self._bt_actuate_gripper("open")
+            self._finish_bt_request(request, ok, message)
+
+    def _bt_hold_is_active(self, now):
+        request = self._bt_request_snapshot()
+        active = bool(request is not None and now < self.bt_hold_deadline)
+        if active and not self.bt_hold_active:
+            if self.controller.mode == self.controller.CLIMB:
+                self.controller.hold_climb()
+            self.bt_hold_active = True
+        elif not active and self.bt_hold_active:
+            if self.controller.mode == self.controller.CLIMB:
+                self.controller.resume_climb()
+            self.bt_hold_active = False
+        return active
+
+    def _finish_bt_mode_if_terminal(self, request):
+        if request is None or request["final"] is not None:
+            return
+        mode = request["mode"]
+        if mode == "home" and self.state == self.HOLD and not self.controller.reset_active:
+            ok, message = self._bt_actuate_gripper("open")
+            self._finish_bt_request(request, ok, message)
+        elif mode == "walk":
+            with self.bt_condition:
+                remote = self.bt_remote
+            if (
+                remote is None
+                or bool(getattr(remote, "reset_edge", False))
+                or str(remote.mode).strip().lower() != "walk"
+            ):
+                self.command[:] = 0.0
+                self._finish_bt_request(request, True, "walk stopped by remote")
+        elif mode == "approach":
+            plan = self.controller.approach_mode.approach_plan
+            if plan.failed:
+                self._finish_bt_request(request, False, plan.reason)
+            elif plan.ready_for_climb:
+                self.state = self.HOLD
+                self.command[:] = 0.0
+                self._finish_bt_request(request, True, "ready for climb")
+        elif mode == "climb":
+            if self.controller.climb_mode.state == ClimbMode.DONE:
+                self._finish_bt_request(request, True, "climb complete")
+            elif self.controller.climb_mode.state == ClimbMode.FAILED:
+                self._finish_bt_request(
+                    request, False, self.controller.climb_mode.failure_reason
+                )
+        elif mode == "dock":
+            dock = self.controller.dock_mode
+            if (dock is not None and dock.state == dock.SUCCESS
+                    and self.state == self.HOLD):
+                if not request["dock_clamped"]:
+                    request["dock_clamped"] = True
+                    ok, message = self._bt_actuate_gripper("clamp")
+                    self._finish_bt_request(request, ok, message)
+            elif dock is not None and dock.state == dock.FAILED:
+                self._finish_bt_request(request, False, dock.reason)
 
     def _make_feedback_callback(self, leg_index, leg_name):
         """把一条腿的thigh、knee、ankle反馈写入q_cur对应行。"""
@@ -1197,6 +1477,9 @@ class RosControlNode:
         x_pressed = bool(self._read(button_presses, self.button_x))
         y_pressed = bool(self._read(button_presses, self.button_y))
         if b_pressed:
+            # B 是唯一无条件抢占：无论BT服务是否在等待，都先唤醒调用方，
+            # 再沿用原有回站路径。
+            self._abort_bt_request("aborted by B")
             if self.local_execution:
                 self.local_climb_armed = False
                 self.local_climb_entry_q = None
@@ -1299,14 +1582,35 @@ class RosControlNode:
             joy_stamp > 0.0
             and 0.0 <= now - joy_stamp <= self.max_joy_age
         )
-        self._process_buttons(
-            button_presses,
-            joy_fresh and feedback_ready,
-            q_cur,
-        )
+        bt_request = self._bt_request_snapshot()
+        if bt_request is not None:
+            # BT活动期间A/X/Y不参与仲裁，只有B保留全局中止语义。
+            bt_buttons = np.zeros(
+                max(button_presses.size, self.button_b + 1),
+                dtype=np.int32,
+            )
+            if self.button_b < bt_buttons.size:
+                bt_buttons[self.button_b] = button_presses[self.button_b]
+            with self.bt_condition:
+                remote_reset = bool(
+                    self.bt_remote is not None
+                    and getattr(self.bt_remote, "reset_edge", False)
+                )
+            if remote_reset and self.button_b < bt_buttons.size:
+                bt_buttons[self.button_b] = 1
+            self._process_buttons(bt_buttons, feedback_ready, q_cur)
+            bt_request = self._bt_request_snapshot()
+            if bt_request is not None:
+                self._start_bt_request(bt_request, q_cur)
+        else:
+            self._process_buttons(
+                button_presses,
+                joy_fresh and feedback_ready,
+                q_cur,
+            )
 
         # 夹爪控制：方向键轴 +1=张开, -1=闭合, 仅在变化时发送。
-        if joy_fresh and not self.local_execution:
+        if joy_fresh and not self.local_execution and bt_request is None:
             dpad = float(self._read(axes, self.axis_gripper))
             if dpad > 0.5 and self.gripper_last_cmd != "open":
                 self.gripper_pub.publish(Float64MultiArray(data=[1.0, 1.5]))
@@ -1317,13 +1621,27 @@ class RosControlNode:
                 rospy.loginfo("Gripper: close")
                 self.gripper_last_cmd = "close"
 
-        if not joy_fresh:
-            self._hold_motion("joystick lost")
+        bt_walk = bool(
+            bt_request is not None and bt_request["mode"] == "walk"
+        )
+        if not joy_fresh and (bt_request is None or bt_walk):
+            # 自动BT模式不依赖Joy；walk则仍是原始手柄步态，不能复用一帧
+            # 已失效的非零速度。沿既有HOLD路径以零命令完成安全停步。
             axes = np.empty(0, dtype=np.float64)
+            self.command[:] = 0.0
+            self._hold_motion("joystick lost")
+            if bt_walk:
+                self._finish_bt_request(bt_request, False, "joystick lost")
 
         # 第一次B以前不发布目标，Servo保持卸力并只读反馈。
         if self.state == self.WAIT_B:
             return None
+
+        if bt_request is not None and self._bt_hold_is_active(now):
+            # HOLD只冻结现有模式的推进：Approach/Dock不走旧的取消/失败路径；
+            # Climb由hold/resume保留其内部阶段状态。home 同样暂停其平滑插值。
+            self.command[:] = 0.0
+            return self.controller.q_des.copy()
 
         if getattr(self, "local_climb_armed", False) and self.state == self.HOLD:
             return self.local_climb_entry_q.copy()
@@ -1337,6 +1655,7 @@ class RosControlNode:
                 rospy.loginfo(
                     "Stand initialization complete; press A to move"
                 )
+            self._finish_bt_mode_if_terminal(bt_request)
             return q_des
 
         navigation_state = None
@@ -1349,28 +1668,37 @@ class RosControlNode:
             else None
         )
         if self.state == self.RUNNING:
+            bt_mode = bt_request["mode"] if bt_request is not None else ""
             if self.controller.mode == self.controller.DOCK:
                 self.command[:] = 0.0
                 dock_robot_state = {
                     "joints": q_cur,
                     "lock_confirmed": self._dock_lock_confirmed(),
                 }
-            elif (
-                self.control_source == "navigation"
-                and not self.manual_override
-                and self._manual_command_active(axes)
-            ):
-                self.manual_override = True
-                self.controller.approach_mode.cancel_autonomous_approach(
-                    "joystick takeover"
-                )
-                rospy.loginfo("Joystick took over navigation")
-
-            if self.manual_override or self.control_source == "teleop":
+            elif bt_mode == "walk":
                 self.command[:] = self._make_command(axes)
-            else:
+            elif bt_mode == "approach":
                 self.command[:] = 0.0
                 navigation_state = self.navigation.snapshot()
+            elif bt_mode:
+                self.command[:] = 0.0
+            else:
+                if (
+                    self.control_source == "navigation"
+                    and not self.manual_override
+                    and self._manual_command_active(axes)
+                ):
+                    self.manual_override = True
+                    self.controller.approach_mode.cancel_autonomous_approach(
+                        "joystick takeover"
+                    )
+                    rospy.loginfo("Joystick took over navigation")
+
+                if self.manual_override or self.control_source == "teleop":
+                    self.command[:] = self._make_command(axes)
+                else:
+                    self.command[:] = 0.0
+                    navigation_state = self.navigation.snapshot()
         else:
             # 暂停时让当前摆动腿先落地再停止。
             self.command[:] = 0.0
@@ -1419,6 +1747,7 @@ class RosControlNode:
                     )
             if self.real_climb_monitor_active:
                 self._monitor_real_climb()
+        self._finish_bt_mode_if_terminal(bt_request)
         return q_des
 
     def update_from_feedback(self, q_cur):

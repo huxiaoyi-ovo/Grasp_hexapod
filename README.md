@@ -174,6 +174,10 @@ rostopic echo /lf_des
 - [Servo协议、ID和方向](src/grasp_hexapod_servo/README.md)
 - [实机延迟测试](src/docs/SERVO_LATENCY_TEST.md)
 
+## Repository Activity
+
+![Repobeats analytics image](https://repobeats.axiom.co/api/embed/859fd5df85ba8f10eab3b9abe78ae79040f68f89.svg)
+
 ## Contributors
 
 <a href="https://github.com/huxiaoyi-ovo/Grasp_hexapod/graphs/contributors">

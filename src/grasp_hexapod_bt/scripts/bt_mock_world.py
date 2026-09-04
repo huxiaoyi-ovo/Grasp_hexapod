@@ -183,7 +183,8 @@ def main():
 def run_node():
     import rospy
     from geometry_msgs.msg import PoseStamped, PolygonStamped, Point32
-    from sensor_msgs.msg import Imu, JointState, Joy, NavSatFix
+    from sensor_msgs.msg import Imu, JointState, Joy, NavSatFix, Image
+    from apriltag_ros.msg import AprilTagDetectionArray
     from std_msgs.msg import Bool, String
     from grasp_hexapod_msgs.srv import (SwitchMode, SwitchModeResponse,
                                         GripperAct, GripperActResponse)
@@ -236,7 +237,11 @@ def run_node():
                 self.pub_joints[leg] = rospy.Publisher(
                     "/{}_pos".format(leg), JointState, queue_size=5)
             self.pub_stereo = rospy.Publisher("/grasp_hexapod/stereo_ok", Bool, queue_size=5)
-            self.pub_mono = rospy.Publisher("/grasp_hexapod/mono_ok", Bool, queue_size=5)
+            # 单目相机：与真实 dock_tag_system.launch 同话题同判据
+            self.pub_mono_image = rospy.Publisher(
+                "/dock_camera/image_raw", Image, queue_size=1)
+            self.pub_mono_tags = rospy.Publisher(
+                "/dock/tag_detections", AprilTagDetectionArray, queue_size=1)
             self.pub_encoder = rospy.Publisher(
                 "/grasp_hexapod/encoder_state", EncoderState, queue_size=2)
             self.pub_joy = rospy.Publisher("/joy", Joy, queue_size=5)
@@ -374,11 +379,14 @@ def run_node():
                     joint.position = [0.0, 0.5, -1.0]
                     pub.publish(joint)
                     self.registry.feed("servo", "/{}_pos".format(leg), self.now)
-            for name in ("stereo", "mono"):
-                if self.drop_sensor != name or self.now < self.drop_at:
-                    pub = self.pub_stereo if name == "stereo" else self.pub_mono
-                    pub.publish(Bool(data=True))
-                    self.registry.feed(name, "/grasp_hexapod/{}_ok".format(name), self.now)
+            if self.drop_sensor != "stereo" or self.now < self.drop_at:
+                self.pub_stereo.publish(Bool(data=True))
+                self.registry.feed("stereo", "/grasp_hexapod/stereo_ok", self.now)
+            if self.drop_sensor != "mono" or self.now < self.drop_at:
+                self.pub_mono_image.publish(Image())
+                self.pub_mono_tags.publish(AprilTagDetectionArray())
+                self.registry.feed("mono", "/dock_camera/image_raw", self.now)
+                self.registry.feed("mono", "/dock/tag_detections", self.now)
             # 编码器状态持续发布（topic，替代原服务；拨断则不发布）
             enc = self.encoder_state()
             if enc is not None:

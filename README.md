@@ -1,5 +1,12 @@
 # Grasp Hexapod
 
+<p align="center">
+  <a href="https://github.com/huxiaoyi-ovo/Grasp_hexapod/stargazers"><img src="https://img.shields.io/github/stars/huxiaoyi-ovo/Grasp_hexapod?style=flat-square&logo=github" alt="GitHub stars" /></a>
+  <a href="https://github.com/huxiaoyi-ovo/Grasp_hexapod/forks"><img src="https://img.shields.io/github/forks/huxiaoyi-ovo/Grasp_hexapod?style=flat-square&logo=github" alt="GitHub forks" /></a>
+  <a href="https://github.com/huxiaoyi-ovo/Grasp_hexapod/issues"><img src="https://img.shields.io/github/issues/huxiaoyi-ovo/Grasp_hexapod?style=flat-square" alt="GitHub issues" /></a>
+  <img src="https://img.shields.io/github/last-commit/huxiaoyi-ovo/Grasp_hexapod?style=flat-square" alt="Last commit" />
+</p>
+
 ROS Noetic六足机器人工作空间。项目使用手写运动控制器，同时支持Isaac Gym
 仿真和三块LX-15D舵机板实机执行。
 
@@ -166,3 +173,9 @@ rostopic echo /lf_des
 - [ROS消息、状态机和导航接口](src/docs/ROS_INTERFACES.md)
 - [Servo协议、ID和方向](src/grasp_hexapod_servo/README.md)
 - [实机延迟测试](src/docs/SERVO_LATENCY_TEST.md)
+
+## Contributors
+
+<a href="https://github.com/huxiaoyi-ovo/Grasp_hexapod/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=huxiaoyi-ovo/Grasp_hexapod" alt="Contributors" />
+</a>

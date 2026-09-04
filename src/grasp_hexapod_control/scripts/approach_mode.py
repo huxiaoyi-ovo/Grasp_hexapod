@@ -24,7 +24,9 @@ from utils import (
     NavigationState,
     distance_to_polygon_boundary,
     points_in_polygon,
+    polygon_area,
     transform_points,
+    sample_segment,
     wrap_angle,
     yaw_from_transform,
 )
@@ -61,8 +63,10 @@ class ApproachMode:
         self.controller = controller
         self.dt = controller.dt
 
-        # 自动接近只使用由compact P0导出的固定左侧基准位姿。
-        self.xiaolan_from_fixed_approach = None
+        # 左右入口都必须是相对xiaolan_frame的外部标定量。
+        self.xiaolan_from_fixed_approaches = {}
+        self.xiaolan_keepout_polygon_xy = np.empty((0, 2), dtype=np.float64)
+        self.xiaolan_body_clearance = 0.13
         self.approach_plan = ApproachPlan()
         self.navigation_state = None
         self.boundary_margin = 0.03
@@ -136,25 +140,60 @@ class ApproachMode:
         boundary_margin=0.03,
         linear_speed=0.12,
         yaw_rate=0.8,
+        xiaolan_keepout_polygon_xy_m=(),
+        xiaolan_body_clearance_m=0.13,
     ):
-        """设置唯一左侧标准接近位姿和导航参数。
+        """增加一个固定左右接近位姿和共用导航参数。
 
         xiaolan_from_base表示目标base_link在xiaolan_base中的4×4位姿。
-        这是simulation baseline，实机仍须另行完成安全验证。
+        仿真与实机均使用该接口；实机来源必须先通过外部标定配置门。
         """
 
-        if target_side != "left":
-            raise ValueError("fixed approach target_side must be left")
-        self.xiaolan_from_fixed_approach = np.asarray(
+        if target_side not in ("left", "right"):
+            raise ValueError("fixed approach target_side must be left or right")
+        target_transform = np.asarray(
             xiaolan_from_base,
             dtype=np.float64,
-        ).reshape(4, 4).copy()
+        ).reshape(4, 4)
+        if (
+            not np.isfinite(target_transform).all()
+            or not np.allclose(target_transform[3], [0.0, 0.0, 0.0, 1.0])
+            or not np.allclose(
+                target_transform[:3, :3].T @ target_transform[:3, :3],
+                np.eye(3),
+                atol=1e-6,
+            )
+            or not np.isclose(
+                np.linalg.det(target_transform[:3, :3]), 1.0, atol=1e-6
+            )
+        ):
+            raise ValueError("fixed approach pose must be a finite rigid transform")
+        self.xiaolan_from_fixed_approaches[target_side] = target_transform.copy()
         self.boundary_margin = float(boundary_margin)
         self.auto_linear_speed = float(linear_speed)
         self.auto_yaw_rate = float(yaw_rate)
+        self.xiaolan_keepout_polygon_xy = np.asarray(
+            xiaolan_keepout_polygon_xy_m,
+            dtype=np.float64,
+        ).reshape(-1, 2).copy()
+        if (
+            len(self.xiaolan_keepout_polygon_xy) not in (0,)
+            and len(self.xiaolan_keepout_polygon_xy) < 3
+        ):
+            raise ValueError("xiaolan keepout polygon must contain at least 3 points")
+        if not np.isfinite(self.xiaolan_keepout_polygon_xy).all():
+            raise ValueError("xiaolan keepout polygon must be finite")
+        if (
+            len(self.xiaolan_keepout_polygon_xy) >= 3
+            and abs(polygon_area(self.xiaolan_keepout_polygon_xy)) <= 1e-9
+        ):
+            raise ValueError("xiaolan keepout polygon must enclose area")
+        self.xiaolan_body_clearance = float(xiaolan_body_clearance_m)
+        if min(self.boundary_margin, self.xiaolan_body_clearance) <= 0.0:
+            raise ValueError("approach safety margins must be positive")
 
-    def plan_autonomous_approach(self, navigation_state):
-        """生成左侧投影再沿中心线进入P0的固定路线。"""
+    def plan_autonomous_approach(self, navigation_state, target_side=None):
+        """在左右入口中选择可直达者；不搜索绕障路线。"""
 
         navigation = navigation_state.normalized()
         self.navigation_state = navigation
@@ -165,70 +204,96 @@ class ApproachMode:
             return self._fail_approach("landing is not confirmed")
         if len(navigation.pv_boundary) < 3:
             return self._fail_approach("pv boundary is unavailable")
-        if self.xiaolan_from_fixed_approach is None:
+        if not self.xiaolan_from_fixed_approaches:
             return self._fail_approach(
-                "fixed left approach pose is not configured"
+                "fixed approach poses are not configured"
+            )
+        if target_side is not None and target_side not in ("left", "right"):
+            return self._fail_approach("requested approach side is invalid")
+        if (
+            target_side is not None
+            and target_side not in self.xiaolan_from_fixed_approaches
+        ):
+            return self._fail_approach(
+                f"fixed {target_side} approach pose is not configured"
             )
 
         current_xy = navigation.pv_from_base[:2, 3]
         current_yaw = yaw_from_transform(navigation.pv_from_base)
-        target_pose = (
-            navigation.pv_from_xiaolan
-            @ self.xiaolan_from_fixed_approach
-        )
-        target_xy = target_pose[:2, 3]
-        xiaolan_xy = navigation.pv_from_xiaolan[:2, 3]
-        outward = target_xy - xiaolan_xy
-        outward_norm = np.linalg.norm(outward)
-        if outward_norm <= np.finfo(np.float64).eps:
+        if len(self.xiaolan_keepout_polygon_xy) < 3:
             return self._fail_approach(
-                "fixed target has no left-side outward direction"
+                "xiaolan keepout polygon is not configured"
             )
-        outward /= outward_norm
-        outward_distance = float(
-            np.dot(current_xy - target_xy, outward)
+        obstacle_polygon_pv = transform_points(
+            navigation.pv_from_xiaolan,
+            self.xiaolan_keepout_polygon_xy,
         )
-        if outward_distance < -self.position_tolerance:
-            return self._fail_approach(
-                "current base is beyond P0 on the Xiaolan side"
-            )
-
-        staging_xy = target_xy + outward_distance * outward
-        waypoints = []
-        if (
-            np.linalg.norm(staging_xy - current_xy)
-            > self.position_tolerance
-            and np.linalg.norm(staging_xy - target_xy)
-            > self.position_tolerance
-        ):
-            waypoints.append(staging_xy)
-        waypoints.append(target_xy)
-
-        waypoint_array = np.asarray(
-            waypoints,
-            dtype=np.float64,
-        ).reshape(-1, 2)
-        feasible, clearance = self._remaining_route_feasible(
-            navigation,
-            current_xy,
-            current_yaw,
-            waypoint_array,
-            yaw_from_transform(target_pose),
+        candidate_sides = (
+            [target_side]
+            if target_side is not None
+            else sorted(self.xiaolan_from_fixed_approaches)
         )
-        if not feasible:
-            return self._fail_approach(
-                "fixed left approach route violates pv boundary footprint"
+        candidates = []
+        for side in candidate_sides:
+            target_pose = (
+                navigation.pv_from_xiaolan
+                @ self.xiaolan_from_fixed_approaches[side]
             )
+            target_xy = target_pose[:2, 3]
+            target_yaw = yaw_from_transform(target_pose)
+            feasible, clearance = self._remaining_route_feasible(
+                navigation,
+                current_xy,
+                current_yaw,
+                target_xy.reshape(1, 2),
+                target_yaw,
+            )
+            if not feasible or not self._xiaolan_direct_path_feasible(
+                current_xy,
+                target_xy,
+                obstacle_polygon_pv,
+            ):
+                continue
+            distance = float(np.linalg.norm(target_xy - current_xy))
+            yaw_change = float(abs(wrap_angle(target_yaw - current_yaw)))
+            candidates.append(
+                (distance, yaw_change, side, target_pose, clearance)
+            )
+        if not candidates:
+            requested = "left/right" if target_side is None else target_side
+            return self._fail_approach(
+                f"no direct {requested} approach satisfies panel/Xiaolan constraints"
+            )
+        _, _, selected_side, target_pose, clearance = min(
+            candidates,
+            key=lambda item: (item[0], item[1], item[2]),
+        )
+        waypoint_array = target_pose[:2, 3].reshape(1, 2)
 
         self.approach_plan = ApproachPlan(
             active=True,
             state="align",
-            target_side="left",
+            target_side=selected_side,
             target_pose_pv=target_pose,
             waypoints_pv=waypoint_array,
             minimum_clearance=float(clearance),
         )
         return self.approach_plan
+
+    def _xiaolan_direct_path_feasible(self, start_xy, target_xy, obstacle):
+        """机身中心直线不得进入小蓝轮廓及其机身安全余量。"""
+
+        samples = sample_segment(
+            start_xy,
+            target_xy,
+            self.path_sample_spacing,
+        )
+        outside = ~points_in_polygon(samples, obstacle)
+        clearance = distance_to_polygon_boundary(samples, obstacle)
+        return bool(
+            outside.all()
+            and np.all(clearance >= self.xiaolan_body_clearance)
+        )
 
     def _gait_motion_margin(self):
         """返回一次三角步态周期内标准足端的保守平面运动余量。"""
@@ -389,6 +454,18 @@ class ApproachMode:
         self.approach_plan.minimum_clearance = minimum_clearance
         if not feasible:
             self._fail_approach("remaining approach path became unsafe")
+            return command
+        if not self._xiaolan_direct_path_feasible(
+            current_xy,
+            target_pose[:2, 3],
+            transform_points(
+                navigation.pv_from_xiaolan,
+                self.xiaolan_keepout_polygon_xy,
+            ),
+        ):
+            self._fail_approach(
+                "remaining direct route reaches Xiaolan safety envelope"
+            )
             return command
 
         if self.approach_plan.state == "align":

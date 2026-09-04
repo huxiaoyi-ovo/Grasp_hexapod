@@ -5,6 +5,7 @@ import importlib.util
 import json
 from pathlib import Path
 import sys
+from threading import Lock
 import types
 import xml.etree.ElementTree as ET
 
@@ -125,6 +126,7 @@ def _button_node():
     node.button_b = 1
     node.button_x = 2
     node.button_y = 3
+    node.axis_gripper = 6
     node.enable_real_climb = False
     node.enable_real_dock = False
     node.max_joy_age = 0.2
@@ -145,6 +147,37 @@ def test_run_real_launch_enables_climb_by_default():
     }
     assert arguments["enable_real_climb"] == "true"
     assert arguments["enable_link_collision_check"] == "true"
+
+
+def test_real_navigation_uses_current_climb_geometry_source():
+    source = Path(RUN_REAL.__file__).read_text()
+
+    assert "derive_compact_approach_geometry(compact)" in source
+    assert "navigation_route_config" not in source
+    assert "approach_navigation.yaml" not in source
+
+
+def test_navigation_snapshot_rejects_pose_skew_and_stale_boundary():
+    navigation = object.__new__(RUN_REAL.NavigationInput)
+    navigation.max_age = 0.5
+    navigation.max_pose_skew = 0.2
+    navigation.max_boundary_age = 1.0
+    navigation.lock = Lock()
+    navigation.base_stamp = 1.0
+    navigation.xiaolan_stamp = 0.7
+    navigation.boundary_stamp = 1.0
+    navigation.pv_from_base = np.eye(4)
+    navigation.pv_from_xiaolan = np.eye(4)
+    navigation.pv_boundary = np.array(
+        [[-1.0, -1.0], [1.0, -1.0], [1.0, 1.0], [-1.0, 1.0]]
+    )
+    navigation.landing_confirmed = True
+
+    assert not navigation.snapshot().valid
+    navigation.xiaolan_stamp = 1.0
+    assert navigation.snapshot().valid
+    navigation.boundary_stamp = -0.1
+    assert not navigation.snapshot().valid
 
 
 def _load_compact_config():

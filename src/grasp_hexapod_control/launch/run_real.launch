@@ -22,6 +22,11 @@
   <arg name="climb_side" default="left"/>
   <arg name="enable_real_dock" default="true"/>
   <arg name="start_dock_perception" default="true"/>
+  <!-- 默认沿用外部PoseStamped导航源；显式启用后由双RTK/IMU适配节点生成。 -->
+  <arg name="start_rtk_imu_navigation" default="false"/>
+  <arg name="navigation_sensor_config" default="$(find grasp_hexapod_control)/config/navigation_rtk_imu.yaml"/>
+  <arg name="robot_fix_topic" default="/grasp_hexapod/rtk/fix"/>
+  <arg name="xiaolan_fix_topic" default="/grasp_hexapod/xiaolan/rtk/fix"/>
 
   <arg name="button_a" default="0"/>
   <arg name="button_b" default="1"/>
@@ -41,6 +46,10 @@
   <arg name="max_linear_speed" default="0.20"/>
   <arg name="max_vertical_speed" default="0.02"/>
   <arg name="max_pose_age" default="0.5"/>
+  <arg name="max_pose_skew" default="0.2"/>
+  <arg name="max_boundary_age" default="1.0"/>
+  <arg name="navigation_boundary_margin_m" default="0.03"/>
+  <arg name="navigation_xiaolan_body_clearance_m" default="0.13"/>
   <arg name="base_pose_topic" default="/grasp_hexapod/navigation/base_pose"/>
   <arg name="xiaolan_pose_topic" default="/grasp_hexapod/navigation/xiaolan_pose"/>
   <arg name="pv_boundary_topic" default="/grasp_hexapod/navigation/pv_boundary"/>
@@ -82,6 +91,18 @@
   <arg name="dock_leg_lift_speed_m_s" default="0.05"/>
   <arg name="dock_sit_settle_duration_s" default="0.5"/>
 
+  <include
+    file="$(find grasp_hexapod_control)/launch/navigation_rtk_imu.launch"
+    if="$(arg start_rtk_imu_navigation)">
+    <arg name="config" value="$(arg navigation_sensor_config)"/>
+    <arg name="robot_fix_topic" value="$(arg robot_fix_topic)"/>
+    <arg name="xiaolan_fix_topic" value="$(arg xiaolan_fix_topic)"/>
+    <arg name="imu_topic" value="$(arg imu_topic)"/>
+    <arg name="base_pose_topic" value="$(arg base_pose_topic)"/>
+    <arg name="xiaolan_pose_topic" value="$(arg xiaolan_pose_topic)"/>
+    <arg name="pv_boundary_topic" value="$(arg pv_boundary_topic)"/>
+  </include>
+
   <include file="$(find grasp_hexapod_control)/launch/control_stack.launch">
     <arg name="control_source" value="$(arg mode)"/>
     <arg name="joy_dev" value="$(arg joy_dev)"/>
@@ -114,6 +135,10 @@
     <arg name="max_linear_speed" value="$(arg max_linear_speed)"/>
     <arg name="max_vertical_speed" value="$(arg max_vertical_speed)"/>
     <arg name="max_pose_age" value="$(arg max_pose_age)"/>
+    <arg name="max_pose_skew" value="$(arg max_pose_skew)"/>
+    <arg name="max_boundary_age" value="$(arg max_boundary_age)"/>
+    <arg name="navigation_boundary_margin_m" value="$(arg navigation_boundary_margin_m)"/>
+    <arg name="navigation_xiaolan_body_clearance_m" value="$(arg navigation_xiaolan_body_clearance_m)"/>
     <arg name="base_pose_topic" value="$(arg base_pose_topic)"/>
     <arg name="xiaolan_pose_topic" value="$(arg xiaolan_pose_topic)"/>
     <arg name="pv_boundary_topic" value="$(arg pv_boundary_topic)"/>

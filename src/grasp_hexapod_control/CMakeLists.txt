@@ -19,6 +19,7 @@ catkin_package(
 
 catkin_install_python(
   PROGRAMS
+    scripts/navigation_node.py
     scripts/run_real.py
     scripts/run_sim.py
     scripts/dock_static_tf.py
@@ -44,11 +45,11 @@ install(
 
 install(
   FILES
-    config/approach_fixed.json
     config/climb_compact.json
     config/climb_rebuild_profile.json
     config/dock_camera.yaml
     config/dock_system.yaml
+    config/navigation_rtk_imu.yaml
     config/workspace_bounds.csv
   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/config
 )

@@ -2,10 +2,10 @@
 """抓取六足ROS高层控制入口。
 
 功能：
-    订阅手柄和18个关节反馈，执行B回正、A启停、导航/手柄仲裁和
-    GraspController，再发布6×3关节目标。实机和ROS仿真共用本节点。
+    订阅手柄、18个关节反馈和可选导航位姿，执行B回正、A启停、
+    左右直达目标决策、导航/手柄仲裁和GraspController，再发布6×3关节目标。
 输入：
-    /joy；六个/<leg>_pos。
+    /joy；六个/<leg>_pos；导航模式下的pv_map位姿、边界和落板确认。
 输出：
     六个/<leg>_des，格式与grasp_hexapod_servo约定一致。
 边界：
@@ -39,25 +39,11 @@ from climb_mode import ClimbMode
 from control import GraspController
 from kinematics import LEG_NAMES
 from utils import NavigationState, package_config_path, pose_to_transform
-from utils.climb import select_compact_climb_side, validate_compact_climb_side
-
-
-def load_fixed_approach_config():
-    """加载固定左侧P0接近基准；其仅是仿真基线。"""
-
-    with package_config_path("approach_fixed.json").open() as file:
-        config = json.load(file)
-    if config.get("target_side") != "left":
-        raise ValueError("approach_fixed.json target_side must be left")
-    if config.get("simulation_baseline_only") is not True:
-        raise ValueError("approach_fixed.json must remain simulation-baseline-only")
-    matrix = np.asarray(
-        config.get("xiaolan_from_base"),
-        dtype=np.float64,
-    )
-    if matrix.shape != (4, 4) or not np.isfinite(matrix).all():
-        raise ValueError("approach_fixed.json xiaolan_from_base must be 4x4")
-    return config["target_side"], matrix
+from utils.climb import (
+    derive_compact_approach_geometry,
+    select_compact_climb_side,
+    validate_compact_climb_side,
+)
 
 
 class NavigationInput:
@@ -67,9 +53,18 @@ class NavigationInput:
 
     def __init__(self):
         self.max_age = float(rospy.get_param("~max_pose_age", 0.5))
+        self.max_pose_skew = float(
+            rospy.get_param("~max_pose_skew", 0.2)
+        )
+        self.max_boundary_age = float(
+            rospy.get_param("~max_boundary_age", 1.0)
+        )
+        if min(self.max_age, self.max_pose_skew, self.max_boundary_age) <= 0.0:
+            raise ValueError("navigation age and skew limits must be positive")
         self.lock = Lock()
         self.base_stamp = 0.0
         self.xiaolan_stamp = 0.0
+        self.boundary_stamp = 0.0
         self.pv_from_base = None
         self.pv_from_xiaolan = None
         self.pv_boundary = np.empty((0, 2), dtype=np.float64)
@@ -127,6 +122,8 @@ class NavigationInput:
         transform = pose_to_transform(message.pose)
         if transform is not None:
             with self.lock:
+                if message.header.stamp.to_sec() < self.base_stamp:
+                    return
                 self.pv_from_base = transform
                 self.base_stamp = message.header.stamp.to_sec()
 
@@ -136,6 +133,8 @@ class NavigationInput:
         transform = pose_to_transform(message.pose)
         if transform is not None:
             with self.lock:
+                if message.header.stamp.to_sec() < self.xiaolan_stamp:
+                    return
                 self.pv_from_xiaolan = transform
                 self.xiaolan_stamp = message.header.stamp.to_sec()
 
@@ -148,7 +147,10 @@ class NavigationInput:
         ).reshape(-1, 2)
         if np.isfinite(boundary).all():
             with self.lock:
+                if message.header.stamp.to_sec() < self.boundary_stamp:
+                    return
                 self.pv_boundary = boundary
+                self.boundary_stamp = message.header.stamp.to_sec()
 
     def _landing_callback(self, message):
         with self.lock:
@@ -160,12 +162,16 @@ class NavigationInput:
         now = rospy.Time.now().to_sec()
         with self.lock:
             stamp = min(self.base_stamp, self.xiaolan_stamp)
+            pose_skew = abs(self.base_stamp - self.xiaolan_stamp)
             valid = (
                 self.pv_from_base is not None
                 and self.pv_from_xiaolan is not None
                 and len(self.pv_boundary) >= 3
                 and stamp > 0.0
                 and 0.0 <= now - stamp <= self.max_age
+                and pose_skew <= self.max_pose_skew
+                and self.boundary_stamp > 0.0
+                and 0.0 <= now - self.boundary_stamp <= self.max_boundary_age
             )
             return NavigationState(
                 stamp=stamp,
@@ -190,11 +196,13 @@ class NavigationInput:
         now = rospy.Time.now().to_sec()
         with self.lock:
             stamp = min(self.base_stamp, self.xiaolan_stamp)
+            pose_skew = abs(self.base_stamp - self.xiaolan_stamp)
             valid = (
                 self.pv_from_base is not None
                 and self.pv_from_xiaolan is not None
                 and stamp > 0.0
                 and 0.0 <= now - stamp <= self.max_age
+                and pose_skew <= self.max_pose_skew
             )
             return NavigationState(
                 stamp=stamp,
@@ -496,23 +504,33 @@ class RosControlNode:
             )
         )
         if self.control_source == "navigation":
-            target_side, xiaolan_from_base = load_fixed_approach_config()
-            self.controller.approach_mode.configure_fixed_approach(
-                xiaolan_from_base,
-                target_side=target_side,
-                linear_speed=float(
-                    rospy.get_param(
-                        "~navigation_linear_speed",
-                        self.max_linear_speed,
-                    )
-                ),
-                yaw_rate=float(
-                    rospy.get_param(
-                        "~navigation_yaw_rate",
-                        self.max_yaw_rate,
-                    )
-                ),
+            compact = self.controller.climb_mode._load_config()
+            self.controller.climb_mode._validate_config(compact)
+            approach_geometry = derive_compact_approach_geometry(compact)
+            boundary_margin = float(
+                rospy.get_param("~navigation_boundary_margin_m", 0.03)
             )
+            body_clearance = float(
+                rospy.get_param("~navigation_xiaolan_body_clearance_m", 0.13)
+            )
+            if min(boundary_margin, body_clearance) <= 0.0:
+                raise ValueError("navigation safety margins must be positive")
+            for target_side in ("left", "right"):
+                self.controller.approach_mode.configure_fixed_approach(
+                    approach_geometry["targets"][target_side],
+                    target_side=target_side,
+                    boundary_margin=boundary_margin,
+                    linear_speed=float(rospy.get_param(
+                        "~navigation_linear_speed", self.max_linear_speed
+                    )),
+                    yaw_rate=float(rospy.get_param(
+                        "~navigation_yaw_rate", self.max_yaw_rate
+                    )),
+                    xiaolan_keepout_polygon_xy_m=approach_geometry[
+                        "xiaolan_keepout_polygon_xy_m"
+                    ],
+                    xiaolan_body_clearance_m=body_clearance,
+                )
 
         self.publishers = {}
         if not self.local_execution:

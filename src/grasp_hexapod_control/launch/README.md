@@ -23,6 +23,31 @@ roslaunch grasp_hexapod_control run_real.launch
 roslaunch grasp_hexapod_control run_real.launch mode:=navigation
 ```
 
+若机器人和小蓝的RTK都发布标准`sensor_msgs/NavSatFix`，可显式启动
+RTK/IMU适配节点：
+
+```bash
+roslaunch grasp_hexapod_control run_real.launch \
+  mode:=navigation \
+  start_rtk_imu_navigation:=true \
+  navigation_sensor_config:=/absolute/path/navigation_rtk_imu.yaml
+```
+
+部署配置必须填写`pv_map`的WGS84原点/航向、机器人与小蓝RTK天线杆臂、
+IMU到`base_link`的安装旋转、小蓝固定姿态和光伏板边界，并明确设置
+`installation_calibrated: true`。仓库内模板故意保持`false`和空标定，不能直接用于
+实机运动。适配节点只在双RTK达到GBAS等级、水平标准差、数据年龄、双RTK
+时间差、IMU新鲜度和姿态协方差全部通过时发布同时间戳的
+`base_pose/xiaolan_pose/pv_boundary`。标准`NavSatFix`不能继续区分RTK fixed与
+float；若驱动把两者都映射成GBAS，必须在上游另行拒绝float解。
+
+左右攀爬入口不再另建导航副本：控制节点启动时直接从当前
+`climb_compact.json`的P0和左右镜像规则生成目标，并从CLIMB场景使用的
+`base_link_xiaolan.STL`提取保守XY包围盒作为小蓝轮廓。光伏板边界仍来自上述
+传感器标定文件；`navigation_boundary_margin_m`和
+`navigation_xiaolan_body_clearance_m`只表达额外安全余量。compact/STL属于模型
+几何来源，不能替代现场尺寸、RTK/IMU标定或真实净空验证。
+
 串口名称可在启动时覆盖：
 
 ```bash
@@ -146,12 +171,13 @@ python src/grasp_hexapod_control/scripts/run_sim.py \
 
 ## 导航模式目标
 
-导航模式固定使用`config/approach_fixed.json`中的左侧 P0 相对位姿；它由当前
-`climb_compact.json`的 P0 导出，仅是仿真基线，尚未构成实机安全验证。运行时由
-小蓝和机器人实时`pv_map`位姿生成“横向投影到左侧中心线 -> 沿中心线到 P0”的两段
-路线，先原地对齐目标偏航。路线、转向和每个标准足印都会检查光伏板边界；每个拐点
-必须在完整步态落地、停稳和复测后才会继续。没有新鲜导航位姿、落板确认或安全余量时，
-A不会启动导航，机器人保持不动；推动摇杆仍可接管。
+导航采用固定的最简决策，不建立通用障碍地图，也不搜索绕行。控制器把从当前CLIMB
+模型导出的左右攀爬入口变换到`pv_map`，分别检查“原地转到目标朝向 -> 直线到入口”：标准足印
+及一步运动余量必须始终位于光伏板边界内，机身中心直线不得穿过小蓝安全轮廓。可行
+候选先按直线路程、再按转向量确定，固定平局顺序为left优先；若指定侧不可直达，
+直接拒绝而不是绕路。选定后只有一个终点，到达后当前摆动组落地并复测，才报告就绪。
+没有新鲜且同步的双位姿、新鲜板边界、落板确认或安全余量时，A不会启动；运动中导航
+失效会先让当前摆动腿落地，再进入失败态。
 
 ## 安全操作顺序
 

@@ -5,6 +5,7 @@
 
 from copy import deepcopy
 from dataclasses import dataclass
+from pathlib import Path
 import numpy as np
 
 from . import (
@@ -573,3 +574,99 @@ def select_compact_climb_side(config, side):
         for name in selected["visual_validation_deferred_for_sim_finish"]
     ]
     return selected
+
+
+def _xiaolan_mesh_path():
+    """返回 CLIMB 场景使用的小蓝 STL，兼容源码树与已安装 ROS 包。"""
+
+    source_path = (
+        Path(__file__).resolve().parents[3]
+        / "grasp_hexapod_description"
+        / "meshes"
+        / "xiaolan"
+        / "base_link_xiaolan.STL"
+    )
+    if source_path.is_file():
+        return source_path
+
+    import rospkg
+
+    return (
+        Path(rospkg.RosPack().get_path("grasp_hexapod_description"))
+        / "meshes"
+        / "xiaolan"
+        / "base_link_xiaolan.STL"
+    )
+
+
+def _binary_stl_xy_bounds(mesh_path):
+    """读取 CLIMB 二进制 STL 的 XY 投影包围盒。"""
+
+    data = Path(mesh_path).read_bytes()
+    if len(data) < 84:
+        raise ValueError("Xiaolan STL is too short")
+    triangle_count = int.from_bytes(data[80:84], byteorder="little")
+    expected_size = 84 + 50 * triangle_count
+    if triangle_count <= 0 or len(data) != expected_size:
+        raise ValueError("Xiaolan STL must be a non-empty binary STL")
+    facet_dtype = np.dtype(
+        [
+            ("normal", "<f4", (3,)),
+            ("vertices", "<f4", (3, 3)),
+            ("attribute", "<u2"),
+        ]
+    )
+    vertices_xy = np.frombuffer(
+        data,
+        dtype=facet_dtype,
+        count=triangle_count,
+        offset=84,
+    )["vertices"].reshape(-1, 3)[:, :2].astype(np.float64)
+    if not np.isfinite(vertices_xy).all():
+        raise ValueError("Xiaolan STL contains non-finite vertices")
+    return np.min(vertices_xy, axis=0), np.max(vertices_xy, axis=0)
+
+
+def derive_compact_approach_geometry(config, xiaolan_mesh_path=None):
+    """从当前 compact P0、镜像规则和同一 STL 导出左右接近几何。
+
+    返回的目标是 ``xiaolan_frame`` 中的平面 ``base_link`` 位姿。STL 的
+    XY 包围盒作为保守二维轮廓；这只是模型几何，不等于实测净空或接触证明。
+    """
+
+    translation = np.asarray(
+        config.get("xiaolan_translation"), dtype=np.float64
+    ).reshape(-1)
+    if translation.shape != (3,) or not np.isfinite(translation).all():
+        raise ValueError("compact Xiaolan translation must contain 3 finite values")
+
+    targets = {}
+    for side in ("left", "right"):
+        selected = select_compact_climb_side(config, side)
+        base = np.asarray(selected.get("p0", {}).get("base"), dtype=np.float64)
+        if base.shape != (4,) or not np.isfinite(base).all():
+            raise ValueError("compact P0 base must contain finite x/y/z/yaw")
+        cosine, sine = np.cos(base[3]), np.sin(base[3])
+        target = np.eye(4, dtype=np.float64)
+        target[:2, :2] = ((cosine, -sine), (sine, cosine))
+        target[:3, 3] = base[:3] - translation
+        targets[side] = target
+
+    bounds_min, bounds_max = _binary_stl_xy_bounds(
+        _xiaolan_mesh_path()
+        if xiaolan_mesh_path is None
+        else xiaolan_mesh_path
+    )
+    keepout = np.array(
+        [
+            [bounds_min[0], bounds_min[1]],
+            [bounds_max[0], bounds_min[1]],
+            [bounds_max[0], bounds_max[1]],
+            [bounds_min[0], bounds_max[1]],
+        ],
+        dtype=np.float64,
+    )
+    return {
+        "targets": targets,
+        "xiaolan_keepout_polygon_xy_m": keepout,
+    }

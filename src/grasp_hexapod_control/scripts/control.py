@@ -56,9 +56,10 @@ WORKSPACE_NUMERICAL_TOLERANCE = 1e-9
 class MissionStateMachine:
     """调度自动接近、攀爬和对接交接状态。"""
 
-    IDLE, APPROACH, PREPARE_CLIMB, CLIMB, DOCK, FAILED = (
+    IDLE, APPROACH, FAIL_LANDING, PREPARE_CLIMB, CLIMB, DOCK, FAILED = (
         "IDLE",
         "APPROACH",
+        "FAIL_LANDING",
         "PREPARE_CLIMB",
         "CLIMB",
         "DOCK",
@@ -88,6 +89,7 @@ class MissionStateMachine:
         self.max_prepare_retries = 3
         self.posture_prepared = False
         self.prepare_previous_pose_pv = None
+        self.prepare_previous_stamp = 0.0
         self.last_prepare_linear_speed_m_s = np.inf
         self.last_prepare_angular_speed_rad_s = np.inf
         self.prepare_linear_speed_limit_m_s = 0.01
@@ -98,6 +100,7 @@ class MissionStateMachine:
         self.final_position_tolerance_m = 0.03
         self.final_orientation_tolerance_rad = np.deg2rad(5.0)
         self.final_world_foot_tolerance_m = 0.03
+        self.pending_failure_reason = ""
 
     def start(
         self,
@@ -114,6 +117,7 @@ class MissionStateMachine:
 
         if self.state in (
             self.APPROACH,
+            self.FAIL_LANDING,
             self.PREPARE_CLIMB,
             self.CLIMB,
         ):
@@ -160,11 +164,13 @@ class MissionStateMachine:
         self.prepare_retry_count = 0
         self.posture_prepared = False
         self.prepare_previous_pose_pv = None
+        self.prepare_previous_stamp = 0.0
         self.last_prepare_linear_speed_m_s = np.inf
         self.last_prepare_angular_speed_rad_s = np.inf
         self.final_position_error_m = np.inf
         self.final_orientation_error_rad = np.inf
         self.final_world_foot_error_m = np.inf
+        self.pending_failure_reason = ""
 
         result = self.controller.start_autonomous_approach(
             navigation_state
@@ -201,14 +207,28 @@ class MissionStateMachine:
                 navigation_state,
             )
             if result.failed:
-                self.state = self.FAILED
-                self.reason = result.reason
+                self.pending_failure_reason = result.reason
+                if (
+                    self.controller.approach_mode.gait_started
+                    or self.controller.approach_mode.transfer_active
+                ):
+                    self.state = self.FAIL_LANDING
+                else:
+                    self.state = self.FAILED
+                    self.reason = result.reason
             elif self.approach_elapsed_s >= self.approach_timeout_s:
                 self.controller.approach_mode.cancel_autonomous_approach(
                     "approach timeout"
                 )
-                self.state = self.FAILED
-                self.reason = "approach timeout"
+                self.pending_failure_reason = "approach timeout"
+                if (
+                    self.controller.approach_mode.gait_started
+                    or self.controller.approach_mode.transfer_active
+                ):
+                    self.state = self.FAIL_LANDING
+                else:
+                    self.state = self.FAILED
+                    self.reason = self.pending_failure_reason
             elif result.ready_for_climb:
                 self.approach_target_pose_pv = (
                     result.target_pose_pv.copy()
@@ -221,7 +241,20 @@ class MissionStateMachine:
                 self.prepare_previous_pose_pv = (
                     navigation_state.normalized().pv_from_base
                 )
+                self.prepare_previous_stamp = float(
+                    navigation_state.normalized().stamp
+                )
                 self.state = self.PREPARE_CLIMB
+            return result
+
+        if self.state == self.FAIL_LANDING:
+            result = self.controller.approach_mode.update(command, None)
+            if (
+                not self.controller.approach_mode.gait_started
+                and not self.controller.approach_mode.transfer_active
+            ):
+                self.state = self.FAILED
+                self.reason = self.pending_failure_reason
             return result
 
         if self.state == self.PREPARE_CLIMB:
@@ -231,14 +264,25 @@ class MissionStateMachine:
             )
             gate = self.climb_config["settle_gate"]
             if not self.controller.reset_active:
+                if navigation_state is None:
+                    self.state = self.FAILED
+                    self.reason = "navigation state was lost before climb entry"
+                    return None
                 navigation = navigation_state.normalized()
+                if not navigation.valid:
+                    self.state = self.FAILED
+                    self.reason = "navigation state became invalid before climb entry"
+                    return None
+                observation_dt = navigation.stamp - self.prepare_previous_stamp
+                if observation_dt <= 0.0:
+                    return None
                 if self.prepare_previous_pose_pv is not None:
                     self.last_prepare_linear_speed_m_s = float(
                         np.linalg.norm(
                             navigation.pv_from_base[:3, 3]
                             - self.prepare_previous_pose_pv[:3, 3]
                         )
-                        / self.controller.dt
+                        / observation_dt
                     )
                     relative_rotation = (
                         self.prepare_previous_pose_pv[:3, :3].T
@@ -250,11 +294,12 @@ class MissionStateMachine:
                         1.0,
                     )
                     self.last_prepare_angular_speed_rad_s = float(
-                        np.arccos(rotation_cosine) / self.controller.dt
+                        np.arccos(rotation_cosine) / observation_dt
                     )
                 self.prepare_previous_pose_pv = (
                     navigation.pv_from_base.copy()
                 )
+                self.prepare_previous_stamp = navigation.stamp
                 position_error = float(
                     np.linalg.norm(
                         navigation.pv_from_base[:2, 3]
@@ -331,7 +376,11 @@ class MissionStateMachine:
                     and self.last_prepare_angular_speed_rad_s
                     <= self.prepare_angular_speed_limit_rad_s
                 ):
-                    self.prepare_settle_s += self.controller.dt
+                    # 一个跨很久的新时间戳不能单帧伪造持续稳定。
+                    self.prepare_settle_s += min(
+                        observation_dt,
+                        2.0 * self.controller.dt,
+                    )
                 else:
                     self.prepare_settle_s = 0.0
                 if self.prepare_settle_s >= gate["persistence_s"]:
@@ -835,7 +884,7 @@ class GraspController:
 
         self.approach_mode.reset()
 
-    def start_autonomous_approach(self, navigation_state):
+    def start_autonomous_approach(self, navigation_state, target_side=None):
         """在APPROACH模式下选择安全接近点并启动固定路径。"""
 
         if self.mode != self.APPROACH:
@@ -843,7 +892,8 @@ class GraspController:
                 "Autonomous approach requires APPROACH mode"
             )
         return self.approach_mode.plan_autonomous_approach(
-            navigation_state
+            navigation_state,
+            target_side=target_side,
         )
 
     def start_full_mission(

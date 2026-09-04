@@ -50,7 +50,11 @@ from utils import (
     external_to_control,
     package_config_path,
 )
-from utils.climb import resolve_compact_stage_range, select_compact_climb_side
+from utils.climb import (
+    derive_compact_approach_geometry,
+    resolve_compact_stage_range,
+    select_compact_climb_side,
+)
 
 # Isaac Gym的C扩展没有完整类型声明，编辑器无法静态识别其动态属性。
 gymapi: Any = _gymapi
@@ -1276,25 +1280,30 @@ def main() -> None:
     navigation_state = None
     mission_target_pose = None
     if args.full_mission:
+        approach_geometry = derive_compact_approach_geometry(
+            compact,
+            description_root
+            / "meshes"
+            / "xiaolan"
+            / "base_link_xiaolan.STL",
+        )
         sim_navigation = SimulatedRtkImu(
             compact["xiaolan_translation"]
         )
-        mission_target_pose = _planar_transform(
-            compact["p0"]["base"][0],
-            compact["p0"]["base"][1],
-            compact["p0"]["base"][2],
-            0.0,
-        )
-        xiaolan_from_target = (
-            np.linalg.inv(sim_navigation.pv_from_xiaolan)
-            @ mission_target_pose
+        mission_target_pose = (
+            sim_navigation.pv_from_xiaolan
+            @ approach_geometry["targets"]["left"]
         )
         # full-mission直接从当前compact P0导出同一固定左侧相对基准。
         controller.approach_mode.configure_fixed_approach(
-            xiaolan_from_target,
+            approach_geometry["targets"]["left"],
             target_side="left",
             linear_speed=min(0.12, max_linear_speed),
             yaw_rate=max_yaw_rate,
+            xiaolan_keepout_polygon_xy_m=approach_geometry[
+                "xiaolan_keepout_polygon_xy_m"
+            ],
+            xiaolan_body_clearance_m=0.13,
         )
         initial_pose = _planar_transform(*mission_start_pose)
         navigation_state = sim_navigation.snapshot(initial_pose, 0.0)

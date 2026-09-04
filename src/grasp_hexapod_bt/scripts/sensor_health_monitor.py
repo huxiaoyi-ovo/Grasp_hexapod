@@ -15,6 +15,11 @@
     age_s    距最近一条消息的时长；
     reason   人类可读异常（如 "超时 0.8s"、"频率 2Hz < 5Hz"）。
 
+监测范围控制（config/sensor_health.yaml 或 ~config 参数）：
+    话题级 enabled: false 或传感器级 enabled: false 均可不订阅、不监测、
+    不进健康报告（IsSensorDataOk/WaitSensorsReady 只检查报告内条目，
+    禁用即放行）；缺省 enabled=true。
+
 用法：
     rosrun grasp_hexapod_bt sensor_health_monitor.py
     rosrun grasp_hexapod_bt sensor_health_monitor.py _config:=<yaml>
@@ -89,10 +94,20 @@ class SensorHealthMonitor:
     """一个传感器（可含多个话题）的健康汇总：多话题取最差。"""
 
     def __init__(self, name, topics_cfg, window_s=DEFAULT_WINDOW_S):
-        """topics_cfg: {topic: {"max_age": float, "min_freq": float}}"""
+        """topics_cfg: {topic: {"max_age": float, "min_freq": float,
+                                "enabled": bool(可选, 缺省 True)}}；
+        也可含传感器级开关 {"enabled": bool}（非话题键，作用于整个传感器）。
+        禁用的话题不注册跟踪器；被禁用部分不出现在健康报告中。"""
         self.name = name
+        self.enabled = bool(topics_cfg.get("enabled", True))
         self.trackers = {}
+        if not self.enabled:
+            return
         for topic, cfg in topics_cfg.items():
+            if topic == "enabled" or not isinstance(cfg, dict):
+                continue
+            if not cfg.get("enabled", True):
+                continue
             self.trackers[topic] = HealthTracker(
                 max_age=cfg["max_age"],
                 min_freq=cfg.get("min_freq", 0.0),
@@ -139,11 +154,14 @@ class SensorHealthRegistry:
     """全部传感器的注册与汇总（离线/在线共用核心逻辑）。"""
 
     def __init__(self, config, window_s=DEFAULT_WINDOW_S):
-        """config: {sensor_name: {topic: {"max_age":…, "min_freq":…}}}"""
+        """config: {sensor_name: {topic: {"max_age":…, "min_freq":…,
+                  "enabled":…}}}；enabled 可选（缺省 True），全部话题被禁用
+                  或传感器级 enabled=false 的传感器不注册、不进报告。"""
         self.monitors = {}
         for name, topics_cfg in config.items():
-            self.monitors[name] = SensorHealthMonitor(name, topics_cfg,
-                                                      window_s=window_s)
+            monitor = SensorHealthMonitor(name, topics_cfg, window_s=window_s)
+            if monitor.trackers:
+                self.monitors[name] = monitor
 
     def start(self, now):
         for monitor in self.monitors.values():
@@ -160,7 +178,8 @@ class SensorHealthRegistry:
 
 
 # --------------------------------------------------------------------------
-# 默认配置（与 config/sensor_health.yaml 一致）
+# 默认配置（话题集与 config/sensor_health.yaml 一致、全量启用；yaml 是实机
+# 配置，可用 enabled 停用条目。模拟节点 bt_mock_world 用本配置全开仿真）
 # --------------------------------------------------------------------------
 DEFAULT_CONFIG = {
     "imu": {
@@ -186,7 +205,10 @@ DEFAULT_CONFIG = {
         "/grasp_hexapod/stereo_ok": {"max_age": 1.0},
     },
     "mono": {
-        "/grasp_hexapod/mono_ok": {"max_age": 1.0},
+        # 真实链路 dock_tag_system.launch：usb_cam 驱动 10Hz + apriltag 检测
+        # （tag_detections 无 tag 也按帧率发布空数组，可作全链路心跳）
+        "/dock_camera/image_raw": {"max_age": 0.5, "min_freq": 5.0},
+        "/dock/tag_detections": {"max_age": 0.5, "min_freq": 5.0},
     },
 }
 
@@ -320,6 +342,21 @@ def selftest():
     assert set(registry7.monitors) == {"imu", "gps", "rtk", "servo", "stereo", "mono"}
     print("[OK] 默认配置: {} 路话题".format(
         sum(len(m.trackers) for m in registry7.monitors.values())))
+
+    # --- 8. enabled 开关：话题级/传感器级禁用不订阅、不进报告 ---
+    cfg8 = {
+        "cam": {"/on": {"max_age": 1.0},
+                "/off": {"max_age": 1.0, "enabled": False}},
+        "lidar": {"enabled": False, "/scan": {"max_age": 1.0}},
+    }
+    registry8 = SensorHealthRegistry(cfg8)
+    registry8.start(0.0)
+    assert set(registry8.monitors) == {"cam"}, registry8.monitors.keys()
+    assert set(registry8.monitors["cam"].trackers) == {"/on"}
+    registry8.feed("cam", "/on", 0.1)
+    state8 = registry8.snapshot(0.2)
+    assert set(state8) == {"cam"} and state8["cam"]["online"], state8
+    print("[OK] enabled 开关: 话题级/传感器级禁用不监测不报告")
 
     print("selftest 全部通过")
 

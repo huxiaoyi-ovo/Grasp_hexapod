@@ -1,5 +1,10 @@
 # 传感器健康监控配置（grasp_hexapod_bt 包 sensor_health_monitor.py 加载）。
-# 结构：sensors.<传感器名>.<话题>: {max_age: 秒, min_freq: Hz(可选)}
+# 结构：sensors.<传感器名>.<话题>: {max_age: 秒, min_freq: Hz(可选),
+#                                   enabled: 是否监测(可选, 缺省 true)}
+#       传感器名下也可直接写 enabled: false，整体停用该传感器。
+# 开关语义：被禁用的话题/传感器不订阅、不监测、不出现在
+#       /grasp_hexapod/sensor_health 报告中；行为树 IsSensorDataOk /
+#       WaitSensorsReady 只检查报告内条目，禁用即放行（不会阻塞任务）。
 # 判据：online=链路曾经建立；fresh=age<=max_age 且（配了 min_freq 时，
 #       预热 2s 后 freq>=min_freq）。多话题取最差。
 # 编码器不在此列（reference/encoder_driver encoder_status_node 持续发布 encoder_state 状态，判据在其节点内）。
@@ -8,39 +13,60 @@ sensors:
     /grasp_hexapod/imu:
       max_age: 0.2
       min_freq: 30.0
+      enabled: true
   gps:            # GPS 驱动（gps_ntrip_py -> /fix NavSatFix，含协方差）
     /fix:
       max_age: 1.0
       min_freq: 1.0
+      enabled: true
   rtk:            # RTK/导航融合位姿（行为树定位/粗导航数据源）
     /grasp_hexapod/navigation/base_pose:
       max_age: 0.5
+      enabled: true
     /grasp_hexapod/navigation/xiaolan_pose:
       max_age: 0.5
+      enabled: true
     /grasp_hexapod/navigation/pv_boundary:
       max_age: 0.5
+      enabled: true
   servo:          # 舵机 18 关节反馈（6 路 JointState）
     /lf_pos:
       max_age: 0.5
       min_freq: 10.0
+      enabled: true
     /lm_pos:
       max_age: 0.5
       min_freq: 10.0
+      enabled: true
     /lb_pos:
       max_age: 0.5
       min_freq: 10.0
+      enabled: true
     /rf_pos:
       max_age: 0.5
       min_freq: 10.0
+      enabled: true
     /rm_pos:
       max_age: 0.5
       min_freq: 10.0
+      enabled: true
     /rb_pos:
       max_age: 0.5
       min_freq: 10.0
-  stereo:         # 双目相机状态（相机节点心跳）
+      enabled: true
+  stereo:         # 双目相机（真实链路尚未接入：/grasp_hexapod/stereo_ok
+                  # 仅 bt_mock_world 模拟发布，实机不关会永久阻塞上线门禁；
+                  # 接入真实话题后改 true 并替换下方话题）
+    enabled: false
     /grasp_hexapod/stereo_ok:
       max_age: 1.0
-  mono:           # 单目相机状态（相机节点心跳）
-    /grasp_hexapod/mono_ok:
-      max_age: 1.0
+  mono:           # 单目对接相机（dock_tag_system.launch：usb_cam 驱动 10Hz
+                  # + apriltag 检测链；tag_detections 无 tag 也按帧率发布）
+    /dock_camera/image_raw:
+      max_age: 0.5
+      min_freq: 5.0
+      enabled: true
+    /dock/tag_detections:
+      max_age: 0.5
+      min_freq: 5.0
+      enabled: true

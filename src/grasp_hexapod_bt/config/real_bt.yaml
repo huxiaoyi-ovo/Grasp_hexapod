@@ -11,7 +11,7 @@ interfaces:
   encoder_state:   { simulate: true,  topic: /grasp_hexapod/encoder_state }
   fix:             { simulate: true,  topic: /fix }
   # LoRa 话题级仿真（串口读取不仿真，由真实 lora_node 负责）
-  lora_command:    { simulate: true,  topic: /lora/command }
+  lora_command:    { simulate: false,  topic: /lora/command }
   lora_status:     { simulate: true,  topic: /lora/status }
   remote_cmd:      { simulate: true,  topic: /grasp_hexapod/remote_cmd }
   switch_mode:     { simulate: true,  service: /grasp_hexapod/switch_mode }

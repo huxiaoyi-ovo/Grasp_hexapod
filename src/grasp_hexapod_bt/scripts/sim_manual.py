@@ -66,9 +66,11 @@ ACTIONS = {
                   "note": "按 active_phase 自动识别当前卡点并只放行这一小步"
                           "（任务命令按 ~mission 注入）"},
     "task_recover": {"label": "RECOVER 回收", "group": "① 任务命令", "kind": "once",
-                     "note": "CMD,HEX,RECOVER → /lora/command（锁存，单击一次）"},
+                     "note": "CMD,HEX,RECOVER → /lora/command（锁存，单击一次）；"
+                             "需 switch_mode 提供者（先开「手动模式服务」或模式执行端）"},
     "task_release": {"label": "RELEASE 释放", "group": "① 任务命令", "kind": "once",
-                     "note": "CMD,HEX,RELEASE → /lora/command（锁存，单击一次）"},
+                     "note": "CMD,HEX,RELEASE → /lora/command（锁存，单击一次）；"
+                             "需 switch_mode 提供者（先开「手动模式服务」或模式执行端）"},
     "task_bogus": {"label": "非法命令 BOGUS", "group": "① 任务命令", "kind": "once",
                    "cls": "warn",
                    "note": "注入非法任务命令 → 测试 WaitTaskCommand 失败回退路径"},
@@ -84,6 +86,10 @@ ACTIONS = {
                "note": "encoder_state landed=true（一帧缓存永久生效）"},
     "not_landed": {"label": "未落地", "group": "③ 下放·落地·编码器", "kind": "once",
                    "note": "landed=false：落地确认保持等待（RUNNING）"},
+    "encoder_hold_toggle": {"label": "持续发布编码器帧", "group": "③ 下放·落地·编码器",
+                            "kind": "toggle", "bind": "encoder_hold",
+                            "note": "5Hz 持续发布编码器帧，落地状态=最近一次「确认落地/未落地」"
+                                    "点击（默认未落地）；模拟真实编码器持续反馈/停发对比"},
     "mode_service_toggle": {"label": "手动模式服务", "group": "④ 模式执行·夹爪",
                             "kind": "toggle", "bind": "mode_service",
                             "note": "挂载 switch_mode；与 sim_feedback/实机 mode_server 互斥"},
@@ -119,6 +125,10 @@ ACTIONS = {
                            "note": "装填：下一次夹爪 clamp 返回失败（一次性，测试 dock 失败路径）"},
     "rtk_good": {"label": "良好协方差 /fix", "group": "⑤ RTK", "kind": "once",
                  "note": "对角 0.01 m²（阈值 0.04）→ 解除 RTK 停走"},
+    "rtk_hold_toggle": {"label": "持续发布 RTK 良好帧", "group": "⑤ RTK",
+                        "kind": "toggle", "bind": "rtk_hold",
+                        "note": "2Hz 持续发布良好 /fix（对角 0.01 m²）；关闭=停发"
+                                "（树保持最后缓存），对比 RTK 正常发布/停发"},
     "rtk_bad": {"label": "协方差超限 /fix", "group": "⑤ RTK", "kind": "once",
                 "cls": "warn",
                 "note": "对角 9.0 m² → 触发 RTK 停走等待（60s 超时路径）；恢复点\"良好协方差\""},
@@ -152,10 +162,10 @@ PHASE_HINTS = [
      "tip": "传感器数据异常停走中 → ▶通过当前步骤 注入全健康帧恢复"},
     {"match": "WaitDeployment", "actions": ["step_next", "deploy"],
      "tip": "等待绞盘下放开始（⑨）→ ▶通过当前步骤 注入 DEPLOY"},
-    {"match": "IsLandingConfirmed", "actions": ["step_next", "landed"],
-     "tip": "等待编码器确认落地（⑩/㉔）→ ▶通过当前步骤 注入确认落地"},
-    {"match": "WaitRtkPrecise", "actions": ["step_next", "rtk_good"],
-     "tip": "RTK 协方差超限停走等待 → ▶通过当前步骤 注入良好 /fix 解锁"},
+    {"match": "IsLandingConfirmed", "actions": ["step_next", "landed", "not_landed", "encoder_hold_toggle"],
+     "tip": "等待编码器确认落地（⑩/㉔）→ ▶通过当前步骤 注入确认落地；「持续发布编码器帧」可切落地/未落地"},
+    {"match": "WaitRtkPrecise", "actions": ["step_next", "rtk_good", "rtk_hold_toggle"],
+     "tip": "RTK 协方差超限停走等待 → ▶通过当前步骤 注入良好 /fix 解锁；「持续发布 RTK」保持正常发布"},
     {"match": "WaitWinchHoisted", "actions": ["step_next", "hoist_done"],
      "tip": "等待绞盘回收完成（⑫/㉜）→ ▶通过当前步骤 注入 HOIST_DONE"},
     {"match": "WaitHomeCmd", "actions": ["step_next", "home_cmd"],
@@ -205,7 +215,8 @@ class ManualState:
     def __init__(self, mission="recover"):
         assert mission in ("recover", "release")
         self.mission = mission
-        self._lock = threading.Lock()
+        # RLock（可重入）：_service_toggle 持锁期间会经 drain_pending 再次取锁。
+        self._lock = threading.RLock()
         self._log = collections.deque(maxlen=8)
         self._view = None
         self._view_t = 0.0
@@ -214,6 +225,9 @@ class ManualState:
         self.hold_since = 0.0
         self.mode_step = False
         self.gripper_step = False
+        self.rtk_hold_on = False
+        self.encoder_hold_on = False
+        self.encoder_landed = False   # 持续编码器帧的落地状态，跟随最近 landed/not_landed 点击
         # 装填（一次性失败）
         self.mode_fail_next = False
         self.mode_fail_set = set()
@@ -387,7 +401,10 @@ class ManualState:
                             "pending": (None if gp is None else
                                         {"action": gp["action"],
                                          "since": gp["since"]}),
-                            "fail_armed": dict(self.gripper_fail_armed)}}
+                            "fail_armed": dict(self.gripper_fail_armed)},
+                        "rtk_hold": {"on": self.rtk_hold_on},
+                        "encoder_hold": {"on": self.encoder_hold_on,
+                                         "landed": self.encoder_landed}}
                 if view != self._view:
                     self._view = view
                 self._view_t = now
@@ -419,6 +436,8 @@ class ManualNode:
         self.core = ManualState(mission)
         self._pubs = {}
         self._hold_timer = None
+        self._rtk_timer = None
+        self._encoder_timer = None
         self._mode_svc = None
         self._gripper_svc = None
         self._occupied_cache = {"mode": (0.0, None), "gripper": (0.0, None)}
@@ -454,6 +473,10 @@ class ManualNode:
                 return self._fix_cov(action, 9.0, "超限")
             if action == "hold_toggle":
                 return self._hold_toggle(action)
+            if action == "rtk_hold_toggle":
+                return self._rtk_hold_toggle(action)
+            if action == "encoder_hold_toggle":
+                return self._encoder_hold_toggle(action)
             if action == "mode_service_toggle":
                 return self._mode_service_toggle(action)
             if action == "mode_step_toggle":
@@ -535,9 +558,20 @@ class ManualNode:
         from std_msgs.msg import String
         connected = self._publish("/lora/command", String,
                                   String(data="CMD,HEX,{},MANUAL".format(op)))
-        return self.core.log_result(
-            action, True, "已发布 /lora/command CMD,HEX,{}{}".format(
-                op, self._sent_warn(connected)))
+        msg = "已发布 /lora/command CMD,HEX,{}{}".format(
+            op, self._sent_warn(connected))
+        # 任务命令被消费后立刻进入初始化（switch_mode(home)）；无提供者时
+        # 树会在一秒内失败回退——注入当下就把补救动作告诉操作者。
+        if op in ("RECOVER", "RELEASE") and not self._mode_provider_ready():
+            msg += ("；⚠ switch_mode 无提供者：先开「手动模式服务」"
+                    "（或启动模式执行端），否则初始化将失败回退")
+        return self.core.log_result(action, True, msg)
+
+    def _mode_provider_ready(self):
+        """switch_mode 是否已有提供者（自己托管 或 其他节点提供）。"""
+        if self._mode_svc is not None:
+            return True
+        return bool(self._probe_service(SWITCH_MODE_SERVICE, "mode"))
 
     def _encoder_state(self, action, landed, reason):
         from grasp_hexapod_msgs.msg import EncoderState
@@ -545,6 +579,10 @@ class ManualNode:
         m.landed = landed
         m.angle, m.reason = (135.0 if landed else 45.0), reason
         connected = self._publish("/grasp_hexapod/encoder_state", EncoderState, m)
+        # 持续发布编码器帧的状态跟随最近一次落地/未落地点击。
+        with self.core._lock:
+            self.core.encoder_landed = landed
+            self.core._view = None
         return self.core.log_result(
             action, True,
             "已发布 encoder_state landed={} {}{}".format(
@@ -647,6 +685,59 @@ class ManualNode:
         try:
             self._publish_health_all()
             self._publish_fix()
+        except Exception:  # noqa: BLE001
+            pass
+
+    # ---- 持续发布 RTK 良好帧（2Hz；对比 RTK 正常发布/停发） ----
+    def _rtk_hold_toggle(self, action):
+        with self.core._lock:
+            self.core.rtk_hold_on = not self.core.rtk_hold_on
+            on = self.core.rtk_hold_on
+            if on:
+                self._rtk_timer = self.rospy.Timer(
+                    self.rospy.Duration(0.5), self._rtk_hold_tick)
+                msg = "持续发布 RTK 良好帧已开启（2Hz，对角 0.01 m²）"
+            else:
+                if self._rtk_timer is not None:
+                    self._rtk_timer.shutdown()
+                    self._rtk_timer = None
+                msg = "持续发布 RTK 良好帧已关闭（停发，树保持最后缓存）"
+            self.core._view = None
+        return self.core.log_result(action, True, msg)
+
+    def _rtk_hold_tick(self, _event):       # 不记日志
+        try:
+            self._publish_fix(0.01)
+        except Exception:  # noqa: BLE001
+            pass
+
+    # ---- 持续发布编码器帧（5Hz；状态跟随最近 landed/not_landed 点击） ----
+    def _encoder_hold_toggle(self, action):
+        with self.core._lock:
+            self.core.encoder_hold_on = not self.core.encoder_hold_on
+            on = self.core.encoder_hold_on
+            if on:
+                self._encoder_timer = self.rospy.Timer(
+                    self.rospy.Duration(0.2), self._encoder_hold_tick)
+                msg = "持续发布编码器帧已开启（5Hz，落地状态跟随「确认落地/未落地」点击）"
+            else:
+                if self._encoder_timer is not None:
+                    self._encoder_timer.shutdown()
+                    self._encoder_timer = None
+                msg = "持续发布编码器帧已关闭（停发）"
+            self.core._view = None
+        return self.core.log_result(action, True, msg)
+
+    def _encoder_hold_tick(self, _event):   # 不记日志
+        try:
+            from grasp_hexapod_msgs.msg import EncoderState
+            with self.core._lock:
+                landed = self.core.encoder_landed
+            m = EncoderState()
+            m.landed = landed
+            m.angle = 135.0 if landed else 45.0
+            m.reason = "持续注入:{}".format("已落地" if landed else "未落地")
+            self._publish("/grasp_hexapod/encoder_state", EncoderState, m)
         except Exception:  # noqa: BLE001
             pass
 

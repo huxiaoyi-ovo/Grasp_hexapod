@@ -75,6 +75,23 @@ class RosBridgeContext(hexapod_bt.BridgeContext):
         self._home_cmd = False
 
     # ---- 话题缓存 ----
+    def reset_per_mission(self):
+        """每轮任务开始前清空话题缓存与锁存（每轮重读，不沿用上一轮）。
+
+        传感器健康/编码器/RTK 必须重新收到新帧才放行对应门禁；编码器落地
+        状态一并清空——上一轮的 landed=True 不得自动确认下一轮落地。
+        """
+        with self._lock:
+            self._mode_call = None
+            self._encoder = None
+            self._sensor_health = None
+            self._fix = None
+            self._remote = None
+            self._task = None
+            self._deploy_done = False
+            self._winch_done = False
+            self._home_cmd = False
+
     def on_sensor_health(self, msg):
         with self._lock:
             self._sensor_health = msg
@@ -111,7 +128,10 @@ class RosBridgeContext(hexapod_bt.BridgeContext):
             elif op == "HOME":
                 self._home_cmd = True
             else:
-                self.n.loginfo("未知指令透传: %s", text)
+                # 契约 C6：非 RELEASE/RECOVER 的命令 → 非法任务命令，
+                # 原样交树走失败回退（与 mock 语义一致）。
+                self._task = op
+                self.n.loginfo("未知指令按非法任务命令处理: %s", text)
 
     # ---- 传感器 ----
     def sensor_health(self):
@@ -325,6 +345,7 @@ def run():
 
     rospy.sleep(0.5)   # 等真实节点首帧
     while not rospy.is_shutdown():
+        bridge.reset_per_mission()   # 每轮重读：清空传感器/编码器/RTK 缓存与锁存
         bridge.status_log = []
         if remote_test:
             tree = hexapod_bt.build_remote_test_tree(bridge)

@@ -196,7 +196,7 @@
     <arg name="gripper_id" value="99"/>
     <arg name="gripper_direction" value="-1"/>
     <arg name="gripper_command_duration_ms" value="400"/>
-    <arg name="gripper_pulse_min" value="280"/>
+    <arg name="gripper_pulse_min" value="683"/>
     <arg name="gripper_pulse_max" value="750"/>
   </include>
   <include unless="$(eval arg('servo_backend') == 'cpp')"
@@ -209,7 +209,7 @@
     <arg name="gripper_id" value="99"/>
     <arg name="gripper_direction" value="-1"/>
     <arg name="gripper_command_duration_ms" value="400"/>
-    <arg name="gripper_pulse_min" value="280"/>
+    <arg name="gripper_pulse_min" value="683"/>
     <arg name="gripper_pulse_max" value="750"/>
   </include>
 </launch>

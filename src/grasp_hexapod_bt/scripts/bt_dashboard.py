@@ -12,12 +12,24 @@ ThreadingHTTPServer 提供页面与 JSON（无 rosbridge / 无外部 CDN，离�
 /grasp_hexapod/sim_state 提供（5s 无帧显示"未连接"横幅）。
 动作注册表（ACTIONS/GROUPS/PHASE_HINTS）从 sim_manual import（单一数据源）。
 
+虚拟手柄分页（模拟真实遥控器硬件，本进程直接发布 /joy）：页面顶部标签
+切换「行为树看板 / 虚拟手柄」。手柄页以 ~20Hz 向 POST /joy 上报虚拟
+摇杆/按键原始帧，本进程发布 sensor_msgs/Joy 到 /joy——与实体手柄同话题
+同格式（axes[8]/buttons[11]；按键 A=0 使能 B=1 复位 X=2 攀爬 Y=3 对接，
+轴 0=左摇杆左右 1=左摇杆前后 3=右摇杆转向 6/7=十字键左右/上下，
+方向符号与实机手柄一致：左/前/上=+1，右/后/下=-1）。
+不做任何语义转换：边沿检测/死区/限幅仍在 remote_control.py（/joy ->
+/grasp_hexapod/remote_cmd）。页面停止上报 1s 后 watchdog 补发一帧全零
+（摇杆回中+按键松开=松手）并转入空闲，保证手机锁屏/断连不残留行走速度。
+
 接口：
     GET  /           自包含 HTML 页面（1s 轮询 state.json，载荷未变不重渲染）
     GET  /state.json 最新快照 JSON（{tree_name,root_status,mission_status,
                     active_phase,active_feedback,nodes[],received,stale,waiting,
                     inject{connected,log[],hold{},mode_service{},gripper{}}}）
     POST /inject     {"action":"<id>"} 转发给 sim_manual（ACTIONS 注册表）
+    POST /joy        {"axes":[...],"buttons":[...]} 原始手柄帧（即时发布 /joy）
+    GET  /joy.json   手柄链路状态（{active,age_s,subscribers}）
 
 手动注入面（实机无反馈时的"保树运行"按钮，全部经 sim_manual 执行）：
     ▶通过当前步骤        按 active_phase 自动识别当前卡点，一键只放行这一小步
@@ -43,6 +55,7 @@ RUNNING 呼吸灯只动画 opacity；注入动作默认一次性发布单帧。
     rosrun grasp_hexapod_bt bt_dashboard.py                 # 默认 0.0.0.0:8080
     rosrun grasp_hexapod_bt bt_dashboard.py _port:=9000     # 换端口
     配套：rosrun grasp_hexapod_bt sim_manual.py             # 按钮的执行端
+    手柄页配套：rosrun grasp_hexapod_bt remote_control.py   # /joy -> remote_cmd
     python3 bt_dashboard.py --selftest                      # 离线自检（不依赖 ROS）
 """
 
@@ -61,6 +74,8 @@ from sim_manual import (ACTIONS, GROUPS, PHASE_HINTS, SENSOR_NAMES,
                         SIM_INJECT_SERVICE, SIM_STATE_TOPIC)
 
 TOPIC = "/grasp_hexapod/bt_state"
+JOY_TOPIC = "/joy"      # 虚拟手柄与实体手柄同话题（sensor_msgs/Joy）
+JOY_STALE_S = 1.0       # 页面停报超时 → watchdog 补发全零帧（松手）后空闲
 
 
 # ---------------------------------------------------------------------------
@@ -71,7 +86,7 @@ _PAGE_TEMPLATE = """<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Hexapod 行为树实时看板</title>
 <style>
   :root { color-scheme: dark; }
@@ -168,6 +183,69 @@ _PAGE_TEMPLATE = """<!DOCTYPE html>
   #toast.bad { background:#7f1d1d; border-color:#ef4444; color:#fee2e2; }
   footer { position:fixed; bottom:0; right:8px; color:#475569; font-size:11px;
            background:#0f172a; padding:0 4px; }
+
+  /* ---- 分页标签 ---- */
+  #tabs { display:flex; background:#0b1120; border-bottom:1px solid #334155; }
+  #tabs button { padding:10px 20px; background:transparent; color:#94a3b8;
+                 border:none; border-right:1px solid #1e293b;
+                 border-bottom:2px solid transparent;
+                 font:inherit; font-size:14px; font-weight:700; cursor:pointer; }
+  #tabs button.act { color:#e2e8f0; background:#131c30; border-bottom-color:#3b82f6; }
+  body.joy { overflow:hidden; overscroll-behavior:none;
+             display:flex; flex-direction:column;
+             height:100vh; height:100dvh; }
+  body.joy footer { display:none; }
+  body.joy #staleBar, body.joy #simBar { display:none !important; }
+
+  /* ---- 虚拟手柄页（手机优先：触控摇杆+按键，禁页面滚动/缩放） ----
+     body.joy 撑满视口做 flex 列，viewRemote flex:1 自动吃掉剩余高度
+     （不依赖 header/tabs 的固定像素高度，横竖屏、刘海屏均自适应） */
+  #viewRemote { display:none; flex:1; min-height:0; flex-direction:column;
+                gap:12px; padding:12px; width:100%; max-width:760px;
+                margin:0 auto; }
+  #joyStatus { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+  #joyBtns { display:flex; gap:12px; justify-content:center; flex-wrap:wrap; }
+  #joyDpad { display:grid; grid-template-columns:repeat(3, 58px);
+             grid-template-rows:repeat(3, 46px); gap:5px;
+             justify-content:center; }
+  button.dp { border-radius:10px; background:#1e293b; color:#e2e8f0;
+              border:2px solid #334155; font:inherit; font-weight:700;
+              font-size:16px; line-height:1.1; touch-action:none;
+              user-select:none; -webkit-user-select:none;
+              -webkit-tap-highlight-color:transparent; cursor:pointer; }
+  button.dp small { display:block; font-weight:400; font-size:10px;
+                    color:#94a3b8; }
+  button.dp.on { background:#166534; border-color:#22c55e; }
+  button.dp[data-dpad=up] { grid-column:2; grid-row:1; }
+  button.dp[data-dpad=left] { grid-column:1; grid-row:2; }
+  button.dp[data-dpad=right] { grid-column:3; grid-row:2; }
+  button.dp[data-dpad=down] { grid-column:2; grid-row:3; }
+  button.pad { min-width:68px; min-height:68px; border-radius:50%;
+               background:#1e293b; color:#e2e8f0; border:2px solid #334155;
+               font:inherit; font-weight:700; font-size:18px; line-height:1.15;
+               touch-action:none; user-select:none; -webkit-user-select:none;
+               -webkit-tap-highlight-color:transparent; cursor:pointer; }
+  button.pad small { display:block; font-weight:400; font-size:11px; color:#94a3b8; }
+  button.pad.on { background:#166534; border-color:#22c55e; }
+  #joySticks { flex:1; min-height:0; display:flex; align-items:stretch;
+               justify-content:space-around; gap:16px; }
+  .stickBox { display:flex; flex-direction:column; align-items:center;
+              justify-content:flex-end; gap:8px; min-width:0; }
+  .stick { position:relative; flex:0 1 auto; min-height:0;
+           height:min(38vmin, 250px); aspect-ratio:1/1; border-radius:50%;
+           background:#131c30; border:2px solid #334155; touch-action:none;
+           user-select:none; -webkit-user-select:none;
+           -webkit-tap-highlight-color:transparent; }
+  .stick::before { content:""; position:absolute; inset:0; margin:auto;
+                   width:70%; height:70%; border-radius:50%;
+                   border:1px dashed #263449; }
+  .knob { position:absolute; left:50%; top:50%; width:44%; height:44%;
+          margin:-22% 0 0 -22%; border-radius:50%; background:#334155;
+          border:2px solid #64748b; pointer-events:none; transition:transform .08s; }
+  .stick.live .knob { background:#1d4ed8; border-color:#60a5fa; transition:none; }
+  .stickLabel { color:#94a3b8; font-size:12px; white-space:nowrap; }
+  .stickLabel span { color:#e2e8f0; }
+  #joyHint { color:#64748b; font-size:11px; text-align:center; }
 </style>
 </head>
 <body>
@@ -177,8 +255,13 @@ _PAGE_TEMPLATE = """<!DOCTYPE html>
   <span id="chipMission" class="chip">任务结果 —</span>
   <span id="chipTime" class="chip"><small>—</small></span>
 </header>
+<nav id="tabs">
+  <button id="tabBt" class="act">行为树看板</button>
+  <button id="tabJoy">虚拟手柄（/joy）</button>
+</nav>
 <div id="staleBar">⚠ 数据源超过 3 秒未更新（bt_state 已停止？运行器是否仍在运行）</div>
 <div id="simBar">⚠ 模拟节点未连接（按钮不可用）——请启动：rosrun grasp_hexapod_bt sim_manual.py</div>
+<div id="viewBt">
 <div class="legend">
   <span><span class="st" style="background:#3b82f6"></span>RUNNING 执行中</span>
   <span><span class="st" style="background:#22c55e"></span>SUCCESS 已完成</span>
@@ -202,6 +285,39 @@ _PAGE_TEMPLATE = """<!DOCTYPE html>
     <div id="injGroups"></div>
     <div id="injLog"></div>
   </aside>
+</div>
+</div><!-- /viewBt -->
+
+<div id="viewRemote">
+  <div id="joyStatus">
+    <span id="joyLink" class="chip"><small>/joy 状态 —</small></span>
+    <span id="joySend" class="chip"><small>上报 —</small></span>
+  </div>
+  <div id="joyBtns">
+    <button class="pad" data-btn="0">A<small>使能</small></button>
+    <button class="pad" data-btn="1">B<small>复位</small></button>
+    <button class="pad" data-btn="2">X<small>攀爬</small></button>
+    <button class="pad" data-btn="3">Y<small>对接</small></button>
+  </div>
+  <div id="joyDpad">
+    <button class="dp" data-dpad="up">▲<small>上</small></button>
+    <button class="dp" data-dpad="left">◀<small>左</small></button>
+    <button class="dp" data-dpad="right">▶<small>右</small></button>
+    <button class="dp" data-dpad="down">▼<small>下</small></button>
+  </div>
+  <div id="joySticks">
+    <div class="stickBox">
+      <div class="stick" id="stickL"><div class="knob"></div></div>
+      <div class="stickLabel">左摇杆 · 行走 <span id="valL">(0.00, 0.00)</span></div>
+    </div>
+    <div class="stickBox">
+      <div class="stick" id="stickR"><div class="knob"></div></div>
+      <div class="stickLabel">右摇杆 · 转向 <span id="valR">(0.00, 0.00)</span></div>
+    </div>
+  </div>
+  <div id="joyHint">原始帧发布到 /joy（axes[8] buttons[11]：轴 0/1=左摇杆、3=右摇杆转向、
+    6/7=十字键，方向与实机一致：左/前=+1 右/后=-1；键 A/B/X/Y=使能/复位/攀爬/对接）<br>
+    键盘调试：WASD=左摇杆，Q/E=转向，方向键=十字键，1/2/3/4=A/B/X/Y</div>
 </div>
 <div id="toast"></div>
 <footer>自动刷新 1s · bt_dashboard</footer>
@@ -292,7 +408,8 @@ function buildPanel(){
   });
 }
 var BINDS = { hold: "hold_toggle", mode_service: "mode_service_toggle",
-              gripper: "gripper_service_toggle" };
+              gripper: "gripper_service_toggle",
+              rtk_hold: "rtk_hold_toggle", encoder_hold: "encoder_hold_toggle" };
 function relabelConfirm(d){
   /* 待确认目标上屏：确认按钮实时显示阻塞中的模式名/夹爪动作 */
   var inj = d.inject || {};
@@ -510,6 +627,203 @@ function poll(){
     })
     .catch(function(){ inflight = false; });
 }
+/* ---- 分页切换 ---- */
+var joyActive = false, joySendOk = null;
+function showView(name){
+  var wasJoy = joyActive;
+  var joy = name === "joy";
+  document.getElementById("viewBt").style.display = joy ? "none" : "";
+  document.getElementById("viewRemote").style.display = joy ? "flex" : "none";
+  document.getElementById("tabBt").className = joy ? "" : "act";
+  document.getElementById("tabJoy").className = joy ? "act" : "";
+  document.body.className = joy ? "joy" : "";
+  joyActive = joy;
+  if (wasJoy && !joy) joyRelease(true);   // 离开手柄页立即回中一帧
+}
+document.getElementById("tabBt").addEventListener("click", function(){ showView("bt"); });
+document.getElementById("tabJoy").addEventListener("click", function(){ showView("joy"); });
+
+/* ---- 虚拟手柄：发布原始帧到 /joy（与实体手柄同话题同格式） ----
+   axes[8]：0=左摇杆左右 1=左摇杆前后 3=右摇杆左右（转向） 6/7=十字键左右/上下；
+   buttons[11]：0=A使能 1=B复位 2=X攀爬 3=Y对接。
+   方向符号与实机手柄一致：左推/上推/前推=+1，右推/下推=-1。 */
+var joyState = { axes:[0,0,0,0,0,0,0,0], buttons:[0,0,0,0,0,0,0,0,0,0,0] };
+
+function padFrame(){
+  return { axes: joyState.axes.slice(), buttons: joyState.buttons.slice() };
+}
+function makeStick(el, axH, axV, valEl){
+  var knob = el.querySelector(".knob");
+  function apply(dx, dy){
+    dx = Math.max(-1, Math.min(1, dx));
+    dy = Math.max(-1, Math.min(1, dy));
+    var R = el.getBoundingClientRect().width * 0.28;
+    knob.style.transform = "translate(" + (dx*R).toFixed(1) + "px," +
+                                           (dy*R).toFixed(1) + "px)";
+    joyState.axes[axH] = -dx;      // 与实机一致：左推=+1、右推=-1
+    joyState.axes[axV] = -dy;      // 屏幕向上推 = +1（前推为正）
+    if (valEl) valEl.textContent = "(" + (-dx).toFixed(2) + ", " +
+                                     (-dy).toFixed(2) + ")";
+  }
+  function fromEvent(e){
+    var r = el.getBoundingClientRect(), R = r.width / 2;
+    apply((e.clientX - r.left - R) / R, (e.clientY - r.top - R) / R);
+  }
+  el.addEventListener("pointerdown", function(e){
+    try { el.setPointerCapture(e.pointerId); } catch (err) {}
+    el.classList.add("live");
+    fromEvent(e);
+    e.preventDefault();
+  });
+  el.addEventListener("pointermove", function(e){
+    if (!el.classList.contains("live")) return;
+    fromEvent(e);
+    e.preventDefault();
+  });
+  function end(){
+    el.classList.remove("live");
+    apply(0, 0);                    // 松手回中（20Hz 循环随后上报零值）
+  }
+  el.addEventListener("pointerup", end);
+  el.addEventListener("pointercancel", end);
+  return { release: function(){
+    el.classList.remove("live");
+    knob.style.transform = "translate(0px, 0px)";
+    if (valEl) valEl.textContent = "(0.00, 0.00)";
+  } };
+}
+var stickL = makeStick(document.getElementById("stickL"), 0, 1,
+                       document.getElementById("valL"));
+var stickR = makeStick(document.getElementById("stickR"), 3, 4,
+                       document.getElementById("valR"));
+
+(function(){
+  document.querySelectorAll("button.pad").forEach(function(b){
+    var idx = parseInt(b.dataset.btn, 10);
+    function press(on){
+      joyState.buttons[idx] = on ? 1 : 0;
+      b.classList.toggle("on", on);
+    }
+    b.addEventListener("pointerdown", function(e){
+      try { b.setPointerCapture(e.pointerId); } catch (err) {}
+      press(true);
+      e.preventDefault();
+    });
+    b.addEventListener("pointerup", function(){ press(false); });
+    b.addEventListener("pointercancel", function(){ press(false); });
+    b.addEventListener("contextmenu", function(e){ e.preventDefault(); });
+  });
+})();
+
+/* 十字键：axes[6]=左右 / axes[7]=上下（与实机一致：左/上=+1，右/下=-1） */
+var dpadState = { up:false, down:false, left:false, right:false };
+function dpadApply(){
+  joyState.axes[6] = dpadState.left ? 1 : (dpadState.right ? -1 : 0);
+  joyState.axes[7] = dpadState.up ? 1 : (dpadState.down ? -1 : 0);
+}
+(function(){
+  document.querySelectorAll("button.dp").forEach(function(b){
+    var key = b.dataset.dpad;
+    function press(on){
+      dpadState[key] = on;
+      b.classList.toggle("on", on);
+      dpadApply();
+    }
+    b.addEventListener("pointerdown", function(e){
+      try { b.setPointerCapture(e.pointerId); } catch (err) {}
+      press(true);
+      e.preventDefault();
+    });
+    b.addEventListener("pointerup", function(){ press(false); });
+    b.addEventListener("pointercancel", function(){ press(false); });
+    b.addEventListener("contextmenu", function(e){ e.preventDefault(); });
+  });
+})();
+
+/* 键盘调试：WASD=左摇杆，Q/E=转向，方向键=十字键，1/2/3/4=A/B/X/Y */
+var KEYMAP = { w:"ax1+", s:"ax1-", a:"ax0-", d:"ax0+",
+               arrowup:"dpup", arrowdown:"dpdown",
+               arrowleft:"dpleft", arrowright:"dpright",
+               q:"ax3-", e:"ax3+", "1":"b0", "2":"b1", "3":"b2", "4":"b3" };
+var keyDown = {};
+function keyRebuild(){
+  function axis(pos, neg){ return (keyDown[pos] ? 0.9 : 0) - (keyDown[neg] ? 0.9 : 0); }
+  joyState.axes[0] = axis("ax0-", "ax0+");   // 左=+0.9（与实机一致）
+  joyState.axes[1] = axis("ax1+", "ax1-");
+  joyState.axes[3] = axis("ax3-", "ax3+");
+  for (var i = 0; i < 4; i++) joyState.buttons[i] = keyDown["b" + i] ? 1 : 0;
+  ["up", "down", "left", "right"].forEach(function(d){
+    if (("dp" + d) in keyDown) dpadState[d] = !!keyDown["dp" + d];
+  });
+  dpadApply();
+}
+document.addEventListener("keydown", function(e){
+  var k = KEYMAP[e.key.toLowerCase()];
+  if (!k || keyDown[k]) return;
+  e.preventDefault();
+  keyDown[k] = true;
+  keyRebuild();
+});
+document.addEventListener("keyup", function(e){
+  var k = KEYMAP[e.key.toLowerCase()];
+  if (!k) return;
+  keyDown[k] = false;
+  keyRebuild();
+});
+
+/* 上报循环：手柄页打开期间 ~20Hz POST /joy；切后台/锁屏立即回中一帧 */
+function postJoy(body, opts){
+  var init = { method: "POST",
+               headers: { "Content-Type": "application/json" },
+               body: JSON.stringify(body) };
+  if (opts) Object.keys(opts).forEach(function(k){ init[k] = opts[k]; });
+  return fetch("joy", init)
+    .then(function(r){ return r.json(); })
+    .then(function(res){ joySendOk = true; return res; })
+    .catch(function(){ joySendOk = false; return null; });
+}
+function joyRelease(send){
+  joyState.axes = [0,0,0,0,0,0,0,0];
+  joyState.buttons = [0,0,0,0,0,0,0,0,0,0,0];
+  stickL.release();
+  stickR.release();
+  document.querySelectorAll("button.pad.on, button.dp.on").forEach(function(b){
+    b.classList.remove("on");
+  });
+  dpadState = { up:false, down:false, left:false, right:false };
+  keyDown = {};
+  if (send) postJoy(padFrame(), { keepalive: true });
+}
+setInterval(function(){
+  if (!joyActive) return;
+  postJoy(padFrame());
+}, 50);
+window.addEventListener("pagehide", function(){
+  if (joyActive) joyRelease(true);
+});
+document.addEventListener("visibilitychange", function(){
+  if (document.hidden && joyActive) joyRelease(true);
+});
+
+/* 手柄页 1s 状态刷新：/joy 订阅数（remote_control 是否在收）+ 上报健康 */
+setInterval(function(){
+  if (!joyActive) return;
+  fetch("joy.json", { cache: "no-store" })
+    .then(function(r){ return r.json(); })
+    .then(function(st){
+      var subs = st.subscribers || 0;
+      document.getElementById("joyLink").innerHTML =
+        "<span class='st' style='background:" +
+        (subs > 0 ? "#22c55e" : "#f59e0b") + "'></span>/joy 订阅 " + subs +
+        (subs > 0 ? "（链路通）" : "（未启动 remote_control.py）");
+      document.getElementById("joySend").innerHTML =
+        "<span class='st' style='background:" +
+        (joySendOk ? "#3b82f6" : "#ef4444") + "'></span>上报 " +
+        (joySendOk ? "正常 ~20Hz" : "失败");
+    })
+    .catch(function(){});
+}, 1000);
+
 buildPanel();
 setInterval(poll, 1000);
 poll();
@@ -680,6 +994,100 @@ class FakeSimLink:
 
 
 # ---------------------------------------------------------------------------
+# 虚拟手柄 → /joy（POST /joy 每帧即时发布；无 ROS 依赖的逻辑可离线自检）
+# ---------------------------------------------------------------------------
+JOY_AXES_LEN = 8        # 与常见实体手柄一致（xbox：0/1=左摇杆 3/4=右摇杆）
+JOY_BUTTONS_LEN = 11    # 0=A使能 1=B复位 2=X攀爬 3=Y对接（remote_control.py 映射）
+
+
+def _parse_joy_body(body):
+    """POST /joy 载荷校验：数组、数值化、限长限幅。坏帧拒绝且不发布。"""
+    if not isinstance(body, dict):
+        return None, None, "载荷不是 JSON 对象"
+    axes, buttons = body.get("axes"), body.get("buttons")
+    if not isinstance(axes, list) or not isinstance(buttons, list):
+        return None, None, "axes/buttons 必须是数组"
+    if len(axes) > 16 or len(buttons) > 32:
+        return None, None, "axes/buttons 超长"
+    try:
+        axes = [max(-1.0, min(1.0, float(a))) for a in axes]
+        buttons = [1 if b else 0 for b in buttons]
+    except (TypeError, ValueError):
+        return None, None, "axes/buttons 含非数值"
+    return axes, buttons, ""
+
+
+class JoyLink:
+    """虚拟手柄页 → /joy（sensor_msgs/Joy，与实体手柄同话题同格式）。
+
+    POST /joy 每帧即时发布（不合并/不重排，最接近真实设备连续上报）；
+    语义转换（边沿检测/死区/限幅/RemoteCmd）仍由 remote_control.py 完成，
+    本类只是"另一只手柄"。页面停报 JOY_STALE_S 后 watchdog 补发一帧全零
+    （摇杆回中+按键松开=松手）并转入空闲——手机锁屏/断连不残留行走速度。
+    make_msg 可注入以便离线自检（默认构造带 rospy 时戳的真实 Joy）。
+    """
+
+    def __init__(self, pub, log=None, now_fn=time.time, make_msg=None):
+        self._pub = pub
+        self._log = log
+        self._now = now_fn
+        self._make_msg = make_msg or self._default_msg
+        self._lock = threading.Lock()
+        self._last_rx = 0.0
+        self._active = False
+
+    @staticmethod
+    def _default_msg(axes, buttons):
+        import rospy
+        from sensor_msgs.msg import Joy
+        msg = Joy()
+        msg.header.stamp = rospy.Time.now()
+        msg.axes = axes
+        msg.buttons = buttons
+        return msg
+
+    def _publish_joy(self, axes, buttons):
+        self._pub.publish(self._make_msg(axes, buttons))
+
+    def update(self, axes, buttons):
+        try:
+            self._publish_joy(axes, buttons)
+        except Exception as exc:  # noqa: BLE001
+            return (False, "发布失败: {}".format(exc))
+        with self._lock:
+            self._last_rx = self._now()
+            self._active = True
+        return (True, "已发布 /joy axes={} buttons={}".format(
+            len(axes), len(buttons)))
+
+    def watchdog(self):
+        """页面停报超时 → 补发一帧全零（松手）后转入空闲，之后不再发布。"""
+        with self._lock:
+            stale = self._active and self._now() - self._last_rx > JOY_STALE_S
+        if not stale:
+            return
+        try:
+            self._publish_joy([0.0] * JOY_AXES_LEN, [0] * JOY_BUTTONS_LEN)
+        except Exception:  # noqa: BLE001
+            return
+        with self._lock:
+            self._active = False
+        if self._log:
+            self._log("虚拟手柄停止上报，已补发全零帧（摇杆回中+按键松开）")
+
+    def view(self):
+        with self._lock:
+            now = self._now()
+            active = self._active and now - self._last_rx <= JOY_STALE_S
+            age = (now - self._last_rx) if self._last_rx else None
+        try:
+            subs = int(self._pub.get_num_connections())
+        except AttributeError:
+            subs = 0
+        return {"active": active, "age_s": age, "subscribers": subs}
+
+
+# ---------------------------------------------------------------------------
 # 最新快照容器（订阅回调写、HTTP 读，跨线程）。
 # 载荷缓存：仅在 快照/注入视图 变化或 stale 翻转时重新序列化。
 # ---------------------------------------------------------------------------
@@ -724,6 +1132,7 @@ class DashboardState:
 class Handler(BaseHTTPRequestHandler):
     state = DashboardState()     # run() 里覆盖，便于自检注入
     injector = None              # run()/selftest 注入
+    joy = None                   # run()/selftest 注入（JoyLink）
     protocol_version = "HTTP/1.1"   # keep-alive：轮询复用连接
 
     def _respond(self, code, body, ctype):
@@ -744,12 +1153,19 @@ class Handler(BaseHTTPRequestHandler):
         elif path == "/state.json":
             self._respond(200, self.state.json_payload(self.injector).encode("utf-8"),
                           "application/json; charset=utf-8")
+        elif path == "/joy.json":
+            if self.joy is None:
+                self._respond(503, b'{"ok": false, "msg": "joy unavailable"}',
+                              "application/json; charset=utf-8")
+                return
+            self._respond(200, json.dumps(self.joy.view()).encode("utf-8"),
+                          "application/json; charset=utf-8")
         else:
             self.send_error(404, "not found")
 
     def do_POST(self):
         path = self.path.split("?", 1)[0]
-        if path != "/inject":
+        if path not in ("/inject", "/joy"):
             self.send_error(404, "not found")
             return
         try:
@@ -758,6 +1174,24 @@ class Handler(BaseHTTPRequestHandler):
         except Exception:  # noqa: BLE001
             self._respond(400, json.dumps({"ok": False,
                                            "msg": "请求体不是合法 JSON"}).encode("utf-8"),
+                          "application/json; charset=utf-8")
+            return
+        if path == "/joy":
+            axes, buttons, err = _parse_joy_body(body)
+            if err:
+                self._respond(400, json.dumps({"ok": False, "msg": err},
+                                              ensure_ascii=False).encode("utf-8"),
+                              "application/json; charset=utf-8")
+                return
+            if self.joy is None:
+                self._respond(503, json.dumps({"ok": False,
+                                               "msg": "joy unavailable"}).encode("utf-8"),
+                              "application/json; charset=utf-8")
+                return
+            ok, msg = self.joy.update(axes, buttons)
+            self._respond(200 if ok else 503,
+                          json.dumps({"ok": ok, "msg": msg},
+                                     ensure_ascii=False).encode("utf-8"),
                           "application/json; charset=utf-8")
             return
         action = body.get("action", "")
@@ -802,12 +1236,18 @@ def run():
     Handler.state = state
     Handler.injector = simlink
 
+    from sensor_msgs.msg import Joy as JoyMsg
+    joy_pub = rospy.Publisher(JOY_TOPIC, JoyMsg, queue_size=10)
+    Handler.joy = JoyLink(joy_pub, log=rospy.loginfo)
+
     def on_state(msg):
         state.update(snapshot_from_msg(msg))
 
     rospy.Subscriber(TOPIC, BtStateArray, on_state, queue_size=10)
     rospy.Subscriber(SIM_STATE_TOPIC, String, simlink.on_sim_state,
                      queue_size=5)
+    # 手柄页停报看门狗：补发全零帧（松手），防止手机锁屏/断连残留行走速度
+    rospy.Timer(rospy.Duration(0.5), lambda _e: Handler.joy.watchdog())
     try:
         httpd = ThreadingHTTPServer((host, port), Handler)
     except OSError as exc:
@@ -816,9 +1256,10 @@ def run():
                        "或 rosrun grasp_hexapod_bt bt_dashboard.py _port:=9000 换端口",
                        host, port, exc)
         sys.exit(1)
-    rospy.loginfo("bt_dashboard 就绪：http://%s:%d （订阅 %s；按钮经 %s 转发到 "
+    rospy.loginfo("bt_dashboard 就绪：http://%s:%d （行为树看板 + 虚拟手柄页，"
+                  "手柄页原始帧发布 %s；树快照订阅 %s；注入按钮经 %s 转发到 "
                   "sim_manual，未连接时页面顶部有横幅提示）",
-                  _lan_ip(), port, TOPIC, SIM_INJECT_SERVICE)
+                  _lan_ip(), port, JOY_TOPIC, TOPIC, SIM_INJECT_SERVICE)
     # rospy 接管 SIGINT 后 Ctrl+C 不向主线程抛异常（serve_forever 收不到
     # KeyboardInterrupt，进程关不掉）。on_shutdown 钩子在主线程的信号处理
     # 里执行，httpd.shutdown() 又会等 serve_forever 返回（也占主线程）——
@@ -857,6 +1298,7 @@ def selftest():
     # 1. 空快照 → waiting JSON（inject 块缺省为空）
     Handler.state = DashboardState()
     Handler.injector = None
+    Handler.joy = None
     payload = json.loads(Handler.state.json_payload())
     assert payload["waiting"] is True and payload["nodes"] == []
     assert payload["inject"] == {}
@@ -945,9 +1387,49 @@ def selftest():
         "sensor_bad_" + n for n in SENSOR_NAMES)
     print("[OK] FakeSimLink 动作/开关/装填（含指定模式）/夹爪单步/视图")
 
-    # 5. HTTP 往返：GET 页面与 state.json、POST /inject 成败两路、坏 JSON
+    # 4c. JoyLink：帧透传/停报补零（松手）/空闲停发/订阅者视图
+    class _FakeJoyPub:
+        def __init__(self):
+            self.frames = []
+
+        def publish(self, msg):
+            self.frames.append(msg)
+
+        def get_num_connections(self):
+            return 2
+
+    joy_pub = _FakeJoyPub()
+    clock = [100.0]
+    joy = JoyLink(joy_pub, log=print, now_fn=lambda: clock[0],
+                  make_msg=lambda a, b: {"axes": list(a), "buttons": list(b)})
+    ok, _ = joy.update([0.5, -0.5, 0, 0], [0, 1, 0])
+    assert ok and len(joy_pub.frames) == 1
+    assert joy_pub.frames[0]["axes"][0] == 0.5
+    assert joy_pub.frames[0]["buttons"][1] == 1
+    assert joy.view()["active"] is True and joy.view()["subscribers"] == 2
+    joy.watchdog()                          # 未超时：不补帧
+    assert len(joy_pub.frames) == 1
+    clock[0] += 2.0
+    joy.watchdog()                          # 超时：补发全零帧（松手）后空闲
+    assert len(joy_pub.frames) == 2
+    assert joy_pub.frames[1]["axes"] == [0.0] * JOY_AXES_LEN
+    assert joy_pub.frames[1]["buttons"] == [0] * JOY_BUTTONS_LEN
+    assert joy.view()["active"] is False
+    joy.watchdog()                          # 空闲后不再补帧
+    assert len(joy_pub.frames) == 2
+    axes, buttons, err = _parse_joy_body({"axes": ["bad"], "buttons": [0]})
+    assert err and "非数值" in err and axes is None
+    axes, buttons, err = _parse_joy_body({"axes": [3.0], "buttons": [True]})
+    assert not err and axes == [1.0] and buttons == [1]   # 限幅 + 布尔归一
+    print("[OK] JoyLink 帧透传/停报补零（松手）/空闲停发/订阅者视图")
+
+    # 5. HTTP 往返：GET 页面与 state.json、POST /inject 成败两路、坏 JSON、
+    #    POST /joy 帧发布与坏帧拒绝
     Handler.state = DashboardState()
     Handler.injector = fake
+    joy_http_pub = _FakeJoyPub()
+    Handler.joy = JoyLink(joy_http_pub,
+                          make_msg=lambda a, b: (list(a), list(b)))
     httpd = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
     port = httpd.server_address[1]
     threading.Thread(target=httpd.serve_forever, daemon=True).start()
@@ -958,10 +1440,38 @@ def selftest():
         assert "POST" in page and "data-act" in page and "bt_state" in page
         assert '<meta charset="utf-8">' in page
         assert "simBar" in page and "relabelConfirm" in page
+        assert "viewBt" in page and "viewRemote" in page and "makeStick" in page
+        assert "joyDpad" in page and "data-dpad" in page
+        assert 'fetch("joy.json"' in page.replace(" ", "")
 
         st = json.loads(urllib.request.urlopen(base + "/state.json",
                                                timeout=5).read().decode("utf-8"))
         assert st["waiting"] is True and st["inject"]["connected"] is True
+
+        req = urllib.request.Request(
+            base + "/joy", data=json.dumps(
+                {"axes": [0.2, -0.8], "buttons": [0, 1, 0]}).encode("utf-8"),
+            headers={"Content-Type": "application/json"}, method="POST")
+        resp = json.loads(urllib.request.urlopen(req, timeout=5).read().decode("utf-8"))
+        assert resp["ok"] is True
+        assert len(joy_http_pub.frames) == 1
+        assert joy_http_pub.frames[0][0][1] == -0.8      # 原始帧透传
+        assert joy_http_pub.frames[0][1][1] == 1
+
+        try:
+            req = urllib.request.Request(
+                base + "/joy", data=json.dumps({"axes": "bad"}).encode("utf-8"),
+                headers={"Content-Type": "application/json"}, method="POST")
+            urllib.request.urlopen(req, timeout=5)
+            raise AssertionError("坏手柄帧应返回 400")
+        except urllib.error.HTTPError as err:       # noqa: F821（urllib.error 同步可用）
+            assert err.code == 400
+        assert len(joy_http_pub.frames) == 1        # 坏帧未发布
+
+        st = json.loads(urllib.request.urlopen(base + "/joy.json",
+                                               timeout=5).read().decode("utf-8"))
+        assert st["active"] is True and st["subscribers"] == 2
+        print("[OK] HTTP：POST /joy 帧发布/坏帧拒绝、GET /joy.json")
 
         req = urllib.request.Request(
             base + "/inject", data=json.dumps({"action": "landed"}).encode("utf-8"),

@@ -10,7 +10,7 @@
   <arg name="enable_link_collision_check" default="true"/>
   <arg name="servo_rate_hz" default="30.0"/>
   <arg name="command_duration_ms" default="33"/>
-  <arg name="servo_diagnostics" default="true"/>
+  <arg name="servo_diagnostics" default="false"/>
   <!-- servo_backend：python（默认，grasp_hexapod_servo）或 cpp（grasp_hexapod_servo_cpp）。 -->
   <arg name="servo_backend" default="python"/>
   <arg name="max_feedback_age" default="0.30"/>

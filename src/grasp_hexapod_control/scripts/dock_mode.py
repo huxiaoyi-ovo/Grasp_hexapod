@@ -362,12 +362,7 @@ class DockMode:
     LINEAR_SPEED_M_S = 0.050
     BODY_RAISE_HEIGHT_M = 0.040
     TAG_SEARCH_RADIUS_M = 0.020
-    TAG_SEARCH_OFFSETS = (
-        (0.0, -TAG_SEARCH_RADIUS_M), (0.0, 0.0),
-        (0.0, TAG_SEARCH_RADIUS_M), (0.0, 0.0),
-        (-TAG_SEARCH_RADIUS_M, 0.0), (0.0, 0.0),
-        (TAG_SEARCH_RADIUS_M, 0.0), (0.0, 0.0),
-    )
+    TAG_SEARCH_SPEED_M_S = 0.020
     PRE_DESCENT_SETTLE_DURATION_S = 0.5
     LEG_LIFT_HEIGHT_M = 0.060
     LEG_LIFT_SPEED_M_S = 0.050
@@ -428,7 +423,8 @@ class DockMode:
         self.body_raise_progress = 0.0
         self.search_anchor_feet = None
         self.search_body_offset = np.zeros(2)
-        self.search_target_index = 0
+        self.search_angle = -0.5 * np.pi
+        self.search_on_circle = False
         self.descent_total = 0.0
         self.descent_remaining = 0.0
         self.descent_duration = 0.0
@@ -478,7 +474,8 @@ class DockMode:
         self.body_raise_progress = 0.0
         self.search_anchor_feet = None
         self.search_body_offset[:] = 0.0
-        self.search_target_index = 0
+        self.search_angle = -0.5 * np.pi
+        self.search_on_circle = False
         self.descent_total = 0.0
         self.descent_remaining = 0.0
         self.descent_duration = 0.0
@@ -512,7 +509,8 @@ class DockMode:
         self.body_raise_progress = 0.0
         self.search_anchor_feet = None
         self.search_body_offset[:] = 0.0
-        self.search_target_index = 0
+        self.search_angle = -0.5 * np.pi
+        self.search_on_circle = False
         self.descent_total = 0.0
         self.descent_remaining = 0.0
         self.descent_duration = 0.0
@@ -630,10 +628,11 @@ class DockMode:
             self.last_visual_target = feet.copy()
             self.search_anchor_feet = feet.copy()
             self.search_body_offset[:] = 0.0
-            self.search_target_index = 0
+            self.search_angle = -0.5 * np.pi
+            self.search_on_circle = False
             self._set_state(
                 self.SEARCHING_TAG,
-                "初始姿态已抬升40mm；开始在X/Y方向各扫描20mm",
+                "初始姿态已抬升40mm；开始以20mm半径、20mm/s圆周扫描",
             )
         else:
             self._set_state(
@@ -647,19 +646,22 @@ class DockMode:
     def _tag_search_step(self, current, reason):
         if self.search_anchor_feet is None:
             self.search_anchor_feet = self._synced_feet(current).copy()
-        target = np.asarray(
-            self.TAG_SEARCH_OFFSETS[self.search_target_index], dtype=float
-        )
+        if self.search_on_circle:
+            self.search_angle -= (
+                self.TAG_SEARCH_SPEED_M_S * self.update_dt
+                / self.TAG_SEARCH_RADIUS_M
+            )
+        target = self.TAG_SEARCH_RADIUS_M * np.array((
+            np.cos(self.search_angle), np.sin(self.search_angle)
+        ))
         delta = target - self.search_body_offset
         distance = float(np.linalg.norm(delta))
-        step = min(self.linear_speed_m_s * self.update_dt, distance)
+        step = min(self.TAG_SEARCH_SPEED_M_S * self.update_dt, distance)
         if distance > 1e-9:
             self.search_body_offset += delta * step / distance
         if distance <= step + 1e-9:
             self.search_body_offset[:] = target
-            self.search_target_index = (
-                self.search_target_index + 1
-            ) % len(self.TAG_SEARCH_OFFSETS)
+            self.search_on_circle = True
         feet = transform_points(
             transform((-self.search_body_offset[0], -self.search_body_offset[1], 0.0)),
             self.search_anchor_feet,
@@ -667,7 +669,7 @@ class DockMode:
         self.last_visual_target = feet.copy()
         self._set_state(
             self.SEARCHING_TAG,
-            "机身X/Y扫描偏移=({:.1f},{:.1f})mm；{}".format(
+            "机身圆周扫描偏移=({:.1f},{:.1f})mm；{}".format(
                 *(self.search_body_offset * 1000.0), reason
             ),
         )
@@ -988,7 +990,8 @@ def self_check():
     search_mode.active, search_mode.state = True, search_mode.SEARCHING_TAG
     search_mode.search_anchor_feet = np.zeros((6, 3))
     search_offsets = []
-    for _ in range(64):
+    initial_angle = search_mode.search_angle
+    for _ in range(80):
         result = search_mode._tag_search_step(
             np.zeros((6, 3)), "simulated tag absence"
         )
@@ -996,19 +999,18 @@ def self_check():
         if result.foot_positions_base is None:
             raise AssertionError("tag search must command feet")
     search_offsets = np.asarray(search_offsets)
-    if np.max(np.abs(search_offsets)) > search_mode.TAG_SEARCH_RADIUS_M + 1e-12:
-        raise AssertionError("tag search must stay inside 20mm X/Y range")
-    required_extrema = (
-        (0, search_mode.TAG_SEARCH_RADIUS_M),
-        (0, -search_mode.TAG_SEARCH_RADIUS_M),
-        (1, search_mode.TAG_SEARCH_RADIUS_M),
-        (1, -search_mode.TAG_SEARCH_RADIUS_M),
+    radii = np.linalg.norm(search_offsets, axis=1)
+    if np.max(radii) > search_mode.TAG_SEARCH_RADIUS_M + 1e-12:
+        raise AssertionError("circular tag search must stay inside 20mm radius")
+    if not np.allclose(radii[9:], search_mode.TAG_SEARCH_RADIUS_M):
+        raise AssertionError("tag search must follow the circular perimeter")
+    if initial_angle - search_mode.search_angle < 2.0 * np.pi:
+        raise AssertionError("tag search must complete a full circle")
+    increments = np.linalg.norm(
+        np.diff(np.vstack((np.zeros(2), search_offsets)), axis=0), axis=1
     )
-    if not all(
-        np.any(np.isclose(search_offsets[:, axis], value))
-        for axis, value in required_extrema
-    ):
-        raise AssertionError("tag search must scan forward/backward/left/right")
+    if np.max(increments) > search_mode.TAG_SEARCH_SPEED_M_S * Controller.dt + 1e-12:
+        raise AssertionError("tag search speed limit self-check failed")
 
     yaw = np.deg2rad(20.0)
     yaw_rotation = np.array((

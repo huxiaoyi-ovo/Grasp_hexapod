@@ -23,6 +23,10 @@ from control import GraspController
 from kinematics import JOINT_LOWER, JOINT_UPPER
 from utils import package_config_path
 from utils.climb import gravity_projected_support
+from utils.climb_collision import (
+    ANKLE_VISUAL_FOOTPAD_COMPONENT_INDEX,
+    default_visual_scene,
+)
 from utils.climb_retime import (
     assert_speed_report,
     segment_for_time,
@@ -151,7 +155,7 @@ def prefix_entry(compact):
 
 def structural_gate(compact):
     stages = compact["stages"]
-    require(compact["stage_count"] == 36 == len(stages), "expected 36 stages")
+    require(compact["stage_count"] == 32 == len(stages), "expected active 33-stage plan")
     require(tuple(stage["name"] for stage in stages[18:26]) == NAMES,
             "left-transfer stage map")
     require(stages[19]["active_legs"] == [0], "LB must swing alone")
@@ -165,7 +169,7 @@ def structural_gate(compact):
             np.isclose(right_shift["pose_start"][0], .230) and
             np.isclose(right_shift["pose_end"][0], .232) and
             right_shift["segment_durations_s"] == [1.2] and
-            np.isclose(right_shift["settle_s"], .15),
+            np.isclose(right_shift["settle_s"], 1.0 / 30.0),
             "right shift contract")
     require(np.allclose(right_shift["pose_start"],
                         [.230, -.06769449763600001, .215, -np.pi / 12.0, -.2]) and
@@ -217,10 +221,10 @@ def structural_gate(compact):
     require(np.allclose(np.asarray(lf["anchor_knots"])[-1, 1], lf_target),
             "LF landing centerward low-plane offset")
     require(all(np.allclose(np.asarray(stage["anchor_knots"])[:, 1], lf_target)
-                for stage in stages[22:33]),
-            "C23-C33 retain shifted LF world anchor")
-    require(np.allclose(np.asarray(stages[33]["anchor_knots"])[0, 1], lf_target),
-            "C34 LF starts from shifted anchor before final release")
+                for stage in stages[22:29]),
+            "C23-C29 retain shifted LF world anchor")
+    require(np.allclose(np.asarray(stages[29]["anchor_knots"])[0, 1], lf_target),
+            "C30 LF pair starts from shifted anchor before final release")
     mode = ClimbMode(None)
     mode.config = compact
     for index in (19, 21):
@@ -418,6 +422,20 @@ def dense_validate(compact):
     require(final_angle <= 30.0,
             source("LM_LEFT_FINAL_LAND", sum(final_stage["segment_durations_s"]),
                    2, "LM_terminal_axis_angle_deg", final_angle, 30.0))
+    world_from_xiaolan = np.eye(4, dtype=np.float64)
+    world_from_xiaolan[:3, 3] = compact["xiaolan_translation"]
+    scene = default_visual_scene(ROOT, world_from_xiaolan)
+    components = scene.robot_components(q, transform, [2], include_body=False)
+    nonfoot = scene.components_vs_xiaolan(
+        components,
+        exclude_components=(("ankle", 2,
+                             ANKLE_VISUAL_FOOTPAD_COMPONENT_INDEX),),
+    )
+    require(not nonfoot.collision, {
+        "stage": "LM_LEFT_FINAL_LAND",
+        "metric": "LM_active_nonfoot_visual_vs_xiaolan",
+        "hit": None if nonfoot.hit is None else nonfoot.hit.__dict__,
+    })
     return reports, {
         "future_support_margin_m": float(future.raw_margin_m),
         "LB_platform_entry_clearance_m": float(lb_entry_clearance),
@@ -427,6 +445,7 @@ def dense_validate(compact):
              compact["xiaolan_translation"][1])),
         "final_LM_hip_foot_xy_m": final_radius,
         "final_LM_terminal_axis_angle_deg": final_angle,
+        "final_LM_active_nonfoot_visual_clear": True,
         "sources": global_sources,
     }
 

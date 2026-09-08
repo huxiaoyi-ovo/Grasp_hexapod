@@ -67,13 +67,31 @@ PHYSX_BODY_MINIMUM_DURATIONS = {
     34: 1.50,
 }
 
+# The active 33-stage tail is keyed by names so historical 36-stage baseline
+# diagnostics retain their original positional semantic map.
+TAIL_SEMANTICS_BY_NAME = {
+    "LM_LEFT_FINAL_LAND": ("TOUCHDOWN",),
+    "RB_RF_DIRECT_FINAL": ("SWING_LIFT", "SWING_TRANSFER", "TOUCHDOWN"),
+    "BODY_REPOSITION": ("BODY",),
+    "LM_DIRECT_FINAL": ("SWING_LIFT", "SWING_TRANSFER", "TOUCHDOWN"),
+    "RM_DIRECT_FINAL": ("SWING_LIFT", "SWING_TRANSFER", "TOUCHDOWN"),
+    "LB_LF_DIRECT_FINAL": ("SWING_LIFT", "SWING_TRANSFER", "TOUCHDOWN"),
+    "BODY_DOCK_FINAL": ("BODY",),
+}
+
 
 def stage_specs(stage_index, stage):
     """Return immutable semantic/target/hard/minimum entries for one stage."""
 
-    if not 0 <= stage_index < len(SEMANTIC_NAMES):
+    if stage["name"] == "STAND_FINAL_HOLD":
         return ()
-    semantics = SEMANTIC_NAMES[stage_index]
+
+    if stage["name"] in TAIL_SEMANTICS_BY_NAME:
+        semantics = TAIL_SEMANTICS_BY_NAME[stage["name"]]
+    elif not 0 <= stage_index < len(SEMANTIC_NAMES):
+        return ()
+    else:
+        semantics = SEMANTIC_NAMES[stage_index]
     durations = stage["segment_durations_s"]
     if len(semantics) != len(durations):
         raise ValueError("retime semantic shape mismatch: " + stage["name"])
@@ -90,6 +108,10 @@ def stage_specs(stage_index, stage):
         elif semantic == "BODY":
             target, hard = 1.9, 2.4
             minimum = 0.80 if stage_index in MAJOR_BODY_INDICES else 0.60
+            if stage["name"] == "BODY_REPOSITION":
+                minimum = 1.60
+            elif stage["name"] == "BODY_DOCK_FINAL":
+                minimum = 1.50
             if stage_index == FROZEN_PRELOAD_INDEX:
                 minimum = 0.50
         else:

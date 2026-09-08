@@ -2101,6 +2101,25 @@ def test_isaac_compact_paths_enable_real_feedback_gates():
     assert "climb_timeout_uses_wall_time=not self.local_execution" in real_source
 
 
+def test_sim_rm_delay_fifo_and_attitude_helpers():
+    spec = importlib.util.spec_from_file_location(
+        "run_sim_tail_helpers", SCRIPTS / "run_sim.py"
+    )
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    queue = module.deque([
+        np.array([0., 0., 0.]), np.array([0., 0., 0.]),
+        np.array([0., 0., 0.]),
+    ], maxlen=3)
+    commands = [np.full(3, value) for value in (1., 2., 3., 4.)]
+    outputs = [module._delayed_rm_target(queue, command) for command in commands]
+    assert [float(value[0]) for value in outputs] == [0., 0., 0., 1.]
+    identity = module._base_pose_quaternion_xyzw([0, 0, 0, 0, 0])
+    roll_two = module._base_pose_quaternion_xyzw([0, 0, 0, np.deg2rad(2), 0])
+    assert module._quaternion_error_deg(identity, identity) == pytest.approx(0.)
+    assert module._quaternion_error_deg(identity, roll_two) == pytest.approx(2.)
+
+
 def test_climb_observation_uses_start_frame_relative_transforms():
     start_planned = ClimbMode._world_from_base(
         np.array([0.4, -0.2, 0.3, 0.15, -0.2])

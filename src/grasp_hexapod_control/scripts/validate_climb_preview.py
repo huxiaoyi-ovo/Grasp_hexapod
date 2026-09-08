@@ -32,10 +32,8 @@ ACTIVE_STAGE_NAMES = (
     "BODY_A", "RM_RIGHT_SYMMETRY", "BODY_LEFT_TRANSFER_PREP",
     "LB_LOW_STEP", "BODY_RIGHT_BEFORE_LF", "LF_LOW_STEP",
     "BODY_PRELOAD_LM", "LM_LIFT",
-    "BODY_ADVANCE_LM_AIR", "LM_LEFT_FINAL_LAND", "RB_DIRECT_FINAL",
-    "RF_DIRECT_FINAL", "BODY_REPOSITION_1", "LM_DIRECT_FINAL",
-    "RM_DIRECT_FINAL", "BODY_REPOSITION_2", "LB_DIRECT_FINAL",
-    "LF_DIRECT_FINAL",
+    "BODY_ADVANCE_LM_AIR", "LM_LEFT_FINAL_LAND", "RB_RF_DIRECT_FINAL",
+    "RM_DIRECT_FINAL", "BODY_REPOSITION", "LB_LF_DIRECT_FINAL",
     "BODY_DOCK_FINAL", "STAND_FINAL_HOLD",
 )
 
@@ -85,7 +83,7 @@ def strict_contract(compact):
 
     stages = compact["stages"]
     require(compact["stage_count"] == len(ACTIVE_STAGE_NAMES) == len(stages),
-            "36 active stages")
+            "32 active stages")
     require(tuple(stage["name"] for stage in stages) == ACTIVE_STAGE_NAMES,
             "active stage map")
     for stage in stages:
@@ -174,10 +172,10 @@ def strict_contract(compact):
     require(np.allclose(np.asarray(c22["anchor_knots"])[-1, 1], lf_landing),
             "C22 LF landing is 10 mm centerward along the low plane")
     require(all(np.allclose(np.asarray(stage["anchor_knots"])[:, 1], lf_landing)
-                for stage in stages[22:33]),
-            "C23-C33 keep the shifted LF world anchor")
-    require(np.allclose(np.asarray(stages[33]["anchor_knots"])[0, 1], lf_landing),
-            "C34 begins from the shifted LF anchor")
+                for stage in stages[22:29]),
+            "C23-C29 keep the shifted LF world anchor")
+    require(np.allclose(np.asarray(stages[29]["anchor_knots"])[0, 1], lf_landing),
+            "C30 begins from the shifted LF anchor")
     for stage_index in (19, 21):
         stage = stages[stage_index]
         reference = ClimbMode(None)
@@ -195,23 +193,21 @@ def strict_contract(compact):
             "C23 descent from elevated left-transfer pose")
     require(c24["active_legs"] == [2] and c25["active_legs"] == [2]
             and c26["active_legs"] == [2], "C24-C26 LM transfer")
-    require(np.allclose(c26["pose_end"], stages[26]["pose_start"]),
-            "C26 restores RB entry pose")
-    require(stages[26]["active_legs"] == [3], "C27 RB direct final")
-    require(stages[27]["active_legs"] == [4], "C28 RF direct final")
-    require(stages[28]["active_legs"] == [], "C29 body reposition 1")
-    require(stages[29]["active_legs"] == [2], "C30 LM direct final")
-    require(stages[30]["active_legs"] == [5], "C31 RM direct final")
-    require(stages[31]["active_legs"] == [], "C32 body reposition 2")
-    require(stages[32]["active_legs"] == [0], "C33 LB direct final")
-    require(stages[33]["active_legs"] == [1], "C34 LF direct final")
+    require(stages[26]["active_legs"] == [3, 4], "C27 RB/RF direct final pair")
+    require(not np.allclose(stages[26]["pose_start"], stages[26]["pose_end"]),
+            "C27 pairs legs while moving to the raised RM-ready body pose")
+    require(stages[27]["active_legs"] == [5], "C28 RM direct final")
+    require(stages[28]["active_legs"] == [], "C29 body reposition")
+    require(stages[29]["active_legs"] == [0, 1], "C30 LB/LF direct final pair")
+    require(stages[30]["active_legs"] == [], "C31 final body dock")
+    require(stages[31]["active_legs"] == [], "C32 final hold")
     for index in range(1, len(stages)):
         require(np.allclose(stages[index - 1]["pose_end"], stages[index]["pose_start"],
                             rtol=0.0, atol=1e-9), "pose boundary")
         require(np.allclose(stages[index - 1]["anchor_knots"][-1],
                             stages[index]["anchor_knots"][0], rtol=0.0, atol=1e-9),
                 "anchor boundary")
-    require(resolve_compact_stage_range(compact, "C1", "C36") == (0, 35),
+    require(resolve_compact_stage_range(compact, "C1", "C32") == (0, 31),
             "active aliases")
 
 
@@ -311,7 +307,19 @@ def replay(compact, strict=False):
             c14_errors.append(np.linalg.norm(actual[:2] - desired[:2], axis=1))
         ticks += 1
     require(controller.climb_mode.state == ClimbMode.DONE, "preview did not finish")
-    for rows in semantic_segments[:35]:
+    final_pose = np.asarray(stages[-1]["pose_end"], dtype=np.float64)
+    final_inverse = np.linalg.inv(ClimbMode._world_from_base(final_pose))
+    final_anchors = np.asarray(stages[-1]["anchor_knots"][-1], dtype=np.float64)
+    final_desired = (
+        np.column_stack((final_anchors, np.ones(6))) @ final_inverse.T
+    )[:, :3]
+    terminal_q = np.asarray(compact["terminal_q_rad"], dtype=np.float64)
+    terminal_fk_error = float(np.max(np.linalg.norm(
+        controller.kinematic.forward_base(terminal_q) - final_desired, axis=1)))
+    if strict:
+        require(terminal_fk_error <= 1e-5,
+                "stored terminal_q_rad FK must match final body/anchors")
+    for rows in semantic_segments[:len(stages) - 1]:
         assert_speed_report(rows, require)
     if strict:
         velocity = np.diff(np.asarray(c14_q), axis=0) / DT
@@ -327,10 +335,11 @@ def replay(compact, strict=False):
         "min_joint_margin_rad": float(min_margin), "min_joint_margin_source": margin_source,
         "global_peak_command_speed_rad_s": float(peak_speed),
         "global_peak_command_speed_source": peak_speed_source,
-        "semantic_segments": semantic_segments[:35],
+        "semantic_segments": semantic_segments[:len(stages) - 1],
         "stages": stage_report,
         "model_diagnostic_only": "planned base/raw support margins are geometry diagnostics, not contact/load/stability proof",
         "final_foot_target_error_m": float(controller.climb_mode.last_foot_target_error_m),
+        "terminal_q_fk_error_m": terminal_fk_error,
     }
     require(finite_json(report), "report contains non-finite JSON")
     return report

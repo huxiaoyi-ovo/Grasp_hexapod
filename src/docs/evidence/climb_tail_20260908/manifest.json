@@ -1,0 +1,43 @@
+{
+  "candidate_sha256": "a4b417fe2263971577fd274fd6af4b861fbf6a9b555c6f62f25013a2512906fd",
+  "baseline_sha256": "af3dca695cf61279af7e41a79595ce0d5b2c8415c0d8de8e7db8df61fc1b944c",
+  "stage_count": 33,
+  "nominal_metrics": "nominal_metrics.json",
+  "stress_metrics": "stress_metrics.json",
+  "stress_parameters": {
+    "friction_scale": 0.75,
+    "rm_delay_s": 0.1,
+    "rm_delay_frames": 3,
+    "control_dt_s": 0.03333333333333333,
+    "rm_delay_activation_count": 1
+  },
+  "evidence_boundary": "Isaac simulation diagnostics only; not contact, load, friction, stability, or hardware authorization.",
+  "baseline_stress_metrics": "baseline_stress_metrics.json",
+  "commands": [
+    "python3 src/grasp_hexapod_control/scripts/tools/rebuild_climb_tail.py --input src/docs/evidence/climb_tail_20260908/baseline_config.json --output /tmp/climb_tail_candidate_33.json",
+    "python3 src/grasp_hexapod_control/scripts/validate_climb_preview.py --config src/docs/evidence/climb_tail_20260908/candidate_config.json",
+    "python3 src/grasp_hexapod_control/scripts/tools/validate_left_transfer.py --config src/docs/evidence/climb_tail_20260908/candidate_config.json --report /tmp/left.json",
+    "python3 src/grasp_hexapod_control/scripts/tools/validate_final_transfer.py --config src/docs/evidence/climb_tail_20260908/candidate_config.json",
+    "conda run --no-capture-output -n grasp_hexapod env PYTHONDONTWRITEBYTECODE=1 python src/grasp_hexapod_control/scripts/run_sim.py --headless --climb-start --climb-from C1 --climb-to C33 --climb-config src/docs/evidence/climb_tail_20260908/candidate_config.json --climb-metrics /tmp/nominal.json",
+    "conda run --no-capture-output -n grasp_hexapod env PYTHONDONTWRITEBYTECODE=1 python src/grasp_hexapod_control/scripts/run_sim.py --headless --climb-start --climb-from C1 --climb-to C33 --climb-config src/docs/evidence/climb_tail_20260908/candidate_config.json --climb-test-friction-scale .75 --climb-test-rm-delay-s .1 --climb-metrics /tmp/stress.json",
+    "conda run --no-capture-output -n grasp_hexapod env PYTHONDONTWRITEBYTECODE=1 python src/grasp_hexapod_control/scripts/run_sim.py --headless --climb-start --climb-from C1 --climb-to C36 --climb-config src/docs/evidence/climb_tail_20260908/baseline_config.json --climb-test-friction-scale .75 --climb-test-rm-delay-s .1 --climb-metrics /tmp/baseline_stress.json"
+  ],
+  "nominal_summary": {
+    "state": "DONE",
+    "motion_s": 69.8333333,
+    "full_s": 74.1333333
+  },
+  "stress_summary": {
+    "state": "DONE",
+    "motion_s": 70.0666667,
+    "full_s": 74.3666667,
+    "friction_scale": 0.75,
+    "rm_delay_s": 0.1
+  },
+  "cpu_gate_files": [
+    "strict_preview_gate.json",
+    "left_transfer_gate.json",
+    "final_transfer_gate.json"
+  ],
+  "focused_test_summary": "82 passed; 1 pre-existing unrelated launch assertion failure (run_real launch collision-check default)."
+}

@@ -190,6 +190,9 @@ class ClimbMode:
             active_base_knots = np.asarray(
                 stage.get("active_base_knots_m", []), dtype=np.float64
             )
+            active_base_velocities = stage.get("active_base_velocities_m_s")
+            if active_base_velocities is not None:
+                active_base_velocities = np.asarray(active_base_velocities, dtype=np.float64)
             base_piecewise_curve = bool(
                 anchor_curve == "piecewise_base_quintic"
                 and isinstance(active, list)
@@ -197,7 +200,13 @@ class ClimbMode:
                 and active_base_knots.shape
                 == (len(knots), len(active), 3)
                 and np.all(np.isfinite(active_base_knots))
+                and (active_base_velocities is None or (
+                    active_base_velocities.shape == active_base_knots.shape
+                    and np.all(np.isfinite(active_base_velocities))))
             )
+            if (active_base_velocities is not None
+                    and anchor_curve != "piecewise_base_quintic"):
+                raise ValueError("base velocities require base-piecewise curve")
             relative_height = stage.get("relative_swing_height_m")
             relative_curve = bool(
                 anchor_curve == "relative_base_high_step"
@@ -289,6 +298,43 @@ class ClimbMode:
             previous_anchors = knots[-1]
         if len(set(names)) != len(names):
             raise ValueError("compact stage names must be unique")
+        for index, stage in enumerate(stages):
+            marker = stage.get("continuous_air_transition")
+            if marker is not None and not isinstance(marker, bool):
+                raise ValueError("continuous air transition marker must be bool")
+            if marker is not True:
+                continue
+            if index + 1 >= len(stages):
+                raise ValueError("continuous air transition requires next stage")
+            next_stage = stages[index + 1]
+            if (stage["active_legs"] != [2] or next_stage["active_legs"] != [2]
+                    or (stage["name"], next_stage["name"]) not in (
+                        ("LM_LIFT", "BODY_ADVANCE_LM_AIR"),
+                        ("BODY_ADVANCE_LM_AIR", "LM_LEFT_FINAL_LAND"),
+                    )):
+                raise ValueError("continuous air transition requires frozen LM pair")
+            pose_end = np.asarray(stage["pose_end"], dtype=np.float64)
+            pose_start = np.asarray(next_stage["pose_start"], dtype=np.float64)
+            knots_end = np.asarray(stage["anchor_knots"], dtype=np.float64)[-1]
+            knots_start = np.asarray(next_stage["anchor_knots"], dtype=np.float64)[0]
+            if (not np.allclose(pose_end, pose_start, rtol=0.0, atol=1e-12)
+                    or not np.allclose(knots_end, knots_start, rtol=0.0, atol=1e-12)
+                    or not np.allclose(knots_end[[0, 1, 3, 4, 5]],
+                                       knots_start[[0, 1, 3, 4, 5]],
+                                       rtol=0.0, atol=1e-12)):
+                raise ValueError("continuous air transition boundary mismatch")
+            current_velocity = stage.get("active_base_velocities_m_s")
+            next_velocity = next_stage.get("active_base_velocities_m_s")
+            if current_velocity is None or next_velocity is None:
+                raise ValueError("continuous air transition requires base velocities")
+            current_velocity = np.asarray(current_velocity, dtype=np.float64)
+            next_velocity = np.asarray(next_velocity, dtype=np.float64)
+            current_world = self._world_from_base(pose_end)[:3, :3] @ current_velocity[-1, 0]
+            next_world = self._world_from_base(pose_start)[:3, :3] @ next_velocity[0, 0]
+            if (np.linalg.norm(current_world) <= 1e-9
+                    or not np.allclose(current_world, next_world,
+                                       rtol=0.0, atol=1e-9)):
+                raise ValueError("continuous air transition velocity mismatch")
         gate = config["settle_gate"]
         gate_values = (
             gate["max_joint_tracking_error_rad"],
@@ -506,6 +552,7 @@ class ClimbMode:
         active_base = self._piecewise(
             np.asarray(stage["active_base_knots_m"], dtype=np.float64),
             durations,
+            stage.get("active_base_velocities_m_s"),
         )
         current_world = (
             np.column_stack((active_base, np.ones(len(active))))
@@ -515,13 +562,23 @@ class ClimbMode:
         anchors[active] = current_world[:, :3]
         return anchors
 
-    def _piecewise(self, knots, durations):
+    def _piecewise(self, knots, durations, velocities=None):
         """按当前阶段时间插值足端锚点。"""
 
         elapsed = self.phase_time
         for index, duration in enumerate(durations):
             if elapsed <= duration:
-                weight = self._smoothstep(elapsed / duration)
+                u = elapsed / duration
+                if velocities is not None:
+                    velocities = np.asarray(velocities, dtype=np.float64)
+                    h00 = 1 - 10*u**3 + 15*u**4 - 6*u**5
+                    h01 = 10*u**3 - 15*u**4 + 6*u**5
+                    h10 = u - 6*u**3 + 8*u**4 - 3*u**5
+                    h11 = -4*u**3 + 7*u**4 - 3*u**5
+                    return (h00*knots[index] + h01*knots[index + 1]
+                            + duration*(h10*velocities[index]
+                            + h11*velocities[index + 1]))
+                weight = self._smoothstep(u)
                 return (
                     knots[index] * (1.0 - weight)
                     + knots[index + 1] * weight
@@ -855,7 +912,15 @@ class ClimbMode:
                 else 0.0
             )
             if self.settle_time >= settle_required:
+                continuous_air = bool(stage.get("continuous_air_transition"))
                 self._advance_stage()
+                if continuous_air and self.state == self.RUNNING:
+                    next_duration = float(sum(
+                        self.config["stages"][self.stage_index]["segment_durations_s"]
+                    ))
+                    self.phase_time = min(self.controller.dt, next_duration)
+                    base, anchors, _ = self._stage_reference()
+                    self._apply_reference(base, anchors)
             elif self.stage_elapsed_time >= duration + gate["timeout_s"]:
                 self.state = self.FAILED
                 self.failure_reason = self._tracking_failure_reason()
@@ -884,7 +949,17 @@ class ClimbMode:
             )
         settle_required = self.config["stages"][self.stage_index]["settle_s"]
         if self.settle_time >= settle_required:
+            continuous_air = bool(
+                self.config["stages"][self.stage_index].get(
+                    "continuous_air_transition"
+                )
+            )
             self._advance_stage()
+            if continuous_air and self.state == self.RUNNING:
+                next_duration = float(sum(
+                    self.config["stages"][self.stage_index]["segment_durations_s"]
+                ))
+                self.phase_time = min(self.controller.dt, next_duration)
         elif (
             not preview_time_only
             and self.phase_time >= duration + gate["timeout_s"]

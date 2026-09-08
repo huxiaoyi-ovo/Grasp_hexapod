@@ -26,6 +26,7 @@ from utils.climb import gravity_projected_support
 from utils.climb_collision import (
     ANKLE_VISUAL_FOOTPAD_COMPONENT_INDEX,
     default_visual_scene,
+    point_triangle_distance_squared,
 )
 from utils.climb_retime import (
     assert_speed_report,
@@ -33,6 +34,7 @@ from utils.climb_retime import (
     speed_report,
     update_speed_report,
 )
+from validate_climb_preview import replay as strict_preview_replay
 
 
 DT = 1.0 / 30.0
@@ -170,16 +172,16 @@ def reference(mode, index, time_s):
     return pose, anchors, transform, desired[:, :3]
 
 
-def prefix_entry(compact):
+def prefix_entry(compact, first=FIRST):
     controller = GraspController(DT)
     q = np.asarray(compact["p0"]["q_rad"], dtype=np.float64)
     controller.enter_climb(q, compact)
     while (controller.climb_mode.state == ClimbMode.RUNNING
-           and controller.climb_mode.stage_index < FIRST):
+           and controller.climb_mode.stage_index < first):
         q = controller.update(q, np.zeros(4))
-    require(controller.climb_mode.stage_index == FIRST,
+    require(controller.climb_mode.stage_index == first,
             {"metric": "prefix_entry", "actual": controller.climb_mode.stage_index,
-             "threshold": FIRST})
+             "threshold": first})
     return controller, q
 
 
@@ -543,12 +545,204 @@ def dynamic_gate(compact):
     return list(reports.values())
 
 
+def compact32_model_gate(compact):
+    """Sample the new coupled tail with model COM/support and local CAD checks.
+
+    This is intentionally sparse: it checks only the altered C26--C31 path,
+    the two pair/body transfers, and non-foot visual components at their
+    interior knots.  It is not a dense whole-robot collision scan.
+    """
+    stages = compact["stages"]
+    mode = ClimbMode(None)
+    mode.config = compact
+    world_from_xiaolan = np.eye(4, dtype=np.float64)
+    world_from_xiaolan[:3, 3] = compact["xiaolan_translation"]
+    scene = default_visual_scene(ROOT, world_from_xiaolan)
+    results = {}
+    visual_samples = []
+    for label, roll_delta, pitch_delta in (
+            ("nominal", 0.0, 0.0), ("roll_plus_2deg", np.deg2rad(2), 0.0),
+            ("roll_minus_2deg", -np.deg2rad(2), 0.0),
+            ("pitch_plus_2deg", 0.0, np.deg2rad(2)),
+            ("pitch_minus_2deg", 0.0, -np.deg2rad(2))):
+        controller, q = prefix_entry(compact, first=25)
+        min_margin, min_support, max_residual = np.inf, np.inf, 0.0
+        speed_rows = {}
+        for index in range(25, 31):
+            stage = stages[index]
+            rows = speed_report(index, stage)
+            speed_rows[index] = rows
+            previous_q = previous_time = previous_segment = None
+            duration = float(sum(stage["segment_durations_s"]))
+            cumulative = np.cumsum(stage["segment_durations_s"])
+            sample_times = np.unique(np.r_[
+                np.linspace(0.0, duration, 18), cumulative[:-1]])
+            for time_s in sample_times:
+                pose, anchors, _, _ = reference(mode, index, float(time_s))
+                pose = np.asarray(pose, dtype=np.float64).copy()
+                pose[3] += roll_delta
+                pose[4] += pitch_delta
+                transform = ClimbMode._world_from_base(pose)
+                inverse = np.linalg.inv(transform)
+                desired = (np.column_stack((anchors, np.ones(6))) @ inverse.T)[:, :3]
+                q, residual = solve_exact(controller.kinematic, q, desired)
+                residual_value = float(np.max(residual))
+                max_residual = max(max_residual, residual_value)
+                min_margin = min(min_margin, float(np.min(
+                    controller.kinematic.joint_limit_margins(q))))
+                fixed = [leg for leg in range(6) if leg not in stage["active_legs"]]
+                com = (transform @ np.r_[controller.kinematic.center_of_mass_base(q), 1.0])[:3]
+                support = gravity_projected_support(com, anchors[fixed], (0.0, 0.0, -1.0))
+                require(support.valid,
+                        source(stage["name"], time_s, "support_polygon", -1.0, .01))
+                min_support = min(min_support, float(support.raw_margin_m))
+                segment = min(int(np.searchsorted(cumulative, time_s,
+                                                  side="right")),
+                              len(cumulative) - 1)
+                if previous_q is not None and segment == previous_segment:
+                    speed = float(np.max(np.abs(q - previous_q) /
+                                          (time_s - previous_time)))
+                    spec = segment_for_time(index, stage, time_s)
+                    update_speed_report(rows, spec["segment_index"], speed,
+                                        source(stage["name"], time_s,
+                                               "joint_speed_rad_s", speed,
+                                               spec["hard_gate_rad_s"]))
+                previous_q, previous_time, previous_segment = (
+                    q.copy(), float(time_s), segment)
+                if (label == "nominal" and stage["active_legs"]
+                        and 1e-12 < time_s < duration - 1e-12
+                        and any(np.isclose(time_s, cumulative[:-1]))):
+                    active = scene.robot_components(
+                        q, transform, stage["active_legs"], include_body=False)
+                    nonfoot = scene.components_vs_xiaolan(
+                        active, exclude_components=tuple(
+                            ("ankle", leg, ANKLE_VISUAL_FOOTPAD_COMPONENT_INDEX)
+                            for leg in stage["active_legs"]))
+                    require(not nonfoot.collision, {
+                        "stage": stage["name"], "time_s": float(time_s),
+                        "metric": "active_nonfoot_visual_vs_xiaolan",
+                        "hit": None if nonfoot.hit is None else nonfoot.hit.__dict__,
+                    })
+                    visual_samples.append({"stage": stage["name"],
+                                           "time_s": float(time_s),
+                                           "legs": list(stage["active_legs"])})
+        require(max_residual <= 1e-5,
+                {"metric": "tail_model_IK_residual_m", "actual": max_residual})
+        require(min_margin >= .02,
+                {"metric": "tail_model_joint_margin_rad", "actual": min_margin,
+                 "threshold": .02, "perturbation": label})
+        require(min_support >= .03,
+                {"metric": "tail_model_support_margin_m", "actual": min_support,
+                 "threshold": .03, "perturbation": label})
+        if label == "nominal":
+            for rows in speed_rows.values():
+                assert_speed_report(rows, require)
+        results[label] = {
+            "min_joint_margin_rad": float(min_margin),
+            "min_support_margin_m": float(min_support),
+            "max_IK_residual_m": float(max_residual),
+        }
+
+    endpoint = np.asarray(stages[-1]["anchor_knots"][-1][5], dtype=np.float64)
+    local = endpoint - np.asarray(compact["xiaolan_translation"], dtype=np.float64)
+    positive_normal = np.array((.20791, 0.0, .97815), dtype=np.float64)
+    positive_normal /= np.linalg.norm(positive_normal)
+    bottom_gap = float(np.dot(positive_normal, local) - .19516 - FOOT_RADIUS_M)
+    edge_margin = min(local[0] - .14143, .27208 - local[0]) - FOOT_RADIUS_M
+    mesh_gap = float(np.sqrt(min(
+        point_triangle_distance_squared(endpoint, triangle)
+        for triangle in scene.xiaolan_mesh.triangles)) - FOOT_RADIUS_M)
+    require(-.0005 <= bottom_gap <= .002,
+            {"metric": "RM_terminal_positive_low_bottom_gap_m", "actual": bottom_gap})
+    require(edge_margin >= .015,
+            {"metric": "RM_terminal_positive_low_edge_margin_m", "actual": edge_margin})
+    require(mesh_gap >= -.0005,
+            {"metric": "RM_terminal_mesh_center_radius_gap_m", "actual": mesh_gap})
+    expected_visual_samples = sum(
+        len(stage["segment_durations_s"]) - 1
+        for stage in stages[25:30] if stage["active_legs"])
+    require(len(visual_samples) == expected_visual_samples,
+            {"metric": "nonfoot_visual_key_samples", "actual": len(visual_samples),
+             "threshold": expected_visual_samples})
+    terminal_axis = ClimbMode._world_from_base(stages[-1]["pose_end"])[:3, :3] @ controller.kinematic.terminal_axes_base(q)[2]
+    lm_axis = float(np.degrees(np.arccos(np.clip(abs(np.dot(terminal_axis, NEGATIVE_LOW_NORMAL)), -1.0, 1.0))))
+    require(lm_axis <= 30.0, {"metric": "LM_terminal_axis_deg", "actual": lm_axis, "threshold": 30.0})
+    return {"perturbations": results, "nonfoot_visual_samples": visual_samples,
+            "RM_terminal_positive_low_bottom_gap_m": bottom_gap,
+            "RM_terminal_positive_low_edge_margin_m": edge_margin,
+            "RM_terminal_mesh_center_radius_gap_m": mesh_gap}
+
+
+def compact32_tail_gate(compact):
+    """Validate the active paired/dynamic-body 33-stage tail.
+
+    This deliberately replaces the historical 36-stage one-leg/fixed-body
+    assumptions; all values remain offline model diagnostics.
+    """
+    stages = compact["stages"]
+    names = tuple(stage["name"] for stage in stages[26:])
+    require(compact["stage_count"] == len(stages) == 32,
+            {"metric": "stage_count", "actual": len(stages)})
+    require(names == ("RB_RF_DIRECT_FINAL", "RM_DIRECT_FINAL",
+                      "BODY_REPOSITION", "LB_LF_DIRECT_FINAL",
+                      "BODY_DOCK_FINAL", "STAND_FINAL_HOLD"),
+            {"metric": "tail_map", "actual": names})
+    require(stages[26]["active_legs"] == [3, 4]
+            and stages[29]["active_legs"] == [0, 1],
+            {"metric": "paired_legs"})
+    require(not np.allclose(stages[26]["pose_start"], stages[26]["pose_end"]),
+            {"metric": "paired_body_motion"})
+    report = strict_preview_replay(compact, strict=True)
+    require(report["min_joint_margin_rad"] >= .02,
+            {"metric": "joint_margin", "actual": report["min_joint_margin_rad"]})
+    controller = GraspController(DT, enable_link_collision_check=True)
+    q = np.asarray(compact["p0"]["q_rad"], dtype=np.float64)
+    controller.enter_climb(q, compact)
+    holds = 0
+    while controller.climb_mode.state == ClimbMode.RUNNING:
+        index = controller.climb_mode.stage_index
+        q = controller.update(q, np.zeros(4))
+        if index >= 25:
+            holds += controller.last_update_collision_guard_hold_count
+    require(holds == 0, {"metric": "tail_capsule_guard_holds", "actual": holds})
+    triangles = stl_triangles(
+        ROOT / "src/grasp_hexapod_description/meshes/xiaolan/base_link_xiaolan.STL",
+        compact["xiaolan_translation"],
+    )
+    mode = ClimbMode(None); mode.config = compact
+    clearance = {}
+    # C26 is a vertical descent to its retained support, so only the RM
+    # horizontal transfer retains the interior footprint-clearance gate.
+    for index, leg, segment, label in ((27, 5, 1, "RM"),):
+        stage = stages[index]
+        start = sum(stage["segment_durations_s"][:segment])
+        end = start + stage["segment_durations_s"][segment]
+        q_sample = np.asarray(compact["p0"]["q_rad"], dtype=np.float64)
+        values = []
+        for time_s in np.linspace(start, end, 19)[1:-1]:
+            _, anchors, _, desired = reference(mode, index, time_s)
+            q_sample, residual = solve_exact(controller.kinematic, q_sample, desired)
+            require(float(np.max(residual)) <= 1e-5,
+                    source(stage["name"], time_s, "IK_residual_m", float(np.max(residual)), 1e-5))
+            values.append(footprint_clearance(triangles, anchors[leg]))
+        clearance[label] = float(min(values))
+        require(clearance[label] >= HARD_CLEARANCE_M,
+                source(stage["name"], 0.0, "interior_foot_clearance_m",
+                       clearance[label], HARD_CLEARANCE_M))
+    model = compact32_model_gate(compact)
+    return {"strict_replay": report, "tail_capsule_guard_holds": holds,
+            "interior_foot_clearance_m": clearance, "model_tail": model}
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", type=Path,
                         default=package_config_path("climb_compact.json"))
     args = parser.parse_args()
     compact = json.loads(args.config.read_text(encoding="utf-8"))
+    if compact.get("stage_count") == 32:
+        print(json.dumps(compact32_tail_gate(compact), indent=2, allow_nan=False))
+        return
     structural_gate(compact)
     result = {
         "candidate_A_witness": candidate_a_witness(compact),

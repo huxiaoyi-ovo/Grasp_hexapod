@@ -1,0 +1,2362 @@
+{
+  "ticks": 2078,
+  "state": "DONE",
+  "min_joint_margin_rad": 0.03063382267472159,
+  "min_joint_margin_source": {
+    "stage": "RM_HIGH_C",
+    "tick": 471,
+    "leg": 5,
+    "joint": 2
+  },
+  "global_peak_command_speed_rad_s": 3.2585921793752743,
+  "global_peak_command_speed_source": {
+    "stage": "LM_EDGE_STAGE",
+    "tick": 847,
+    "leg": 2,
+    "joint": 2
+  },
+  "semantic_segments": [
+    [
+      {
+        "segment_index": 0,
+        "semantic": "BODY",
+        "duration_s": 1.8,
+        "target_rad_s": 1.9,
+        "hard_gate_rad_s": 2.4,
+        "minimum_duration_s": 1.8,
+        "measured_peak_rad_s": 1.5729329917402375,
+        "worst_source": {
+          "stage": "PREP",
+          "time_s": 0.7999999999999999,
+          "tick": 24,
+          "leg": 5,
+          "joint": 1,
+          "metric": "command_speed_rad_s",
+          "actual": 1.5729329917402375,
+          "threshold": 2.4
+        }
+      }
+    ],
+    [
+      {
+        "segment_index": 0,
+        "semantic": "SWING_LIFT",
+        "duration_s": 0.51,
+        "target_rad_s": 3.0,
+        "hard_gate_rad_s": 3.4,
+        "minimum_duration_s": 0.35,
+        "measured_peak_rad_s": 3.0762948696881645,
+        "worst_source": {
+          "stage": "RM",
+          "time_s": 0.2333333333333333,
+          "tick": 62,
+          "leg": 5,
+          "joint": 2,
+          "metric": "command_speed_rad_s",
+          "actual": 3.0762948696881645,
+          "threshold": 3.4
+        }
+      },
+      {
+        "segment_index": 1,
+        "semantic": "SWING_TRANSFER",
+        "duration_s": 2.04,
+        "target_rad_s": 3.0,
+        "hard_gate_rad_s": 3.4,
+        "minimum_duration_s": 0.45,
+        "measured_peak_rad_s": 2.887550851283862,
+        "worst_source": {
+          "stage": "RM",
+          "time_s": 1.3333333333333341,
+          "tick": 95,
+          "leg": 5,
+          "joint": 1,
+          "metric": "command_speed_rad_s",
+          "actual": 2.887550851283862,
+          "threshold": 3.4
+        }
+      },
+      {
+        "segment_index": 2,
+        "semantic": "SWING_TRANSFER",
+        "duration_s": 0.45,
+        "target_rad_s": 3.0,
+        "hard_gate_rad_s": 3.4,
+        "minimum_duration_s": 0.45,
+        "measured_peak_rad_s": 2.715392518472086,
+        "worst_source": {
+          "stage": "RM",
+          "time_s": 2.8,
+          "tick": 139,
+          "leg": 5,
+          "joint": 1,
+          "metric": "command_speed_rad_s",
+          "actual": 2.715392518472086,
+          "threshold": 3.4
+        }
+      },
+      {
+        "segment_index": 3,
+        "semantic": "TOUCHDOWN",
+        "duration_s": 0.39,
+        "target_rad_s": 1.4,
+        "hard_gate_rad_s": 1.8,
+        "minimum_duration_s": 0.35,
+        "measured_peak_rad_s": 1.5992383492573115,
+        "worst_source": {
+          "stage": "RM",
+          "time_s": 3.1999999999999984,
+          "tick": 151,
+          "leg": 5,
+          "joint": 1,
+          "metric": "command_speed_rad_s",
+          "actual": 1.5992383492573115,
+          "threshold": 1.8
+        }
+      }
+    ],
+    [
+      {
+        "segment_index": 0,
+        "semantic": "BODY",
+        "duration_s": 0.8,
+        "target_rad_s": 1.9,
+        "hard_gate_rad_s": 2.4,
+        "minimum_duration_s": 0.8,
+        "measured_peak_rad_s": 1.3356516331695334,
+        "worst_source": {
+          "stage": "BODY",
+          "time_s": 0.39999999999999997,
+          "tick": 170,
+          "leg": 5,
+          "joint": 1,
+          "metric": "command_speed_rad_s",
+          "actual": 1.3356516331695334,
+          "threshold": 2.4
+        }
+      }
+    ],
+    [
+      {
+        "segment_index": 0,
+        "semantic": "SWING_LIFT",
+        "duration_s": 0.48,
+        "target_rad_s": 2.7,
+        "hard_gate_rad_s": 3.2,
+        "minimum_duration_s": 0.35,
+        "measured_peak_rad_s": 2.7975557244707594,
+        "worst_source": {
+          "stage": "PAIR",
+          "time_s": 0.2333333333333333,
+          "tick": 191,
+          "leg": 4,
+          "joint": 2,
+          "metric": "command_speed_rad_s",
+          "actual": 2.7975557244707594,
+          "threshold": 3.2
+        }
+      },
+      {
+        "segment_index": 1,
+        "semantic": "SWING_TRANSFER",
+        "duration_s": 2.2,
+        "target_rad_s": 2.7,
+        "hard_gate_rad_s": 3.2,
+        "minimum_duration_s": 0.45,
+        "measured_peak_rad_s": 2.604964220563246,
+        "worst_source": {
+          "stage": "PAIR",
+          "time_s": 1.3000000000000007,
+          "tick": 223,
+          "leg": 4,
+          "joint": 1,
+          "metric": "command_speed_rad_s",
+          "actual": 2.604964220563246,
+          "threshold": 3.2
+        }
+      },
+      {
+        "segment_index": 2,
+        "semantic": "TOUCHDOWN",
+        "duration_s": 0.78,
+        "target_rad_s": 1.4,
+        "hard_gate_rad_s": 1.8,
+        "minimum_duration_s": 0.35,
+        "measured_peak_rad_s": 1.6048671142882487,
+        "worst_source": {
+          "stage": "PAIR",
+          "time_s": 3.133333333333332,
+          "tick": 278,
+          "leg": 3,
+          "joint": 1,
+          "metric": "command_speed_rad_s",
+          "actual": 1.6048671142882487,
+          "threshold": 1.8
+        }
+      }
+    ],
+    [
+      {
+        "segment_index": 0,
+        "semantic": "SWING_LIFT",
+        "duration_s": 0.38,
+        "target_rad_s": 2.7,
+        "hard_gate_rad_s": 3.2,
+        "minimum_duration_s": 0.35,
+        "measured_peak_rad_s": 2.9034066547002104,
+        "worst_source": {
+          "stage": "LB_LF_GROUND_SHIFT",
+          "time_s": 0.16666666666666666,
+          "tick": 294,
+          "leg": 1,
+          "joint": 2,
+          "metric": "command_speed_rad_s",
+          "actual": 2.9034066547002104,
+          "threshold": 3.2
+        }
+      },
+      {
+        "segment_index": 1,
+        "semantic": "SWING_TRANSFER",
+        "duration_s": 0.65,
+        "target_rad_s": 2.7,
+        "hard_gate_rad_s": 3.2,
+        "minimum_duration_s": 0.45,
+        "measured_peak_rad_s": 2.5221570595652802,
+        "worst_source": {
+          "stage": "LB_LF_GROUND_SHIFT",
+          "time_s": 0.7333333333333333,
+          "tick": 311,
+          "leg": 1,
+          "joint": 0,
+          "metric": "command_speed_rad_s",
+          "actual": 2.5221570595652802,
+          "threshold": 3.2
+        }
+      },
+      {
+        "segment_index": 2,
+        "semantic": "TOUCHDOWN",
+        "duration_s": 0.53,
+        "target_rad_s": 1.4,
+        "hard_gate_rad_s": 1.8,
+        "minimum_duration_s": 0.35,
+        "measured_peak_rad_s": 1.596503879653569,
+        "worst_source": {
+          "stage": "LB_LF_GROUND_SHIFT",
+          "time_s": 1.3000000000000007,
+          "tick": 328,
+          "leg": 0,
+          "joint": 2,
+          "metric": "command_speed_rad_s",
+          "actual": 1.596503879653569,
+          "threshold": 1.8
+        }
+      }
+    ],
+    [
+      {
+        "segment_index": 0,
+        "semantic": "SWING_LIFT",
+        "duration_s": 0.4,
+        "target_rad_s": 3.0,
+        "hard_gate_rad_s": 3.4,
+        "minimum_duration_s": 0.35,
+        "measured_peak_rad_s": 3.132614365349772,
+        "worst_source": {
+          "stage": "LM_GROUND_SHIFT",
+          "time_s": 0.16666666666666666,
+          "tick": 342,
+          "leg": 2,
+          "joint": 2,
+          "metric": "command_speed_rad_s",
+          "actual": 3.132614365349772,
+          "threshold": 3.4
+        }
+      },
+      {
+        "segment_index": 1,
+        "semantic": "SWING_TRANSFER",
+        "duration_s": 0.65,
+        "target_rad_s": 3.0,
+        "hard_gate_rad_s": 3.4,
+        "minimum_duration_s": 0.45,
+        "measured_peak_rad_s": 2.6005959313463403,
+        "worst_source": {
+          "stage": "LM_GROUND_SHIFT",
+          "time_s": 0.7999999999999999,
+          "tick": 361,
+          "leg": 2,
+          "joint": 1,
+          "metric": "command_speed_rad_s",
+          "actual": 2.6005959313463403,
+          "threshold": 3.4
+        }
+      },
+      {
+        "segment_index": 2,
+        "semantic": "TOUCHDOWN",
+        "duration_s": 0.52,
+        "target_rad_s": 1.4,
+        "hard_gate_rad_s": 1.8,
+        "minimum_duration_s": 0.35,
+        "measured_peak_rad_s": 1.5852522058093155,
+        "worst_source": {
+          "stage": "LM_GROUND_SHIFT",
+          "time_s": 1.3000000000000007,
+          "tick": 376,
+          "leg": 2,
+          "joint": 2,
+          "metric": "command_speed_rad_s",
+          "actual": 1.5852522058093155,
+          "threshold": 1.8
+        }
+      }
+    ],
+    [
+      {
+        "segment_index": 0,
+        "semantic": "BODY",
+        "duration_s": 2.0,
+        "target_rad_s": 1.9,
+        "hard_gate_rad_s": 2.4,
+        "minimum_duration_s": 2.0,
+        "measured_peak_rad_s": 1.8397023516508826,
+        "worst_source": {
+          "stage": "BODY2",
+          "time_s": 1.0666666666666667,
+          "tick": 418,
+          "leg": 5,
+          "joint": 1,
+          "metric": "command_speed_rad_s",
+          "actual": 1.8397023516508826,
+          "threshold": 2.4
+        }
+      }
+    ],
+    [
+      {
+        "segment_index": 0,
+        "semantic": "SWING_LIFT",
+        "duration_s": 0.58,
+        "target_rad_s": 3.0,
+        "hard_gate_rad_s": 3.4,
+        "minimum_duration_s": 0.35,
+        "measured_peak_rad_s": 3.2312570403086456,
+        "worst_source": {
+          "stage": "RM_HIGH_C",
+          "time_s": 0.3333333333333333,
+          "tick": 457,
+          "leg": 5,
+          "joint": 1,
+          "metric": "command_speed_rad_s",
+          "actual": 3.2312570403086456,
+          "threshold": 3.4
+        }
+      },
+      {
+        "segment_index": 1,
+        "semantic": "SWING_TRANSFER",
+        "duration_s": 0.76,
+        "target_rad_s": 3.0,
+        "hard_gate_rad_s": 3.4,
+        "minimum_duration_s": 0.45,
+        "measured_peak_rad_s": 3.0618602477592396,
+        "worst_source": {
+          "stage": "RM_HIGH_C",
+          "time_s": 0.7999999999999999,
+          "tick": 471,
+          "leg": 5,
+          "joint": 1,
+          "metric": "command_speed_rad_s",
+          "actual": 3.0618602477592396,
+          "threshold": 3.4
+        }
+      },
+      {
+        "segment_index": 2,
+        "semantic": "TOUCHDOWN",
+        "duration_s": 0.58,
+        "target_rad_s": 1.4,
+        "hard_gate_rad_s": 1.8,
+        "minimum_duration_s": 0.35,
+        "measured_peak_rad_s": 1.4782765162804534,
+        "worst_source": {
+          "stage": "RM_HIGH_C",
+          "time_s": 1.633333333333335,
+          "tick": 496,
+          "leg": 5,
+          "joint": 1,
+          "metric": "command_speed_rad_s",
+          "actual": 1.4782765162804534,
+          "threshold": 1.8
+        }
+      }
+    ],
+    [
+      {
+        "segment_index": 0,
+        "semantic": "SWING_LIFT",
+        "duration_s": 0.52,
+        "target_rad_s": 2.7,
+        "hard_gate_rad_s": 3.2,
+        "minimum_duration_s": 0.35,
+        "measured_peak_rad_s": 2.765881679349118,
+        "worst_source": {
+          "stage": "RB_RF_HIGH_C",
+          "time_s": 0.26666666666666666,
+          "tick": 514,
+          "leg": 4,
+          "joint": 1,
+          "metric": "command_speed_rad_s",
+          "actual": 2.765881679349118,
+          "threshold": 3.2
+        }
+      },
+      {
+        "segment_index": 1,
+        "semantic": "SWING_TRANSFER",
+        "duration_s": 0.94,
+        "target_rad_s": 2.7,
+        "hard_gate_rad_s": 3.2,
+        "minimum_duration_s": 0.45,
+        "measured_peak_rad_s": 2.651429057838516,
+        "worst_source": {
+          "stage": "RB_RF_HIGH_C",
+          "time_s": 1.0666666666666667,
+          "tick": 538,
+          "leg": 4,
+          "joint": 2,
+          "metric": "command_speed_rad_s",
+          "actual": 2.651429057838516,
+          "threshold": 3.2
+        }
+      },
+      {
+        "segment_index": 2,
+        "semantic": "TOUCHDOWN",
+        "duration_s": 0.57,
+        "target_rad_s": 1.4,
+        "hard_gate_rad_s": 1.8,
+        "minimum_duration_s": 0.35,
+        "measured_peak_rad_s": 1.615417965875502,
+        "worst_source": {
+          "stage": "RB_RF_HIGH_C",
+          "time_s": 1.7666666666666688,
+          "tick": 559,
+          "leg": 3,
+          "joint": 1,
+          "metric": "command_speed_rad_s",
+          "actual": 1.615417965875502,
+          "threshold": 1.8
+        }
+      }
+    ],
+    [
+      {
+        "segment_index": 0,
+        "semantic": "BODY",
+        "duration_s": 0.8,
+        "target_rad_s": 1.9,
+        "hard_gate_rad_s": 2.4,
+        "minimum_duration_s": 0.8,
+        "measured_peak_rad_s": 1.6255363238063902,
+        "worst_source": {
+          "stage": "BODY3",
+          "time_s": 0.3333333333333333,
+          "tick": 578,
+          "leg": 4,
+          "joint": 2,
+          "metric": "command_speed_rad_s",
+          "actual": 1.6255363238063902,
+          "threshold": 2.4
+        }
+      }
+    ],
+    [
+      {
+        "segment_index": 0,
+        "semantic": "SWING_LIFT",
+        "duration_s": 0.35,
+        "target_rad_s": 3.0,
+        "hard_gate_rad_s": 3.4,
+        "minimum_duration_s": 0.35,
+        "measured_peak_rad_s": 2.281587068419546,
+        "worst_source": {
+          "stage": "RB_RF_SHIFT1",
+          "time_s": 0.16666666666666666,
+          "tick": 599,
+          "leg": 3,
+          "joint": 1,
+          "metric": "command_speed_rad_s",
+          "actual": 2.281587068419546,
+          "threshold": 3.4
+        }
+      },
+      {
+        "segment_index": 1,
+        "semantic": "SWING_TRANSFER",
+        "duration_s": 0.45,
+        "target_rad_s": 3.0,
+        "hard_gate_rad_s": 3.4,
+        "minimum_duration_s": 0.45,
+        "measured_peak_rad_s": 2.477783114316401,
+        "worst_source": {
+          "stage": "RB_RF_SHIFT1",
+          "time_s": 0.5666666666666667,
+          "tick": 611,
+          "leg": 3,
+          "joint": 2,
+          "metric": "command_speed_rad_s",
+          "actual": 2.477783114316401,
+          "threshold": 3.4
+        }
+      },
+      {
+        "segment_index": 2,
+        "semantic": "TOUCHDOWN",
+        "duration_s": 0.36,
+        "target_rad_s": 1.4,
+        "hard_gate_rad_s": 1.8,
+        "minimum_duration_s": 0.35,
+        "measured_peak_rad_s": 1.5071279724283215,
+        "worst_source": {
+          "stage": "RB_RF_SHIFT1",
+          "time_s": 0.9999999999999999,
+          "tick": 624,
+          "leg": 3,
+          "joint": 1,
+          "metric": "command_speed_rad_s",
+          "actual": 1.5071279724283215,
+          "threshold": 1.8
+        }
+      }
+    ],
+    [
+      {
+        "segment_index": 0,
+        "semantic": "SWING_LIFT",
+        "duration_s": 0.35,
+        "target_rad_s": 3.0,
+        "hard_gate_rad_s": 3.4,
+        "minimum_duration_s": 0.35,
+        "measured_peak_rad_s": 2.574399329015804,
+        "worst_source": {
+          "stage": "LM_GROUND_SHIFT1",
+          "time_s": 0.16666666666666666,
+          "tick": 635,
+          "leg": 2,
+          "joint": 2,
+          "metric": "command_speed_rad_s",
+          "actual": 2.574399329015804,
+          "threshold": 3.4
+        }
+      },
+      {
+        "segment_index": 1,
+        "semantic": "SWING_TRANSFER",
+        "duration_s": 0.45,
+        "target_rad_s": 3.0,
+        "hard_gate_rad_s": 3.4,
+        "minimum_duration_s": 0.45,
+        "measured_peak_rad_s": 1.9630274088590793,
+        "worst_source": {
+          "stage": "LM_GROUND_SHIFT1",
+          "time_s": 0.5333333333333333,
+          "tick": 646,
+          "leg": 2,
+          "joint": 2,
+          "metric": "command_speed_rad_s",
+          "actual": 1.9630274088590793,
+          "threshold": 3.4
+        }
+      },
+      {
+        "segment_index": 2,
+        "semantic": "TOUCHDOWN",
+        "duration_s": 0.5,
+        "target_rad_s": 1.4,
+        "hard_gate_rad_s": 1.8,
+        "minimum_duration_s": 0.35,
+        "measured_peak_rad_s": 1.595205428845532,
+        "worst_source": {
+          "stage": "LM_GROUND_SHIFT1",
+          "time_s": 1.0666666666666667,
+          "tick": 662,
+          "leg": 2,
+          "joint": 2,
+          "metric": "command_speed_rad_s",
+          "actual": 1.595205428845532,
+          "threshold": 1.8
+        }
+      }
+    ],
+    [
+      {
+        "segment_index": 0,
+        "semantic": "SWING_LIFT",
+        "duration_s": 0.35,
+        "target_rad_s": 3.0,
+        "hard_gate_rad_s": 3.4,
+        "minimum_duration_s": 0.35,
+        "measured_peak_rad_s": 2.0457860148855467,
+        "worst_source": {
+          "stage": "RM_PRE_ADVANCE",
+          "time_s": 0.19999999999999998,
+          "tick": 676,
+          "leg": 5,
+          "joint": 2,
+          "metric": "command_speed_rad_s",
+          "actual": 2.0457860148855467,
+          "threshold": 3.4
+        }
+      },
+      {
+        "segment_index": 1,
+        "semantic": "SWING_LIFT",
+        "duration_s": 0.35,
+        "target_rad_s": 3.0,
+        "hard_gate_rad_s": 3.4,
+        "minimum_duration_s": 0.35,
+        "measured_peak_rad_s": 0.33530409558735763,
+        "worst_source": {
+          "stage": "RM_PRE_ADVANCE",
+          "time_s": 0.5333333333333333,
+          "tick": 686,
+          "leg": 5,
+          "joint": 1,
+          "metric": "command_speed_rad_s",
+          "actual": 0.33530409558735763,
+          "threshold": 3.4
+        }
+      },
+      {
+        "segment_index": 2,
+        "semantic": "SWING_TRANSFER",
+        "duration_s": 0.82,
+        "target_rad_s": 3.0,
+        "hard_gate_rad_s": 3.4,
+        "minimum_duration_s": 0.45,
+        "measured_peak_rad_s": 2.9296111341759423,
+        "worst_source": {
+          "stage": "RM_PRE_ADVANCE",
+          "time_s": 1.166666666666667,
+          "tick": 705,
+          "leg": 5,
+          "joint": 2,
+          "metric": "command_speed_rad_s",
+          "actual": 2.9296111341759423,
+          "threshold": 3.4
+        }
+      },
+      {
+        "segment_index": 3,
+        "semantic": "TOUCHDOWN",
+        "duration_s": 0.35,
+        "target_rad_s": 1.4,
+        "hard_gate_rad_s": 1.8,
+        "minimum_duration_s": 0.35,
+        "measured_peak_rad_s": 1.198127470988031,
+        "worst_source": {
+          "stage": "RM_PRE_ADVANCE",
+          "time_s": 1.700000000000002,
+          "tick": 721,
+          "leg": 5,
+          "joint": 1,
+          "metric": "command_speed_rad_s",
+          "actual": 1.198127470988031,
+          "threshold": 1.8
+        }
+      }
+    ],
+    [
+      {
+        "segment_index": 0,
+        "semantic": "CRITICAL_BODY_TRANSFER",
+        "duration_s": 2.02,
+        "target_rad_s": 1.8,
+        "hard_gate_rad_s": 2.4,
+        "minimum_duration_s": 0.8,
+        "measured_peak_rad_s": 1.7553356967408251,
+        "worst_source": {
+          "stage": "LB_LF_BODY_ADVANCE_HIGH_STEP",
+          "time_s": 0.49999999999999994,
+          "tick": 743,
+          "leg": 1,
+          "joint": 2,
+          "metric": "command_speed_rad_s",
+          "actual": 1.7553356967408251,
+          "threshold": 2.4
+        }
+      }
+    ],
+    [
+      {
+        "segment_index": 0,
+        "semantic": "SWING_LIFT",
+        "duration_s": 0.35,
+        "target_rad_s": 2.7,
+        "hard_gate_rad_s": 3.2,
+        "minimum_duration_s": 0.35,
+        "measured_peak_rad_s": 2.5972988777390316,
+        "worst_source": {
+          "stage": "RB_RF_TOP_INWARD_PAIR",
+          "time_s": 0.16666666666666666,
+          "tick": 796,
+          "leg": 3,
+          "joint": 1,
+          "metric": "command_speed_rad_s",
+          "actual": 2.5972988777390316,
+          "threshold": 3.2
+        }
+      },
+      {
+        "segment_index": 1,
+        "semantic": "SWING_TRANSFER",
+        "duration_s": 0.96,
+        "target_rad_s": 2.7,
+        "hard_gate_rad_s": 3.2,
+        "minimum_duration_s": 0.45,
+        "measured_peak_rad_s": 2.6215191193804865,
+        "worst_source": {
+          "stage": "RB_RF_TOP_INWARD_PAIR",
+          "time_s": 0.8999999999999999,
+          "tick": 818,
+          "leg": 3,
+          "joint": 2,
+          "metric": "command_speed_rad_s",
+          "actual": 2.6215191193804865,
+          "threshold": 3.2
+        }
+      },
+      {
+        "segment_index": 2,
+        "semantic": "TOUCHDOWN",
+        "duration_s": 0.35,
+        "target_rad_s": 1.4,
+        "hard_gate_rad_s": 1.8,
+        "minimum_duration_s": 0.35,
+        "measured_peak_rad_s": 1.201974026909679,
+        "worst_source": {
+          "stage": "RB_RF_TOP_INWARD_PAIR",
+          "time_s": 1.5000000000000013,
+          "tick": 836,
+          "leg": 4,
+          "joint": 1,
+          "metric": "command_speed_rad_s",
+          "actual": 1.201974026909679,
+          "threshold": 1.8
+        }
+      }
+    ],
+    [
+      {
+        "segment_index": 0,
+        "semantic": "SWING_LIFT",
+        "duration_s": 0.38,
+        "target_rad_s": 3.0,
+        "hard_gate_rad_s": 3.4,
+        "minimum_duration_s": 0.35,
+        "measured_peak_rad_s": 3.2585921793752743,
+        "worst_source": {
+          "stage": "LM_EDGE_STAGE",
+          "time_s": 0.16666666666666666,
+          "tick": 847,
+          "leg": 2,
+          "joint": 2,
+          "metric": "command_speed_rad_s",
+          "actual": 3.2585921793752743,
+          "threshold": 3.4
+        }
+      },
+      {
+        "segment_index": 1,
+        "semantic": "SWING_TRANSFER",
+        "duration_s": 0.95,
+        "target_rad_s": 3.0,
+        "hard_gate_rad_s": 3.4,
+        "minimum_duration_s": 0.45,
+        "measured_peak_rad_s": 2.338646942850254,
+        "worst_source": {
+          "stage": "LM_EDGE_STAGE",
+          "time_s": 0.9999999999999999,
+          "tick": 872,
+          "leg": 2,
+          "joint": 1,
+          "metric": "command_speed_rad_s",
+          "actual": 2.338646942850254,
+          "threshold": 3.4
+        }
+      },
+      {
+        "segment_index": 2,
+        "semantic": "TOUCHDOWN",
+        "duration_s": 0.54,
+        "target_rad_s": 1.4,
+        "hard_gate_rad_s": 1.8,
+        "minimum_duration_s": 0.35,
+        "measured_peak_rad_s": 1.6056919797274283,
+        "worst_source": {
+          "stage": "LM_EDGE_STAGE",
+          "time_s": 1.6000000000000016,
+          "tick": 890,
+          "leg": 2,
+          "joint": 2,
+          "metric": "command_speed_rad_s",
+          "actual": 1.6056919797274283,
+          "threshold": 1.8
+        }
+      }
+    ],
+    [
+      {
+        "segment_index": 0,
+        "semantic": "BODY",
+        "duration_s": 1.2,
+        "target_rad_s": 1.9,
+        "hard_gate_rad_s": 2.4,
+        "minimum_duration_s": 1.2,
+        "measured_peak_rad_s": 1.5008411020855983,
+        "worst_source": {
+          "stage": "BODY_A",
+          "time_s": 0.5333333333333333,
+          "tick": 916,
+          "leg": 3,
+          "joint": 2,
+          "metric": "command_speed_rad_s",
+          "actual": 1.5008411020855983,
+          "threshold": 2.4
+        }
+      }
+    ],
+    [
+      {
+        "segment_index": 0,
+        "semantic": "SWING_TRANSFER",
+        "duration_s": 0.45,
+        "target_rad_s": 3.0,
+        "hard_gate_rad_s": 3.4,
+        "minimum_duration_s": 0.45,
+        "measured_peak_rad_s": 1.9132987541394564,
+        "worst_source": {
+          "stage": "RM_RIGHT_SYMMETRY",
+          "time_s": 0.16666666666666666,
+          "tick": 942,
+          "leg": 5,
+          "joint": 1,
+          "metric": "command_speed_rad_s",
+          "actual": 1.9132987541394564,
+          "threshold": 3.4
+        }
+      },
+      {
+        "segment_index": 1,
+        "semantic": "TOUCHDOWN",
+        "duration_s": 1.22,
+        "target_rad_s": 1.4,
+        "hard_gate_rad_s": 1.8,
+        "minimum_duration_s": 0.35,
+        "measured_peak_rad_s": 1.6048736487779047,
+        "worst_source": {
+          "stage": "RM_RIGHT_SYMMETRY",
+          "time_s": 0.9999999999999999,
+          "tick": 967,
+          "leg": 5,
+          "joint": 1,
+          "metric": "command_speed_rad_s",
+          "actual": 1.6048736487779047,
+          "threshold": 1.8
+        }
+      }
+    ],
+    [
+      {
+        "segment_index": 0,
+        "semantic": "BODY",
+        "duration_s": 0.8,
+        "target_rad_s": 1.9,
+        "hard_gate_rad_s": 2.4,
+        "minimum_duration_s": 0.8,
+        "measured_peak_rad_s": 1.0670136018976082,
+        "worst_source": {
+          "stage": "BODY_LEFT_TRANSFER_PREP",
+          "time_s": 0.49999999999999994,
+          "tick": 1004,
+          "leg": 0,
+          "joint": 2,
+          "metric": "command_speed_rad_s",
+          "actual": 1.0670136018976082,
+          "threshold": 2.4
+        }
+      }
+    ],
+    [
+      {
+        "segment_index": 0,
+        "semantic": "SWING_LIFT",
+        "duration_s": 1.4,
+        "target_rad_s": 3.0,
+        "hard_gate_rad_s": 3.4,
+        "minimum_duration_s": 0.35,
+        "measured_peak_rad_s": 3.0585963336244038,
+        "worst_source": {
+          "stage": "LB_LOW_STEP",
+          "time_s": 0.26666666666666666,
+          "tick": 1027,
+          "leg": 0,
+          "joint": 2,
+          "metric": "command_speed_rad_s",
+          "actual": 3.0585963336244038,
+          "threshold": 3.4
+        }
+      },
+      {
+        "segment_index": 1,
+        "semantic": "SWING_TRANSFER",
+        "duration_s": 0.5,
+        "target_rad_s": 3.0,
+        "hard_gate_rad_s": 3.4,
+        "minimum_duration_s": 0.45,
+        "measured_peak_rad_s": 2.419806213592484,
+        "worst_source": {
+          "stage": "LB_LOW_STEP",
+          "time_s": 1.6666666666666685,
+          "tick": 1069,
+          "leg": 0,
+          "joint": 0,
+          "metric": "command_speed_rad_s",
+          "actual": 2.419806213592484,
+          "threshold": 3.4
+        }
+      },
+      {
+        "segment_index": 2,
+        "semantic": "TOUCHDOWN",
+        "duration_s": 1.2,
+        "target_rad_s": 1.4,
+        "hard_gate_rad_s": 1.8,
+        "minimum_duration_s": 0.35,
+        "measured_peak_rad_s": 1.5429888822946403,
+        "worst_source": {
+          "stage": "LB_LOW_STEP",
+          "time_s": 2.4000000000000012,
+          "tick": 1091,
+          "leg": 0,
+          "joint": 1,
+          "metric": "command_speed_rad_s",
+          "actual": 1.5429888822946403,
+          "threshold": 1.8
+        }
+      }
+    ],
+    [
+      {
+        "segment_index": 0,
+        "semantic": "BODY",
+        "duration_s": 1.2,
+        "target_rad_s": 1.9,
+        "hard_gate_rad_s": 2.4,
+        "minimum_duration_s": 1.2,
+        "measured_peak_rad_s": 1.7410039109888775,
+        "worst_source": {
+          "stage": "BODY_RIGHT_BEFORE_LF",
+          "time_s": 0.6666666666666666,
+          "tick": 1142,
+          "leg": 0,
+          "joint": 1,
+          "metric": "command_speed_rad_s",
+          "actual": 1.7410039109888775,
+          "threshold": 2.4
+        }
+      }
+    ],
+    [
+      {
+        "segment_index": 0,
+        "semantic": "SWING_LIFT",
+        "duration_s": 1.4,
+        "target_rad_s": 3.0,
+        "hard_gate_rad_s": 3.4,
+        "minimum_duration_s": 0.35,
+        "measured_peak_rad_s": 2.8805620779966934,
+        "worst_source": {
+          "stage": "LF_LOW_STEP",
+          "time_s": 0.3,
+          "tick": 1172,
+          "leg": 1,
+          "joint": 2,
+          "metric": "command_speed_rad_s",
+          "actual": 2.8805620779966934,
+          "threshold": 3.4
+        }
+      },
+      {
+        "segment_index": 1,
+        "semantic": "SWING_TRANSFER",
+        "duration_s": 0.55,
+        "target_rad_s": 3.0,
+        "hard_gate_rad_s": 3.4,
+        "minimum_duration_s": 0.45,
+        "measured_peak_rad_s": 2.408837901381325,
+        "worst_source": {
+          "stage": "LF_LOW_STEP",
+          "time_s": 1.6666666666666685,
+          "tick": 1213,
+          "leg": 1,
+          "joint": 0,
+          "metric": "command_speed_rad_s",
+          "actual": 2.408837901381325,
+          "threshold": 3.4
+        }
+      },
+      {
+        "segment_index": 2,
+        "semantic": "TOUCHDOWN",
+        "duration_s": 1.0,
+        "target_rad_s": 1.4,
+        "hard_gate_rad_s": 1.8,
+        "minimum_duration_s": 0.35,
+        "measured_peak_rad_s": 1.6476141174714143,
+        "worst_source": {
+          "stage": "LF_LOW_STEP",
+          "time_s": 2.366666666666668,
+          "tick": 1234,
+          "leg": 1,
+          "joint": 1,
+          "metric": "command_speed_rad_s",
+          "actual": 1.6476141174714143,
+          "threshold": 1.8
+        }
+      }
+    ],
+    [
+      {
+        "segment_index": 0,
+        "semantic": "BODY",
+        "duration_s": 1.0,
+        "target_rad_s": 1.9,
+        "hard_gate_rad_s": 2.4,
+        "minimum_duration_s": 0.5,
+        "measured_peak_rad_s": 1.8334139538274041,
+        "worst_source": {
+          "stage": "BODY_PRELOAD_LM",
+          "time_s": 0.5333333333333333,
+          "tick": 1277,
+          "leg": 1,
+          "joint": 1,
+          "metric": "command_speed_rad_s",
+          "actual": 1.8334139538274041,
+          "threshold": 2.4
+        }
+      }
+    ],
+    [
+      {
+        "segment_index": 0,
+        "semantic": "SWING_LIFT",
+        "duration_s": 0.85,
+        "target_rad_s": 3.0,
+        "hard_gate_rad_s": 3.4,
+        "minimum_duration_s": 0.35,
+        "measured_peak_rad_s": 2.9620762516101595,
+        "worst_source": {
+          "stage": "LM_LIFT",
+          "time_s": 0.36666666666666664,
+          "tick": 1308,
+          "leg": 2,
+          "joint": 2,
+          "metric": "command_speed_rad_s",
+          "actual": 2.9620762516101595,
+          "threshold": 3.4
+        }
+      },
+      {
+        "segment_index": 1,
+        "semantic": "SWING_TRANSFER",
+        "duration_s": 0.45,
+        "target_rad_s": 3.0,
+        "hard_gate_rad_s": 3.4,
+        "minimum_duration_s": 0.45,
+        "measured_peak_rad_s": 1.1881242506363787,
+        "worst_source": {
+          "stage": "LM_LIFT",
+          "time_s": 1.1,
+          "tick": 1330,
+          "leg": 2,
+          "joint": 1,
+          "metric": "command_speed_rad_s",
+          "actual": 1.1881242506363787,
+          "threshold": 3.4
+        }
+      }
+    ],
+    [
+      {
+        "segment_index": 0,
+        "semantic": "CRITICAL_BODY_TRANSFER",
+        "duration_s": 3.0,
+        "target_rad_s": 1.8,
+        "hard_gate_rad_s": 2.4,
+        "minimum_duration_s": 3.0,
+        "measured_peak_rad_s": 0.9709937302095395,
+        "worst_source": {
+          "stage": "BODY_ADVANCE_LM_AIR",
+          "time_s": 1.6666666666666685,
+          "tick": 1391,
+          "leg": 4,
+          "joint": 1,
+          "metric": "command_speed_rad_s",
+          "actual": 0.9709937302095395,
+          "threshold": 2.4
+        }
+      }
+    ],
+    [
+      {
+        "segment_index": 0,
+        "semantic": "SWING_TRANSFER",
+        "duration_s": 0.85,
+        "target_rad_s": 3.0,
+        "hard_gate_rad_s": 3.4,
+        "minimum_duration_s": 0.45,
+        "measured_peak_rad_s": 0.4721796602018635,
+        "worst_source": {
+          "stage": "LM_LEFT_FINAL_LAND",
+          "time_s": 0.39999999999999997,
+          "tick": 1449,
+          "leg": 2,
+          "joint": 1,
+          "metric": "command_speed_rad_s",
+          "actual": 0.4721796602018635,
+          "threshold": 3.4
+        }
+      },
+      {
+        "segment_index": 1,
+        "semantic": "TOUCHDOWN",
+        "duration_s": 0.8,
+        "target_rad_s": 1.4,
+        "hard_gate_rad_s": 1.8,
+        "minimum_duration_s": 0.35,
+        "measured_peak_rad_s": 1.1341250123528563,
+        "worst_source": {
+          "stage": "LM_LEFT_FINAL_LAND",
+          "time_s": 1.2000000000000004,
+          "tick": 1473,
+          "leg": 2,
+          "joint": 1,
+          "metric": "command_speed_rad_s",
+          "actual": 1.1341250123528563,
+          "threshold": 1.8
+        }
+      }
+    ],
+    [
+      {
+        "segment_index": 0,
+        "semantic": "SWING_LIFT",
+        "duration_s": 0.8,
+        "target_rad_s": 2.7,
+        "hard_gate_rad_s": 3.2,
+        "minimum_duration_s": 0.35,
+        "measured_peak_rad_s": 1.2195444965773468,
+        "worst_source": {
+          "stage": "RB_RF_DIRECT_FINAL",
+          "time_s": 0.4333333333333333,
+          "tick": 1509,
+          "leg": 3,
+          "joint": 1,
+          "metric": "command_speed_rad_s",
+          "actual": 1.2195444965773468,
+          "threshold": 3.2
+        }
+      },
+      {
+        "segment_index": 1,
+        "semantic": "SWING_TRANSFER",
+        "duration_s": 1.1,
+        "target_rad_s": 2.7,
+        "hard_gate_rad_s": 3.2,
+        "minimum_duration_s": 0.45,
+        "measured_peak_rad_s": 2.0172213784286264,
+        "worst_source": {
+          "stage": "RB_RF_DIRECT_FINAL",
+          "time_s": 1.4333333333333345,
+          "tick": 1539,
+          "leg": 4,
+          "joint": 2,
+          "metric": "command_speed_rad_s",
+          "actual": 2.0172213784286264,
+          "threshold": 3.2
+        }
+      },
+      {
+        "segment_index": 2,
+        "semantic": "TOUCHDOWN",
+        "duration_s": 0.7,
+        "target_rad_s": 1.4,
+        "hard_gate_rad_s": 1.8,
+        "minimum_duration_s": 0.35,
+        "measured_peak_rad_s": 1.2198339846212354,
+        "worst_source": {
+          "stage": "RB_RF_DIRECT_FINAL",
+          "time_s": 2.233333333333335,
+          "tick": 1563,
+          "leg": 3,
+          "joint": 1,
+          "metric": "command_speed_rad_s",
+          "actual": 1.2198339846212354,
+          "threshold": 1.8
+        }
+      }
+    ],
+    [
+      {
+        "segment_index": 0,
+        "semantic": "SWING_LIFT",
+        "duration_s": 0.8,
+        "target_rad_s": 3.0,
+        "hard_gate_rad_s": 3.4,
+        "minimum_duration_s": 0.35,
+        "measured_peak_rad_s": 2.15535820171627,
+        "worst_source": {
+          "stage": "RM_DIRECT_FINAL",
+          "time_s": 0.4666666666666666,
+          "tick": 1597,
+          "leg": 5,
+          "joint": 1,
+          "metric": "command_speed_rad_s",
+          "actual": 2.15535820171627,
+          "threshold": 3.4
+        }
+      },
+      {
+        "segment_index": 1,
+        "semantic": "SWING_TRANSFER",
+        "duration_s": 0.9,
+        "target_rad_s": 3.0,
+        "hard_gate_rad_s": 3.4,
+        "minimum_duration_s": 0.45,
+        "measured_peak_rad_s": 2.3723173478219395,
+        "worst_source": {
+          "stage": "RM_DIRECT_FINAL",
+          "time_s": 1.3000000000000007,
+          "tick": 1622,
+          "leg": 5,
+          "joint": 2,
+          "metric": "command_speed_rad_s",
+          "actual": 2.3723173478219395,
+          "threshold": 3.4
+        }
+      },
+      {
+        "segment_index": 2,
+        "semantic": "TOUCHDOWN",
+        "duration_s": 1.3,
+        "target_rad_s": 1.4,
+        "hard_gate_rad_s": 1.8,
+        "minimum_duration_s": 0.35,
+        "measured_peak_rad_s": 1.3765964263965424,
+        "worst_source": {
+          "stage": "RM_DIRECT_FINAL",
+          "time_s": 2.4666666666666677,
+          "tick": 1657,
+          "leg": 5,
+          "joint": 2,
+          "metric": "command_speed_rad_s",
+          "actual": 1.3765964263965424,
+          "threshold": 1.8
+        }
+      }
+    ],
+    [
+      {
+        "segment_index": 0,
+        "semantic": "BODY",
+        "duration_s": 1.6,
+        "target_rad_s": 1.9,
+        "hard_gate_rad_s": 2.4,
+        "minimum_duration_s": 1.6,
+        "measured_peak_rad_s": 1.077699323505081,
+        "worst_source": {
+          "stage": "BODY_REPOSITION",
+          "time_s": 0.6333333333333333,
+          "tick": 1702,
+          "leg": 5,
+          "joint": 2,
+          "metric": "command_speed_rad_s",
+          "actual": 1.077699323505081,
+          "threshold": 2.4
+        }
+      }
+    ],
+    [
+      {
+        "segment_index": 0,
+        "semantic": "SWING_LIFT",
+        "duration_s": 0.7,
+        "target_rad_s": 3.0,
+        "hard_gate_rad_s": 3.4,
+        "minimum_duration_s": 0.35,
+        "measured_peak_rad_s": 1.4324636462759477,
+        "worst_source": {
+          "stage": "LM_DIRECT_FINAL",
+          "time_s": 0.36666666666666664,
+          "tick": 1749,
+          "leg": 2,
+          "joint": 1,
+          "metric": "command_speed_rad_s",
+          "actual": 1.4324636462759477,
+          "threshold": 3.4
+        }
+      },
+      {
+        "segment_index": 1,
+        "semantic": "SWING_TRANSFER",
+        "duration_s": 0.75,
+        "target_rad_s": 3.0,
+        "hard_gate_rad_s": 3.4,
+        "minimum_duration_s": 0.45,
+        "measured_peak_rad_s": 0.11791709470015843,
+        "worst_source": {
+          "stage": "LM_DIRECT_FINAL",
+          "time_s": 0.7,
+          "tick": 1759,
+          "leg": 2,
+          "joint": 1,
+          "metric": "command_speed_rad_s",
+          "actual": 0.11791709470015843,
+          "threshold": 3.4
+        }
+      },
+      {
+        "segment_index": 2,
+        "semantic": "TOUCHDOWN",
+        "duration_s": 0.9,
+        "target_rad_s": 1.4,
+        "hard_gate_rad_s": 1.8,
+        "minimum_duration_s": 0.35,
+        "measured_peak_rad_s": 1.106574684520033,
+        "worst_source": {
+          "stage": "LM_DIRECT_FINAL",
+          "time_s": 1.8333333333333357,
+          "tick": 1793,
+          "leg": 2,
+          "joint": 1,
+          "metric": "command_speed_rad_s",
+          "actual": 1.106574684520033,
+          "threshold": 1.8
+        }
+      }
+    ],
+    [
+      {
+        "segment_index": 0,
+        "semantic": "SWING_LIFT",
+        "duration_s": 0.75,
+        "target_rad_s": 2.7,
+        "hard_gate_rad_s": 3.2,
+        "minimum_duration_s": 0.35,
+        "measured_peak_rad_s": 2.131519434999022,
+        "worst_source": {
+          "stage": "LB_LF_DIRECT_FINAL",
+          "time_s": 0.3333333333333333,
+          "tick": 1828,
+          "leg": 1,
+          "joint": 1,
+          "metric": "command_speed_rad_s",
+          "actual": 2.131519434999022,
+          "threshold": 3.2
+        }
+      },
+      {
+        "segment_index": 1,
+        "semantic": "SWING_TRANSFER",
+        "duration_s": 1.1,
+        "target_rad_s": 2.7,
+        "hard_gate_rad_s": 3.2,
+        "minimum_duration_s": 0.45,
+        "measured_peak_rad_s": 2.234287003205422,
+        "worst_source": {
+          "stage": "LB_LF_DIRECT_FINAL",
+          "time_s": 1.166666666666667,
+          "tick": 1853,
+          "leg": 0,
+          "joint": 2,
+          "metric": "command_speed_rad_s",
+          "actual": 2.234287003205422,
+          "threshold": 3.2
+        }
+      },
+      {
+        "segment_index": 2,
+        "semantic": "TOUCHDOWN",
+        "duration_s": 0.7,
+        "target_rad_s": 1.4,
+        "hard_gate_rad_s": 1.8,
+        "minimum_duration_s": 0.35,
+        "measured_peak_rad_s": 1.2682111275878194,
+        "worst_source": {
+          "stage": "LB_LF_DIRECT_FINAL",
+          "time_s": 2.1666666666666687,
+          "tick": 1883,
+          "leg": 1,
+          "joint": 1,
+          "metric": "command_speed_rad_s",
+          "actual": 1.2682111275878194,
+          "threshold": 1.8
+        }
+      }
+    ],
+    [
+      {
+        "segment_index": 0,
+        "semantic": "BODY",
+        "duration_s": 1.5,
+        "target_rad_s": 1.9,
+        "hard_gate_rad_s": 2.4,
+        "minimum_duration_s": 1.5,
+        "measured_peak_rad_s": 0.847294684050035,
+        "worst_source": {
+          "stage": "BODY_DOCK_FINAL",
+          "time_s": 0.6666666666666666,
+          "tick": 1924,
+          "leg": 5,
+          "joint": 2,
+          "metric": "command_speed_rad_s",
+          "actual": 0.847294684050035,
+          "threshold": 2.4
+        }
+      }
+    ]
+  ],
+  "stages": [
+    {
+      "name": "PREP",
+      "max_active_foot_error_m": 0.0,
+      "base_relative_clearance_m": [],
+      "max_active_foot_error_source": {
+        "leg": null,
+        "tick": null,
+        "reason": "no active legs"
+      },
+      "fixed_support_thigh_peak_rad": 0.3962034751829944,
+      "fixed_support_thigh_peak_source": {
+        "leg": 3,
+        "tick": 51
+      },
+      "planned_base_raw_support_margin_m": 0.1506623754062293,
+      "planned_base_raw_support_margin_source": {
+        "tick": 54,
+        "fixed_legs": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "valid": true
+      }
+    },
+    {
+      "name": "RM",
+      "max_active_foot_error_m": 0.010540752221967,
+      "base_relative_clearance_m": [
+        0.1109549940226486
+      ],
+      "max_active_foot_error_source": {
+        "leg": 5,
+        "tick": 140
+      },
+      "fixed_support_thigh_peak_rad": 0.00034022580177356376,
+      "fixed_support_thigh_peak_source": {
+        "leg": 3,
+        "tick": 101
+      },
+      "planned_base_raw_support_margin_m": 0.07698505567503458,
+      "planned_base_raw_support_margin_source": {
+        "tick": 64,
+        "fixed_legs": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ],
+        "valid": true
+      }
+    },
+    {
+      "name": "BODY",
+      "max_active_foot_error_m": 0.0,
+      "base_relative_clearance_m": [],
+      "max_active_foot_error_source": {
+        "leg": null,
+        "tick": null,
+        "reason": "no active legs"
+      },
+      "fixed_support_thigh_peak_rad": 0.15959425307418756,
+      "fixed_support_thigh_peak_source": {
+        "leg": 4,
+        "tick": 180
+      },
+      "planned_base_raw_support_margin_m": 0.16076175328980183,
+      "planned_base_raw_support_margin_source": {
+        "tick": 182,
+        "fixed_legs": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "valid": true
+      }
+    },
+    {
+      "name": "PAIR",
+      "max_active_foot_error_m": 0.008514940403057855,
+      "base_relative_clearance_m": [
+        0.10936582220394717,
+        0.10936582220394717
+      ],
+      "max_active_foot_error_source": {
+        "leg": 3,
+        "tick": 277
+      },
+      "fixed_support_thigh_peak_rad": 0.00018996872634441386,
+      "fixed_support_thigh_peak_source": {
+        "leg": 0,
+        "tick": 226
+      },
+      "planned_base_raw_support_margin_m": 0.09893215240896848,
+      "planned_base_raw_support_margin_source": {
+        "tick": 192,
+        "fixed_legs": [
+          0,
+          1,
+          2,
+          5
+        ],
+        "valid": true
+      }
+    },
+    {
+      "name": "LB_LF_GROUND_SHIFT",
+      "max_active_foot_error_m": 0.008019966683167398,
+      "base_relative_clearance_m": [
+        0.028962924426435402,
+        0.028962924426435416
+      ],
+      "max_active_foot_error_source": {
+        "leg": 0,
+        "tick": 312
+      },
+      "fixed_support_thigh_peak_rad": 6.885461432204476e-05,
+      "fixed_support_thigh_peak_source": {
+        "leg": 4,
+        "tick": 334
+      },
+      "planned_base_raw_support_margin_m": 0.07733307036003366,
+      "planned_base_raw_support_margin_source": {
+        "tick": 299,
+        "fixed_legs": [
+          2,
+          3,
+          4,
+          5
+        ],
+        "valid": true
+      }
+    },
+    {
+      "name": "LM_GROUND_SHIFT",
+      "max_active_foot_error_m": 0.011046403649273569,
+      "base_relative_clearance_m": [
+        0.028962924426435402
+      ],
+      "max_active_foot_error_source": {
+        "leg": 2,
+        "tick": 360
+      },
+      "fixed_support_thigh_peak_rad": 0.00021672220997248637,
+      "fixed_support_thigh_peak_source": {
+        "leg": 0,
+        "tick": 379
+      },
+      "planned_base_raw_support_margin_m": 0.036985748964771824,
+      "planned_base_raw_support_margin_source": {
+        "tick": 338,
+        "fixed_legs": [
+          0,
+          1,
+          3,
+          4,
+          5
+        ],
+        "valid": true
+      }
+    },
+    {
+      "name": "BODY2",
+      "max_active_foot_error_m": 0.0,
+      "base_relative_clearance_m": [],
+      "max_active_foot_error_source": {
+        "leg": null,
+        "tick": null,
+        "reason": "no active legs"
+      },
+      "fixed_support_thigh_peak_rad": 1.070155318458681,
+      "fixed_support_thigh_peak_source": {
+        "leg": 1,
+        "tick": 443
+      },
+      "planned_base_raw_support_margin_m": 0.09657517063236602,
+      "planned_base_raw_support_margin_source": {
+        "tick": 386,
+        "fixed_legs": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "valid": true
+      }
+    },
+    {
+      "name": "RM_HIGH_C",
+      "max_active_foot_error_m": 0.010233017780070469,
+      "base_relative_clearance_m": [
+        0.037788387552876404
+      ],
+      "max_active_foot_error_source": {
+        "leg": 5,
+        "tick": 477
+      },
+      "fixed_support_thigh_peak_rad": 0.15596981117795877,
+      "fixed_support_thigh_peak_source": {
+        "leg": 3,
+        "tick": 502
+      },
+      "planned_base_raw_support_margin_m": 0.14864857479269683,
+      "planned_base_raw_support_margin_source": {
+        "tick": 455,
+        "fixed_legs": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ],
+        "valid": true
+      }
+    },
+    {
+      "name": "RB_RF_HIGH_C",
+      "max_active_foot_error_m": 0.008061201005132601,
+      "base_relative_clearance_m": [
+        0.04776682445628032,
+        0.04776682445628028
+      ],
+      "max_active_foot_error_source": {
+        "leg": 4,
+        "tick": 537
+      },
+      "fixed_support_thigh_peak_rad": 0.0002444673003466069,
+      "fixed_support_thigh_peak_source": {
+        "leg": 5,
+        "tick": 555
+      },
+      "planned_base_raw_support_margin_m": 0.06896051191329494,
+      "planned_base_raw_support_margin_source": {
+        "tick": 506,
+        "fixed_legs": [
+          0,
+          1,
+          2,
+          5
+        ],
+        "valid": true
+      }
+    },
+    {
+      "name": "BODY3",
+      "max_active_foot_error_m": 0.0,
+      "base_relative_clearance_m": [],
+      "max_active_foot_error_source": {
+        "leg": null,
+        "tick": null,
+        "reason": "no active legs"
+      },
+      "fixed_support_thigh_peak_rad": 0.11429296968452968,
+      "fixed_support_thigh_peak_source": {
+        "leg": 5,
+        "tick": 590
+      },
+      "planned_base_raw_support_margin_m": 0.153819863825479,
+      "planned_base_raw_support_margin_source": {
+        "tick": 592,
+        "fixed_legs": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "valid": true
+      }
+    },
+    {
+      "name": "RB_RF_SHIFT1",
+      "max_active_foot_error_m": 0.005701593543844905,
+      "base_relative_clearance_m": [
+        0.02866009467376819
+      ],
+      "max_active_foot_error_source": {
+        "leg": 3,
+        "tick": 613
+      },
+      "fixed_support_thigh_peak_rad": 0.0003653110189713038,
+      "fixed_support_thigh_peak_source": {
+        "leg": 5,
+        "tick": 629
+      },
+      "planned_base_raw_support_margin_m": 0.11282973690006005,
+      "planned_base_raw_support_margin_source": {
+        "tick": 611,
+        "fixed_legs": [
+          0,
+          1,
+          2,
+          4,
+          5
+        ],
+        "valid": true
+      }
+    },
+    {
+      "name": "LM_GROUND_SHIFT1",
+      "max_active_foot_error_m": 0.006384888300614562,
+      "base_relative_clearance_m": [
+        0.02866009467376819
+      ],
+      "max_active_foot_error_source": {
+        "leg": 2,
+        "tick": 649
+      },
+      "fixed_support_thigh_peak_rad": 0.0006782694804866596,
+      "fixed_support_thigh_peak_source": {
+        "leg": 3,
+        "tick": 669
+      },
+      "planned_base_raw_support_margin_m": 0.15381986382547896,
+      "planned_base_raw_support_margin_source": {
+        "tick": 634,
+        "fixed_legs": [
+          0,
+          1,
+          3,
+          4,
+          5
+        ],
+        "valid": true
+      }
+    },
+    {
+      "name": "RM_PRE_ADVANCE",
+      "max_active_foot_error_m": 0.007101200103204603,
+      "base_relative_clearance_m": [
+        0.015943822733463023
+      ],
+      "max_active_foot_error_source": {
+        "leg": 5,
+        "tick": 676
+      },
+      "fixed_support_thigh_peak_rad": 5.968598358311285e-09,
+      "fixed_support_thigh_peak_source": {
+        "leg": 2,
+        "tick": 696
+      },
+      "planned_base_raw_support_margin_m": 0.15381986382547896,
+      "planned_base_raw_support_margin_source": {
+        "tick": 674,
+        "fixed_legs": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ],
+        "valid": true
+      }
+    },
+    {
+      "name": "LB_LF_BODY_ADVANCE_HIGH_STEP",
+      "max_active_foot_error_m": 0.005134342559641615,
+      "base_relative_clearance_m": [
+        0.06,
+        0.06
+      ],
+      "max_active_foot_error_source": {
+        "leg": 1,
+        "tick": 769
+      },
+      "fixed_support_thigh_peak_rad": 0.17063569577637427,
+      "fixed_support_thigh_peak_source": {
+        "leg": 3,
+        "tick": 786
+      },
+      "planned_base_raw_support_margin_m": 0.0623396064031897,
+      "planned_base_raw_support_margin_source": {
+        "tick": 728,
+        "fixed_legs": [
+          2,
+          3,
+          4,
+          5
+        ],
+        "valid": true
+      }
+    },
+    {
+      "name": "RB_RF_TOP_INWARD_PAIR",
+      "max_active_foot_error_m": 0.0074671277029158606,
+      "base_relative_clearance_m": [
+        0.02940199733523724,
+        0.02476637961668579
+      ],
+      "max_active_foot_error_source": {
+        "leg": 3,
+        "tick": 817
+      },
+      "fixed_support_thigh_peak_rad": 0.00014212298239233562,
+      "fixed_support_thigh_peak_source": {
+        "leg": 1,
+        "tick": 835
+      },
+      "planned_base_raw_support_margin_m": 0.09769608157164336,
+      "planned_base_raw_support_margin_source": {
+        "tick": 797,
+        "fixed_legs": [
+          0,
+          1,
+          2,
+          5
+        ],
+        "valid": true
+      }
+    },
+    {
+      "name": "LM_EDGE_STAGE",
+      "max_active_foot_error_m": 0.011139638308613545,
+      "base_relative_clearance_m": [
+        0.02940199733523724
+      ],
+      "max_active_foot_error_source": {
+        "leg": 2,
+        "tick": 869
+      },
+      "fixed_support_thigh_peak_rad": 0.0001543384030101569,
+      "fixed_support_thigh_peak_source": {
+        "leg": 3,
+        "tick": 883
+      },
+      "planned_base_raw_support_margin_m": 0.06999999999999997,
+      "planned_base_raw_support_margin_source": {
+        "tick": 856,
+        "fixed_legs": [
+          0,
+          1,
+          3,
+          4,
+          5
+        ],
+        "valid": true
+      }
+    },
+    {
+      "name": "BODY_A",
+      "max_active_foot_error_m": 0.0,
+      "base_relative_clearance_m": [],
+      "max_active_foot_error_source": {
+        "leg": null,
+        "tick": null,
+        "reason": "no active legs"
+      },
+      "fixed_support_thigh_peak_rad": 0.3777178522054614,
+      "fixed_support_thigh_peak_source": {
+        "leg": 1,
+        "tick": 934
+      },
+      "planned_base_raw_support_margin_m": 0.0893687521365544,
+      "planned_base_raw_support_margin_source": {
+        "tick": 900,
+        "fixed_legs": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "valid": true
+      }
+    },
+    {
+      "name": "RM_RIGHT_SYMMETRY",
+      "max_active_foot_error_m": 0.00865330917070846,
+      "base_relative_clearance_m": [
+        0.04
+      ],
+      "max_active_foot_error_source": {
+        "leg": 5,
+        "tick": 945
+      },
+      "fixed_support_thigh_peak_rad": 0.0004750384127831797,
+      "fixed_support_thigh_peak_source": {
+        "leg": 1,
+        "tick": 973
+      },
+      "planned_base_raw_support_margin_m": 0.13072647502595675,
+      "planned_base_raw_support_margin_source": {
+        "tick": 937,
+        "fixed_legs": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ],
+        "valid": true
+      }
+    },
+    {
+      "name": "BODY_LEFT_TRANSFER_PREP",
+      "max_active_foot_error_m": 0.0,
+      "base_relative_clearance_m": [],
+      "max_active_foot_error_source": {
+        "leg": null,
+        "tick": null,
+        "reason": "no active legs"
+      },
+      "fixed_support_thigh_peak_rad": 0.007918586945890205,
+      "fixed_support_thigh_peak_source": {
+        "leg": 0,
+        "tick": 1011
+      },
+      "planned_base_raw_support_margin_m": 0.13072647502595675,
+      "planned_base_raw_support_margin_source": {
+        "tick": 989,
+        "fixed_legs": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "valid": true
+      }
+    },
+    {
+      "name": "LB_LOW_STEP",
+      "max_active_foot_error_m": 0.006817466409974891,
+      "base_relative_clearance_m": [
+        0.053241027859570036
+      ],
+      "max_active_foot_error_source": {
+        "leg": 0,
+        "tick": 1070
+      },
+      "fixed_support_thigh_peak_rad": 0.37680681392744986,
+      "fixed_support_thigh_peak_source": {
+        "leg": 2,
+        "tick": 1059
+      },
+      "planned_base_raw_support_margin_m": 0.04764854391750892,
+      "planned_base_raw_support_margin_source": {
+        "tick": 1026,
+        "fixed_legs": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "valid": true
+      }
+    },
+    {
+      "name": "BODY_RIGHT_BEFORE_LF",
+      "max_active_foot_error_m": 0.0,
+      "base_relative_clearance_m": [],
+      "max_active_foot_error_source": {
+        "leg": null,
+        "tick": null,
+        "reason": "no active legs"
+      },
+      "fixed_support_thigh_peak_rad": 0.3774639132097311,
+      "fixed_support_thigh_peak_source": {
+        "leg": 2,
+        "tick": 1156
+      },
+      "planned_base_raw_support_margin_m": 0.12920553320910177,
+      "planned_base_raw_support_margin_source": {
+        "tick": 1122,
+        "fixed_legs": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "valid": true
+      }
+    },
+    {
+      "name": "LF_LOW_STEP",
+      "max_active_foot_error_m": 0.006947363192618391,
+      "base_relative_clearance_m": [
+        0.04815246498936361
+      ],
+      "max_active_foot_error_source": {
+        "leg": 1,
+        "tick": 1215
+      },
+      "fixed_support_thigh_peak_rad": 0.244158581897495,
+      "fixed_support_thigh_peak_source": {
+        "leg": 2,
+        "tick": 1203
+      },
+      "planned_base_raw_support_margin_m": 0.038850776622105364,
+      "planned_base_raw_support_margin_source": {
+        "tick": 1164,
+        "fixed_legs": [
+          0,
+          2,
+          3,
+          4,
+          5
+        ],
+        "valid": true
+      }
+    },
+    {
+      "name": "BODY_PRELOAD_LM",
+      "max_active_foot_error_m": 0.0,
+      "base_relative_clearance_m": [],
+      "max_active_foot_error_source": {
+        "leg": null,
+        "tick": null,
+        "reason": "no active legs"
+      },
+      "fixed_support_thigh_peak_rad": 0.24504345828968874,
+      "fixed_support_thigh_peak_source": {
+        "leg": 2,
+        "tick": 1289
+      },
+      "planned_base_raw_support_margin_m": 0.12871984668317055,
+      "planned_base_raw_support_margin_source": {
+        "tick": 1261,
+        "fixed_legs": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "valid": true
+      }
+    },
+    {
+      "name": "LM_LIFT",
+      "max_active_foot_error_m": 0.006381982894722096,
+      "base_relative_clearance_m": [
+        0.009021685523170744
+      ],
+      "max_active_foot_error_source": {
+        "leg": 2,
+        "tick": 1311
+      },
+      "fixed_support_thigh_peak_rad": 3.5845834308045887e-06,
+      "fixed_support_thigh_peak_source": {
+        "leg": 5,
+        "tick": 1331
+      },
+      "planned_base_raw_support_margin_m": 0.030407771058783364,
+      "planned_base_raw_support_margin_source": {
+        "tick": 1301,
+        "fixed_legs": [
+          0,
+          1,
+          3,
+          4,
+          5
+        ],
+        "valid": true
+      }
+    },
+    {
+      "name": "BODY_ADVANCE_LM_AIR",
+      "max_active_foot_error_m": 0.0002824619722564845,
+      "base_relative_clearance_m": [
+        0.0
+      ],
+      "max_active_foot_error_source": {
+        "leg": 2,
+        "tick": 1387
+      },
+      "fixed_support_thigh_peak_rad": 0.7753504867531789,
+      "fixed_support_thigh_peak_source": {
+        "leg": 1,
+        "tick": 1428
+      },
+      "planned_base_raw_support_margin_m": 0.03040777105878339,
+      "planned_base_raw_support_margin_source": {
+        "tick": 1341,
+        "fixed_legs": [
+          0,
+          1,
+          3,
+          4,
+          5
+        ],
+        "valid": true
+      }
+    },
+    {
+      "name": "LM_LEFT_FINAL_LAND",
+      "max_active_foot_error_m": 0.002134384594677425,
+      "base_relative_clearance_m": [
+        0.0
+      ],
+      "max_active_foot_error_source": {
+        "leg": 2,
+        "tick": 1476
+      },
+      "fixed_support_thigh_peak_rad": 4.982916663620607e-06,
+      "fixed_support_thigh_peak_source": {
+        "leg": 4,
+        "tick": 1476
+      },
+      "planned_base_raw_support_margin_m": 0.11995334772558601,
+      "planned_base_raw_support_margin_source": {
+        "tick": 1439,
+        "fixed_legs": [
+          0,
+          1,
+          3,
+          4,
+          5
+        ],
+        "valid": true
+      }
+    },
+    {
+      "name": "RB_RF_DIRECT_FINAL",
+      "max_active_foot_error_m": 0.007559615878847178,
+      "base_relative_clearance_m": [
+        0.03350670844340642,
+        0.030518927878812635
+      ],
+      "max_active_foot_error_source": {
+        "leg": 4,
+        "tick": 1538
+      },
+      "fixed_support_thigh_peak_rad": 0.1332148494829515,
+      "fixed_support_thigh_peak_source": {
+        "leg": 1,
+        "tick": 1571
+      },
+      "planned_base_raw_support_margin_m": 0.07178945729830459,
+      "planned_base_raw_support_margin_source": {
+        "tick": 1574,
+        "fixed_legs": [
+          0,
+          1,
+          2,
+          5
+        ],
+        "valid": true
+      }
+    },
+    {
+      "name": "RM_DIRECT_FINAL",
+      "max_active_foot_error_m": 0.007373011852927262,
+      "base_relative_clearance_m": [
+        0.059550843117441715
+      ],
+      "max_active_foot_error_source": {
+        "leg": 5,
+        "tick": 1622
+      },
+      "fixed_support_thigh_peak_rad": 0.18884138175054613,
+      "fixed_support_thigh_peak_source": {
+        "leg": 2,
+        "tick": 1605
+      },
+      "planned_base_raw_support_margin_m": 0.15129852178270134,
+      "planned_base_raw_support_margin_source": {
+        "tick": 1590,
+        "fixed_legs": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ],
+        "valid": true
+      }
+    },
+    {
+      "name": "BODY_REPOSITION",
+      "max_active_foot_error_m": 0.0,
+      "base_relative_clearance_m": [],
+      "max_active_foot_error_source": {
+        "leg": null,
+        "tick": null,
+        "reason": "no active legs"
+      },
+      "fixed_support_thigh_peak_rad": 0.10462719365190615,
+      "fixed_support_thigh_peak_source": {
+        "leg": 3,
+        "tick": 1728
+      },
+      "planned_base_raw_support_margin_m": 0.15129852178270134,
+      "planned_base_raw_support_margin_source": {
+        "tick": 1683,
+        "fixed_legs": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "valid": true
+      }
+    },
+    {
+      "name": "LM_DIRECT_FINAL",
+      "max_active_foot_error_m": 0.0023217891073011774,
+      "base_relative_clearance_m": [
+        0.03
+      ],
+      "max_active_foot_error_source": {
+        "leg": 2,
+        "tick": 1750
+      },
+      "fixed_support_thigh_peak_rad": 1.1095103121805394e-06,
+      "fixed_support_thigh_peak_source": {
+        "leg": 3,
+        "tick": 1785
+      },
+      "planned_base_raw_support_margin_m": 0.17003294377734435,
+      "planned_base_raw_support_margin_source": {
+        "tick": 1738,
+        "fixed_legs": [
+          0,
+          1,
+          3,
+          4,
+          5
+        ],
+        "valid": true
+      }
+    },
+    {
+      "name": "LB_LF_DIRECT_FINAL",
+      "max_active_foot_error_m": 0.009167634820852913,
+      "base_relative_clearance_m": [
+        0.03633268106568144,
+        0.047369619756462894
+      ],
+      "max_active_foot_error_source": {
+        "leg": 0,
+        "tick": 1858
+      },
+      "fixed_support_thigh_peak_rad": 1.7318910194852322e-11,
+      "fixed_support_thigh_peak_source": {
+        "leg": 2,
+        "tick": 1853
+      },
+      "planned_base_raw_support_margin_m": 0.06488311433497232,
+      "planned_base_raw_support_margin_source": {
+        "tick": 1826,
+        "fixed_legs": [
+          2,
+          3,
+          4,
+          5
+        ],
+        "valid": true
+      }
+    },
+    {
+      "name": "BODY_DOCK_FINAL",
+      "max_active_foot_error_m": 0.0,
+      "base_relative_clearance_m": [],
+      "max_active_foot_error_source": {
+        "leg": null,
+        "tick": null,
+        "reason": "no active legs"
+      },
+      "fixed_support_thigh_peak_rad": 0.5458921026324259,
+      "fixed_support_thigh_peak_source": {
+        "leg": 0,
+        "tick": 1947
+      },
+      "planned_base_raw_support_margin_m": 0.11646712319512618,
+      "planned_base_raw_support_margin_source": {
+        "tick": 1904,
+        "fixed_legs": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "valid": true
+      }
+    },
+    {
+      "name": "STAND_FINAL_HOLD",
+      "max_active_foot_error_m": 0.0,
+      "base_relative_clearance_m": [],
+      "max_active_foot_error_source": {
+        "leg": null,
+        "tick": null,
+        "reason": "no active legs"
+      },
+      "fixed_support_thigh_peak_rad": 5.30755584230054e-06,
+      "fixed_support_thigh_peak_source": {
+        "leg": 3,
+        "tick": 2015
+      },
+      "planned_base_raw_support_margin_m": 0.15135229240904902,
+      "planned_base_raw_support_margin_source": {
+        "tick": 1967,
+        "fixed_legs": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "valid": true
+      }
+    }
+  ],
+  "model_diagnostic_only": "planned base/raw support margins are geometry diagnostics, not contact/load/stability proof",
+  "final_foot_target_error_m": 4.8074067159589095e-17,
+  "terminal_q_fk_error_m": 1.3617890340815611e-11
+}

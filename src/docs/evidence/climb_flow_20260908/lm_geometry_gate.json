@@ -1,0 +1,35 @@
+{
+  "candidate_sha256": "68f60b97b167ca644f0cebe5fd4de1016b9705764a0376b0431459b0e818346c",
+  "lm_c24_c26_sparse_geometry": [
+    {
+      "stage": "LM_LIFT",
+      "max_IK_residual_m": 1.3830637498608765e-08,
+      "max_sample_joint_speed_rad_s": 2.73674712116652,
+      "nonfoot_collision": false,
+      "projected_samples": 0,
+      "min_foot_bottom_to_projected_CAD_m": null
+    },
+    {
+      "stage": "BODY_ADVANCE_LM_AIR",
+      "max_IK_residual_m": 7.744558898116782e-09,
+      "max_sample_joint_speed_rad_s": 0.9628419134421162,
+      "nonfoot_collision": false,
+      "projected_samples": 12,
+      "min_foot_bottom_to_projected_CAD_m": 0.0170539192474356
+    },
+    {
+      "stage": "LM_LEFT_FINAL_LAND",
+      "max_IK_residual_m": 2.8726417928424468e-08,
+      "max_sample_joint_speed_rad_s": 1.0018571342642841,
+      "nonfoot_collision": false,
+      "projected_samples": 29,
+      "min_foot_bottom_to_projected_CAD_m": -0.00020454960429464042
+    }
+  ],
+  "lm_terminal": {
+    "axis_angle_deg": 25.215382613759637,
+    "negative_low_bottom_gap_m": 0.000995485314301387,
+    "negative_low_edge_margin_m": 0.019020663223426
+  },
+  "boundary": "offline kinematic and sampled visual-CAD diagnostics only"
+}

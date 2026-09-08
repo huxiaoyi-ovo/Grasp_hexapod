@@ -1,0 +1,773 @@
+{
+  "stages": [
+    {
+      "stage_name": "BODY_LEFT_TRANSFER_PREP",
+      "sample_count": 51,
+      "min_support_margin_m": 0.13081159814037072,
+      "min_joint_margin_rad": 0.4873957123762629,
+      "min_sigma_min": 0.03985848214416193,
+      "max_joint_speed_rad_s": 1.1526405173450007,
+      "LM_min_hip_foot_xy_m": 0.07167793945454394,
+      "LM_max_terminal_axis_angle_deg": 5.290638393018186,
+      "max_IK_residual_m": 4.8843924971427405e-08,
+      "segments": [
+        {
+          "segment_index": 0,
+          "semantic": "BODY",
+          "duration_s": 0.8,
+          "target_rad_s": 1.9,
+          "hard_gate_rad_s": 2.4,
+          "minimum_duration_s": 0.8,
+          "measured_peak_rad_s": 1.1526405173450007,
+          "worst_source": {
+            "stage": "BODY_LEFT_TRANSFER_PREP",
+            "time_s": 0.528,
+            "leg": 0,
+            "metric": "joint_speed_rad_s",
+            "actual": 1.1526405173450007,
+            "threshold": 2.4,
+            "joint": 2
+          }
+        }
+      ]
+    },
+    {
+      "stage_name": "LB_LOW_STEP",
+      "sample_count": 151,
+      "min_support_margin_m": 0.04720010410873573,
+      "min_joint_margin_rad": 0.10085186811464197,
+      "min_sigma_min": 0.031183769074836703,
+      "max_joint_speed_rad_s": 2.739973782362927,
+      "LM_min_hip_foot_xy_m": 0.07167794028197076,
+      "LM_max_terminal_axis_angle_deg": 14.25207995476479,
+      "max_IK_residual_m": 4.887543002273681e-08,
+      "segments": [
+        {
+          "segment_index": 0,
+          "semantic": "SWING_LIFT",
+          "duration_s": 1.4,
+          "target_rad_s": 3.0,
+          "hard_gate_rad_s": 3.4,
+          "minimum_duration_s": 0.35,
+          "measured_peak_rad_s": 2.739973782362927,
+          "worst_source": {
+            "stage": "LB_LOW_STEP",
+            "time_s": 0.44799999999999995,
+            "leg": 0,
+            "metric": "joint_speed_rad_s",
+            "actual": 2.739973782362927,
+            "threshold": 3.4,
+            "joint": 2
+          }
+        },
+        {
+          "segment_index": 1,
+          "semantic": "SWING_TRANSFER",
+          "duration_s": 0.5,
+          "target_rad_s": 3.0,
+          "hard_gate_rad_s": 3.4,
+          "minimum_duration_s": 0.45,
+          "measured_peak_rad_s": 2.1967464900285485,
+          "worst_source": {
+            "stage": "LB_LOW_STEP",
+            "time_s": 1.67,
+            "leg": 0,
+            "metric": "joint_speed_rad_s",
+            "actual": 2.1967464900285485,
+            "threshold": 3.4,
+            "joint": 0
+          }
+        },
+        {
+          "segment_index": 2,
+          "semantic": "TOUCHDOWN",
+          "duration_s": 1.2,
+          "target_rad_s": 1.4,
+          "hard_gate_rad_s": 1.8,
+          "minimum_duration_s": 0.35,
+          "measured_peak_rad_s": 1.5044576680843835,
+          "worst_source": {
+            "stage": "LB_LOW_STEP",
+            "time_s": 2.428,
+            "leg": 0,
+            "metric": "joint_speed_rad_s",
+            "actual": 1.5044576680843835,
+            "threshold": 1.8,
+            "joint": 1
+          }
+        }
+      ],
+      "platform_entry_clearance_m": 0.05911559341626385
+    },
+    {
+      "stage_name": "BODY_RIGHT_BEFORE_LF",
+      "sample_count": 51,
+      "min_support_margin_m": 0.11834103953957749,
+      "min_joint_margin_rad": 0.11713329183741705,
+      "min_sigma_min": 0.031183769074836745,
+      "max_joint_speed_rad_s": 1.7124549694922047,
+      "LM_min_hip_foot_xy_m": 0.07214542604896741,
+      "LM_max_terminal_axis_angle_deg": 14.252079935175196,
+      "max_IK_residual_m": 4.870669189048189e-08,
+      "segments": [
+        {
+          "segment_index": 0,
+          "semantic": "BODY",
+          "duration_s": 1.2,
+          "target_rad_s": 1.9,
+          "hard_gate_rad_s": 2.4,
+          "minimum_duration_s": 1.2,
+          "measured_peak_rad_s": 1.7124549694922047,
+          "worst_source": {
+            "stage": "BODY_RIGHT_BEFORE_LF",
+            "time_s": 0.672,
+            "leg": 0,
+            "metric": "joint_speed_rad_s",
+            "actual": 1.7124549694922047,
+            "threshold": 2.4,
+            "joint": 1
+          }
+        }
+      ]
+    },
+    {
+      "stage_name": "LF_LOW_STEP",
+      "sample_count": 151,
+      "min_support_margin_m": 0.03804684580572733,
+      "min_joint_margin_rad": 0.10429658761267802,
+      "min_sigma_min": 0.011717260307862989,
+      "max_joint_speed_rad_s": 2.722466101058043,
+      "LM_min_hip_foot_xy_m": 0.07367794022247318,
+      "LM_max_terminal_axis_angle_deg": 14.177420576281937,
+      "max_IK_residual_m": 4.443796567204906e-08,
+      "segments": [
+        {
+          "segment_index": 0,
+          "semantic": "SWING_LIFT",
+          "duration_s": 1.4,
+          "target_rad_s": 3.0,
+          "hard_gate_rad_s": 3.4,
+          "minimum_duration_s": 0.35,
+          "measured_peak_rad_s": 2.722466101058043,
+          "worst_source": {
+            "stage": "LF_LOW_STEP",
+            "time_s": 0.476,
+            "leg": 1,
+            "metric": "joint_speed_rad_s",
+            "actual": 2.722466101058043,
+            "threshold": 3.4,
+            "joint": 2
+          }
+        },
+        {
+          "segment_index": 1,
+          "semantic": "SWING_TRANSFER",
+          "duration_s": 0.55,
+          "target_rad_s": 3.0,
+          "hard_gate_rad_s": 3.4,
+          "minimum_duration_s": 0.45,
+          "measured_peak_rad_s": 2.212851890379585,
+          "worst_source": {
+            "stage": "LF_LOW_STEP",
+            "time_s": 1.686,
+            "leg": 1,
+            "metric": "joint_speed_rad_s",
+            "actual": 2.212851890379585,
+            "threshold": 3.4,
+            "joint": 0
+          }
+        },
+        {
+          "segment_index": 2,
+          "semantic": "TOUCHDOWN",
+          "duration_s": 1.0,
+          "target_rad_s": 1.4,
+          "hard_gate_rad_s": 1.8,
+          "minimum_duration_s": 0.35,
+          "measured_peak_rad_s": 1.5927298225653295,
+          "worst_source": {
+            "stage": "LF_LOW_STEP",
+            "time_s": 2.39,
+            "leg": 1,
+            "metric": "joint_speed_rad_s",
+            "actual": 1.5927298225653295,
+            "threshold": 1.8,
+            "joint": 1
+          }
+        }
+      ]
+    },
+    {
+      "stage_name": "BODY_PRELOAD_LM",
+      "sample_count": 101,
+      "min_support_margin_m": 0.12901452774253142,
+      "min_joint_margin_rad": 0.11129756278398495,
+      "min_sigma_min": 0.011717260307863072,
+      "max_joint_speed_rad_s": 1.7887422165338769,
+      "LM_min_hip_foot_xy_m": 0.07385168346471149,
+      "LM_max_terminal_axis_angle_deg": 14.177420576281937,
+      "max_IK_residual_m": 4.7112746775015756e-08,
+      "segments": [
+        {
+          "segment_index": 0,
+          "semantic": "BODY",
+          "duration_s": 1.0,
+          "target_rad_s": 1.9,
+          "hard_gate_rad_s": 2.4,
+          "minimum_duration_s": 0.5,
+          "measured_peak_rad_s": 1.7887422165338769,
+          "worst_source": {
+            "stage": "BODY_PRELOAD_LM",
+            "time_s": 0.55,
+            "leg": 1,
+            "metric": "joint_speed_rad_s",
+            "actual": 1.7887422165338769,
+            "threshold": 2.4,
+            "joint": 1
+          }
+        }
+      ]
+    },
+    {
+      "stage_name": "LM_LIFT",
+      "sample_count": 201,
+      "min_support_margin_m": 0.02965651953223118,
+      "min_joint_margin_rad": 0.11129756278398495,
+      "min_sigma_min": 0.039098517198703754,
+      "max_joint_speed_rad_s": 2.847510926983148,
+      "LM_min_hip_foot_xy_m": 0.055000000026864115,
+      "LM_max_terminal_axis_angle_deg": 18.207194319884366,
+      "max_IK_residual_m": 4.7213458854050596e-08,
+      "segments": [
+        {
+          "segment_index": 0,
+          "semantic": "SWING_LIFT",
+          "duration_s": 0.85,
+          "target_rad_s": 3.0,
+          "hard_gate_rad_s": 3.4,
+          "minimum_duration_s": 0.35,
+          "measured_peak_rad_s": 2.847510926983148,
+          "worst_source": {
+            "stage": "LM_LIFT",
+            "time_s": 0.374,
+            "leg": 2,
+            "metric": "joint_speed_rad_s",
+            "actual": 2.847510926983148,
+            "threshold": 3.4,
+            "joint": 2
+          }
+        },
+        {
+          "segment_index": 1,
+          "semantic": "SWING_TRANSFER",
+          "duration_s": 0.45,
+          "target_rad_s": 3.0,
+          "hard_gate_rad_s": 3.4,
+          "minimum_duration_s": 0.45,
+          "measured_peak_rad_s": 1.0677430004979325,
+          "worst_source": {
+            "stage": "LM_LIFT",
+            "time_s": 1.0975,
+            "leg": 2,
+            "metric": "joint_speed_rad_s",
+            "actual": 1.0677430004979325,
+            "threshold": 3.4,
+            "joint": 1
+          }
+        }
+      ]
+    },
+    {
+      "stage_name": "BODY_ADVANCE_LM_AIR",
+      "sample_count": 101,
+      "min_support_margin_m": 0.029899793100392886,
+      "min_joint_margin_rad": 0.11129756287755366,
+      "min_sigma_min": 0.03708450961626527,
+      "max_joint_speed_rad_s": 0.9652258573392979,
+      "LM_min_hip_foot_xy_m": 0.05298003993143474,
+      "LM_max_terminal_axis_angle_deg": 18.207194319884366,
+      "max_IK_residual_m": 3.641430272065736e-08,
+      "segments": [
+        {
+          "segment_index": 0,
+          "semantic": "CRITICAL_BODY_TRANSFER",
+          "duration_s": 3.0,
+          "target_rad_s": 1.8,
+          "hard_gate_rad_s": 2.4,
+          "minimum_duration_s": 3.0,
+          "measured_peak_rad_s": 0.9652258573392979,
+          "worst_source": {
+            "stage": "BODY_ADVANCE_LM_AIR",
+            "time_s": 1.68,
+            "leg": 4,
+            "metric": "joint_speed_rad_s",
+            "actual": 0.9652258573392979,
+            "threshold": 2.4,
+            "joint": 1
+          }
+        }
+      ]
+    },
+    {
+      "stage_name": "LM_LEFT_FINAL_LAND",
+      "sample_count": 201,
+      "min_support_margin_m": 0.11451700544278354,
+      "min_joint_margin_rad": 0.13616364303618855,
+      "min_sigma_min": 0.03708450961626527,
+      "max_joint_speed_rad_s": 1.0843890019964002,
+      "LM_min_hip_foot_xy_m": 0.03823727709861307,
+      "LM_max_terminal_axis_angle_deg": 27.199431511517226,
+      "max_IK_residual_m": 4.6546645258655654e-08,
+      "segments": [
+        {
+          "segment_index": 0,
+          "semantic": "SWING_TRANSFER",
+          "duration_s": 0.85,
+          "target_rad_s": 3.0,
+          "hard_gate_rad_s": 3.4,
+          "minimum_duration_s": 0.45,
+          "measured_peak_rad_s": 0.4552516547370253,
+          "worst_source": {
+            "stage": "LM_LEFT_FINAL_LAND",
+            "time_s": 0.42500000000000004,
+            "leg": 2,
+            "metric": "joint_speed_rad_s",
+            "actual": 0.4552516547370253,
+            "threshold": 3.4,
+            "joint": 1
+          }
+        },
+        {
+          "segment_index": 1,
+          "semantic": "TOUCHDOWN",
+          "duration_s": 0.8,
+          "target_rad_s": 1.4,
+          "hard_gate_rad_s": 1.8,
+          "minimum_duration_s": 0.35,
+          "measured_peak_rad_s": 1.0843890019964002,
+          "worst_source": {
+            "stage": "LM_LEFT_FINAL_LAND",
+            "time_s": 1.218,
+            "leg": 2,
+            "metric": "joint_speed_rad_s",
+            "actual": 1.0843890019964002,
+            "threshold": 1.8,
+            "joint": 1
+          }
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "future_support_margin_m": 0.03007207442301744,
+    "LB_platform_entry_clearance_m": 0.05911559341626385,
+    "LF_lateral_edge_margin_m": 0.023452918446990767,
+    "final_LM_hip_foot_xy_m": 0.038237277057493184,
+    "final_LM_terminal_axis_angle_deg": 27.199431523027375,
+    "final_LM_active_nonfoot_visual_clear": true,
+    "sources": {
+      "max_IK_residual_m": {
+        "stage": "LB_LOW_STEP",
+        "time_s": 1.63,
+        "leg": 0,
+        "metric": "IK_residual_m",
+        "actual": 4.887543002273681e-08,
+        "threshold": 1e-05
+      },
+      "min_joint_margin_rad:BODY_LEFT_TRANSFER_PREP": {
+        "stage": "BODY_LEFT_TRANSFER_PREP",
+        "time_s": 0.0,
+        "leg": 4,
+        "metric": "joint_margin_rad",
+        "actual": 0.4873957123762629,
+        "threshold": 0.08,
+        "joint": 2
+      },
+      "min_joint_margin_rad:LB_LOW_STEP": {
+        "stage": "LB_LOW_STEP",
+        "time_s": 1.74,
+        "leg": 0,
+        "metric": "joint_margin_rad",
+        "actual": 0.10085186811464197,
+        "threshold": 0.08,
+        "joint": 2
+      },
+      "min_joint_margin_rad:BODY_RIGHT_BEFORE_LF": {
+        "stage": "BODY_RIGHT_BEFORE_LF",
+        "time_s": 1.2,
+        "leg": 0,
+        "metric": "joint_margin_rad",
+        "actual": 0.11713329183741705,
+        "threshold": 0.08,
+        "joint": 2
+      },
+      "min_joint_margin_rad:LF_LOW_STEP": {
+        "stage": "LF_LOW_STEP",
+        "time_s": 1.73,
+        "leg": 1,
+        "metric": "joint_margin_rad",
+        "actual": 0.10429658761267802,
+        "threshold": 0.08,
+        "joint": 2
+      },
+      "min_joint_margin_rad:BODY_PRELOAD_LM": {
+        "stage": "BODY_PRELOAD_LM",
+        "time_s": 1.0,
+        "leg": 0,
+        "metric": "joint_margin_rad",
+        "actual": 0.11129756278398495,
+        "threshold": 0.08,
+        "joint": 2
+      },
+      "min_joint_margin_rad:LM_LIFT": {
+        "stage": "LM_LIFT",
+        "time_s": 0.0,
+        "leg": 0,
+        "metric": "joint_margin_rad",
+        "actual": 0.11129756278398495,
+        "threshold": 0.08,
+        "joint": 2
+      },
+      "min_joint_margin_rad:BODY_ADVANCE_LM_AIR": {
+        "stage": "BODY_ADVANCE_LM_AIR",
+        "time_s": 0.0,
+        "leg": 0,
+        "metric": "joint_margin_rad",
+        "actual": 0.11129756287755366,
+        "threshold": 0.08,
+        "joint": 2
+      },
+      "min_joint_margin_rad:LM_LEFT_FINAL_LAND": {
+        "stage": "LM_LEFT_FINAL_LAND",
+        "time_s": 0.0,
+        "leg": 2,
+        "metric": "joint_margin_rad",
+        "actual": 0.13616364303618855,
+        "threshold": 0.08,
+        "joint": 2
+      }
+    },
+    "dynamic_30hz": {
+      "min_joint_margin_rad": 0.09670778000543123,
+      "min_LM_air_support_margin_m": 0.029661739936141168,
+      "min_joint_margin_source": {
+        "stage": "LB_LOW_STEP",
+        "time_s": 1.700000000000002,
+        "leg": 0,
+        "metric": "joint_margin_rad",
+        "actual": 0.09670778000543123,
+        "threshold": 0.08,
+        "joint": 2
+      },
+      "segments": [
+        {
+          "stage_name": "BODY_LEFT_TRANSFER_PREP",
+          "segments": [
+            {
+              "segment_index": 0,
+              "semantic": "BODY",
+              "duration_s": 0.8,
+              "target_rad_s": 1.9,
+              "hard_gate_rad_s": 2.4,
+              "minimum_duration_s": 0.8,
+              "measured_peak_rad_s": 1.0670136018976082,
+              "worst_source": {
+                "stage": "BODY_LEFT_TRANSFER_PREP",
+                "time_s": 0.49999999999999994,
+                "leg": 0,
+                "metric": "command_speed_rad_s",
+                "actual": 1.0670136018976082,
+                "threshold": 2.4,
+                "tick": 1004,
+                "joint": 2
+              }
+            }
+          ]
+        },
+        {
+          "stage_name": "LB_LOW_STEP",
+          "segments": [
+            {
+              "segment_index": 0,
+              "semantic": "SWING_LIFT",
+              "duration_s": 1.4,
+              "target_rad_s": 3.0,
+              "hard_gate_rad_s": 3.4,
+              "minimum_duration_s": 0.35,
+              "measured_peak_rad_s": 3.0585963336244038,
+              "worst_source": {
+                "stage": "LB_LOW_STEP",
+                "time_s": 0.26666666666666666,
+                "leg": 0,
+                "metric": "command_speed_rad_s",
+                "actual": 3.0585963336244038,
+                "threshold": 3.4,
+                "tick": 1027,
+                "joint": 2
+              }
+            },
+            {
+              "segment_index": 1,
+              "semantic": "SWING_TRANSFER",
+              "duration_s": 0.5,
+              "target_rad_s": 3.0,
+              "hard_gate_rad_s": 3.4,
+              "minimum_duration_s": 0.45,
+              "measured_peak_rad_s": 2.419806213592484,
+              "worst_source": {
+                "stage": "LB_LOW_STEP",
+                "time_s": 1.6666666666666685,
+                "leg": 0,
+                "metric": "command_speed_rad_s",
+                "actual": 2.419806213592484,
+                "threshold": 3.4,
+                "tick": 1069,
+                "joint": 0
+              }
+            },
+            {
+              "segment_index": 2,
+              "semantic": "TOUCHDOWN",
+              "duration_s": 1.2,
+              "target_rad_s": 1.4,
+              "hard_gate_rad_s": 1.8,
+              "minimum_duration_s": 0.35,
+              "measured_peak_rad_s": 1.5429888822946403,
+              "worst_source": {
+                "stage": "LB_LOW_STEP",
+                "time_s": 2.4000000000000012,
+                "leg": 0,
+                "metric": "command_speed_rad_s",
+                "actual": 1.5429888822946403,
+                "threshold": 1.8,
+                "tick": 1091,
+                "joint": 1
+              }
+            }
+          ]
+        },
+        {
+          "stage_name": "BODY_RIGHT_BEFORE_LF",
+          "segments": [
+            {
+              "segment_index": 0,
+              "semantic": "BODY",
+              "duration_s": 1.2,
+              "target_rad_s": 1.9,
+              "hard_gate_rad_s": 2.4,
+              "minimum_duration_s": 1.2,
+              "measured_peak_rad_s": 1.7410039109888775,
+              "worst_source": {
+                "stage": "BODY_RIGHT_BEFORE_LF",
+                "time_s": 0.6666666666666666,
+                "leg": 0,
+                "metric": "command_speed_rad_s",
+                "actual": 1.7410039109888775,
+                "threshold": 2.4,
+                "tick": 1142,
+                "joint": 1
+              }
+            }
+          ]
+        },
+        {
+          "stage_name": "LF_LOW_STEP",
+          "segments": [
+            {
+              "segment_index": 0,
+              "semantic": "SWING_LIFT",
+              "duration_s": 1.4,
+              "target_rad_s": 3.0,
+              "hard_gate_rad_s": 3.4,
+              "minimum_duration_s": 0.35,
+              "measured_peak_rad_s": 2.8805620779966934,
+              "worst_source": {
+                "stage": "LF_LOW_STEP",
+                "time_s": 0.3,
+                "leg": 1,
+                "metric": "command_speed_rad_s",
+                "actual": 2.8805620779966934,
+                "threshold": 3.4,
+                "tick": 1172,
+                "joint": 2
+              }
+            },
+            {
+              "segment_index": 1,
+              "semantic": "SWING_TRANSFER",
+              "duration_s": 0.55,
+              "target_rad_s": 3.0,
+              "hard_gate_rad_s": 3.4,
+              "minimum_duration_s": 0.45,
+              "measured_peak_rad_s": 2.408837901381325,
+              "worst_source": {
+                "stage": "LF_LOW_STEP",
+                "time_s": 1.6666666666666685,
+                "leg": 1,
+                "metric": "command_speed_rad_s",
+                "actual": 2.408837901381325,
+                "threshold": 3.4,
+                "tick": 1213,
+                "joint": 0
+              }
+            },
+            {
+              "segment_index": 2,
+              "semantic": "TOUCHDOWN",
+              "duration_s": 1.0,
+              "target_rad_s": 1.4,
+              "hard_gate_rad_s": 1.8,
+              "minimum_duration_s": 0.35,
+              "measured_peak_rad_s": 1.6476141174714143,
+              "worst_source": {
+                "stage": "LF_LOW_STEP",
+                "time_s": 2.366666666666668,
+                "leg": 1,
+                "metric": "command_speed_rad_s",
+                "actual": 1.6476141174714143,
+                "threshold": 1.8,
+                "tick": 1234,
+                "joint": 1
+              }
+            }
+          ]
+        },
+        {
+          "stage_name": "BODY_PRELOAD_LM",
+          "segments": [
+            {
+              "segment_index": 0,
+              "semantic": "BODY",
+              "duration_s": 1.0,
+              "target_rad_s": 1.9,
+              "hard_gate_rad_s": 2.4,
+              "minimum_duration_s": 0.5,
+              "measured_peak_rad_s": 1.8334139538274041,
+              "worst_source": {
+                "stage": "BODY_PRELOAD_LM",
+                "time_s": 0.5333333333333333,
+                "leg": 1,
+                "metric": "command_speed_rad_s",
+                "actual": 1.8334139538274041,
+                "threshold": 2.4,
+                "tick": 1277,
+                "joint": 1
+              }
+            }
+          ]
+        },
+        {
+          "stage_name": "LM_LIFT",
+          "segments": [
+            {
+              "segment_index": 0,
+              "semantic": "SWING_LIFT",
+              "duration_s": 0.85,
+              "target_rad_s": 3.0,
+              "hard_gate_rad_s": 3.4,
+              "minimum_duration_s": 0.35,
+              "measured_peak_rad_s": 2.9620762516101595,
+              "worst_source": {
+                "stage": "LM_LIFT",
+                "time_s": 0.36666666666666664,
+                "leg": 2,
+                "metric": "command_speed_rad_s",
+                "actual": 2.9620762516101595,
+                "threshold": 3.4,
+                "tick": 1308,
+                "joint": 2
+              }
+            },
+            {
+              "segment_index": 1,
+              "semantic": "SWING_TRANSFER",
+              "duration_s": 0.45,
+              "target_rad_s": 3.0,
+              "hard_gate_rad_s": 3.4,
+              "minimum_duration_s": 0.45,
+              "measured_peak_rad_s": 1.1881242506363787,
+              "worst_source": {
+                "stage": "LM_LIFT",
+                "time_s": 1.1,
+                "leg": 2,
+                "metric": "command_speed_rad_s",
+                "actual": 1.1881242506363787,
+                "threshold": 3.4,
+                "tick": 1330,
+                "joint": 1
+              }
+            }
+          ]
+        },
+        {
+          "stage_name": "BODY_ADVANCE_LM_AIR",
+          "segments": [
+            {
+              "segment_index": 0,
+              "semantic": "CRITICAL_BODY_TRANSFER",
+              "duration_s": 3.0,
+              "target_rad_s": 1.8,
+              "hard_gate_rad_s": 2.4,
+              "minimum_duration_s": 3.0,
+              "measured_peak_rad_s": 0.9709937302095395,
+              "worst_source": {
+                "stage": "BODY_ADVANCE_LM_AIR",
+                "time_s": 1.6666666666666685,
+                "leg": 4,
+                "metric": "command_speed_rad_s",
+                "actual": 0.9709937302095395,
+                "threshold": 2.4,
+                "tick": 1391,
+                "joint": 1
+              }
+            }
+          ]
+        },
+        {
+          "stage_name": "LM_LEFT_FINAL_LAND",
+          "segments": [
+            {
+              "segment_index": 0,
+              "semantic": "SWING_TRANSFER",
+              "duration_s": 0.85,
+              "target_rad_s": 3.0,
+              "hard_gate_rad_s": 3.4,
+              "minimum_duration_s": 0.45,
+              "measured_peak_rad_s": 0.4721796602018635,
+              "worst_source": {
+                "stage": "LM_LEFT_FINAL_LAND",
+                "time_s": 0.39999999999999997,
+                "leg": 2,
+                "metric": "command_speed_rad_s",
+                "actual": 0.4721796602018635,
+                "threshold": 3.4,
+                "tick": 1449,
+                "joint": 1
+              }
+            },
+            {
+              "segment_index": 1,
+              "semantic": "TOUCHDOWN",
+              "duration_s": 0.8,
+              "target_rad_s": 1.4,
+              "hard_gate_rad_s": 1.8,
+              "minimum_duration_s": 0.35,
+              "measured_peak_rad_s": 1.1341250123528563,
+              "worst_source": {
+                "stage": "LM_LEFT_FINAL_LAND",
+                "time_s": 1.2000000000000004,
+                "leg": 2,
+                "metric": "command_speed_rad_s",
+                "actual": 1.1341250123528563,
+                "threshold": 1.8,
+                "tick": 1473,
+                "joint": 1
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "evidence_boundary": "Offline kinematics, support-polygon, and sampled CAD-clearance diagnostics only; not contact, load, friction, continuous clearance, stability, or hardware authorization."
+}

@@ -17,6 +17,7 @@
 """
 
 import argparse
+from collections import deque
 import csv
 import json
 from pathlib import Path
@@ -428,6 +429,14 @@ def parse_arguments():
         help="把 simulation-only compact 诊断指标写为 JSON",
     )
     parser.add_argument(
+        "--climb-test-friction-scale", type=float, default=1.0,
+        help="仅 --climb-start 的 PhysX 摩擦诊断倍率，范围 .5..1",
+    )
+    parser.add_argument(
+        "--climb-test-rm-delay-s", type=float, default=0.0,
+        help="仅 --climb-start 的 RM 目标延迟诊断，范围 0..0.2 s",
+    )
+    parser.add_argument(
         "--max-vertical-speed",
         type=float,
         default=0.02,
@@ -439,7 +448,20 @@ def parse_arguments():
         for argument in sys.argv[1:]
         if not argument.startswith("__")
     ]
-    return parser.parse_args(argv)
+    args = parser.parse_args(argv)
+    if not .5 <= args.climb_test_friction_scale <= 1.0:
+        parser.error("--climb-test-friction-scale must be in [.5, 1]")
+    if args.climb_test_friction_scale != 1.0 and not args.climb_start:
+        parser.error("--climb-test-friction-scale requires direct --climb-start")
+    if args.climb_test_friction_scale != 1.0 and args.ros:
+        parser.error("--climb-test-friction-scale is unavailable with --ros")
+    if not 0.0 <= args.climb_test_rm_delay_s <= .2:
+        parser.error("--climb-test-rm-delay-s must be in [0, .2]")
+    if args.climb_test_rm_delay_s and not args.climb_start:
+        parser.error("--climb-test-rm-delay-s requires direct --climb-start")
+    if args.climb_test_rm_delay_s and args.ros:
+        parser.error("--climb-test-rm-delay-s is unavailable with --ros")
+    return args
 
 
 def _compact_root_quaternion(base):
@@ -452,6 +474,29 @@ def _compact_root_quaternion(base):
     return gymapi.Quat(
         float(cy * sx), float(sy * cx), float(-sy * sx), float(cy * cx)
     )
+
+
+def _base_pose_quaternion_xyzw(base):
+    """Numeric counterpart used only by simulation attitude diagnostics."""
+    _, _, _, roll, pitch = np.asarray(base, dtype=np.float64)
+    sx, cx = np.sin(roll / 2.0), np.cos(roll / 2.0)
+    sy, cy = np.sin(pitch / 2.0), np.cos(pitch / 2.0)
+    return np.array((cy * sx, sy * cx, -sy * sx, cy * cx), dtype=np.float64)
+
+
+def _quaternion_error_deg(actual_xyzw, target_xyzw):
+    actual = np.asarray(actual_xyzw, dtype=np.float64)
+    target = np.asarray(target_xyzw, dtype=np.float64)
+    actual /= np.linalg.norm(actual)
+    target /= np.linalg.norm(target)
+    return float(np.degrees(2.0 * np.arccos(np.clip(abs(actual @ target), -1.0, 1.0))))
+
+
+def _delayed_rm_target(queue, target):
+    """Return one 30 Hz delayed RM command and retain the current target."""
+    delayed = queue.popleft()
+    queue.append(np.asarray(target, dtype=np.float64).copy())
+    return delayed
 
 
 def prepare_compact_stage_entry(compact, start_stage_index, end_stage_index, dt):
@@ -511,6 +556,8 @@ def _new_climb_metric(index, name):
         "worst_root_actual_xyz_m": None,
         "worst_root_target_xyz_m": None,
         "end_root_position_error_m": 0.0,
+        "max_root_attitude_error_deg": 0.0,
+        "end_root_attitude_error_deg": 0.0,
         "max_world_foot_anchor_error_m": 0.0,
         "worst_world_foot_anchor_leg": None,
         "worst_world_foot_anchor_time_s": None,
@@ -619,6 +666,14 @@ def _update_climb_metric(
         metric["worst_root_time_s"] = metric["simulated_duration_s"]
         metric["worst_root_actual_xyz_m"] = actual_root.tolist()
         metric["worst_root_target_xyz_m"] = target_root.tolist()
+    attitude_error = _quaternion_error_deg(
+        root_quaternion_xyzw,
+        _base_pose_quaternion_xyzw(controller.climb_mode.base_pose),
+    )
+    metric["end_root_attitude_error_deg"] = attitude_error
+    metric["max_root_attitude_error_deg"] = max(
+        metric["max_root_attitude_error_deg"], attitude_error
+    )
 
     actual_world = _world_foot_positions(
         actual_root, root_quaternion_xyzw, actual_base
@@ -677,6 +732,7 @@ def _write_climb_metrics(
     climb_mode,
     metrics_by_stage,
     mission=None,
+    stress=None,
 ):
     """写出不参与控制或阶段门限的 simulation-only 诊断。"""
 
@@ -709,6 +765,8 @@ def _write_climb_metrics(
         "final_reason": climb_mode.failure_reason or "none",
         "per_stage": per_stage,
     }
+    if stress is not None:
+        result["stress_diagnostic"] = stress
     if mission is not None:
         finite_or_none = lambda value: (
             float(value) if np.isfinite(value) else None
@@ -819,7 +877,7 @@ def write_servo_trace(path, rows):
     print(f"Recorded frames: {len(rows)}, duration: {duration:.2f} s")
 
 
-def add_static_stl_triangle_mesh(gym, sim, mesh_path, position):
+def add_static_stl_triangle_mesh(gym, sim, mesh_path, position, friction_scale=1.0):
     """把二进制STL原始三角面作为静态PhysX碰撞面加入仿真。"""
     data = mesh_path.read_bytes()
     triangle_count = struct.unpack_from("<I", data, 80)[0]
@@ -852,8 +910,8 @@ def add_static_stl_triangle_mesh(gym, sim, mesh_path, position):
     mesh_params.nb_vertices = vertices.shape[0]
     mesh_params.nb_triangles = triangles.shape[0]
     mesh_params.transform.p = position
-    mesh_params.static_friction = 1.0
-    mesh_params.dynamic_friction = 0.8
+    mesh_params.static_friction = 1.0 * friction_scale
+    mesh_params.dynamic_friction = 0.8 * friction_scale
 
     gym.add_triangle_mesh(
         sim,
@@ -1015,8 +1073,8 @@ def main() -> None:
     #创建地面和viewer
     plane = gymapi.PlaneParams()
     plane.normal = gymapi.Vec3(0.0, 0.0, 1.0)
-    plane.static_friction = 1.5
-    plane.dynamic_friction = 1.2
+    plane.static_friction = 1.5 * args.climb_test_friction_scale
+    plane.dynamic_friction = 1.2 * args.climb_test_friction_scale
 
     gym.add_ground(sim, plane)
 
@@ -1094,6 +1152,7 @@ def main() -> None:
         / "xiaolan"
         / "base_link_xiaolan.STL",
         xiaolan_position,
+        args.climb_test_friction_scale,
     )
 
     lower = gymapi.Vec3(-1.0, -1.0, 0.0)
@@ -1429,6 +1488,9 @@ def main() -> None:
     mission_terminal_q_ref = None
     q_des_control = q_init_control.copy()
     climb_previous_controller_target = q_des_control.copy()
+    rm_delay_frames = int(round(args.climb_test_rm_delay_s * args.control_rate))
+    rm_delay_targets = None
+    rm_delay_activation_count = 0
     if (
         trace_script is None
         and ros_controller is None
@@ -1891,6 +1953,13 @@ def main() -> None:
                     controller.climb_mode,
                     climb_metrics_by_stage,
                     controller.mission if args.full_mission else None,
+                    {
+                        "friction_scale": args.climb_test_friction_scale,
+                        "rm_delay_s": args.climb_test_rm_delay_s,
+                        "rm_delay_frames": rm_delay_frames,
+                        "control_dt_s": 1.0 / args.control_rate,
+                        "rm_delay_activation_count": rm_delay_activation_count,
+                    },
                 )
                 climb_metrics_written = True
 
@@ -2030,6 +2099,28 @@ def main() -> None:
                     q_control,
                 )
 
+            # Stress-only actuator lag: after LM's final landing has first
+            # started, delay RM's already guarded target at 30 Hz.  Feedback
+            # and controller references remain truthful/undelayed.
+            if (
+                actuator_tick and rm_delay_frames
+                and controller.mode == controller.CLIMB
+                and controller.climb_mode.stage_index is not None
+                and controller.climb_mode.phase == "LM_LEFT_FINAL_LAND"
+                and rm_delay_targets is None
+            ):
+                rm_delay_targets = deque(
+                    [q_target_control[5].copy()] * rm_delay_frames,
+                    maxlen=rm_delay_frames,
+                )
+                rm_delay_activation_count += 1
+            if actuator_tick and rm_delay_targets is not None:
+                delayed_rm = _delayed_rm_target(
+                    rm_delay_targets, q_target_control[5]
+                )
+                q_target_control = q_target_control.copy()
+                q_target_control[5] = delayed_rm
+
             q_target_isaac = control_to_external(
                 q_target_control,
                 dof_indices,
@@ -2090,6 +2181,13 @@ def main() -> None:
             controller.climb_mode,
             climb_metrics_by_stage,
             controller.mission if args.full_mission else None,
+            {
+                "friction_scale": args.climb_test_friction_scale,
+                "rm_delay_s": args.climb_test_rm_delay_s,
+                "rm_delay_frames": rm_delay_frames,
+                "control_dt_s": 1.0 / args.control_rate,
+                "rm_delay_activation_count": rm_delay_activation_count,
+            },
         )
     if viewer is not None:
         gym.destroy_viewer(viewer)

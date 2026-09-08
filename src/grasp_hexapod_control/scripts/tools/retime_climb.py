@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Offline continuous-seed C1--C35 compact trajectory retimer.
+"""Offline continuous-seed retimer for all motion stages except final hold.
 
 The default only prints the proposed plan.  Writes require ``--output`` or
 ``--in-place``.  Results are model kinematic diagnostics, not hardware proof.
@@ -36,6 +36,7 @@ SAMPLES = 101
 DT = 1.0 / 30.0
 TRACKING_ERROR_LIMIT_M = 0.015
 MAX_TRACKING_ITERATIONS = 8
+COUPLED_PAIR_NAMES = frozenset(("RB_RF_DIRECT_FINAL", "LB_LF_DIRECT_FINAL"))
 
 
 def round_up_centisecond(value):
@@ -48,10 +49,10 @@ def require(value, detail):
 
 
 def allowed_difference(before, after):
-    """Assert that only C1--C35 duration scalars are different."""
+    """Assert that only non-hold duration scalars are different."""
 
-    require(before["stage_count"] == after["stage_count"] == 36,
-            "expected active 36-stage compact")
+    require(before["stage_count"] == after["stage_count"] == len(before["stages"]),
+            "retime inputs must share one active compact stage map")
     for stage_index, (old_stage, new_stage) in enumerate(
             zip(before["stages"], after["stages"])):
         old_copy, new_copy = copy.deepcopy(old_stage), copy.deepcopy(new_stage)
@@ -59,9 +60,9 @@ def allowed_difference(before, after):
         new_durations = new_copy.pop("segment_durations_s")
         require(old_copy == new_copy,
                 "non-duration stage field changed: C{}".format(stage_index + 1))
-        if stage_index >= 35:
+        if stage_index == len(before["stages"]) - 1:
             require(old_durations == new_durations,
-                    "C36 duration must remain identical")
+                    "final hold duration must remain identical")
         elif stage_index == FROZEN_LB_LOW_STEP_INDEX:
             require(old_durations == new_durations == [1.4, .5, 1.2],
                     "C20 verified duration contract")
@@ -75,6 +76,12 @@ def allowed_difference(before, after):
         elif stage_index == FROZEN_LF_LOW_STEP_INDEX:
             require(old_durations == new_durations == [1.4, .55, 1.0],
                     "C22 verified duration contract")
+        elif "active_base_velocities_m_s" in old_stage:
+            require(old_durations == new_durations,
+                    "continuous swing timing is frozen; rebuild and revalidate it")
+        elif old_stage["name"] in COUPLED_PAIR_NAMES:
+            require(old_durations == new_durations,
+                    "coupled pair/body timing is frozen; rebuild and revalidate it")
     before_top, after_top = copy.deepcopy(before), copy.deepcopy(after)
     before_top.pop("stages")
     after_top.pop("stages")
@@ -96,7 +103,7 @@ def dynamic_tracking_adjust(proposal, allow_adjustments):
             time_s = controller.climb_mode.phase_time
             before = q.copy()
             q = controller.update(q, np.zeros(4))
-            if stage_index >= 35:
+            if stage["name"] == "STAND_FINAL_HOLD":
                 continue
             semantic = segment_for_time(stage_index, stage, time_s)
             speed = float(np.max(np.abs(q - before) / DT))
@@ -129,6 +136,13 @@ def dynamic_tracking_adjust(proposal, allow_adjustments):
                 FROZEN_PRELOAD_INDEX,
             ), "frozen user trajectory exceeds 30 Hz tracking gate: " +
                     item["stage"])
+            require(proposal["stages"][stage_index]["name"]
+                    not in COUPLED_PAIR_NAMES,
+                    "coupled pair/body tracking requires a rebuilt candidate: "
+                    + item["stage"])
+            require("active_base_velocities_m_s" not in proposal["stages"][stage_index],
+                    "continuous swing timing requires a rebuilt candidate: "
+                    + item["stage"])
             old_duration = proposal["stages"][stage_index]["segment_durations_s"][
                 segment_index]
             scale = max(1.05, 1.02 * item["error_m"] / TRACKING_ERROR_LIMIT_M)
@@ -159,7 +173,9 @@ def retime(compact, explore_durations=False):
     mode = ClimbMode(None)
     mode.config = compact
     report = []
-    for stage_index, stage in enumerate(compact["stages"][:35]):
+    for stage_index, stage in enumerate(compact["stages"]):
+        if stage["name"] == "STAND_FINAL_HOLD":
+            continue
         rows = []
         elapsed = 0.0
         for spec in stage_specs(stage_index, stage):
@@ -183,10 +199,12 @@ def retime(compact, explore_durations=False):
                     )
                 previous_q = q.copy()
                 previous_s = normalized_s
-            if not explore_durations or stage_index in (
+            if (not explore_durations or stage_index in (
                     FROZEN_LB_LOW_STEP_INDEX,
                     FROZEN_LF_LOW_STEP_INDEX,
-                    FROZEN_PRELOAD_INDEX):
+                    FROZEN_PRELOAD_INDEX)
+                    or "active_base_velocities_m_s" in stage
+                    or stage["name"] in COUPLED_PAIR_NAMES):
                 new_duration = spec["duration_s"]
             else:
                 new_duration = round_up_centisecond(max(

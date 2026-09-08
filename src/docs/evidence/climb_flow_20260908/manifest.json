@@ -1,0 +1,29 @@
+{
+  "candidate_sha256": "68f60b97b167ca644f0cebe5fd4de1016b9705764a0376b0431459b0e818346c",
+  "baseline_sha256": "a4b417fe2263971577fd274fd6af4b861fbf6a9b555c6f62f25013a2512906fd",
+  "stage_count": 32,
+  "files": [
+    "baseline_config.json",
+    "candidate_config.json",
+    "nominal_metrics.json",
+    "stress_metrics.json",
+    "lm_geometry_gate.json",
+    "nominal.log",
+    "stress.log",
+    "curve531_generic_preview.json",
+    "curve531_tail_model.json"
+  ],
+  "historical_files": [
+    "historical_a373_strict_gate.json",
+    "historical_a373_left_gate.json",
+    "historical_a373_final_gate.json"
+  ],
+  "commands": [
+    "conda run --no-capture-output -n grasp_hexapod env PYTHONDONTWRITEBYTECODE=1 python src/grasp_hexapod_control/scripts/run_sim.py --headless --climb-start --climb-from C1 --climb-to C32 --climb-config src/docs/evidence/climb_flow_20260908/candidate_config.json --climb-metrics /tmp/climb_curve_final_nominal_metrics.json",
+    "conda run --no-capture-output -n grasp_hexapod env PYTHONDONTWRITEBYTECODE=1 python src/grasp_hexapod_control/scripts/run_sim.py --headless --climb-start --climb-from C1 --climb-to C32 --climb-config src/docs/evidence/climb_flow_20260908/candidate_config.json --climb-test-friction-scale .75 --climb-test-rm-delay-s .10 --climb-metrics /tmp/climb_curve_final_stress_metrics.json"
+  ],
+  "nominal": "headless GPU; DONE all five gates; motion64.2333 full68.5333",
+  "stress": "headless GPU at friction .75 and RM delay .10 s; DONE all five gates; C28 RM peak foot-target error .05243 m",
+  "historical_provenance": "The a373 strict/left/final gates are retained only as prior-candidate evidence and are not 68f validation. curve531 generic/tail-model artifacts have execution fields identical to 68f; 68f changes only derived interior world anchors.",
+  "boundary": "simulation diagnostics only; stress preview does not certify full-trajectory tracking, contact, load, friction, or hardware robustness"
+}

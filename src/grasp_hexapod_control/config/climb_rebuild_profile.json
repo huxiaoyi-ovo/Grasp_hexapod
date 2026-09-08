@@ -1,7 +1,7 @@
 {
   "schema": "COMPACT_CLIMB_REBUILD_PROFILE_V1",
   "version": 1,
-  "template_sha256": "af3dca695cf61279af7e41a79595ce0d5b2c8415c0d8de8e7db8df61fc1b944c",
+  "template_sha256": "68f60b97b167ca644f0cebe5fd4de1016b9705764a0376b0431459b0e818346c",
   "template_repo_relative_path": "src/grasp_hexapod_control/config/climb_compact.json",
   "model": {
     "repo_relative_path": "src/grasp_hexapod_description/meshes/xiaolan/base_link_xiaolan.STL",
@@ -136,14 +136,10 @@
     "LM_LIFT",
     "BODY_ADVANCE_LM_AIR",
     "LM_LEFT_FINAL_LAND",
-    "RB_DIRECT_FINAL",
-    "RF_DIRECT_FINAL",
-    "BODY_REPOSITION_1",
-    "LM_DIRECT_FINAL",
+    "RB_RF_DIRECT_FINAL",
     "RM_DIRECT_FINAL",
-    "BODY_REPOSITION_2",
-    "LB_DIRECT_FINAL",
-    "LF_DIRECT_FINAL",
+    "BODY_REPOSITION",
+    "LB_LF_DIRECT_FINAL",
     "BODY_DOCK_FINAL",
     "STAND_FINAL_HOLD"
   ],
@@ -172,9 +168,9 @@
         {
           "leg": 5,
           "world_point_m": [
-            0.2084822455372802,
+            0.20848224553728018,
             -0.06769449862304833,
-            0.15564273712938034
+            0.15564273712938032
           ],
           "surface_id": "unassigned"
         }
@@ -298,7 +294,7 @@
           "world_point_m": [
             0.299434,
             -0.130227,
-            0.190408
+            0.19040800000000002
           ],
           "surface_id": "unassigned"
         }
@@ -630,9 +626,9 @@
         {
           "leg": 2,
           "world_point_m": [
-            0.19167794028091917,
-            -0.06769449763600001,
-            0.175
+            0.19748058329957416,
+            -0.06769449961009663,
+            0.18417758181938626
           ],
           "surface_id": "unassigned"
         }
@@ -660,13 +656,13 @@
       ]
     },
     {
-      "name": "RB_DIRECT_FINAL",
+      "name": "RB_RF_DIRECT_FINAL",
       "pose_end": [
-        0.33,
-        -0.06769449763600001,
-        0.28,
+        0.36,
+        -0.06527087322700001,
+        0.295,
         0.0,
-        -0.2
+        -0.15000000000000002
       ],
       "active_endpoints": [
         {
@@ -677,19 +673,7 @@
             0.1923691075872171
           ],
           "surface_id": "unassigned"
-        }
-      ]
-    },
-    {
-      "name": "RF_DIRECT_FINAL",
-      "pose_end": [
-        0.33,
-        -0.06769449763600001,
-        0.28,
-        0.0,
-        -0.2
-      ],
-      "active_endpoints": [
+        },
         {
           "leg": 4,
           "world_point_m": [
@@ -702,43 +686,11 @@
       ]
     },
     {
-      "name": "BODY_REPOSITION_1",
-      "pose_end": [
-        0.36,
-        -0.06527087322700001,
-        0.275,
-        0.0,
-        -0.15000000000000002
-      ],
-      "active_endpoints": []
-    },
-    {
-      "name": "LM_DIRECT_FINAL",
-      "pose_end": [
-        0.36,
-        -0.06527087322700001,
-        0.275,
-        0.0,
-        -0.15000000000000002
-      ],
-      "active_endpoints": [
-        {
-          "leg": 2,
-          "world_point_m": [
-            0.24440314554432327,
-            -0.05747349999999976,
-            0.16327806072150078
-          ],
-          "surface_id": "unassigned"
-        }
-      ]
-    },
-    {
       "name": "RM_DIRECT_FINAL",
       "pose_end": [
         0.36,
         -0.06527087322700001,
-        0.275,
+        0.295,
         0.0,
         -0.15000000000000002
       ],
@@ -746,16 +698,16 @@
         {
           "leg": 5,
           "world_point_m": [
-            0.6267854252002603,
+            0.6167854252002603,
             -0.05747349999999976,
-            0.16858417926213481
+            0.17070972237924364
           ],
           "surface_id": "unassigned"
         }
       ]
     },
     {
-      "name": "BODY_REPOSITION_2",
+      "name": "BODY_REPOSITION",
       "pose_end": [
         0.39,
         -0.06284724881800001,
@@ -766,7 +718,7 @@
       "active_endpoints": []
     },
     {
-      "name": "LB_DIRECT_FINAL",
+      "name": "LB_LF_DIRECT_FINAL",
       "pose_end": [
         0.39,
         -0.06284724881800001,
@@ -783,19 +735,7 @@
             0.19262685293211096
           ],
           "surface_id": "unassigned"
-        }
-      ]
-    },
-    {
-      "name": "LF_DIRECT_FINAL",
-      "pose_end": [
-        0.39,
-        -0.06284724881800001,
-        0.27,
-        0.0,
-        -0.1
-      ],
-      "active_endpoints": [
+        },
         {
           "leg": 1,
           "world_point_m": [

@@ -150,7 +150,7 @@ def strict_contract(compact):
     require(c22["active_legs"] == [1], "C22 LF-only step")
     require(c23["active_legs"] == [], "C23 LM preload")
     require(c20["pose_curve"] == "quintic_first_segment" and
-            c20["segment_durations_s"] == [1.4, .9, 1.2] and
+            c20["segment_durations_s"] == [1.4, .5, 1.2] and
             np.allclose(c20["pose_start"], [.230, -.06769449763600001,
                                              .201, 0.0, -.2]) and
             np.allclose(c20["pose_end"], [.230, -.06769449763600001,
@@ -163,7 +163,7 @@ def strict_contract(compact):
                                            .200, 0.0, -.2]),
             "C21 right shift and level return")
     require(c22["pose_curve"] == "quintic_first_segment" and
-            c22["segment_durations_s"] == [1.4, .9, 1.0] and
+            c22["segment_durations_s"] == [1.4, .55, 1.0] and
             np.allclose(c22["pose_start"], [.232, -.06769449763600001,
                                              .200, 0.0, -.2]) and
             np.allclose(c22["pose_end"], [.232, -.06769449763600001,

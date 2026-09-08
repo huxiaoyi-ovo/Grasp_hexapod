@@ -74,6 +74,9 @@ class ClimbMode:
         self.last_settled = False
         self.last_phase_hold = False
         self.last_collision_guard_hold = False
+        # 仅供仿真回放归因：每个 RUNNING 控制周期只能属于一个类别，
+        # 不参与相位推进、门限或任何实机控制决策。
+        self.stage_timing_by_index = {}
         self.hardware_execution = False
         self._hardware_stage_last_monotonic = None
 
@@ -183,6 +186,7 @@ class ClimbMode:
             )
             active = stage.get("active_legs")
             anchor_curve = stage.get("anchor_curve")
+            settle_persistence = stage.get("settle_persistence_s")
             active_base_knots = np.asarray(
                 stage.get("active_base_knots_m", []), dtype=np.float64
             )
@@ -238,6 +242,15 @@ class ClimbMode:
                 )
                 or not isinstance(stage.get("settle_s"), (int, float))
                 or stage["settle_s"] <= 0.0
+                or (
+                    settle_persistence is not None
+                    and (
+                        isinstance(settle_persistence, bool)
+                        or not isinstance(settle_persistence, (int, float))
+                        or not np.isfinite(settle_persistence)
+                        or settle_persistence <= 0.0
+                    )
+                )
             ):
                 raise ValueError("invalid compact stage fields: " + stage["name"])
             if (
@@ -345,6 +358,8 @@ class ClimbMode:
         self.settle_time = 0.0
         self.failure_reason = ""
         self.state = self.RUNNING
+        self.stage_timing_by_index = {}
+        self._start_stage_timing()
         self._hardware_stage_last_monotonic = (
             time.monotonic()
             if (
@@ -526,11 +541,66 @@ class ClimbMode:
         self.phase_time = 0.0
         self.stage_elapsed_time = 0.0
         self.settle_time = 0.0
+        self._start_stage_timing()
         if (
             self.hardware_execution
             and self.controller.climb_timeout_uses_wall_time
         ):
             self._hardware_stage_last_monotonic = time.monotonic()
+
+    def _start_stage_timing(self):
+        """初始化当前阶段的只读耗时归因。"""
+
+        stage = self.config["stages"][self.stage_index]
+        self.stage_timing_by_index[self.stage_index] = {
+            "planned_motion_s": float(sum(stage["segment_durations_s"])),
+            "effective_settle_required_s": self._effective_settle_required(stage),
+            "actual_stage_elapsed_s": 0.0,
+            "motion_progress_s": 0.0,
+            "internal_checkpoint_feedback_hold_s": 0.0,
+            "terminal_persistence_wait_s": 0.0,
+            "terminal_feedback_hold_s": 0.0,
+            "collision_guard_hold_s": 0.0,
+            "stage_transition_control_cycle_s": 0.0,
+        }
+
+    def _record_stage_timing(self, category):
+        """记录一个仿真控制周期，类别总和等于该阶段 elapsed。"""
+
+        fields = {
+            "motion": "motion_progress_s",
+            "checkpoint_feedback": "internal_checkpoint_feedback_hold_s",
+            "terminal_persistence": "terminal_persistence_wait_s",
+            "terminal_feedback": "terminal_feedback_hold_s",
+            "collision": "collision_guard_hold_s",
+            "transition": "stage_transition_control_cycle_s",
+        }
+        if category not in fields:
+            raise ValueError("invalid climb timing category")
+        # 单元测试和只读诊断可从既有 compact 中段入口注入 stage_index；
+        # 运行时 enter/advance 已创建该项，这里只补齐诊断容器。
+        if self.stage_index not in self.stage_timing_by_index:
+            self._start_stage_timing()
+        timing = self.stage_timing_by_index[self.stage_index]
+        timing["actual_stage_elapsed_s"] += self.controller.dt
+        timing[fields[category]] += self.controller.dt
+
+    def stage_timing_metrics(self):
+        """返回 JSON 可写的只读阶段耗时诊断副本。"""
+
+        return {
+            index: dict(metric)
+            for index, metric in self.stage_timing_by_index.items()
+        }
+
+    def _effective_settle_required(self, stage):
+        """返回硬件式终点 persistence 的阶段覆盖值或全局默认。"""
+
+        persistence = float(stage.get(
+            "settle_persistence_s",
+            self.config["settle_gate"]["persistence_s"],
+        ))
+        return max(float(stage["settle_s"]), persistence)
 
     def _update_tracking_diagnostics(self, q_current):
         """更新关节和足端目标误差。"""
@@ -738,6 +808,13 @@ class ClimbMode:
                 self.last_phase_hold = bool(
                     collision_hold or checkpoint_foot_hold
                 )
+                if collision_hold:
+                    timing_category = "collision"
+                elif checkpoint_foot_hold:
+                    timing_category = "checkpoint_feedback"
+                else:
+                    timing_category = "motion"
+                self._record_stage_timing(timing_category)
                 if not self.last_phase_hold:
                     next_boundary = boundaries[
                         np.searchsorted(boundaries, self.phase_time, side="right")
@@ -760,14 +837,22 @@ class ClimbMode:
             self.last_phase_hold = bool(
                 not self.last_settled or collision_hold
             )
+            settle_required = self._effective_settle_required(stage)
+            if collision_hold:
+                timing_category = "collision"
+            elif not self.last_settled:
+                timing_category = "terminal_feedback"
+            elif self.settle_time + self.controller.dt >= settle_required:
+                # 完成 persistence 的这一帧仍保持当前终点参考；下一帧才会
+                # 下发后续阶段首个目标，单列以量化 30 Hz 周期衔接成本。
+                timing_category = "transition"
+            else:
+                timing_category = "terminal_persistence"
+            self._record_stage_timing(timing_category)
             self.settle_time = (
                 self.settle_time + self.controller.dt
                 if self.last_settled and not collision_hold
                 else 0.0
-            )
-            settle_required = max(
-                float(stage["settle_s"]),
-                float(gate["persistence_s"]),
             )
             if self.settle_time >= settle_required:
                 self._advance_stage()

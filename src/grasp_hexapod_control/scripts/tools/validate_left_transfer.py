@@ -176,7 +176,7 @@ def structural_gate(compact):
     lb = stages[19]
     require(len(lb["anchor_knots"]) == 4 and
             lb["pose_curve"] == "quintic_first_segment" and
-            lb["segment_durations_s"] == [1.4, .9, 1.2] and
+            lb["segment_durations_s"] == [1.4, .5, 1.2] and
             np.allclose(lb["pose_start"], [.230, -.06769449763600001,
                                             .201, 0.0, -.2]) and
             np.allclose(lb["pose_end"], [.230, -.06769449763600001,
@@ -192,7 +192,7 @@ def structural_gate(compact):
     lf = stages[21]
     require(len(lf["anchor_knots"]) == 4 and
             lf["pose_curve"] == "quintic_first_segment" and
-            lf["segment_durations_s"] == [1.4, .9, 1.0] and
+            lf["segment_durations_s"] == [1.4, .55, 1.0] and
             np.allclose(lf["pose_start"], [.232, -.06769449763600001,
                                             .200, 0.0, -.2]) and
             np.allclose(lf["pose_end"], [.232, -.06769449763600001,

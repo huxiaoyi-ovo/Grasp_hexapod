@@ -526,7 +526,24 @@ def _new_climb_metric(index, name):
         "worst_support_foot_current_world_xyz_m": None,
         "end_support_foot_world_drift_m": 0.0,
         "min_joint_limit_margin_rad": None,
+        "max_controller_target_joint_speed_rad_s": 0.0,
+        "velocity_limit_clip_count": 0,
     }
+
+
+def _update_climb_command_metric(
+    metric, q_target, previous_target, velocity_clips, dt
+):
+    """记录控制器目标的峰速和 DLS 单帧速度限幅次数。"""
+
+    target = np.asarray(q_target, dtype=np.float64).reshape(6, 3)
+    if previous_target is not None:
+        peak = float(np.max(np.abs(target - previous_target)) / dt)
+        metric["max_controller_target_joint_speed_rad_s"] = max(
+            metric["max_controller_target_joint_speed_rad_s"], peak
+        )
+    metric["velocity_limit_clip_count"] += int(velocity_clips)
+    return target.copy()
 
 
 def _world_foot_positions(root_position, root_quaternion_xyzw, feet_base):
@@ -663,10 +680,19 @@ def _write_climb_metrics(
 ):
     """写出不参与控制或阶段门限的 simulation-only 诊断。"""
 
+    timing_by_stage = climb_mode.stage_timing_metrics()
+    per_stage = []
+    for index in sorted(metrics_by_stage):
+        metric = dict(metrics_by_stage[index])
+        timing = timing_by_stage.get(index)
+        if timing is not None:
+            metric["timing_diagnostics"] = timing
+        per_stage.append(metric)
     result = {
-        "schema": "SIMULATION_ONLY_CLIMB_PREVIEW_METRICS_V1",
+        "schema": "SIMULATION_ONLY_CLIMB_PREVIEW_METRICS_V2",
         "simulation_only": True,
         "diagnostics_only_not_contact_or_stability_proof": True,
+        "timing_totals_use_simulation_control_time_not_real_wall_time": True,
         "resolved_range": {
             "from": {
                 "alias": f"C{start_index + 1}",
@@ -681,10 +707,7 @@ def _write_climb_metrics(
         "climb_joint_speed": joint_speed,
         "final_state": climb_mode.state,
         "final_reason": climb_mode.failure_reason or "none",
-        "per_stage": [
-            metrics_by_stage[index]
-            for index in sorted(metrics_by_stage)
-        ],
+        "per_stage": per_stage,
     }
     if mission is not None:
         finite_or_none = lambda value: (
@@ -1405,6 +1428,7 @@ def main() -> None:
     mission_terminal_t0 = 0.0
     mission_terminal_q_ref = None
     q_des_control = q_init_control.copy()
+    climb_previous_controller_target = q_des_control.copy()
     if (
         trace_script is None
         and ros_controller is None
@@ -1645,6 +1669,17 @@ def main() -> None:
                 ):
                     motion_state = "HOLD"
                     print("Stand initialization complete; press A to move")
+
+            if metric_stage_index is not None and ros_controller is None:
+                # metric_stage_index 在 update 前冻结，因此终点这一帧即使
+                # 已切到下一阶段，命令速度/clip 仍归属刚完成的阶段。
+                climb_previous_controller_target = _update_climb_command_metric(
+                    metric,
+                    q_des_control,
+                    climb_previous_controller_target,
+                    controller.last_update_velocity_limit_clip_count,
+                    1.0 / args.control_rate,
+                )
 
             if args.full_mission:
                 approach_state = (

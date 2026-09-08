@@ -1648,6 +1648,127 @@ def test_hardware_climb_endpoint_phase_hold_clears_when_feedback_settles():
     assert not mode.last_phase_hold
 
 
+def test_hardware_climb_timing_diagnostics_partition_control_cycles():
+    controller = GraspController(1.0 / 30.0)
+    controller.enter_climb(Q_STAND, hardware_execution=True)
+    mode = controller.climb_mode
+    stage = mode.config["stages"][0]
+    duration = sum(stage["segment_durations_s"])
+    command = np.zeros(4)
+
+    # A terminal feedback miss is distinct from persistence and collision.
+    mode.phase_time = duration
+    controller.foot_desired_base[:] = controller.kinematic.forward_base(Q_STAND)
+    mode.update(command, Q_STAND + .5)
+    timing = mode.stage_timing_metrics()[0]
+    assert np.isclose(timing["terminal_feedback_hold_s"], controller.dt)
+
+    # Restore ideal FK for enough endpoint samples to finish the persistence.
+    while mode.stage_index == 0:
+        controller.foot_desired_base[:] = controller.kinematic.forward_base(Q_STAND)
+        mode.update(command, Q_STAND)
+    timing = mode.stage_timing_metrics()[0]
+    categories = (
+        "motion_progress_s",
+        "internal_checkpoint_feedback_hold_s",
+        "terminal_persistence_wait_s",
+        "terminal_feedback_hold_s",
+        "collision_guard_hold_s",
+        "stage_transition_control_cycle_s",
+    )
+    assert np.isclose(sum(timing[name] for name in categories),
+                      timing["actual_stage_elapsed_s"])
+    assert timing["stage_transition_control_cycle_s"] == controller.dt
+    assert timing["terminal_persistence_wait_s"] > 0.0
+
+
+def test_stage_settle_persistence_override_is_optional_and_effective():
+    config = _load_compact_config()
+    mode = ClimbMode(None)
+    mode.config = config
+    assert np.isclose(
+        mode._effective_settle_required(config["stages"][1]),
+        config["settle_gate"]["persistence_s"],
+    )
+    config["stages"][1]["settle_persistence_s"] = .1
+    assert np.isclose(mode._effective_settle_required(config["stages"][1]), .1)
+    config["stages"][18]["settle_s"] = .15
+    config["stages"][18]["settle_persistence_s"] = .1
+    assert np.isclose(mode._effective_settle_required(config["stages"][18]), .15)
+
+
+@pytest.mark.parametrize("invalid", (0.0, -0.1, float("nan"), "0.1", True))
+def test_invalid_stage_settle_persistence_fails_closed(invalid):
+    config = _load_compact_config()
+    config["stages"][2]["settle_persistence_s"] = invalid
+    with pytest.raises(ValueError, match="invalid compact stage fields"):
+        ClimbMode(None)._validate_config(config)
+
+
+def test_stage_settle_persistence_feedback_miss_resets_count():
+    config = _load_compact_config()
+    config["stages"][0]["settle_persistence_s"] = .1
+    controller = GraspController(1.0 / 30.0)
+    controller.enter_climb(Q_STAND, config, hardware_execution=True)
+    mode = controller.climb_mode
+    mode.phase_time = sum(config["stages"][0]["segment_durations_s"])
+    command = np.zeros(4)
+
+    for _ in range(2):
+        controller.foot_desired_base[:] = controller.kinematic.forward_base(Q_STAND)
+        mode.update(command, Q_STAND)
+    assert np.isclose(mode.settle_time, 2.0 * controller.dt)
+    controller.foot_desired_base[:] = controller.kinematic.forward_base(Q_STAND)
+    mode.update(command, Q_STAND + .5)
+    assert mode.settle_time == 0.0
+    assert mode.state == ClimbMode.RUNNING
+
+
+def test_retime_audit_rejects_body_stage_hard_speed(monkeypatch):
+    tools_path = SCRIPTS / "tools"
+    sys.path.insert(0, str(tools_path))
+    try:
+        spec = importlib.util.spec_from_file_location(
+            "retime_climb_for_test", tools_path / "retime_climb.py")
+        retime = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(retime)
+    finally:
+        sys.path.remove(str(tools_path))
+
+    class FakeMode:
+        state = ClimbMode.RUNNING
+        stage_index = 2
+        phase_time = 0.0
+
+    class FakeController:
+        def __init__(self, _dt):
+            self.climb_mode = FakeMode()
+
+        def enter_climb(self, _q, _proposal):
+            pass
+
+        def update(self, q, _command):
+            self.climb_mode.state = "DONE"
+            return q + .1
+
+    proposal = {
+        "p0": {"q_rad": [0.0] * 18},
+        "stages": [
+            {"name": "unused", "active_legs": []},
+            {"name": "unused", "active_legs": []},
+            {"name": "BODY", "active_legs": []},
+        ],
+    }
+    monkeypatch.setattr(retime, "GraspController", FakeController)
+    monkeypatch.setattr(
+        retime, "segment_for_time",
+        lambda *_args: {"hard_gate_rad_s": 1.0, "segment_index": 0,
+                        "semantic": "body"},
+    )
+    with pytest.raises(AssertionError, match="30 Hz semantic hard speed C3 BODY"):
+        retime.dynamic_tracking_adjust(proposal, allow_adjustments=False)
+
+
 def test_hardware_climb_uses_foot_task_error_not_joint_tracking_for_phase():
     controller = GraspController(1.0 / 30.0)
     controller.enter_climb(Q_STAND, hardware_execution=True)
@@ -1750,7 +1871,10 @@ def test_hardware_climb_diagnostics_keep_all_feet_and_motors():
     assert "motors_over_0.08rad=lm_knee=0.1,rf_ankle=0.12" in summary
     active_trace = mode.active_leg_diagnostic_summary()
     assert "diagnostic_stage=PAIR diagnostic_phase_time_s=0.2" in active_trace
-    assert "stage_duration_s=3.57 diagnostic_stage_elapsed_s=0.7" in active_trace
+    expected_duration = sum(mode.config["stages"][mode.stage_index][
+        "segment_durations_s"])
+    assert "stage_duration_s={} diagnostic_stage_elapsed_s=0.7".format(
+        expected_duration) in active_trace
     assert "active_legs=rb,rf" in active_trace
     assert "rb[actual_base_xyz_m=" in active_trace
     assert ";rf[actual_base_xyz_m=" in active_trace

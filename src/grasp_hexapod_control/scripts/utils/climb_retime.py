@@ -53,18 +53,18 @@ LEFT_TRANSFER_BODY_MINIMUM_DURATION_S = 1.20
 # Full-chain PhysX-informed first-pass floors for body and critical-body
 # stages.  They are simulation preview durations, not hardware speed limits.
 PHYSX_BODY_MINIMUM_DURATIONS = {
-    0: 3.00,
-    2: 2.00,
+    0: 1.80,
+    2: 0.80,
     6: 2.00,
-    9: 2.00,
-    16: 2.00,
+    9: 0.80,
+    16: 1.20,
     18: 0.80,
     20: LEFT_TRANSFER_BODY_MINIMUM_DURATION_S,
     22: 0.50,
     24: 3.00,
-    28: 2.00,
-    31: 2.00,
-    34: 3.00,
+    28: 0.80,
+    31: 0.80,
+    34: 1.50,
 }
 
 

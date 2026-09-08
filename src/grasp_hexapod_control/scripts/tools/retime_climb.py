@@ -63,8 +63,8 @@ def allowed_difference(before, after):
             require(old_durations == new_durations,
                     "C36 duration must remain identical")
         elif stage_index == FROZEN_LB_LOW_STEP_INDEX:
-            require(old_durations == new_durations == [1.4, 0.9, 1.2],
-                    "C20 LB_LOW_STEP duration contract must remain identical")
+            require(old_durations == new_durations == [1.4, .5, 1.2],
+                    "C20 verified duration contract")
         elif stage_index == 20:
             require(len(old_durations) == len(new_durations) == 1 and
                     new_durations[0] >= LEFT_TRANSFER_BODY_MINIMUM_DURATION_S,
@@ -73,15 +73,15 @@ def allowed_difference(before, after):
             require(old_durations == new_durations == [1.0],
                     "C23 BODY_PRELOAD_LM must remain 1.0 s")
         elif stage_index == FROZEN_LF_LOW_STEP_INDEX:
-            require(old_durations == new_durations == [1.4, 0.9, 1.0],
-                    "C22 LF_LOW_STEP duration contract must remain identical")
+            require(old_durations == new_durations == [1.4, .55, 1.0],
+                    "C22 verified duration contract")
     before_top, after_top = copy.deepcopy(before), copy.deepcopy(after)
     before_top.pop("stages")
     after_top.pop("stages")
     require(before_top == after_top, "non-stage compact field changed")
 
 
-def dynamic_tracking_adjust(proposal):
+def dynamic_tracking_adjust(proposal, allow_adjustments):
     """Increase only the 30 Hz segment that exceeds the active-foot gate."""
 
     adjustments = []
@@ -96,13 +96,15 @@ def dynamic_tracking_adjust(proposal):
             time_s = controller.climb_mode.phase_time
             before = q.copy()
             q = controller.update(q, np.zeros(4))
-            if stage_index >= 35 or not stage["active_legs"]:
+            if stage_index >= 35:
                 continue
             semantic = segment_for_time(stage_index, stage, time_s)
             speed = float(np.max(np.abs(q - before) / DT))
             require(speed <= semantic["hard_gate_rad_s"],
                     "30 Hz semantic hard speed C{} {}".format(
                         stage_index + 1, stage["name"]))
+            if not stage["active_legs"]:
+                continue
             active = stage["active_legs"]
             error = float(np.max(np.linalg.norm(
                 controller.kinematic.forward_base(q)[active]
@@ -118,6 +120,8 @@ def dynamic_tracking_adjust(proposal):
                     if value["error_m"] > TRACKING_ERROR_LIMIT_M}
         if not failures:
             return adjustments
+        require(allow_adjustments,
+                "verified duration has 30 Hz active-foot tracking failure")
         for (stage_index, segment_index), item in sorted(failures.items()):
             require(stage_index not in (
                 FROZEN_LB_LOW_STEP_INDEX,
@@ -146,8 +150,8 @@ def dynamic_tracking_adjust(proposal):
     raise RuntimeError("30 Hz active-foot tracking retime did not converge")
 
 
-def retime(compact):
-    """Sample all stages from inherited P0 state and return a copied proposal."""
+def retime(compact, explore_durations=False):
+    """Audit verified timings, or explicitly regenerate a duration proposal."""
 
     proposal = copy.deepcopy(compact)
     controller = GraspController(DT)
@@ -179,9 +183,10 @@ def retime(compact):
                     )
                 previous_q = q.copy()
                 previous_s = normalized_s
-            if stage_index in (FROZEN_LB_LOW_STEP_INDEX,
-                               FROZEN_LF_LOW_STEP_INDEX,
-                               FROZEN_PRELOAD_INDEX):
+            if not explore_durations or stage_index in (
+                    FROZEN_LB_LOW_STEP_INDEX,
+                    FROZEN_LF_LOW_STEP_INDEX,
+                    FROZEN_PRELOAD_INDEX):
                 new_duration = spec["duration_s"]
             else:
                 new_duration = round_up_centisecond(max(
@@ -199,7 +204,7 @@ def retime(compact):
             })
             elapsed += spec["duration_s"]
         report.append({"stage": stage["name"], "segments": rows})
-    adjustments = dynamic_tracking_adjust(proposal)
+    adjustments = dynamic_tracking_adjust(proposal, explore_durations)
     allowed_difference(compact, proposal)
     return proposal, report, adjustments
 
@@ -208,19 +213,23 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", type=Path,
                         default=package_config_path("climb_compact.json"))
+    parser.add_argument("--explore-durations", action="store_true",
+                        help="explicitly regenerate durations; default audits and preserves them")
     target = parser.add_mutually_exclusive_group()
     target.add_argument("--output", type=Path)
     target.add_argument("--in-place", action="store_true")
     args = parser.parse_args()
     compact = json.loads(args.config.read_text(encoding="utf-8"))
     ClimbMode(None)._validate_config(compact)
-    proposal, report, adjustments = retime(compact)
+    proposal, report, adjustments = retime(
+        compact, explore_durations=args.explore_durations)
     destination = args.config if args.in_place else args.output
     if destination:
         destination.write_text(json.dumps(proposal, indent=2) + "\n",
                                encoding="utf-8")
     print(json.dumps({
         "written": None if destination is None else str(destination),
+        "duration_mode": "explore" if args.explore_durations else "audit_preserve",
         "dense_base_stages": report,
         "dynamic_tracking_adjustments": adjustments,
         "evidence_boundary": (

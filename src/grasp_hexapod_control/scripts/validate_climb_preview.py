@@ -149,28 +149,48 @@ def strict_contract(compact):
     require(c21["active_legs"] == [], "C21 fixed-body right shift")
     require(c22["active_legs"] == [1], "C22 LF-only step")
     require(c23["active_legs"] == [], "C23 LM preload")
-    require(c20["segment_durations_s"] == [1.4, .9, .8] and
+    require(c20["pose_curve"] == "quintic_first_segment" and
+            c20["segment_durations_s"] == [1.4, .9, 1.2] and
             np.allclose(c20["pose_start"], [.230, -.06769449763600001,
                                              .201, 0.0, -.2]) and
             np.allclose(c20["pose_end"], [.230, -.06769449763600001,
-                                           .215, -.16, -.2]),
+                                           .215, -np.pi / 12.0, -.2]),
             "C20 folded LB transfer")
-    require(c21["segment_durations_s"] == [.8] and
+    require(c21["segment_durations_s"] == [1.2] and
             np.allclose(c21["pose_start"], [.230, -.06769449763600001,
-                                             .215, -.16, -.2]) and
+                                             .215, -np.pi / 12.0, -.2]) and
             np.allclose(c21["pose_end"], [.232, -.06769449763600001,
                                            .200, 0.0, -.2]),
             "C21 right shift and level return")
-    require(c22["segment_durations_s"] == [1.4, .9, 1.0] and
+    require(c22["pose_curve"] == "quintic_first_segment" and
+            c22["segment_durations_s"] == [1.4, .9, 1.0] and
             np.allclose(c22["pose_start"], [.232, -.06769449763600001,
                                              .200, 0.0, -.2]) and
             np.allclose(c22["pose_end"], [.232, -.06769449763600001,
                                            .226, .16, -.2]),
             "C22 folded LF transfer with rising roll")
+    lf_landing = np.array([.21364857479269686, .12028708155300925,
+                           .15592301975850517])
+    require(np.allclose(np.asarray(c22["anchor_knots"])[-1, 1], lf_landing),
+            "C22 LF landing is 10 mm centerward along the low plane")
+    require(all(np.allclose(np.asarray(stage["anchor_knots"])[:, 1], lf_landing)
+                for stage in stages[22:33]),
+            "C23-C33 keep the shifted LF world anchor")
+    require(np.allclose(np.asarray(stages[33]["anchor_knots"])[0, 1], lf_landing),
+            "C34 begins from the shifted LF anchor")
+    for stage_index in (19, 21):
+        stage = stages[stage_index]
+        reference = ClimbMode(None)
+        reference.config = compact
+        reference.stage_index = stage_index
+        reference.phase_time = stage["segment_durations_s"][0]
+        pose, _, _ = reference._stage_reference()
+        require(np.allclose(pose, stage["pose_end"]),
+                stage["name"] + " pose reaches its endpoint at lift end")
     require(c23["segment_durations_s"] == [1.0] and
             np.allclose(c23["pose_start"], [.232, -.06769449763600001,
                                              .226, .16, -.2]) and
-            np.allclose(c23["pose_end"], [.234, -.06769449763600001,
+            np.allclose(c23["pose_end"], [.239, -.06769449763600001,
                                            .201, 0.0, -.2]),
             "C23 descent from elevated left-transfer pose")
     require(c24["active_legs"] == [2] and c25["active_legs"] == [2]

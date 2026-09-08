@@ -56,7 +56,7 @@
     <parent link="base_link"/>
     <child link="lf_thigh_link"/>
     <axis xyz="0 0 -1"/>
-    <limit lower="-1.571" upper="0.698" effort="1.2" velocity="4.0"/>
+    <limit lower="-1.571" upper="1.047065850398866" effort="1.2" velocity="4.0"/>
     <dynamics damping="0.02" friction="0"/>
   </joint>
   <link name="lf_knee_link">
@@ -286,7 +286,7 @@
     <parent link="base_link"/>
     <child link="lb_thigh_link"/>
     <axis xyz="0 0 -1"/>
-    <limit lower="-0.698" upper="1.571" effort="1.2" velocity="4.0"/>
+    <limit lower="-1.047065850398866" upper="1.571" effort="1.2" velocity="4.0"/>
     <dynamics damping="0.02" friction="0"/>
   </joint>
   <link name="lb_knee_link">
@@ -401,7 +401,7 @@
     <parent link="base_link"/>
     <child link="rf_thigh_link"/>
     <axis xyz="0 0 -1"/>
-    <limit lower="-0.698" upper="1.571" effort="1.2" velocity="4.0"/>
+    <limit lower="-1.047065850398866" upper="1.571" effort="1.2" velocity="4.0"/>
     <dynamics damping="0.02" friction="0"/>
   </joint>
   <link name="rf_knee_link">
@@ -631,7 +631,7 @@
     <parent link="base_link"/>
     <child link="rb_thigh_link"/>
     <axis xyz="0 0 -1"/>
-    <limit lower="-1.571" upper="0.698" effort="1.2" velocity="4.0"/>
+    <limit lower="-1.571" upper="1.047065850398866" effort="1.2" velocity="4.0"/>
     <dynamics damping="0.02" friction="0"/>
   </joint>
   <link name="rb_knee_link">

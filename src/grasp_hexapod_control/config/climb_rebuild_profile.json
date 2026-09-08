@@ -1,7 +1,7 @@
 {
   "schema": "COMPACT_CLIMB_REBUILD_PROFILE_V1",
   "version": 1,
-  "template_sha256": "3eaab9a88e37302d18727779114864b18a3903b4a72db11734efa7dae13e7861",
+  "template_sha256": "771236223a784638476c4640f1859f4cb927ec0328848d94e35c7f6ed9e12214",
   "template_repo_relative_path": "src/grasp_hexapod_control/config/climb_compact.json",
   "model": {
     "repo_relative_path": "src/grasp_hexapod_description/meshes/xiaolan/base_link_xiaolan.STL",
@@ -538,7 +538,7 @@
         0.23,
         -0.06769449763600001,
         0.215,
-        -0.16,
+        -0.2617993877991494,
         -0.2
       ],
       "active_endpoints": [
@@ -577,9 +577,9 @@
         {
           "leg": 1,
           "world_point_m": [
-            0.20364857479269685,
+            0.21364857479269686,
             0.12028708155300925,
-            0.15379747664139634
+            0.15592301975850517
           ],
           "surface_id": "unassigned"
         }
@@ -588,7 +588,7 @@
     {
       "name": "BODY_PRELOAD_LM",
       "pose_end": [
-        0.234,
+        0.239,
         -0.06769449763600001,
         0.201,
         0.0,
@@ -599,7 +599,7 @@
     {
       "name": "LM_LIFT",
       "pose_end": [
-        0.234,
+        0.239,
         -0.06769449763600001,
         0.201,
         0.0,

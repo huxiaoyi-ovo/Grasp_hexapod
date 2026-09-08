@@ -204,6 +204,12 @@ class ClimbMode:
                 and relative_height > 0.0
                 and active
             )
+            first_segment_pose_curve = bool(
+                stage.get("pose_curve") == "quintic_first_segment"
+                and base_piecewise_curve
+                and len(active) == 1
+                and len(durations) > 1
+            )
             if (
                 knots.ndim != 3
                 or knots.shape[1:] != (6, 3)
@@ -218,7 +224,13 @@ class ClimbMode:
                     for leg in active
                 )
                 or len(set(active)) != len(active)
-                or stage.get("pose_curve") != "quintic_full_stage"
+                or stage.get("pose_curve") not in (
+                    "quintic_full_stage", "quintic_first_segment"
+                )
+                or (
+                    stage.get("pose_curve") == "quintic_first_segment"
+                    and not first_segment_pose_curve
+                )
                 or not (
                     (anchor_curve == "piecewise_quintic" and not active)
                     or base_piecewise_curve
@@ -418,7 +430,12 @@ class ClimbMode:
         durations = stage["segment_durations_s"]
         total = float(sum(durations))
         phase = float(np.clip(self.phase_time / total, 0.0, 1.0))
-        pose_weight = self._smoothstep(phase)
+        pose_phase = phase
+        if stage["pose_curve"] == "quintic_first_segment":
+            pose_phase = float(np.clip(
+                self.phase_time / float(durations[0]), 0.0, 1.0
+            ))
+        pose_weight = self._smoothstep(pose_phase)
         pose = pose_start * (1.0 - pose_weight) + pose_end * pose_weight
         if stage["anchor_curve"] == "relative_base_high_step":
             anchors = self._relative_base_high_step(

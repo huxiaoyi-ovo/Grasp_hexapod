@@ -1539,6 +1539,89 @@ def test_active_climb_feet_use_base_relative_paths_and_audited_clearance():
     assert np.isclose(rm_clearance, 0.04)
 
 
+def test_first_segment_pose_curve_is_explicit_and_fails_closed():
+    config = _load_compact_config()
+    mode = ClimbMode(None)
+    for index in (19, 21):
+        stage = config["stages"][index]
+        mode.config = config
+        mode.stage_index = index
+        mode.phase_time = stage["segment_durations_s"][0] / 2.0
+        halfway, _, _ = mode._stage_reference()
+        assert not np.allclose(halfway, stage["pose_end"])
+        mode.phase_time = stage["segment_durations_s"][0]
+        pose, _, _ = mode._stage_reference()
+        np.testing.assert_allclose(pose, stage["pose_end"])
+        mode.phase_time = sum(stage["segment_durations_s"]) * .8
+        held, _, _ = mode._stage_reference()
+        np.testing.assert_allclose(held, stage["pose_end"])
+    legacy = _load_compact_config()
+    legacy["stages"][19]["pose_curve"] = "quintic_full_stage"
+    mode.config = legacy
+    mode.stage_index = 19
+    mode.phase_time = legacy["stages"][19]["segment_durations_s"][0]
+    pose, _, _ = mode._stage_reference()
+    assert not np.allclose(pose, legacy["stages"][19]["pose_end"])
+    invalid = _load_compact_config()
+    invalid["stages"][0]["pose_curve"] = "quintic_first_segment"
+    with pytest.raises(ValueError, match="invalid compact stage fields"):
+        ClimbMode(None)._validate_config(invalid)
+    invalid["stages"][0]["pose_curve"] = "unknown_curve"
+    with pytest.raises(ValueError, match="invalid compact stage fields"):
+        ClimbMode(None)._validate_config(invalid)
+
+
+def test_outer_thigh_urdf_and_controller_limits_match_exactly():
+    expected = {
+        "lf_thigh_joint": (-1.571, .698 + np.deg2rad(20.0)),
+        "lb_thigh_joint": (-.698 - np.deg2rad(20.0), 1.571),
+        "rf_thigh_joint": (-.698 - np.deg2rad(20.0), 1.571),
+        "rb_thigh_joint": (-1.571, .698 + np.deg2rad(20.0)),
+    }
+    xacro_root = ET.parse(SCRIPTS.parents[1] / "grasp_hexapod_description" /
+                          "urdf" / "hexapodurdf.urdf.xacro").getroot()
+    xacro_limits = {
+        item.attrib["prefix"] + "_thigh_joint": item.attrib
+        for item in xacro_root.findall("{http://www.ros.org/wiki/xacro}leg")
+    }
+    for joint, (lower, upper) in expected.items():
+        assert np.isclose(float(xacro_limits[joint]["thigh_lower"]), lower)
+        assert np.isclose(float(xacro_limits[joint]["thigh_upper"]), upper)
+    for name in ("grasp_hexapod.urdf", "hexapod_isaacgym_view.urdf",
+                 "hexapod_collision.urdf"):
+        root = ET.parse(SCRIPTS.parents[1] / "grasp_hexapod_description" /
+                        "urdf" / name).getroot()
+        limits = {joint.attrib["name"]: joint.find("limit").attrib
+                  for joint in root.findall("joint")
+                  if joint.find("limit") is not None}
+        for joint, (lower, upper) in expected.items():
+            assert np.isclose(float(limits[joint]["lower"]), lower)
+            assert np.isclose(float(limits[joint]["upper"]), upper)
+    np.testing.assert_allclose(JOINT_LOWER[[1, 0, 4, 3], 0],
+                               [expected["lf_thigh_joint"][0], expected["lb_thigh_joint"][0], expected["rf_thigh_joint"][0], expected["rb_thigh_joint"][0]])
+    np.testing.assert_allclose(JOINT_UPPER[[1, 0, 4, 3], 0],
+                               [expected["lf_thigh_joint"][1], expected["lb_thigh_joint"][1], expected["rf_thigh_joint"][1], expected["rb_thigh_joint"][1]])
+
+
+@pytest.mark.parametrize("stage_index", (19, 21))
+def test_lift_end_fk_hold_blocks_swing_transfer(stage_index):
+    controller = GraspController(1.0 / 30.0)
+    controller.enter_climb(Q_STAND, hardware_execution=True)
+    mode = controller.climb_mode
+    stage = mode.config["stages"][stage_index]
+    mode.stage_index = stage_index
+    mode.phase = mode.stage_names[stage_index]
+    mode.phase_time = stage["segment_durations_s"][0]
+    mode.stage_elapsed_time = mode.phase_time
+    pose, anchors, _ = mode._stage_reference()
+    mode._apply_reference(pose, anchors, sync_previous=True)
+    reference_before_hold = controller.foot_desired_base.copy()
+    controller.update(Q_STAND + .5, np.zeros(4))
+    assert mode.last_phase_hold
+    assert mode.phase_time == stage["segment_durations_s"][0]
+    assert np.array_equal(controller.foot_desired_base, reference_before_hold)
+
+
 def test_hardware_climb_never_advances_on_time_without_settled_feedback():
     controller = GraspController(1.0 / 30.0)
     controller.enter_climb(Q_STAND, hardware_execution=True)

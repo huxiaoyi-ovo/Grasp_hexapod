@@ -164,32 +164,34 @@ def structural_gate(compact):
                            np.asarray(right_shift["pose_end"])[[1, 4]]) and
             np.isclose(right_shift["pose_start"][0], .230) and
             np.isclose(right_shift["pose_end"][0], .232) and
-            right_shift["segment_durations_s"] == [.8] and
+            right_shift["segment_durations_s"] == [1.2] and
             np.isclose(right_shift["settle_s"], .15),
             "right shift contract")
     require(np.allclose(right_shift["pose_start"],
-                        [.230, -.06769449763600001, .215, -.16, -.2]) and
+                        [.230, -.06769449763600001, .215, -np.pi / 12.0, -.2]) and
             np.allclose(right_shift["pose_end"],
                         [.232, -.06769449763600001, .200, 0.0, -.2]),
             "right shift must return level before LF swing")
     require(stages[21]["active_legs"] == [1], "LF must swing alone")
     lb = stages[19]
     require(len(lb["anchor_knots"]) == 4 and
-            lb["segment_durations_s"] == [1.4, .9, .8] and
+            lb["pose_curve"] == "quintic_first_segment" and
+            lb["segment_durations_s"] == [1.4, .9, 1.2] and
             np.allclose(lb["pose_start"], [.230, -.06769449763600001,
                                             .201, 0.0, -.2]) and
             np.allclose(lb["pose_end"], [.230, -.06769449763600001,
-                                          .215, -.16, -.2]) and
+                                          .215, -np.pi / 12.0, -.2]) and
             np.allclose(np.asarray(lb["active_base_knots_m"])[:, 0],
                         [[-.17585050573741318, -.16798118089306158,
                           -.16280924307881292],
                          [-.097, -.168, -.047],
                          [-.038, -.172, -.047],
-                         [-.03798522630741269, -.1719221566687401,
-                          -.0832004058967234]]),
+                         [-.037985226307412745, -.16257697201223562,
+                          -.10024102785957004]]),
             "LB folded lift-transfer-touchdown contract")
     lf = stages[21]
     require(len(lf["anchor_knots"]) == 4 and
+            lf["pose_curve"] == "quintic_first_segment" and
             lf["segment_durations_s"] == [1.4, .9, 1.0] and
             np.allclose(lf["pose_start"], [.232, -.06769449763600001,
                                             .200, 0.0, -.2]) and
@@ -199,17 +201,37 @@ def structural_gate(compact):
                         [[-.17761196956230063, .1679808553169389,
                           -.16143183783938156],
                          [-.097, .168, -.046],
-                         [-.0421307112772121, .17520403403337445, -.046],
-                         [-.0421307112772121, .17520403403337445,
-                          -.09424771313266513]]),
+                         [-.0319077652701476, .17521940512737647, -.046],
+                         [-.0319077652701476, .17521940512737647,
+                          -.09415246498936361]]),
             "LF folded lift-transfer-touchdown contract")
     require(stages[22]["active_legs"] == [], "LM preload must be body-only")
     require(np.allclose(stages[22]["pose_start"],
                         [.232, -.06769449763600001, .226, .16, -.2]) and
             np.allclose(stages[22]["pose_end"],
-                        [.234, -.06769449763600001, .201, 0.0, -.2]) and
+                        [.239, -.06769449763600001, .201, 0.0, -.2]) and
             stages[22]["segment_durations_s"] == [1.0],
             "LM preload contract")
+    lf_target = np.array([.21364857479269686, .12028708155300925,
+                          .15592301975850517])
+    require(np.allclose(np.asarray(lf["anchor_knots"])[-1, 1], lf_target),
+            "LF landing centerward low-plane offset")
+    require(all(np.allclose(np.asarray(stage["anchor_knots"])[:, 1], lf_target)
+                for stage in stages[22:33]),
+            "C23-C33 retain shifted LF world anchor")
+    require(np.allclose(np.asarray(stages[33]["anchor_knots"])[0, 1], lf_target),
+            "C34 LF starts from shifted anchor before final release")
+    mode = ClimbMode(None)
+    mode.config = compact
+    for index in (19, 21):
+        mode.stage_index = index
+        mode.phase_time = stages[index]["segment_durations_s"][0]
+        pose, _, _ = mode._stage_reference()
+        require(np.allclose(pose, stages[index]["pose_end"]),
+                stages[index]["name"] + " pose must finish before transfer")
+    require(np.allclose(JOINT_UPPER[[1, 3], 0], .698 + np.deg2rad(20.0)) and
+            np.allclose(JOINT_LOWER[[0, 4], 0], -.698 - np.deg2rad(20.0)),
+            "outer thigh one-sided 20 degree model limits")
     require(all(stages[index]["active_legs"] == [2] for index in (23, 24, 25)),
             "LM must lift, remain airborne, then land once")
     require(not any(set(stage["active_legs"]) == {0, 1} for stage in stages[18:26]),

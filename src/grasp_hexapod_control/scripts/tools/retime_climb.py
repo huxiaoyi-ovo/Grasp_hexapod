@@ -25,6 +25,7 @@ from utils.climb_retime import (
     FROZEN_LB_LOW_STEP_INDEX,
     FROZEN_LF_LOW_STEP_INDEX,
     FROZEN_PRELOAD_INDEX,
+    LEFT_TRANSFER_BODY_MINIMUM_DURATION_S,
     segment_for_time,
     stage_specs,
 )
@@ -62,8 +63,12 @@ def allowed_difference(before, after):
             require(old_durations == new_durations,
                     "C36 duration must remain identical")
         elif stage_index == FROZEN_LB_LOW_STEP_INDEX:
-            require(old_durations == new_durations == [1.4, 0.9, 0.8],
+            require(old_durations == new_durations == [1.4, 0.9, 1.2],
                     "C20 LB_LOW_STEP duration contract must remain identical")
+        elif stage_index == 20:
+            require(len(old_durations) == len(new_durations) == 1 and
+                    new_durations[0] >= LEFT_TRANSFER_BODY_MINIMUM_DURATION_S,
+                    "C21 body return must not shorten below 1.2 s")
         elif stage_index == FROZEN_PRELOAD_INDEX:
             require(old_durations == new_durations == [1.0],
                     "C23 BODY_PRELOAD_LM must remain 1.0 s")

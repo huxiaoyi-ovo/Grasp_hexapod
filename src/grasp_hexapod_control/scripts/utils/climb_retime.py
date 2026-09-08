@@ -49,6 +49,7 @@ MAJOR_BODY_INDICES = frozenset((0, 6, 16, 34))
 FROZEN_PRELOAD_INDEX = 22
 FROZEN_LB_LOW_STEP_INDEX = 19
 FROZEN_LF_LOW_STEP_INDEX = 21
+LEFT_TRANSFER_BODY_MINIMUM_DURATION_S = 1.20
 # Full-chain PhysX-informed first-pass floors for body and critical-body
 # stages.  They are simulation preview durations, not hardware speed limits.
 PHYSX_BODY_MINIMUM_DURATIONS = {
@@ -58,7 +59,7 @@ PHYSX_BODY_MINIMUM_DURATIONS = {
     9: 2.00,
     16: 2.00,
     18: 0.80,
-    20: 0.80,
+    20: LEFT_TRANSFER_BODY_MINIMUM_DURATION_S,
     22: 0.50,
     24: 3.00,
     28: 2.00,

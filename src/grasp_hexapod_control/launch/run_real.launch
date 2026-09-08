@@ -7,7 +7,7 @@
   <arg name="right_port" default="/dev/ttyACM0"/>
 
   <arg name="controller_rate_hz" default="30.0"/>
-  <arg name="enable_link_collision_check" default="true"/>
+  <arg name="enable_link_collision_check" default="false"/>
   <arg name="servo_rate_hz" default="30.0"/>
   <arg name="command_duration_ms" default="33"/>
   <arg name="servo_diagnostics" default="false"/>
@@ -69,10 +69,10 @@
   <arg name="dock_allow_uncalibrated" default="false"/>
   <arg name="dock_lock_confirmation_max_age_s" default="0.5"/>
   <arg name="dock_video_device" default="/dev/video0"/>
-  <!-- <arg name="dock_image_width" default="1280"/>
-  <arg name="dock_image_height" default="720"/> -->
-  <arg name="dock_image_width" default="640"/>
-  <arg name="dock_image_height" default="480"/>
+  <arg name="dock_image_width" default="1280"/>
+  <arg name="dock_image_height" default="720"/>
+  <!-- <arg name="dock_image_width" default="640"/>
+  <arg name="dock_image_height" default="480"/> -->
   <arg name="dock_framerate" default="10"/>
   <arg name="dock_pixel_format" default="yuyv"/>
   <arg name="dock_color_format" default="yuv422p"/>

@@ -1589,7 +1589,7 @@ class RosControlNode:
                 max(button_presses.size, self.button_b + 1),
                 dtype=np.int32,
             )
-            if self.button_b < bt_buttons.size:
+            if self.button_b < button_presses.size:
                 bt_buttons[self.button_b] = button_presses[self.button_b]
             with self.bt_condition:
                 remote_reset = bool(

@@ -329,6 +329,7 @@ class DockMode:
     IDLE = "idle"
     CLIMB_TERMINAL_ENTRY = "climb_terminal_entry"
     BODY_RAISE = "body_raise"
+    SEARCHING_TAG = "searching_tag"
     WAITING_TAG = "waiting_tag"
     PREALIGN = "prealign"
     PRE_DESCENT_SETTLE = "pre_descent_settle"
@@ -343,6 +344,7 @@ class DockMode:
         IDLE: "待机",
         CLIMB_TERMINAL_ENTRY: "恢复攀爬末端姿态",
         BODY_RAISE: "对接初始姿态抬升",
+        SEARCHING_TAG: "平面扫描AprilTag",
         WAITING_TAG: "等待AprilTag",
         PREALIGN: "视觉预对准",
         PRE_DESCENT_SETTLE: "下降前稳定",
@@ -359,6 +361,13 @@ class DockMode:
     PREALIGN_POSITION_REFERENCE = 0.004
     LINEAR_SPEED_M_S = 0.050
     BODY_RAISE_HEIGHT_M = 0.040
+    TAG_SEARCH_RADIUS_M = 0.020
+    TAG_SEARCH_OFFSETS = (
+        (0.0, -TAG_SEARCH_RADIUS_M), (0.0, 0.0),
+        (0.0, TAG_SEARCH_RADIUS_M), (0.0, 0.0),
+        (-TAG_SEARCH_RADIUS_M, 0.0), (0.0, 0.0),
+        (TAG_SEARCH_RADIUS_M, 0.0), (0.0, 0.0),
+    )
     PRE_DESCENT_SETTLE_DURATION_S = 0.5
     LEG_LIFT_HEIGHT_M = 0.060
     LEG_LIFT_SPEED_M_S = 0.050
@@ -417,6 +426,9 @@ class DockMode:
         self.entry_duration = 0.0
         self.body_raise_start_feet = None
         self.body_raise_progress = 0.0
+        self.search_anchor_feet = None
+        self.search_body_offset = np.zeros(2)
+        self.search_target_index = 0
         self.descent_total = 0.0
         self.descent_remaining = 0.0
         self.descent_duration = 0.0
@@ -464,6 +476,9 @@ class DockMode:
         self.entry_elapsed = 0.0
         self.body_raise_start_feet = None
         self.body_raise_progress = 0.0
+        self.search_anchor_feet = None
+        self.search_body_offset[:] = 0.0
+        self.search_target_index = 0
         self.descent_total = 0.0
         self.descent_remaining = 0.0
         self.descent_duration = 0.0
@@ -495,6 +510,9 @@ class DockMode:
         self.entry_target = None
         self.body_raise_start_feet = None
         self.body_raise_progress = 0.0
+        self.search_anchor_feet = None
+        self.search_body_offset[:] = 0.0
+        self.search_target_index = 0
         self.descent_total = 0.0
         self.descent_remaining = 0.0
         self.descent_duration = 0.0
@@ -610,9 +628,12 @@ class DockMode:
         feet[:, 2] -= self.body_raise_progress
         if self.body_raise_progress >= self.BODY_RAISE_HEIGHT_M:
             self.last_visual_target = feet.copy()
+            self.search_anchor_feet = feet.copy()
+            self.search_body_offset[:] = 0.0
+            self.search_target_index = 0
             self._set_state(
-                self.WAITING_TAG,
-                "足端目标已向下移动40mm，完成初始姿态抬升尝试；等待完整AprilTag",
+                self.SEARCHING_TAG,
+                "初始姿态已抬升40mm；开始在X/Y方向各扫描20mm",
             )
         else:
             self._set_state(
@@ -621,6 +642,35 @@ class DockMode:
                     self.body_raise_progress * 1000.0
                 ),
             )
+        return self._result(feet=feet)
+
+    def _tag_search_step(self, current, reason):
+        if self.search_anchor_feet is None:
+            self.search_anchor_feet = self._synced_feet(current).copy()
+        target = np.asarray(
+            self.TAG_SEARCH_OFFSETS[self.search_target_index], dtype=float
+        )
+        delta = target - self.search_body_offset
+        distance = float(np.linalg.norm(delta))
+        step = min(self.linear_speed_m_s * self.update_dt, distance)
+        if distance > 1e-9:
+            self.search_body_offset += delta * step / distance
+        if distance <= step + 1e-9:
+            self.search_body_offset[:] = target
+            self.search_target_index = (
+                self.search_target_index + 1
+            ) % len(self.TAG_SEARCH_OFFSETS)
+        feet = transform_points(
+            transform((-self.search_body_offset[0], -self.search_body_offset[1], 0.0)),
+            self.search_anchor_feet,
+        )
+        self.last_visual_target = feet.copy()
+        self._set_state(
+            self.SEARCHING_TAG,
+            "机身X/Y扫描偏移=({:.1f},{:.1f})mm；{}".format(
+                *(self.search_body_offset * 1000.0), reason
+            ),
+        )
         return self._result(feet=feet)
 
     def _visual_step(self, current, pose):
@@ -814,9 +864,15 @@ class DockMode:
 
         pose, decoded_ids, perception_reason = self._perception_pose(robot_state)
         if pose is None:
+            if self.state == self.SEARCHING_TAG:
+                return self._tag_search_step(current, perception_reason)
             self._set_state(self.WAITING_TAG, "等待完整AprilTag：" + perception_reason)
             # 本次对接尚未得到过完整标签时保持当前位置。
             return self._result(joints=current.copy())
+
+        if self.state == self.SEARCHING_TAG:
+            # 扫描一旦发现完整标签，立即以当前实际足端开始视觉闭环。
+            self.last_visual_target = self._synced_feet(current).copy()
 
         horizontal = float(np.linalg.norm(pose[:2, 3]))
         tilt = float(np.arccos(np.clip(pose[2, 2], -1.0, 1.0)))
@@ -923,10 +979,36 @@ def self_check():
     for _ in range(8):
         raise_result = raise_mode.update({"joints": np.zeros((6, 3))})
         raise_targets.append(float(raise_result.foot_positions_base[0, 2]))
-    if raise_mode.state != raise_mode.WAITING_TAG:
+    if raise_mode.state != raise_mode.SEARCHING_TAG:
         raise AssertionError("40mm initial body raise transition self-check failed")
     if not np.allclose(np.diff([0.0] + raise_targets), -0.005):
         raise AssertionError("initial feet must move down 40mm at 50mm/s")
+
+    search_mode = DockMode(Controller(), Perception(None))
+    search_mode.active, search_mode.state = True, search_mode.SEARCHING_TAG
+    search_mode.search_anchor_feet = np.zeros((6, 3))
+    search_offsets = []
+    for _ in range(64):
+        result = search_mode._tag_search_step(
+            np.zeros((6, 3)), "simulated tag absence"
+        )
+        search_offsets.append(search_mode.search_body_offset.copy())
+        if result.foot_positions_base is None:
+            raise AssertionError("tag search must command feet")
+    search_offsets = np.asarray(search_offsets)
+    if np.max(np.abs(search_offsets)) > search_mode.TAG_SEARCH_RADIUS_M + 1e-12:
+        raise AssertionError("tag search must stay inside 20mm X/Y range")
+    required_extrema = (
+        (0, search_mode.TAG_SEARCH_RADIUS_M),
+        (0, -search_mode.TAG_SEARCH_RADIUS_M),
+        (1, search_mode.TAG_SEARCH_RADIUS_M),
+        (1, -search_mode.TAG_SEARCH_RADIUS_M),
+    )
+    if not all(
+        np.any(np.isclose(search_offsets[:, axis], value))
+        for axis, value in required_extrema
+    ):
+        raise AssertionError("tag search must scan forward/backward/left/right")
 
     yaw = np.deg2rad(20.0)
     yaw_rotation = np.array((

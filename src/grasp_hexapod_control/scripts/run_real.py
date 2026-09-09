@@ -16,7 +16,7 @@
 import json
 from pathlib import Path
 import sys
-from threading import Condition, Lock
+from threading import Condition, Lock, Thread
 
 import numpy as np
 import rospy
@@ -464,6 +464,7 @@ class RosControlNode:
         self.button_y = int(rospy.get_param("~button_y", 3))
         self.axis_gripper = int(rospy.get_param("~axis_gripper", 6))  # 方向键轴：+1=张开, -1=闭合
         self.gripper_last_cmd = None
+        self.gripper_service_lock = Lock()
         self.axis_right = int(rospy.get_param("~axis_right", 0))
         self.axis_forward = int(rospy.get_param("~axis_forward", 1))
         self.axis_yaw = int(rospy.get_param("~axis_yaw", 3))
@@ -575,11 +576,6 @@ class RosControlNode:
                 )
                 for leg in LEG_NAMES
             }
-            self.gripper_pub = rospy.Publisher(
-                "/gripper_des",
-                Float64MultiArray,
-                queue_size=1,
-            )
         # Subscriber的回调只保存最新消息，控制计算统一放在step()中。
         self.subscribers = [
             rospy.Subscriber(
@@ -765,6 +761,39 @@ class RosControlNode:
         except Exception as error:  # noqa: BLE001 - ROS transport surface
             return False, "gripper_act {} failed: {}".format(action, error)
         return bool(response.success), str(response.message)
+
+    def _maybe_trigger_manual_gripper(self, dpad):
+        """方向键位置选择夹爪目标（+1张开/-1闭合），仅指令变化时触发。
+
+        服务同步阻塞且并发请求会被拒：用非阻塞锁保证同时只有一个调用，
+        忙碌时跳过（方向键保持时按控制帧自动重试），由后台线程执行，
+        避免最长约2.5s的服务验证卡住30Hz控制循环。
+        """
+
+        action = "open" if dpad > 0.5 else ("clamp" if dpad < -0.5 else None)
+        if action is None or self.gripper_last_cmd == action:
+            return
+        if not self.gripper_service_lock.acquire(blocking=False):
+            rospy.logwarn_throttle(
+                1.0, "Gripper %s skipped: previous call still running", action
+            )
+            return
+        self.gripper_last_cmd = action
+        Thread(
+            target=self._run_manual_gripper, args=(action,), daemon=True
+        ).start()
+
+    def _run_manual_gripper(self, action):
+        """执行手柄触发的夹爪服务并记录结果；结束（含失败）释放占用。"""
+
+        try:
+            ok, message = self._bt_actuate_gripper(action)
+        finally:
+            self.gripper_service_lock.release()
+        if ok:
+            rospy.loginfo("Gripper %s done: %s", action, message)
+        else:
+            rospy.logwarn("Gripper %s failed: %s", action, message)
 
     def _start_bt_request(self, request, q_cur):
         """在已有反馈帧内一次性进入现有模式；后续只由update推进。"""
@@ -1609,17 +1638,12 @@ class RosControlNode:
                 q_cur,
             )
 
-        # 夹爪控制：方向键轴 +1=张开, -1=闭合, 仅在变化时发送。
+        # 夹爪控制：方向键轴 +1=张开, -1=闭合；经 GripperAct 服务执行
+        # （open/clamp 带到位验证），行为树活动期间不响应。
         if joy_fresh and not self.local_execution and bt_request is None:
-            dpad = float(self._read(axes, self.axis_gripper))
-            if dpad > 0.5 and self.gripper_last_cmd != "open":
-                self.gripper_pub.publish(Float64MultiArray(data=[1.0, 1.5]))
-                rospy.loginfo("Gripper: open")
-                self.gripper_last_cmd = "open"
-            elif dpad < -0.5 and self.gripper_last_cmd != "close":
-                self.gripper_pub.publish(Float64MultiArray(data=[1.0, -1.5]))
-                rospy.loginfo("Gripper: close")
-                self.gripper_last_cmd = "close"
+            self._maybe_trigger_manual_gripper(
+                float(self._read(axes, self.axis_gripper))
+            )
 
         bt_walk = bool(
             bt_request is not None and bt_request["mode"] == "walk"

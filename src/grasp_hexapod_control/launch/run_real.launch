@@ -11,6 +11,8 @@
   <arg name="servo_rate_hz" default="30.0"/>
   <arg name="command_duration_ms" default="33"/>
   <arg name="servo_diagnostics" default="false"/>
+  <!-- 电压读取开关：轮询电压占用串口总线，默认关闭。 -->
+  <arg name="voltage_read" default="false"/>
   <!-- servo_backend：python（默认，grasp_hexapod_servo）或 cpp（grasp_hexapod_servo_cpp）。 -->
   <arg name="servo_backend" default="python"/>
   <arg name="max_feedback_age" default="0.30"/>
@@ -193,11 +195,9 @@
     <arg name="servo_rate_hz" value="$(arg servo_rate_hz)"/>
     <arg name="command_duration_ms" value="$(arg command_duration_ms)"/>
     <arg name="servo_diagnostics" value="$(arg servo_diagnostics)"/>
+    <arg name="voltage_read" value="$(arg voltage_read)"/>
     <arg name="gripper_id" value="99"/>
-    <arg name="gripper_direction" value="-1"/>
     <arg name="gripper_command_duration_ms" value="400"/>
-    <arg name="gripper_pulse_min" value="683"/>
-    <arg name="gripper_pulse_max" value="750"/>
   </include>
   <include unless="$(eval arg('servo_backend') == 'cpp')"
     file="$(find grasp_hexapod_servo)/launch/servo_two_boards.launch">
@@ -206,10 +206,6 @@
     <arg name="servo_rate_hz" value="$(arg servo_rate_hz)"/>
     <arg name="command_duration_ms" value="$(arg command_duration_ms)"/>
     <arg name="servo_diagnostics" value="$(arg servo_diagnostics)"/>
-    <arg name="gripper_id" value="99"/>
-    <arg name="gripper_direction" value="-1"/>
-    <arg name="gripper_command_duration_ms" value="400"/>
-    <arg name="gripper_pulse_min" value="683"/>
-    <arg name="gripper_pulse_max" value="750"/>
+    <arg name="voltage_read" value="$(arg voltage_read)"/>
   </include>
 </launch>

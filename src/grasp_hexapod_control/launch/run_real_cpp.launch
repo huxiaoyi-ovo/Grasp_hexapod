@@ -8,6 +8,8 @@
   <arg name="servo_rate_hz" default="30.0"/>
   <arg name="command_duration_ms" default="33"/>
   <arg name="servo_diagnostics" default="true"/>
+  <!-- 电压读取开关：轮询电压占用串口总线，默认关闭。 -->
+  <arg name="voltage_read" default="false"/>
 
   <include file="$(find grasp_hexapod_control)/launch/run_real.launch" pass_all_args="true"/>
 </launch>

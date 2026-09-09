@@ -6,19 +6,11 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(catkin REQUIRED COMPONENTS
   grasp_hexapod_msgs
-  message_generation
   roscpp
   sensor_msgs
   serial
   std_msgs
 )
-
-add_service_files(
-  FILES
-  GripperCommand.srv
-)
-
-generate_messages()
 
 catkin_package(
   INCLUDE_DIRS include

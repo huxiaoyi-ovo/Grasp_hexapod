@@ -59,37 +59,18 @@
 
 ## 夹爪（ID 99，仅左板）
 
-左板节点额外管理夹爪舵机（LX-15D，ID 99，挂在 `/dev/ttyTHS0` 总线上）。夹爪有两条
-**并存**的控制路径：
+左板节点额外管理夹爪舵机（LX-15D，ID 99，挂在 `/dev/ttyTHS0` 总线上）。夹爪只走
+**服务**控制，唯一入口 `/grasp_hexapod/gripper_act`（旧版 `/gripper_des` 话题盲控与
+`/gripper_command` 调试服务均已移除）：
 
-| 路径 | 接口 | 行为 |
-|------|------|------|
-| 话题盲控 | `/gripper_des`（`Float64MultiArray [power, pos_rad]`） | 只写不读的连续位置控制（手柄方向键沿用此路径），目标钳位到 `[gripper_open_pulse, gripper_clamp_pulse]` 真实机械行程 |
-| 服务控制 | `/gripper_command`（本包自定义 `GripperCommand.srv`） | 状态机管理：启动自检、开/合到位验证、夹紧失败受限 |
-| 行为树契约 | `/grasp_hexapod/gripper_act`（`grasp_hexapod_msgs/GripperAct`） | 与 `/gripper_command` **完全共用**同一执行路径/互斥/状态机，仅请求字段名不同（`action`） |
+| 接口 | 行为 |
+|------|------|
+| `/grasp_hexapod/gripper_act`（`grasp_hexapod_msgs/GripperAct`） | 状态机管理：启动自检、开/合到位验证、夹紧失败受限；行为树契约、手柄直控与调试 rosservice 共用 |
 
-> 使用约定：两条路径不要同时使用。服务处理期间（移动/验证）话题写入自动暂停；
-> 服务/自检完成后，盲控补发基准自动对齐到服务验证到的位置，不会把结果拖回旧目标。
+> 并发服务命令会被 busy 立即拒绝，同一时刻只有一条命令在移动/验证；
+> 服务端不缓存目标，每次 open/clamp 都以当前读到的位置为准。
 
-### 服务 `/gripper_command`
-
-```bash
-rosservice call /gripper_command "command: 'open'"   # 打开（≈脉冲 683）
-rosservice call /gripper_command "command: 'clamp'"  # 夹紧（≈脉冲 840）
-```
-
-```text
-string command    # "open" | "clamp"
----
-bool success      # true=命令完成并验证到位；false=失败
-string message    # 结果说明：到位脉冲 / 受限 / 离线 / 超时原因
-```
-
-服务为同步阻塞：响应即最终结果（最坏 `gripper_command_duration_ms +
-gripper_max_total_polls / gripper_poll_hz` ≈ 4.4 秒）。服务处理期间腿部 30Hz 循环
-在独立线程继续运行；夹爪每次读取约 1.5ms、每秒 2 次，对行走控制影响可忽略。
-
-### 服务 `/grasp_hexapod/gripper_act`（行为树契约）
+### 服务 `/grasp_hexapod/gripper_act`
 
 ```bash
 rosservice call /grasp_hexapod/gripper_act "action: 'open'"   # 松开（≈脉冲 683）
@@ -103,14 +84,15 @@ bool success      # true=动作完成并验证到位；false=失败
 string message    # 结果说明：到位脉冲 / 受限 / 离线 / 超时 / 忙
 ```
 
+- 服务为同步阻塞：响应即最终结果（最坏 `gripper_command_duration_ms +
+  gripper_max_total_polls / gripper_poll_hz` ≈ 4.4 秒）。服务处理期间腿部 30Hz 循环
+  在独立线程继续运行；夹爪每次读取约 1.5ms、每秒 2 次，对行走控制影响可忽略。
 - 由模式执行端（mode_server）在 `release`/`dock` 模式内部调用（行为树中不单列），
-  契约见 `src/docs/BT_MODE_INTERFACES.md` §2.2。
-- 与 `/gripper_command` 共用 `operation_mutex_`：两个入口互为并发命令，交叉调用
-  立即 `busy` 拒绝；受限状态语义一致（clamp 失败受限后必须先 open 复位）。
+  契约见 `src/docs/BT_MODE_INTERFACES.md` §2.2；手柄方向键（控制端）同样经此服务。
 - 以**绝对名**注册，与节点命名空间无关；仅左板节点（存在夹爪）提供，全系统恰有
   一个提供者。
 - 对主控制线路无额外影响：服务回调占用 `AsyncSpinner(3)` 中的服务线程，30Hz
-  腿部循环不受阻塞；处理期间盲控写入按 busy 原子量暂停；空闲时零串口读写。
+  腿部循环不受阻塞；空闲时零串口读写。
 
 ### 状态机
 
@@ -131,9 +113,7 @@ gripper_tolerance` 算到位。夹紧验证：小偏差算夹紧；偏差较大�
 | 参数名 | 类型 | 默认值 | 说明 |
 |--------|------|--------|------|
 | `~gripper_id` | `int` | `99` | 夹爪 ID；≤0 禁用夹爪（仅左板生效） |
-| `~gripper_direction` | `int` | `-1` | 话题盲控路径 rad→脉冲方向系数 |
 | `~gripper_command_duration_ms` | `int` | `400` | 单次开/合移动目标耗时 |
-| `~gripper_pulse_min` / `~gripper_pulse_max` | `int` | （已废弃） | 仅为 launch 传参兼容保留；盲控行程现以 open/clamp 脉冲为准 |
 | `~gripper_open_pulse` | `int` | `683` | 打开目标脉冲 |
 | `~gripper_clamp_pulse` | `int` | `840` | 夹紧目标脉冲 |
 | `~gripper_tolerance` | `int` | `20` | 到位容差（"683/840 左右"） |
@@ -144,14 +124,11 @@ gripper_tolerance` 算到位。夹紧验证：小偏差算夹紧；偏差较大�
 
 ### 资源占用约定
 
-- **空闲零串口读**：夹爪不使用时对 ID99 无任何读写；不再发布 `/gripper_pos`
-  （旧版每 30Hz 读取一次已移除）。
+- **空闲零串口读**：夹爪不使用时对 ID99 无任何读写；不再发布 `/gripper_pos`、
+  订阅 `/gripper_des`（旧版每 30Hz 读写一次的话题路径已移除）。
 - **启动自检阻塞**：节点构造期（腿部定时器启动前）同步执行，最坏 ~2.5 秒，
   不影响之后行走控制的时序。
 - 自检后夹爪保持扭矩（hold 位置）；每次服务移动前幂等重新加载。
-- **盲控行程钳位**：话题目标（如方向键 ±1.5 rad → 脉冲 142/858）钳位到
-  `[gripper_open_pulse, gripper_clamp_pulse]`，方向键两极即"完全打开(683)/
-  完全夹紧(840)"，避免命令到限位外（旧 280）导致堵转、夹爪打开后又被拉回。
 
 ## 坐标与方向约定
 - 角度单位：**rad**（ROS 侧）↔ **度**（舵机总线侧）。
@@ -169,7 +146,8 @@ gripper_tolerance` 算到位。夹紧验证：小偏差算夹紧；偏差较大�
 | `~servo_rate_hz` | `float` | `30.0` | Servo 串口读写频率（Hz） |
 | `~command_duration_ms` | `int` | `33` | 舵机单次转动指令的目标耗时（ms），传给 `MOVE_TIME_WRITE` |
 | `~directions` | `list<int>` 或字符串 | 按板配置 | 可选覆盖；顺序与该板舵机 ID 顺序一致 |
-| `~enable_diagnostics` | `bool` | `true` | 输出时序与供电电压诊断 |
+| `~enable_diagnostics` | `bool` | `true` | 时序诊断汇总输出 |
+| `~enable_voltage_read` | `bool` | `false` | 电压读取开关：开启后按 `~voltage_report_interval_s` 轮询汇总各舵机电压；读取占用串口总线，默认关闭 |
 | `~voltage_report_interval_s` | `float` | `2.0` | 电压轮询汇总间隔（秒），必须为正 |
 
 默认方向（与 Python 版 `servo.py::SIDE_CONFIG` 相同）：
@@ -218,8 +196,6 @@ grasp_hexapod_servo_cpp/
 ├── CMakeLists.txt
 ├── package.xml
 ├── README.md
-├── srv/
-│   └── GripperCommand.srv           # 夹爪服务定义（command → success/message）
 ├── include/grasp_hexapod_servo_cpp/
 │   ├── gripper_manager.h            # 夹爪状态机 + open/clamp 服务
 │   ├── hiwonder_servo_cmd.h         # 协议命令常量（对应 hiwonder_servo_cmd.py）

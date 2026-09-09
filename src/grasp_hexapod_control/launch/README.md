@@ -305,6 +305,6 @@ roslaunch grasp_hexapod_servo_cpp servo_two_boards.launch
 - `run_real.launch`：公共控制链加两块Servo板；`servo_backend:=cpp` 可切换为
   C++ 版舵机驱动（`grasp_hexapod_servo_cpp`），默认仍为 Python 版。
 - `run_real_cpp.launch`：与 `run_real.launch` 相同，固定使用 C++ 版舵机驱动；
-  支持覆盖 `left_port`、`right_port`、`servo_rate_hz`、`command_duration_ms`、`servo_diagnostics`。
+  支持覆盖 `left_port`、`right_port`、`servo_rate_hz`、`command_duration_ms`、`servo_diagnostics`、`voltage_read`。
 - `run_sim_ros.launch`：ROS输入加Isaac内部同步控制循环。
 - `control_stack.launch`：实机复用的`joy_node`和高层控制节点，不作为日常入口。

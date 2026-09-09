@@ -2,12 +2,10 @@
 // 设计要点（与行走舵机隔离，尽可能少影响其他舵机的控制）：
 //   - 空闲时对 ID99 无任何串口读写；仅在启动自检与 open/clamp 服务处理期间
 //     以 gripper_poll_hz（默认 2Hz）读取位置验证；
-//   - 与 /gripper_des 话题盲控路径并存：服务处理期间（busy）话题写入暂停；
 //   - 服务为同步阻塞：响应即最终结果（成功/失败 + 原因）。
-// 两个等价服务入口共用同一执行路径/互斥/状态机：
-//   - /gripper_command（GripperCommand，本包调试直控）；
-//   - /grasp_hexapod/gripper_act（GripperAct，行为树契约，模式内部调用，
-//     绝对名与节点命名空间无关）。
+// 唯一服务入口 /grasp_hexapod/gripper_act（GripperAct，open/clamp）：行为树
+// 契约、手柄直控与调试 rosservice 共用；绝对名注册，与节点命名空间无关，
+// 全系统恰有一个提供者。
 #ifndef GRASP_HEXAPOD_SERVO_CPP_GRIPPER_MANAGER_H_
 #define GRASP_HEXAPOD_SERVO_CPP_GRIPPER_MANAGER_H_
 
@@ -20,7 +18,6 @@
 
 #include <grasp_hexapod_msgs/GripperAct.h>
 
-#include "grasp_hexapod_servo_cpp/GripperCommand.h"
 #include "grasp_hexapod_servo_cpp/hiwonder_servo_controller.h"
 
 namespace grasp_hexapod_servo_cpp {
@@ -48,17 +45,10 @@ enum class ClampVerdict {
   kInTransit,       // 中间偏差：继续轮询。
 };
 
-// 服务/自检完成后的位置同步：供话题盲控路径把 0.2s 补发目标对齐到
-// 服务验证到的脉冲，避免两条路径互相拖拽同一舵机。
-struct GripperSync {
-  uint32_t generation = 0;  // 完成计数，每完成一次自检/服务命令 +1。
-  int pulse = 0;            // 完成时读到的脉冲位置。
-};
-
 class GripperManager {
  public:
-  // control 与腿部循环共享（控制器内部按操作互斥）；nh 用于全局服务
-  // /gripper_command，nh_private 用于 ~gripper_* 参数。
+  // control 与腿部循环共享（控制器内部按操作互斥）；nh 用于注册全局服务
+  // /grasp_hexapod/gripper_act，nh_private 用于 ~gripper_* 参数。
   GripperManager(ros::NodeHandle& nh, ros::NodeHandle& nh_private,
                  HiwonderServoController* control, int gripper_id);
   ~GripperManager() = default;
@@ -72,12 +62,6 @@ class GripperManager {
 
   GripperState state() const;
 
-  // ---- 供节点同步/钳位使用 ----
-  int openPulse() const { return open_pulse_; }
-  int clampPulse() const { return clamp_pulse_; }
-  // 最近一次自检/服务命令完成时的位置（generation 变化即有新结果）。
-  GripperSync lastSync() const;
-
   // ---- 纯静态判定（可单测，不依赖串口） ----
   static GripperPositionClass classifyPulse(int pulse, int open_pulse,
                                             int clamp_pulse, int tolerance);
@@ -88,24 +72,22 @@ class GripperManager {
 
  private:
   void loadParams(ros::NodeHandle& nh_private);
-  bool handleCommand(GripperCommand::Request& request,
-                     GripperCommand::Response& response);
-  // 行为树契约入口：action open/clamp 转发到与 handleCommand 相同的执行路径。
+  // 服务入口：先做 action 校验（不触碰 busy 状态），再走互斥与执行路径；
+  // 并发命令立即 busy 拒绝。
   bool handleAct(grasp_hexapod_msgs::GripperAct::Request& request,
                  grasp_hexapod_msgs::GripperAct::Response& response);
   // 公共执行体（须持有 operation_mutex_）：busy 置位 → 派发 doOpen/doClamp →
-  // busy 清除 → 发布位置同步。
-  void execute(const std::string& command, GripperCommand::Response& response);
-  bool doOpen(GripperCommand::Response& response);
-  bool doClamp(GripperCommand::Response& response);
+  // busy 清除。
+  void execute(const std::string& action,
+               grasp_hexapod_msgs::GripperAct::Response& response);
+  bool doOpen(grasp_hexapod_msgs::GripperAct::Response& response);
+  bool doClamp(grasp_hexapod_msgs::GripperAct::Response& response);
   // 一次位置读取 + 一次即时重试；nullopt = 无反馈（不在线）。
   std::optional<int> readPulse();
   // 幂等加载夹爪扭矩（服务移动前与启动自检时调用）。
   void ensureLoaded();
   void sleepFor(double seconds) const;
   void setState(GripperState state);
-  // 完成一次自检/服务命令后发布位置同步（若本次读到过位置）。
-  void publishSync();
 
   HiwonderServoController* control_;
   int gripper_id_;
@@ -126,14 +108,7 @@ class GripperManager {
   std::mutex operation_mutex_;
   std::atomic<GripperState> state_{GripperState::kUnknown};
   std::atomic<bool> busy_{false};
-  ros::ServiceServer service_;
   ros::ServiceServer act_service_;
-
-  // ---- 完成位置同步（30Hz 线程轮询，小锁保护）----
-  mutable std::mutex sync_mutex_;
-  GripperSync sync_;
-  // 本次自检/服务命令内最近一次成功读取的位置（命令开始时重置）。
-  std::optional<int> last_seen_pulse_;
 };
 
 }  // namespace grasp_hexapod_servo_cpp

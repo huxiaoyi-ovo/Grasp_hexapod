@@ -7,14 +7,11 @@
   <arg name="servo_rate_hz" default="30.0"/>
   <arg name="command_duration_ms" default="33"/>
   <arg name="servo_diagnostics" default="true"/>
+  <!-- 电压读取开关：轮询电压占用串口总线，默认关闭。 -->
+  <arg name="voltage_read" default="false"/>
   <arg name="gripper_id" default="99"/>
-  <arg name="gripper_direction" default="-1"/>
   <arg name="gripper_command_duration_ms" default="400"/>
-  <!-- gripper_pulse_min/max 已废弃：盲控行程现钳位到 open/clamp 脉冲。
-       仅为与 run_real.launch 传参兼容而保留声明。 -->
-  <arg name="gripper_pulse_min" default="683"/>
-  <arg name="gripper_pulse_max" default="840"/>
-  <!-- 服务路径（/gripper_command）参数：开/合目标脉冲与夹紧验证判定。 -->
+  <!-- 服务路径（/grasp_hexapod/gripper_act）参数：开/合目标脉冲与夹紧验证判定。 -->
   <arg name="gripper_open_pulse" default="683"/>
   <arg name="gripper_clamp_pulse" default="840"/>
   <arg name="gripper_tolerance" default="20"/>
@@ -30,11 +27,9 @@
     <param name="servo_rate_hz" value="$(arg servo_rate_hz)"/>
     <param name="command_duration_ms" value="$(arg command_duration_ms)"/>
     <param name="enable_diagnostics" value="$(arg servo_diagnostics)"/>
+    <param name="enable_voltage_read" value="$(arg voltage_read)"/>
     <param name="gripper_id" value="$(arg gripper_id)"/>
-    <param name="gripper_direction" value="$(arg gripper_direction)"/>
     <param name="gripper_command_duration_ms" value="$(arg gripper_command_duration_ms)"/>
-    <param name="gripper_pulse_min" value="$(arg gripper_pulse_min)"/>
-    <param name="gripper_pulse_max" value="$(arg gripper_pulse_max)"/>
     <param name="gripper_open_pulse" value="$(arg gripper_open_pulse)"/>
     <param name="gripper_clamp_pulse" value="$(arg gripper_clamp_pulse)"/>
     <param name="gripper_tolerance" value="$(arg gripper_tolerance)"/>
@@ -54,6 +49,7 @@
     <param name="servo_rate_hz" value="$(arg servo_rate_hz)"/>
     <param name="command_duration_ms" value="$(arg command_duration_ms)"/>
     <param name="enable_diagnostics" value="$(arg servo_diagnostics)"/>
+    <param name="enable_voltage_read" value="$(arg voltage_read)"/>
     <!-- zzw加-->
     <!-- <rosparam file="$(find grasp_hexapod_servo_cpp)/config/right.yaml" command="load"/> -->
     <rosparam param="directions">[1, -1, -1, 1, -1, -1, 1, -1, -1]</rosparam>

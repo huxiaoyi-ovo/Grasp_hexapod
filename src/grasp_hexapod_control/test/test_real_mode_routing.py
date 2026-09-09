@@ -373,11 +373,15 @@ def test_bt_interfaces_register_for_local_execution(monkeypatch):
     assert len(node.subscribers) == 2
 
 
-def test_bt_activity_blocks_manual_dpad_gripper_publish():
+def test_bt_activity_blocks_manual_dpad_gripper_service():
     node = _bt_node()
     node.local_execution = False
-    published = []
-    node.gripper_pub = types.SimpleNamespace(publish=lambda message: published.append(message))
+    node.gripper_last_cmd = None
+    node.gripper_service_lock = threading.Lock()
+    calls = []
+    node.gripper_act_proxy = lambda action: calls.append(action) or types.SimpleNamespace(
+        success=True, message="ok"
+    )
     request = _bt_request("approach")
     node.bt_request = request
     node.state = node.RUNNING
@@ -407,7 +411,54 @@ def test_bt_activity_blocks_manual_dpad_gripper_publish():
         node, Q_STAND, axes, np.zeros(4), 1.0, 1.0, feedback_ready=True,
     )
 
-    assert published == []
+    assert calls == []
+    assert node.gripper_last_cmd is None
+
+
+def test_manual_dpad_gripper_routes_to_gripper_act_service(monkeypatch):
+    node = _bt_node()
+    calls = []
+    node.gripper_last_cmd = None
+    node.gripper_service_lock = threading.Lock()
+    node.gripper_act_proxy = lambda action: calls.append(action) or types.SimpleNamespace(
+        success=True, message="clamped"
+    )
+    monkeypatch.setattr(RUN_REAL.rospy, "loginfo", lambda *args: None,
+                        raising=False)
+    monkeypatch.setattr(
+        RUN_REAL, "Thread",
+        lambda target, args, daemon: types.SimpleNamespace(
+            start=lambda: target(*args)
+        ),
+    )
+
+    RUN_REAL.RosControlNode._maybe_trigger_manual_gripper(node, 1.0)
+    RUN_REAL.RosControlNode._maybe_trigger_manual_gripper(node, 1.0)  # 保持不重复
+    RUN_REAL.RosControlNode._maybe_trigger_manual_gripper(node, 0.0)  # 回中不动作
+    RUN_REAL.RosControlNode._maybe_trigger_manual_gripper(node, -1.0)  # 闭合
+
+    assert calls == ["open", "clamp"]
+    assert node.gripper_last_cmd == "clamp"
+
+
+def test_manual_dpad_gripper_skips_while_service_busy(monkeypatch):
+    node = _bt_node()
+    calls = []
+    node.gripper_last_cmd = None
+    node.gripper_service_lock = threading.Lock()
+    node.gripper_service_lock.acquire()  # 模拟上一次服务调用未结束
+    node.gripper_act_proxy = lambda action: calls.append(action) or types.SimpleNamespace(
+        success=True, message="ok"
+    )
+    warnings = []
+    monkeypatch.setattr(RUN_REAL.rospy, "logwarn_throttle",
+                        lambda *args: warnings.append(args), raising=False)
+
+    RUN_REAL.RosControlNode._maybe_trigger_manual_gripper(node, -1.0)
+
+    assert calls == []
+    assert node.gripper_last_cmd is None  # 未执行，方向键保持时可重试
+    assert warnings and "skipped" in warnings[0][1]
 
 
 def test_bt_hold_lease_rejects_a_single_30hz_tick_or_less():

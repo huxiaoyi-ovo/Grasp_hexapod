@@ -36,9 +36,9 @@
 
 ## 现有自建接口备忘
 
-- 服务 `GripperCommand.srv`（夹爪开合命令）目前仍定义在
-  `grasp_hexapod_servo_cpp/srv/` 并被原包引用，按协作准则暂不迁移；如需迁移到本包，
-  需同步修改 `grasp_hexapod_servo_cpp` 的构建与引用，先沟通确认。
+- 夹爪服务已统一使用本包的 `GripperAct.srv`（话题 `/grasp_hexapod/gripper_act`）；
+  原 `grasp_hexapod_servo_cpp/srv/GripperCommand.srv` 调试服务已删除（2026-09
+  接口统一）。
 - 行为树实时状态：`BtNodeState.msg` + `BtStateArray.msg`（话题
   `/grasp_hexapod/bt_state`）——由 `run_real_bt.py` / `bt_mock_world.py` 每 tick
   发布的行为树状态快照（前序节点 status/feedback/depth + 当前阶段 + 树状态 +

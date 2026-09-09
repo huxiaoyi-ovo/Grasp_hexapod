@@ -241,8 +241,10 @@ def strict_concurrent27(compact):
     base_top.pop("stages"); current_top.pop("stages")
     base_top.pop("stage_count"); current_top.pop("stage_count")
     require(base_top == current_top, "concurrent top-level identity")
+    lm_level = next(stage for stage in stages if stage["name"] == "BODY_PRELOAD_LM")["segment_durations_s"] == [.5]
+    lm_level_changed = {"BODY_PRELOAD_LM", "LM_LIFT", "BODY_ADVANCE_LM_AIR"} if lm_level else set()
     for index, source in enumerate(baseline["stages"]):
-        if index not in consumed:
+        if index not in consumed and source["name"] not in lm_level_changed:
             require(next(stage for stage in stages if stage["name"] == source["name"]) == source,
                     "unchanged frozen stage " + source["name"])
     for name, (start, end) in sources.items():
@@ -265,11 +267,62 @@ def strict_concurrent27(compact):
                 and velocity.shape == np.asarray(stage["active_base_knots_m"]).shape
                 and np.allclose(velocity[[0, -1]], 0., rtol=0., atol=1e-12)
                 and np.all(np.linalg.norm(velocity[1:-1], axis=2) > 0.), "Hermite curve " + name)
-    for name in ("BODY_LEFT_TRANSFER_PREP", "LB_LOW_STEP", "BODY_RIGHT_BEFORE_LF",
-                 "LF_LOW_STEP", "BODY_PRELOAD_LM", "LM_LIFT",
-                 "BODY_ADVANCE_LM_AIR", "LM_LEFT_FINAL_LAND"):
-        require(next(stage for stage in stages if stage["name"] == name) == original[name],
-                "critical frozen stage " + name)
+    left_names = ("BODY_LEFT_TRANSFER_PREP", "LB_LOW_STEP", "BODY_RIGHT_BEFORE_LF",
+                  "LF_LOW_STEP", "BODY_PRELOAD_LM", "LM_LIFT",
+                  "BODY_ADVANCE_LM_AIR", "LM_LEFT_FINAL_LAND")
+    preload = next(stage for stage in stages if stage["name"] == "BODY_PRELOAD_LM")
+    if lm_level:
+        for name in left_names[:4] + left_names[-1:]:
+            require(next(stage for stage in stages if stage["name"] == name) == original[name],
+                    "frozen left stage " + name)
+        lift = next(stage for stage in stages if stage["name"] == "LM_LIFT")
+        air = next(stage for stage in stages if stage["name"] == "BODY_ADVANCE_LM_AIR")
+        original_preload = original["BODY_PRELOAD_LM"]
+        original_lift = original["LM_LIFT"]
+        original_air = original["BODY_ADVANCE_LM_AIR"]
+        require(np.allclose(preload["pose_start"], original_preload["pose_start"], rtol=0., atol=1e-12)
+                and np.allclose(preload["pose_end"], [.239, -.06769449763600001, .226, .16, -.2], rtol=0., atol=1e-12)
+                and preload["segment_durations_s"] == [.5]
+                and preload["active_legs"] == []
+                and preload["anchor_curve"] == original_preload["anchor_curve"]
+                and np.array_equal(preload["anchor_knots"][0], preload["anchor_knots"][-1])
+                and np.array_equal(preload["anchor_knots"][0], original_preload["anchor_knots"][0])
+                and preload.get("settle_s") == original_preload.get("settle_s")
+                and preload.get("settle_persistence_s") == original_preload.get("settle_persistence_s"),
+                "LM-level preload .5s without dip or level")
+        require(lift["active_legs"] == [2]
+                and lift["anchor_curve"] == "piecewise_base_quintic"
+                and lift["pose_curve"] == "quintic_first_segment"
+                and lift["segment_durations_s"] == [1.2, .45]
+                and np.allclose(lift["pose_start"], preload["pose_end"], rtol=0., atol=1e-12)
+                and np.allclose(lift["pose_end"], [.239, -.06769449763600001, .226, 0., -.2], rtol=0., atol=1e-12)
+                and np.allclose(np.asarray(lift["active_base_knots_m"])[1:], np.asarray(original_lift["active_base_knots_m"])[1:], rtol=0., atol=1e-12)
+                and lift.get("settle_s") == original_lift.get("settle_s")
+                and lift.get("settle_persistence_s") == original_lift.get("settle_persistence_s")
+                and lift.get("continuous_air_transition") is True,
+                "LM lift levels at unchanged height before transfer")
+        require(air["active_legs"] == [2]
+                and air["anchor_curve"] == original_air["anchor_curve"]
+                and air["pose_curve"] == original_air["pose_curve"]
+                and air["segment_durations_s"] == original_air["segment_durations_s"]
+                and np.allclose(air["pose_start"], lift["pose_end"], rtol=0., atol=1e-12)
+                and air["pose_end"] == original_air["pose_end"]
+                and air["active_base_knots_m"] == original_air["active_base_knots_m"]
+                and np.allclose(np.asarray(air["anchor_knots"])[-1], np.asarray(original_air["anchor_knots"])[-1], rtol=0., atol=1e-12)
+                and air.get("settle_s") == original_air.get("settle_s")
+                and air.get("settle_persistence_s") == original_air.get("settle_persistence_s")
+                and air.get("continuous_air_transition") is True,
+                "LM air reconnects frozen endpoint")
+        lift_velocity = np.asarray(lift["active_base_velocities_m_s"], float)
+        air_velocity = np.asarray(air["active_base_velocities_m_s"], float)
+        require(np.allclose(lift_velocity[0], 0., rtol=0., atol=1e-12)
+                and np.linalg.norm(lift_velocity[1, 0]) > 0.
+                and np.allclose(air_velocity[-1], np.asarray(original_air["active_base_velocities_m_s"])[-1], rtol=0., atol=1e-12),
+                "LM-level Hermite endpoint contract")
+    else:
+        for name in left_names:
+            require(next(stage for stage in stages if stage["name"] == name) == original[name],
+                    "critical frozen stage " + name)
     require(stages[-1]["pose_end"] == baseline["stages"][-1]["pose_end"]
             and stages[-1]["anchor_knots"][-1] == baseline["stages"][-1]["anchor_knots"][-1],
             "frozen terminal body and anchors")

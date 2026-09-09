@@ -37,7 +37,7 @@ COUPLED_PAIR_NAMES = frozenset(("RB_RF_DIRECT_FINAL", "LB_LF_DIRECT_FINAL"))
 FROZEN_DURATION_CONTRACTS = {
     "LB_LOW_STEP": [1.4, .5, 1.2],
     "LF_LOW_STEP": [1.4, .55, 1.0],
-    "BODY_PRELOAD_LM": [1.0],
+    "BODY_PRELOAD_LM": ([1.0], [.5]),
 }
 BODY_RIGHT_NAME = "BODY_RIGHT_BEFORE_LF"
 
@@ -71,9 +71,16 @@ def allowed_difference(before, after):
                     new_durations[0] >= LEFT_TRANSFER_BODY_MINIMUM_DURATION_S,
                     "C21 body return must not shorten below 1.2 s")
         elif old_stage["name"] in FROZEN_DURATION_CONTRACTS:
-            require(old_durations == new_durations
-                    == FROZEN_DURATION_CONTRACTS[old_stage["name"]],
+            contract = FROZEN_DURATION_CONTRACTS[old_stage["name"]]
+            permitted = contract if isinstance(contract[0], list) else (contract,)
+            require(old_durations == new_durations and old_durations in permitted,
                     old_stage["name"] + " verified duration contract")
+            if old_stage["name"] == "BODY_PRELOAD_LM":
+                expected_end = ([.239, -.06769449763600001, .226, .16, -.2]
+                                if old_durations == [.5] else
+                                [.239, -.06769449763600001, .201, 0.0, -.2])
+                require(np.allclose(old_stage["pose_end"], expected_end, rtol=0., atol=1e-12),
+                        "BODY_PRELOAD_LM duration/pose contract")
         elif "active_base_velocities_m_s" in old_stage:
             require(old_durations == new_durations,
                     "continuous swing timing is frozen; rebuild and revalidate it")

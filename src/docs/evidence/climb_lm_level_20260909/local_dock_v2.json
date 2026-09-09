@@ -1,0 +1,230 @@
+{
+  "baseline_sha256": "67616b7056329c0f65723962befa5166c4d162c45ca0b85fc79aad516aed9edf",
+  "candidate_sha256": "f8da102282bffef261bfa0a2fe94b07558121f6c4bb38bc97c1c8c1c3061440f",
+  "stage_count": 27,
+  "unchanged_c23_onward": true,
+  "local_30hz": {
+    "local_names": [
+      "BODY_PRELOAD_LM",
+      "LM_LIFT",
+      "BODY_ADVANCE_LM_AIR",
+      "LM_LEFT_FINAL_LAND"
+    ],
+    "min_joint_margin_rad": 0.13666167808851215,
+    "min_joint_source": [
+      "BODY_PRELOAD_LM",
+      0.5,
+      0,
+      2
+    ],
+    "min_lm_air_support_m": 0.030798971686169924,
+    "min_lm_air_support_source": [
+      "LM_LIFT",
+      0.7999999999999999
+    ],
+    "max_ik_residual_m": 4.784159940603653e-08,
+    "max_ik_source": [
+      "BODY_PRELOAD_LM",
+      0.3,
+      2
+    ],
+    "max_command_secant_rad_s": 2.8729009643544674,
+    "max_speed_source": [
+      "LM_LIFT",
+      0.39999999999999997,
+      2,
+      2
+    ],
+    "speed_rows": [
+      [
+        {
+          "segment_index": 0,
+          "semantic": "BODY",
+          "duration_s": 0.5,
+          "target_rad_s": 1.9,
+          "hard_gate_rad_s": 2.4,
+          "minimum_duration_s": 0.5,
+          "measured_peak_rad_s": 0.3473194442922034,
+          "worst_source": {
+            "stage": "BODY_PRELOAD_LM",
+            "time_s": 0.26666666666666666,
+            "leg": 5,
+            "joint": 2,
+            "actual": 0.3473194442922034,
+            "threshold": 2.4
+          }
+        }
+      ],
+      [
+        {
+          "segment_index": 0,
+          "semantic": "SWING_LIFT",
+          "duration_s": 1.2,
+          "target_rad_s": 3.0,
+          "hard_gate_rad_s": 3.4,
+          "minimum_duration_s": 0.35,
+          "measured_peak_rad_s": 2.8729009643544674,
+          "worst_source": {
+            "stage": "LM_LIFT",
+            "time_s": 0.39999999999999997,
+            "leg": 2,
+            "joint": 2,
+            "actual": 2.8729009643544674,
+            "threshold": 3.4
+          }
+        },
+        {
+          "segment_index": 1,
+          "semantic": "SWING_TRANSFER",
+          "duration_s": 0.45,
+          "target_rad_s": 3.0,
+          "hard_gate_rad_s": 3.4,
+          "minimum_duration_s": 0.45,
+          "measured_peak_rad_s": 1.1079595044691326,
+          "worst_source": {
+            "stage": "LM_LIFT",
+            "time_s": 1.4666666666666668,
+            "leg": 2,
+            "joint": 1,
+            "actual": 1.1079595044691326,
+            "threshold": 3.4
+          }
+        }
+      ],
+      [
+        {
+          "segment_index": 0,
+          "semantic": "CRITICAL_BODY_TRANSFER",
+          "duration_s": 3.0,
+          "target_rad_s": 1.8,
+          "hard_gate_rad_s": 2.4,
+          "minimum_duration_s": 3.0,
+          "measured_peak_rad_s": 0.6751688413759843,
+          "worst_source": {
+            "stage": "BODY_ADVANCE_LM_AIR",
+            "time_s": 1.7666666666666668,
+            "leg": 4,
+            "joint": 1,
+            "actual": 0.6751688413759843,
+            "threshold": 2.4
+          }
+        }
+      ],
+      [
+        {
+          "segment_index": 0,
+          "semantic": "TOUCHDOWN",
+          "duration_s": 0.8,
+          "target_rad_s": 1.4,
+          "hard_gate_rad_s": 1.8,
+          "minimum_duration_s": 0.35,
+          "measured_peak_rad_s": 1.0027693127882382,
+          "worst_source": {
+            "stage": "LM_LEFT_FINAL_LAND",
+            "time_s": 0.36666666666666664,
+            "leg": 2,
+            "joint": 1,
+            "actual": 1.0027693127882382,
+            "threshold": 1.8
+          }
+        }
+      ]
+    ],
+    "speed_failures": [],
+    "passes": {
+      "joint_ge_08": true,
+      "lm_support_ge_029": true,
+      "ik_le_1e5": true,
+      "speed": true
+    }
+  },
+  "dock_default_actions": {
+    "scope": "terminal FK then deterministic BODY_RAISE and 20mm XY tag-search radius; visual prealign/descent depend on future TF and are not bounded here",
+    "terminal_joint_margin_rad": 0.3678916571514912,
+    "min_joint_margin_rad": 0.45210599865063295,
+    "min_joint_margin_action": "search_radius_20mm_+0_-20mm",
+    "max_ik_residual_m": 2.7912424835503067e-08,
+    "max_ik_action": "search_radius_20mm_+20_+0mm",
+    "max_terminal_axis_deviation_from_base_z_deg": 28.29403293625981,
+    "max_axis_action": "search_radius_20mm_+20_+0mm",
+    "rows": [
+      {
+        "action": "body_raise_z_minus_40mm",
+        "min_joint_margin_rad": 0.638062573662576,
+        "max_ik_residual_m": 2.5454851260734096e-08,
+        "max_terminal_axis_deviation_from_base_z_deg": 18.657887728134423
+      },
+      {
+        "action": "search_radius_20mm_+20_+0mm",
+        "min_joint_margin_rad": 0.6446509920693009,
+        "max_ik_residual_m": 2.7912424835503067e-08,
+        "max_terminal_axis_deviation_from_base_z_deg": 28.29403293625981
+      },
+      {
+        "action": "search_radius_20mm_-20_+0mm",
+        "min_joint_margin_rad": 0.6296201827502279,
+        "max_ik_residual_m": 1.328466301690826e-10,
+        "max_terminal_axis_deviation_from_base_z_deg": 14.990668354579661
+      },
+      {
+        "action": "search_radius_20mm_+0_+20mm",
+        "min_joint_margin_rad": 0.46424104491565854,
+        "max_ik_residual_m": 1.3279048987504474e-08,
+        "max_terminal_axis_deviation_from_base_z_deg": 17.775168531902313
+      },
+      {
+        "action": "search_radius_20mm_+0_-20mm",
+        "min_joint_margin_rad": 0.45210599865063295,
+        "max_ik_residual_m": 8.156968761594586e-10,
+        "max_terminal_axis_deviation_from_base_z_deg": 18.751073389923143
+      }
+    ],
+    "historical_lm_anchor_dependency": "none: DockMode uses current joints/FK and does not read climb anchors; reachability is driven by base-relative foot targets."
+  },
+  "dock_continuous": {
+    "sample_count": 243,
+    "scope": "30 Hz deterministic 40 mm BODY_RAISE plus one DockMode-default 20 mm search circle; TF-driven prealign/descent excluded",
+    "min_joint_margin_rad": 0.3863175804871808,
+    "min_joint_source": [
+      0,
+      "body_raise",
+      0.0016666666666666668,
+      [
+        0.0,
+        0.0
+      ]
+    ],
+    "min_true_com_six_foot_support_m": 0.13520474960055812,
+    "min_support_source": [
+      207,
+      "search_circle",
+      0.04,
+      [
+        0.018254069268717924,
+        -0.008172450986873388
+      ]
+    ],
+    "max_ik_residual_m": 5.945682499991648e-09,
+    "max_ik_source": [
+      172,
+      "search_circle",
+      0.04,
+      [
+        0.01469196004646964,
+        0.013570051952477553
+      ]
+    ],
+    "max_terminal_axis_tilt_from_base_z_deg": 28.31703761366432,
+    "max_axis_source": [
+      193,
+      "search_circle",
+      0.04,
+      [
+        0.019979098341958556,
+        0.0009141276947718942
+      ]
+    ],
+    "evidence_boundary": "base-z axis tilt is kinematic only, not a support-surface or contact angle."
+  },
+  "evidence_boundary": "CPU kinematics/support diagnostics only; no contact, load, friction, collision-continuity, hardware, or GPU evidence."
+}

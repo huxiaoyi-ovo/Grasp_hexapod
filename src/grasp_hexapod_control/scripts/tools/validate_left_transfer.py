@@ -232,11 +232,25 @@ def structural_gate(compact):
                           -.09415246498936361]]),
             "LF folded lift-transfer-touchdown contract")
     require(preload["active_legs"] == [], "LM preload must be body-only")
-    require(np.allclose(preload["pose_start"],
-                        [.232, -.06769449763600001, .226, .16, -.2]) and
-            np.allclose(preload["pose_end"],
-                        [.239, -.06769449763600001, .201, 0.0, -.2]) and
-            preload["segment_durations_s"] == [1.0], "LM preload contract")
+    if preload["segment_durations_s"] == [.5]:
+        require(np.allclose(preload["pose_start"],
+                            [.232, -.06769449763600001, .226, .16, -.2]) and
+                np.allclose(preload["pose_end"],
+                            [.239, -.06769449763600001, .226, .16, -.2]) and
+                np.array_equal(preload["anchor_knots"][0], preload["anchor_knots"][-1]) and
+                lm_lift["pose_curve"] == "quintic_first_segment" and
+                lm_lift["segment_durations_s"] == [1.2, .45] and
+                np.allclose(lm_lift["pose_start"], preload["pose_end"]) and
+                np.allclose(lm_lift["pose_end"],
+                            [.239, -.06769449763600001, .226, 0.0, -.2]) and
+                np.allclose(lm_air["pose_start"], lm_lift["pose_end"]),
+                "LM-level preload/lift contract")
+    else:
+        require(np.allclose(preload["pose_start"],
+                            [.232, -.06769449763600001, .226, .16, -.2]) and
+                np.allclose(preload["pose_end"],
+                            [.239, -.06769449763600001, .201, 0.0, -.2]) and
+                preload["segment_durations_s"] == [1.0], "LM preload contract")
     lf_target = np.array([.21364857479269686, .12028708155300925,
                           .15592301975850517])
     require(np.allclose(np.asarray(lf["anchor_knots"])[-1, 1], lf_target),

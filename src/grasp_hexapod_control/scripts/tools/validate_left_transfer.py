@@ -37,7 +37,6 @@ from validate_final_transfer import footprint_clearance, stl_triangles
 
 
 DT = 1.0 / 30.0
-LEFT_START = 18
 NAMES = (
     "BODY_LEFT_TRANSFER_PREP",
     "LB_LOW_STEP",
@@ -75,6 +74,27 @@ LM_AIR_SUPPORT_MARGIN_M = 0.029
 def require(value, message):
     if not value:
         raise AssertionError(message)
+
+
+def left_start(compact):
+    """Return the named left-transfer block entry in either accepted layout."""
+
+    names = tuple(stage["name"] for stage in compact["stages"])
+    try:
+        start = names.index(NAMES[0])
+    except ValueError as error:
+        raise AssertionError("missing BODY_LEFT_TRANSFER_PREP") from error
+    require(tuple(names[start:start + len(NAMES)]) == NAMES,
+            "left-transfer stage map")
+    return start
+
+
+def final_lf_pair_index(compact):
+    names = tuple(stage["name"] for stage in compact["stages"])
+    for name in ("LB_LF_DOCK_TRANSFER", "LB_LF_DIRECT_FINAL"):
+        if name in names:
+            return names.index(name)
+    raise AssertionError("missing final LB/LF pair")
 
 
 def source(stage, time_s, leg, metric, actual, threshold):
@@ -141,26 +161,31 @@ def stage_reference(mode, index, time_s):
 def prefix_entry(compact):
     """Replay the unchanged prefix once and return its continuous DLS branch."""
 
+    start = left_start(compact)
     controller = GraspController(DT)
     q = np.asarray(compact["p0"]["q_rad"], dtype=np.float64)
     controller.enter_climb(q, compact)
     while (
         controller.climb_mode.state == ClimbMode.RUNNING
-        and controller.climb_mode.stage_index < LEFT_START
+        and controller.climb_mode.stage_index < start
     ):
         q = controller.update(q, np.zeros(4))
-    require(controller.climb_mode.stage_index == LEFT_START, "prefix did not reach C19")
+    require(controller.climb_mode.stage_index == start,
+            "prefix did not reach BODY_LEFT_TRANSFER_PREP")
     return controller, q
 
 
 def structural_gate(compact):
     stages = compact["stages"]
-    require(compact["stage_count"] == 32 == len(stages), "expected active 33-stage plan")
-    require(tuple(stage["name"] for stage in stages[18:26]) == NAMES,
-            "left-transfer stage map")
-    require(stages[19]["active_legs"] == [0], "LB must swing alone")
-    require(stages[20]["active_legs"] == [], "right shift must be body-only")
-    right_shift = stages[20]
+    require(compact["stage_count"] in (27, 32) and
+            compact["stage_count"] == len(stages),
+            "expected 27-stage current or 32-stage historical plan")
+    start = left_start(compact)
+    body_prep, lb, right_shift, lf, preload, lm_lift, lm_air, lm_land = (
+        stages[start:start + len(NAMES)]
+    )
+    require(lb["active_legs"] == [0], "LB must swing alone")
+    require(right_shift["active_legs"] == [], "right shift must be body-only")
     require(np.array_equal(right_shift["anchor_knots"][0],
                            right_shift["anchor_knots"][-1]),
             "right shift must retain all six fixed support anchors")
@@ -176,8 +201,7 @@ def structural_gate(compact):
             np.allclose(right_shift["pose_end"],
                         [.232, -.06769449763600001, .200, 0.0, -.2]),
             "right shift must return level before LF swing")
-    require(stages[21]["active_legs"] == [1], "LF must swing alone")
-    lb = stages[19]
+    require(lf["active_legs"] == [1], "LF must swing alone")
     require(len(lb["anchor_knots"]) == 4 and
             lb["pose_curve"] == "quintic_first_segment" and
             lb["segment_durations_s"] == [1.4, .5, 1.2] and
@@ -188,12 +212,10 @@ def structural_gate(compact):
             np.allclose(np.asarray(lb["active_base_knots_m"])[:, 0],
                         [[-.17585050573741318, -.16798118089306158,
                           -.16280924307881292],
-                         [-.097, -.168, -.047],
-                         [-.038, -.172, -.047],
+                         [-.097, -.168, -.047], [-.038, -.172, -.047],
                          [-.037985226307412745, -.16257697201223562,
                           -.10024102785957004]]),
             "LB folded lift-transfer-touchdown contract")
-    lf = stages[21]
     require(len(lf["anchor_knots"]) == 4 and
             lf["pose_curve"] == "quintic_first_segment" and
             lf["segment_durations_s"] == [1.4, .55, 1.0] and
@@ -209,25 +231,25 @@ def structural_gate(compact):
                          [-.0319077652701476, .17521940512737647,
                           -.09415246498936361]]),
             "LF folded lift-transfer-touchdown contract")
-    require(stages[22]["active_legs"] == [], "LM preload must be body-only")
-    require(np.allclose(stages[22]["pose_start"],
+    require(preload["active_legs"] == [], "LM preload must be body-only")
+    require(np.allclose(preload["pose_start"],
                         [.232, -.06769449763600001, .226, .16, -.2]) and
-            np.allclose(stages[22]["pose_end"],
+            np.allclose(preload["pose_end"],
                         [.239, -.06769449763600001, .201, 0.0, -.2]) and
-            stages[22]["segment_durations_s"] == [1.0],
-            "LM preload contract")
+            preload["segment_durations_s"] == [1.0], "LM preload contract")
     lf_target = np.array([.21364857479269686, .12028708155300925,
                           .15592301975850517])
     require(np.allclose(np.asarray(lf["anchor_knots"])[-1, 1], lf_target),
             "LF landing centerward low-plane offset")
+    final_lf_index = final_lf_pair_index(compact)
     require(all(np.allclose(np.asarray(stage["anchor_knots"])[:, 1], lf_target)
-                for stage in stages[22:29]),
-            "C23-C29 retain shifted LF world anchor")
-    require(np.allclose(np.asarray(stages[29]["anchor_knots"])[0, 1], lf_target),
-            "C30 LF pair starts from shifted anchor before final release")
+                for stage in stages[start + 4:final_lf_index]),
+            "preload through final LF pair retain shifted LF world anchor")
+    require(np.allclose(np.asarray(stages[final_lf_index]["anchor_knots"])[0, 1],
+                        lf_target), "final LF pair starts from shifted anchor")
     mode = ClimbMode(None)
     mode.config = compact
-    for index in (19, 21):
+    for index in (start + 1, start + 3):
         mode.stage_index = index
         mode.phase_time = stages[index]["segment_durations_s"][0]
         pose, _, _ = mode._stage_reference()
@@ -236,9 +258,11 @@ def structural_gate(compact):
     require(np.allclose(JOINT_UPPER[[1, 3], 0], .698 + np.deg2rad(20.0)) and
             np.allclose(JOINT_LOWER[[0, 4], 0], -.698 - np.deg2rad(20.0)),
             "outer thigh one-sided 20 degree model limits")
-    require(all(stages[index]["active_legs"] == [2] for index in (23, 24, 25)),
+    require(all(stage["active_legs"] == [2] for stage in
+                (lm_lift, lm_air, lm_land)),
             "LM must lift, remain airborne, then land once")
-    require(not any(set(stage["active_legs"]) == {0, 1} for stage in stages[18:26]),
+    require(not any(set(stage["active_legs"]) == {0, 1}
+                    for stage in stages[start:start + len(NAMES)]),
             "LB/LF simultaneous swing is forbidden")
     for index in range(1, len(stages)):
         require(np.allclose(stages[index - 1]["pose_end"], stages[index]["pose_start"],
@@ -248,10 +272,11 @@ def structural_gate(compact):
                             stages[index]["anchor_knots"][0],
                             rtol=0.0, atol=1e-10),
                 "anchor boundary C{}->C{}".format(index, index + 1))
-    require(np.array_equal(np.asarray(stages[25]["anchor_knots"][-1]),
-                           np.asarray(stages[26]["anchor_knots"])[0]),
-            "C26 final left-transfer state must enter the compressed tail")
-    lf_target = np.asarray(stages[21]["anchor_knots"][-1][1])
+    tail = stages[start + len(NAMES)]
+    require(tail["name"] == "RB_RF_DIRECT_FINAL", "left-transfer tail entry")
+    require(np.array_equal(np.asarray(lm_land["anchor_knots"][-1]),
+                           np.asarray(tail["anchor_knots"][0])),
+            "LM landing must enter RB/RF final swing")
     lf_local_y = lf_target[1] - compact["xiaolan_translation"][1]
     lateral_margin = LOW_SURFACE_LATERAL_EDGE_Y_LOCAL_M - lf_local_y
     require(lateral_margin >= LF_LATERAL_EDGE_MARGIN_M,
@@ -270,7 +295,8 @@ def dense_validate(compact):
     reports = []
     global_sources = {}
 
-    for index in range(18, 26):
+    start = left_start(compact)
+    for index in range(start, start + len(NAMES)):
         stage = compact["stages"][index]
         times = dense_times(stage)
         report = {
@@ -393,9 +419,10 @@ def dense_validate(compact):
             source("LB_LOW_STEP", 0.0, 0, "platform_entry_clearance_m",
                    lb_entry_clearance, HARD_EDGE_CLEARANCE_M))
 
-    preload = compact["stages"][22]
+    preload_index = start + 4
+    preload = compact["stages"][preload_index]
     pose, anchors, desired = stage_reference(
-        mode, 22, sum(preload["segment_durations_s"]))
+        mode, preload_index, sum(preload["segment_durations_s"]))
     q, _ = solve_exact(kinematic, q, desired)
     transform = ClimbMode._world_from_base(pose)
     com_world = (transform @ np.append(kinematic.center_of_mass_base(q), 1.0))[:3]
@@ -405,9 +432,10 @@ def dense_validate(compact):
             source("BODY_PRELOAD_LM", sum(preload["segment_durations_s"]), None,
                    "future_support_margin_m", future.raw_margin_m, 0.03))
 
-    final_stage = compact["stages"][25]
+    final_index = start + 7
+    final_stage = compact["stages"][final_index]
     pose, _, desired = stage_reference(
-        mode, 25, sum(final_stage["segment_durations_s"]))
+        mode, final_index, sum(final_stage["segment_durations_s"]))
     q, _ = solve_exact(kinematic, q, desired)
     transform = ClimbMode._world_from_base(pose)
     hip_world = (transform @ np.append(kinematic.base_from_hip[2][:3, 3], 1.0))[:3]
@@ -441,7 +469,7 @@ def dense_validate(compact):
         "LB_platform_entry_clearance_m": float(lb_entry_clearance),
         "LF_lateral_edge_margin_m": float(
             LOW_SURFACE_LATERAL_EDGE_Y_LOCAL_M -
-             (compact["stages"][21]["anchor_knots"][-1][1][1] -
+             (compact["stages"][start + 3]["anchor_knots"][-1][1][1] -
              compact["xiaolan_translation"][1])),
         "final_LM_hip_foot_xy_m": final_radius,
         "final_LM_terminal_axis_angle_deg": final_angle,
@@ -457,8 +485,9 @@ def dynamic_gate(compact):
     minimum = np.inf
     support = np.inf
     margin_source = None
+    start = left_start(compact)
     segments = {index: speed_report(index, compact["stages"][index])
-                for index in range(18, 26)}
+                for index in range(start, start + len(NAMES))}
     ticks = 0
     while controller.climb_mode.state == ClimbMode.RUNNING:
         name = controller.climb_mode.phase

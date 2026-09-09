@@ -734,12 +734,83 @@ def compact32_tail_gate(compact):
             "interior_foot_clearance_m": clearance, "model_tail": model}
 
 
+def compact_concurrent_tail_gate(compact):
+    """Named checks for the bounded five-block concurrent candidate.
+
+    This is intentionally independent of the builder's JSON identity: it
+    checks named curve fields, replay, terminal FK, and the capsule guard.
+    Local visual-CAD and support diagnostics are separate bounded checks.
+    """
+    stages = compact["stages"]
+    names = [stage["name"] for stage in stages]
+    start = names.index("LM_LEFT_FINAL_LAND")
+    expected = ("LM_LEFT_FINAL_LAND", "RB_RF_DIRECT_FINAL",
+                "RM_BODY_REPOSITION", "LB_LF_DOCK_TRANSFER",
+                "STAND_FINAL_HOLD")
+    count = compact.get("stage_count")
+    require(count == len(stages) and count in (26, 27, 28),
+            {"metric": "stage_count", "actual": len(stages)})
+    require(tuple(names[start:]) == expected,
+            {"metric": "concurrent_tail_map", "actual": names[start:]})
+    common = ("RB_BODY_ADVANCE", "LM_RM_PRE_ADVANCE",
+              "RM_BODY_REPOSITION", "LB_LF_DOCK_TRANSFER")
+    body = {26: "LM_RM_BODY_TRANSFER", 27: "LM_BODY_TRANSFER", 28: None}[count]
+    changed = common + (() if body is None else (body,))
+    require(all(name in names for name in changed)
+            and all(name not in names for name in
+                    ("LM_RM_BODY_TRANSFER", "LM_BODY_TRANSFER")
+                    if name != body),
+            {"metric": "concurrent_stage_names", "actual": names})
+    for name in changed:
+        stage = stages[names.index(name)]
+        require(stage["anchor_curve"] == "piecewise_base_quintic"
+                and stage["pose_curve"] == "quintic_full_stage"
+                and len(stage["active_base_velocities_m_s"])
+                    == len(stage["anchor_knots"]),
+                {"metric": "concurrent_curve", "stage": name})
+        velocities = np.asarray(stage["active_base_velocities_m_s"], float)
+        require(np.allclose(velocities[[0, -1]], 0.0, rtol=0.0, atol=1e-12),
+                {"metric": "concurrent_endpoint_velocity", "stage": name})
+    report = strict_preview_replay(compact, strict=False)
+    require(report["min_joint_margin_rad"] >= .02,
+            {"metric": "joint_margin", "actual": report["min_joint_margin_rad"]})
+    terminal = np.asarray(compact["terminal_q_rad"], float)
+    final = stages[-1]
+    inverse = np.linalg.inv(ClimbMode._world_from_base(final["pose_end"]))
+    desired = (np.c_[final["anchor_knots"][-1], np.ones(6)] @ inverse.T)[:, :3]
+    terminal_fk = float(np.max(np.linalg.norm(
+        GraspController(DT).kinematic.forward_base(terminal) - desired, axis=1)))
+    require(terminal_fk <= 1e-5,
+            {"metric": "terminal_q_fk_m", "actual": terminal_fk})
+    controller = GraspController(DT, enable_link_collision_check=True)
+    q = np.asarray(compact["p0"]["q_rad"], float)
+    controller.enter_climb(q, compact)
+    holds = 0
+    ticks = 0
+    while controller.climb_mode.state == ClimbMode.RUNNING and ticks < 12000:
+        index = controller.climb_mode.stage_index
+        q = controller.update(q, np.zeros(4))
+        if controller.climb_mode.phase in changed or index >= start:
+            holds += controller.last_update_collision_guard_hold_count
+        ticks += 1
+    require(controller.climb_mode.state == ClimbMode.DONE,
+            {"metric": "concurrent_capsule_replay_state",
+             "actual": controller.climb_mode.state, "ticks": ticks})
+    require(holds == 0, {"metric": "concurrent_capsule_guard_holds", "actual": holds})
+    return {"generic_replay": report, "terminal_q_fk_error_m": terminal_fk,
+            "capsule_guard_holds": holds, "capsule_replay_ticks": ticks,
+            "evidence_boundary": "Replay/capsule checks only; local CAD and PhysX remain separate diagnostics."}
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", type=Path,
                         default=package_config_path("climb_compact.json"))
     args = parser.parse_args()
     compact = json.loads(args.config.read_text(encoding="utf-8"))
+    if compact.get("stage_count") in (26, 27, 28):
+        print(json.dumps(compact_concurrent_tail_gate(compact), indent=2, allow_nan=False))
+        return
     if compact.get("stage_count") == 32:
         print(json.dumps(compact32_tail_gate(compact), indent=2, allow_nan=False))
         return

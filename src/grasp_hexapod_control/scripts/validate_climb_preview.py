@@ -6,6 +6,7 @@ not establish contact, load, stability, or real-robot authorization.
 """
 
 import argparse
+import hashlib
 import json
 from pathlib import Path
 
@@ -24,6 +25,7 @@ from utils.climb_retime import (
 
 
 DT = 1.0 / 30.0
+ROOT = Path(__file__).resolve().parents[3]
 ACTIVE_STAGE_NAMES = (
     "PREP", "RM", "BODY", "PAIR", "LB_LF_GROUND_SHIFT",
     "LM_GROUND_SHIFT", "BODY2", "RM_HIGH_C", "RB_RF_HIGH_C", "BODY3",
@@ -80,6 +82,10 @@ def base_relative_clearances(stage):
 
 def strict_contract(compact):
     """Lock the accepted active plan's identity-specific invariants."""
+
+    if compact.get("stage_count") == 27:
+        strict_concurrent27(compact)
+        return
 
     stages = compact["stages"]
     require(compact["stage_count"] == len(ACTIVE_STAGE_NAMES) == len(stages),
@@ -211,6 +217,64 @@ def strict_contract(compact):
             "active aliases")
 
 
+def strict_concurrent27(compact):
+    """Freeze the accepted named 68f-to-AB1C merge contract."""
+    baseline_path = ROOT / "src/docs/evidence/climb_concurrency_20260908/baseline_config.json"
+    require(baseline_path.is_file(), "concurrent frozen baseline evidence")
+    require(hashlib.sha256(baseline_path.read_bytes()).hexdigest()
+            == "68f60b97b167ca644f0cebe5fd4de1016b9705764a0376b0431459b0e818346c",
+            "concurrent baseline SHA")
+    baseline = load_config(baseline_path)
+    stages = compact["stages"]
+    require(len(stages) == compact.get("stage_count") == 27, "27 concurrent stages")
+    sources = {"RB_BODY_ADVANCE": (9, 10), "LM_RM_PRE_ADVANCE": (11, 12),
+               "LM_BODY_TRANSFER": (15, 16), "RM_BODY_REPOSITION": (27, 28),
+               "LB_LF_DOCK_TRANSFER": (29, 30)}
+    names = [stage["name"] for stage in stages]
+    source_by_start = {start: name for name, (start, _) in sources.items()}
+    consumed = {index for span in sources.values() for index in range(span[0], span[1] + 1)}
+    expected_names = [source_by_start[index] if index in source_by_start else stage["name"]
+                      for index, stage in enumerate(baseline["stages"]) if index not in consumed or index in source_by_start]
+    require(names == expected_names, "concurrent stage map")
+    original = {stage["name"]: stage for stage in baseline["stages"]}
+    base_top, current_top = dict(baseline), dict(compact)
+    base_top.pop("stages"); current_top.pop("stages")
+    base_top.pop("stage_count"); current_top.pop("stage_count")
+    require(base_top == current_top, "concurrent top-level identity")
+    for index, source in enumerate(baseline["stages"]):
+        if index not in consumed:
+            require(next(stage for stage in stages if stage["name"] == source["name"]) == source,
+                    "unchanged frozen stage " + source["name"])
+    for name, (start, end) in sources.items():
+        stage = next(item for item in stages if item["name"] == name)
+        first, last = baseline["stages"][start], baseline["stages"][end]
+        expected_active = sorted({leg for source in baseline["stages"][start:end + 1]
+                                  for leg in source["active_legs"]})
+        require(stage["active_legs"] == expected_active, "merged active legs " + name)
+        require(np.allclose(stage["pose_start"], first["pose_start"], rtol=0., atol=1e-12)
+                and np.allclose(stage["pose_end"], last["pose_end"], rtol=0., atol=1e-12)
+                and np.allclose(stage["anchor_knots"][0], first["anchor_knots"][0], rtol=0., atol=1e-12)
+                and np.allclose(stage["anchor_knots"][-1], last["anchor_knots"][-1], rtol=0., atol=1e-12),
+                "merged boundary " + name)
+        fixed = [leg for leg in range(6) if leg not in stage["active_legs"]]
+        require(all(np.allclose(np.asarray(knot)[fixed], np.asarray(first["anchor_knots"][0])[fixed], rtol=0., atol=1e-12)
+                    for knot in stage["anchor_knots"]), "fixed anchor " + name)
+        velocity = np.asarray(stage.get("active_base_velocities_m_s"), float)
+        require(stage["anchor_curve"] == "piecewise_base_quintic"
+                and stage["pose_curve"] == "quintic_full_stage"
+                and velocity.shape == np.asarray(stage["active_base_knots_m"]).shape
+                and np.allclose(velocity[[0, -1]], 0., rtol=0., atol=1e-12)
+                and np.all(np.linalg.norm(velocity[1:-1], axis=2) > 0.), "Hermite curve " + name)
+    for name in ("BODY_LEFT_TRANSFER_PREP", "LB_LOW_STEP", "BODY_RIGHT_BEFORE_LF",
+                 "LF_LOW_STEP", "BODY_PRELOAD_LM", "LM_LIFT",
+                 "BODY_ADVANCE_LM_AIR", "LM_LEFT_FINAL_LAND"):
+        require(next(stage for stage in stages if stage["name"] == name) == original[name],
+                "critical frozen stage " + name)
+    require(stages[-1]["pose_end"] == baseline["stages"][-1]["pose_end"]
+            and stages[-1]["anchor_knots"][-1] == baseline["stages"][-1]["anchor_knots"][-1],
+            "frozen terminal body and anchors")
+
+
 def replay(compact, strict=False):
     """Replay a candidate through ClimbMode and GraspController at 30 Hz."""
 
@@ -302,7 +366,7 @@ def replay(compact, strict=False):
                 stage_report[stage_index]["planned_base_raw_support_margin_m"] = value
                 stage_report[stage_index]["planned_base_raw_support_margin_source"] = {
                     "tick": ticks, "fixed_legs": fixed, "valid": True}
-        if strict and stage_index == 13:
+        if strict and stages[stage_index]["name"] == "LB_LF_BODY_ADVANCE_HIGH_STEP":
             c14_q.append(q.copy())
             c14_errors.append(np.linalg.norm(actual[:2] - desired[:2], axis=1))
         ticks += 1

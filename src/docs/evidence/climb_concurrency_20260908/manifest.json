@@ -1,0 +1,33 @@
+{
+  "candidate_sha256": "67616b7056329c0f65723962befa5166c4d162c45ca0b85fc79aad516aed9edf",
+  "baseline_sha256": "68f60b97b167ca644f0cebe5fd4de1016b9705764a0376b0431459b0e818346c",
+  "stage_count": 27,
+  "files": [
+    "baseline_config.json",
+    "candidate_config.json",
+    "generic.json",
+    "sparse.json",
+    "abc_localcad_nodes.json",
+    "abc_localcad_midpoints.json",
+    "lm_body_localcad.json",
+    "nominal_metrics.json",
+    "nominal.log",
+    "stress_metrics.json",
+    "stress.log",
+    "rejected_abc_candidate.json",
+    "rejected_abc_stress_metrics.json",
+    "rejected_abc_stress.log",
+    "ac_counterfactual_candidate.json",
+    "ac_counterfactual_stress_metrics.json",
+    "ac_counterfactual_stress.log",
+    "left_transfer_current_27.stderr",
+    "left_transfer_baseline_68f.stderr",
+    "left_transfer_causal_comparison.json",
+    "final_transfer_27.json",
+    "retime_default_audit.json"
+  ],
+  "rejected_counterfactual": "ABC passed nominal but failed low-friction stress at LF_LOW_STEP before RM-delay activation; AC passed after removing B. This establishes only outcome association, not a measured contact-force mechanism.",
+  "boundary": "CPU/CAD/GPU outputs are simulation diagnostics, not hardware authorization.",
+  "cad_provenance": "Accepted path samples 11 nodes plus 15 segment midpoints: A/C reuse 9 nodes and 12 midpoints from the rejected ABC geometry; B1 contributes 2 nodes and 3 midpoints. The rejected ABC B samples are not current B1 evidence.",
+  "unresolved_boundary": "The named dense left-transfer entry has an identical pre-existing 68f and 6761 failure at LB_LOW_STEP t=1.700 s, leg 0 joint 2, joint margin 0.0760645719754871 rad below the retained 0.08 rad gate. It is not a concurrency regression and neither plan is recorded as left-gate PASS."
+}

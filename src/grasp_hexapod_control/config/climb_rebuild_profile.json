@@ -1,7 +1,7 @@
 {
   "schema": "COMPACT_CLIMB_REBUILD_PROFILE_V1",
   "version": 1,
-  "template_sha256": "68f60b97b167ca644f0cebe5fd4de1016b9705764a0376b0431459b0e818346c",
+  "template_sha256": "67616b7056329c0f65723962befa5166c4d162c45ca0b85fc79aad516aed9edf",
   "template_repo_relative_path": "src/grasp_hexapod_control/config/climb_compact.json",
   "model": {
     "repo_relative_path": "src/grasp_hexapod_description/meshes/xiaolan/base_link_xiaolan.STL",
@@ -119,14 +119,11 @@
     "BODY2",
     "RM_HIGH_C",
     "RB_RF_HIGH_C",
-    "BODY3",
-    "RB_RF_SHIFT1",
-    "LM_GROUND_SHIFT1",
-    "RM_PRE_ADVANCE",
+    "RB_BODY_ADVANCE",
+    "LM_RM_PRE_ADVANCE",
     "LB_LF_BODY_ADVANCE_HIGH_STEP",
     "RB_RF_TOP_INWARD_PAIR",
-    "LM_EDGE_STAGE",
-    "BODY_A",
+    "LM_BODY_TRANSFER",
     "RM_RIGHT_SYMMETRY",
     "BODY_LEFT_TRANSFER_PREP",
     "LB_LOW_STEP",
@@ -137,10 +134,8 @@
     "BODY_ADVANCE_LM_AIR",
     "LM_LEFT_FINAL_LAND",
     "RB_RF_DIRECT_FINAL",
-    "RM_DIRECT_FINAL",
-    "BODY_REPOSITION",
-    "LB_LF_DIRECT_FINAL",
-    "BODY_DOCK_FINAL",
+    "RM_BODY_REPOSITION",
+    "LB_LF_DOCK_TRANSFER",
     "STAND_FINAL_HOLD"
   ],
   "stages": [
@@ -331,18 +326,7 @@
       ]
     },
     {
-      "name": "BODY3",
-      "pose_end": [
-        0.1,
-        -0.06769449763600001,
-        0.18,
-        0.0,
-        -0.3
-      ],
-      "active_endpoints": []
-    },
-    {
-      "name": "RB_RF_SHIFT1",
+      "name": "RB_BODY_ADVANCE",
       "pose_end": [
         0.1,
         -0.06769449763600001,
@@ -363,7 +347,7 @@
       ]
     },
     {
-      "name": "LM_GROUND_SHIFT1",
+      "name": "LM_RM_PRE_ADVANCE",
       "pose_end": [
         0.1,
         -0.06769449763600001,
@@ -380,19 +364,7 @@
             0.006500000000000006
           ],
           "surface_id": "unassigned"
-        }
-      ]
-    },
-    {
-      "name": "RM_PRE_ADVANCE",
-      "pose_end": [
-        0.1,
-        -0.06769449763600001,
-        0.18,
-        0.0,
-        -0.3
-      ],
-      "active_endpoints": [
+        },
         {
           "leg": 5,
           "world_point_m": [
@@ -465,11 +437,11 @@
       ]
     },
     {
-      "name": "LM_EDGE_STAGE",
+      "name": "LM_BODY_TRANSFER",
       "pose_end": [
-        0.16,
+        0.23,
         -0.06769449763600001,
-        0.18,
+        0.19,
         0.0,
         -0.2
       ],
@@ -484,17 +456,6 @@
           "surface_id": "unassigned"
         }
       ]
-    },
-    {
-      "name": "BODY_A",
-      "pose_end": [
-        0.23,
-        -0.06769449763600001,
-        0.19,
-        0.0,
-        -0.2
-      ],
-      "active_endpoints": []
     },
     {
       "name": "RM_RIGHT_SYMMETRY",
@@ -686,13 +647,13 @@
       ]
     },
     {
-      "name": "RM_DIRECT_FINAL",
+      "name": "RM_BODY_REPOSITION",
       "pose_end": [
-        0.36,
-        -0.06527087322700001,
-        0.295,
+        0.39,
+        -0.06284724881800001,
+        0.27,
         0.0,
-        -0.15000000000000002
+        -0.1
       ],
       "active_endpoints": [
         {
@@ -707,24 +668,13 @@
       ]
     },
     {
-      "name": "BODY_REPOSITION",
+      "name": "LB_LF_DOCK_TRANSFER",
       "pose_end": [
-        0.39,
-        -0.06284724881800001,
-        0.27,
+        0.45,
+        -0.058,
+        0.26,
         0.0,
-        -0.1
-      ],
-      "active_endpoints": []
-    },
-    {
-      "name": "LB_LF_DIRECT_FINAL",
-      "pose_end": [
-        0.39,
-        -0.06284724881800001,
-        0.27,
-        0.0,
-        -0.1
+        0.0
       ],
       "active_endpoints": [
         {
@@ -746,17 +696,6 @@
           "surface_id": "unassigned"
         }
       ]
-    },
-    {
-      "name": "BODY_DOCK_FINAL",
-      "pose_end": [
-        0.45,
-        -0.058,
-        0.26,
-        0.0,
-        0.0
-      ],
-      "active_endpoints": []
     },
     {
       "name": "STAND_FINAL_HOLD",

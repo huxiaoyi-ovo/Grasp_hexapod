@@ -22,9 +22,6 @@ from climb_mode import ClimbMode
 from control import GraspController
 from utils import package_config_path
 from utils.climb_retime import (
-    FROZEN_LB_LOW_STEP_INDEX,
-    FROZEN_LF_LOW_STEP_INDEX,
-    FROZEN_PRELOAD_INDEX,
     LEFT_TRANSFER_BODY_MINIMUM_DURATION_S,
     segment_for_time,
     stage_specs,
@@ -37,6 +34,12 @@ DT = 1.0 / 30.0
 TRACKING_ERROR_LIMIT_M = 0.015
 MAX_TRACKING_ITERATIONS = 8
 COUPLED_PAIR_NAMES = frozenset(("RB_RF_DIRECT_FINAL", "LB_LF_DIRECT_FINAL"))
+FROZEN_DURATION_CONTRACTS = {
+    "LB_LOW_STEP": [1.4, .5, 1.2],
+    "LF_LOW_STEP": [1.4, .55, 1.0],
+    "BODY_PRELOAD_LM": [1.0],
+}
+BODY_RIGHT_NAME = "BODY_RIGHT_BEFORE_LF"
 
 
 def round_up_centisecond(value):
@@ -63,19 +66,14 @@ def allowed_difference(before, after):
         if stage_index == len(before["stages"]) - 1:
             require(old_durations == new_durations,
                     "final hold duration must remain identical")
-        elif stage_index == FROZEN_LB_LOW_STEP_INDEX:
-            require(old_durations == new_durations == [1.4, .5, 1.2],
-                    "C20 verified duration contract")
-        elif stage_index == 20:
+        elif old_stage["name"] == BODY_RIGHT_NAME:
             require(len(old_durations) == len(new_durations) == 1 and
                     new_durations[0] >= LEFT_TRANSFER_BODY_MINIMUM_DURATION_S,
                     "C21 body return must not shorten below 1.2 s")
-        elif stage_index == FROZEN_PRELOAD_INDEX:
-            require(old_durations == new_durations == [1.0],
-                    "C23 BODY_PRELOAD_LM must remain 1.0 s")
-        elif stage_index == FROZEN_LF_LOW_STEP_INDEX:
-            require(old_durations == new_durations == [1.4, .55, 1.0],
-                    "C22 verified duration contract")
+        elif old_stage["name"] in FROZEN_DURATION_CONTRACTS:
+            require(old_durations == new_durations
+                    == FROZEN_DURATION_CONTRACTS[old_stage["name"]],
+                    old_stage["name"] + " verified duration contract")
         elif "active_base_velocities_m_s" in old_stage:
             require(old_durations == new_durations,
                     "continuous swing timing is frozen; rebuild and revalidate it")
@@ -130,12 +128,8 @@ def dynamic_tracking_adjust(proposal, allow_adjustments):
         require(allow_adjustments,
                 "verified duration has 30 Hz active-foot tracking failure")
         for (stage_index, segment_index), item in sorted(failures.items()):
-            require(stage_index not in (
-                FROZEN_LB_LOW_STEP_INDEX,
-                FROZEN_LF_LOW_STEP_INDEX,
-                FROZEN_PRELOAD_INDEX,
-            ), "frozen user trajectory exceeds 30 Hz tracking gate: " +
-                    item["stage"])
+            require(item["stage"] not in FROZEN_DURATION_CONTRACTS,
+                    "frozen user trajectory exceeds 30 Hz tracking gate: " + item["stage"])
             require(proposal["stages"][stage_index]["name"]
                     not in COUPLED_PAIR_NAMES,
                     "coupled pair/body tracking requires a rebuilt candidate: "
@@ -199,10 +193,7 @@ def retime(compact, explore_durations=False):
                     )
                 previous_q = q.copy()
                 previous_s = normalized_s
-            if (not explore_durations or stage_index in (
-                    FROZEN_LB_LOW_STEP_INDEX,
-                    FROZEN_LF_LOW_STEP_INDEX,
-                    FROZEN_PRELOAD_INDEX)
+            if (not explore_durations or stage["name"] in FROZEN_DURATION_CONTRACTS
                     or "active_base_velocities_m_s" in stage
                     or stage["name"] in COUPLED_PAIR_NAMES):
                 new_duration = spec["duration_s"]

@@ -1,0 +1,145 @@
+{
+  "sample_count": 11,
+  "samples": [
+    {
+      "stage": "RB_BODY_ADVANCE",
+      "time_s": 0.35,
+      "legs": [
+        3
+      ],
+      "ik_max_residual_m": 1.774124054545052e-10,
+      "nonfoot_collision": false,
+      "nonfoot_hit": null,
+      "active_foot_collision": false,
+      "active_foot_hit": null
+    },
+    {
+      "stage": "RB_BODY_ADVANCE",
+      "time_s": 0.8,
+      "legs": [
+        3
+      ],
+      "ik_max_residual_m": 7.500435095873109e-09,
+      "nonfoot_collision": false,
+      "nonfoot_hit": null,
+      "active_foot_collision": false,
+      "active_foot_hit": null
+    },
+    {
+      "stage": "LM_RM_PRE_ADVANCE",
+      "time_s": 0.35,
+      "legs": [
+        2,
+        5
+      ],
+      "ik_max_residual_m": 4.4741167614041695e-11,
+      "nonfoot_collision": false,
+      "nonfoot_hit": null,
+      "active_foot_collision": false,
+      "active_foot_hit": null
+    },
+    {
+      "stage": "LM_RM_PRE_ADVANCE",
+      "time_s": 0.7,
+      "legs": [
+        2,
+        5
+      ],
+      "ik_max_residual_m": 4.0821356821532134e-10,
+      "nonfoot_collision": false,
+      "nonfoot_hit": null,
+      "active_foot_collision": false,
+      "active_foot_hit": null
+    },
+    {
+      "stage": "LM_RM_PRE_ADVANCE",
+      "time_s": 1.52,
+      "legs": [
+        2,
+        5
+      ],
+      "ik_max_residual_m": 3.683859513608493e-08,
+      "nonfoot_collision": false,
+      "nonfoot_hit": null,
+      "active_foot_collision": false,
+      "active_foot_hit": null
+    },
+    {
+      "stage": "LM_RM_BODY_TRANSFER",
+      "time_s": 0.45,
+      "legs": [
+        2,
+        5
+      ],
+      "ik_max_residual_m": 4.694910997238689e-11,
+      "nonfoot_collision": false,
+      "nonfoot_hit": null,
+      "active_foot_collision": false,
+      "active_foot_hit": null
+    },
+    {
+      "stage": "LM_RM_BODY_TRANSFER",
+      "time_s": 1.4,
+      "legs": [
+        2,
+        5
+      ],
+      "ik_max_residual_m": 3.903165426328811e-09,
+      "nonfoot_collision": false,
+      "nonfoot_hit": null,
+      "active_foot_collision": false,
+      "active_foot_hit": null
+    },
+    {
+      "stage": "RM_BODY_REPOSITION",
+      "time_s": 0.8,
+      "legs": [
+        5
+      ],
+      "ik_max_residual_m": 8.088598923624494e-10,
+      "nonfoot_collision": false,
+      "nonfoot_hit": null,
+      "active_foot_collision": false,
+      "active_foot_hit": null
+    },
+    {
+      "stage": "RM_BODY_REPOSITION",
+      "time_s": 1.7000000000000002,
+      "legs": [
+        5
+      ],
+      "ik_max_residual_m": 5.121314021477564e-09,
+      "nonfoot_collision": false,
+      "nonfoot_hit": null,
+      "active_foot_collision": false,
+      "active_foot_hit": null
+    },
+    {
+      "stage": "LB_LF_DOCK_TRANSFER",
+      "time_s": 0.75,
+      "legs": [
+        0,
+        1
+      ],
+      "ik_max_residual_m": 5.824245999728428e-09,
+      "nonfoot_collision": false,
+      "nonfoot_hit": null,
+      "active_foot_collision": false,
+      "active_foot_hit": null
+    },
+    {
+      "stage": "LB_LF_DOCK_TRANSFER",
+      "time_s": 1.85,
+      "legs": [
+        0,
+        1
+      ],
+      "ik_max_residual_m": 3.7724504448194626e-10,
+      "nonfoot_collision": false,
+      "nonfoot_hit": null,
+      "active_foot_collision": false,
+      "active_foot_hit": null
+    }
+  ],
+  "boundary": "interior knots only; active ankle/thigh/link versus Xiaolan plus active foot mesh. Not a dense whole-STL sweep."
+}

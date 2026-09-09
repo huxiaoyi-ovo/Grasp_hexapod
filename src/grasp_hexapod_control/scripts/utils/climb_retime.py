@@ -79,6 +79,57 @@ TAIL_SEMANTICS_BY_NAME = {
     "BODY_DOCK_FINAL": ("BODY",),
 }
 
+# The executable 32-stage compact plan is identified by stage name.  Candidate
+# builders may merge stages, so its semantic speed contract must not follow a
+# positional index after a stage-count change.
+SEMANTICS_BY_NAME = {
+    "PREP": ("BODY",),
+    "RM": ("SWING_LIFT", "SWING_TRANSFER", "SWING_TRANSFER", "TOUCHDOWN"),
+    "BODY": ("BODY",),
+    "PAIR": ("SWING_LIFT", "SWING_TRANSFER", "TOUCHDOWN"),
+    "LB_LF_GROUND_SHIFT": ("SWING_LIFT", "SWING_TRANSFER", "TOUCHDOWN"),
+    "LM_GROUND_SHIFT": ("SWING_LIFT", "SWING_TRANSFER", "TOUCHDOWN"),
+    "BODY2": ("BODY",),
+    "RM_HIGH_C": ("SWING_LIFT", "SWING_TRANSFER", "TOUCHDOWN"),
+    "RB_RF_HIGH_C": ("SWING_LIFT", "SWING_TRANSFER", "TOUCHDOWN"),
+    "BODY3": ("BODY",),
+    "RB_RF_SHIFT1": ("SWING_LIFT", "SWING_TRANSFER", "TOUCHDOWN"),
+    "LM_GROUND_SHIFT1": ("SWING_LIFT", "SWING_TRANSFER", "TOUCHDOWN"),
+    "RM_PRE_ADVANCE": ("SWING_LIFT", "SWING_LIFT", "SWING_TRANSFER", "TOUCHDOWN"),
+    "LB_LF_BODY_ADVANCE_HIGH_STEP": ("CRITICAL_BODY_TRANSFER",),
+    "RB_RF_TOP_INWARD_PAIR": ("SWING_LIFT", "SWING_TRANSFER", "TOUCHDOWN"),
+    "LM_EDGE_STAGE": ("SWING_LIFT", "SWING_TRANSFER", "TOUCHDOWN"),
+    "BODY_A": ("BODY",),
+    "RM_RIGHT_SYMMETRY": ("SWING_TRANSFER", "TOUCHDOWN"),
+    "BODY_LEFT_TRANSFER_PREP": ("BODY",),
+    "LB_LOW_STEP": ("SWING_LIFT", "SWING_TRANSFER", "TOUCHDOWN"),
+    "BODY_RIGHT_BEFORE_LF": ("BODY",),
+    "LF_LOW_STEP": ("SWING_LIFT", "SWING_TRANSFER", "TOUCHDOWN"),
+    "BODY_PRELOAD_LM": ("BODY",),
+    "LM_LIFT": ("SWING_LIFT", "SWING_TRANSFER"),
+    "BODY_ADVANCE_LM_AIR": ("CRITICAL_BODY_TRANSFER",),
+    "LM_LEFT_FINAL_LAND": ("TOUCHDOWN",),
+    "RB_RF_DIRECT_FINAL": ("SWING_LIFT", "SWING_TRANSFER", "TOUCHDOWN"),
+    "RM_DIRECT_FINAL": ("SWING_LIFT", "SWING_TRANSFER", "TOUCHDOWN"),
+    "BODY_REPOSITION": ("BODY",),
+    "LB_LF_DIRECT_FINAL": ("SWING_LIFT", "SWING_TRANSFER", "TOUCHDOWN"),
+    "BODY_DOCK_FINAL": ("BODY",),
+    "RB_BODY_ADVANCE": ("SWING_LIFT", "SWING_TRANSFER", "TOUCHDOWN"),
+    "LM_RM_PRE_ADVANCE": ("SWING_LIFT", "SWING_LIFT", "SWING_TRANSFER", "TOUCHDOWN"),
+    "LM_RM_BODY_TRANSFER": ("SWING_LIFT", "SWING_TRANSFER", "TOUCHDOWN"),
+    "LM_BODY_TRANSFER": ("SWING_LIFT", "SWING_TRANSFER", "TOUCHDOWN"),
+    "RM_BODY_REPOSITION": ("SWING_LIFT", "SWING_TRANSFER", "TOUCHDOWN"),
+    "LB_LF_DOCK_TRANSFER": ("SWING_LIFT", "SWING_TRANSFER", "TOUCHDOWN"),
+}
+
+BODY_MINIMUM_BY_NAME = {
+    "PREP": 1.80, "BODY": .80, "BODY2": 2.00, "BODY3": .80,
+    "BODY_A": 1.20, "BODY_LEFT_TRANSFER_PREP": .80,
+    "BODY_RIGHT_BEFORE_LF": LEFT_TRANSFER_BODY_MINIMUM_DURATION_S,
+    "BODY_PRELOAD_LM": .50, "BODY_ADVANCE_LM_AIR": 3.00,
+    "BODY_REPOSITION": 1.60, "BODY_DOCK_FINAL": 1.50,
+}
+
 
 def stage_specs(stage_index, stage):
     """Return immutable semantic/target/hard/minimum entries for one stage."""
@@ -86,7 +137,9 @@ def stage_specs(stage_index, stage):
     if stage["name"] == "STAND_FINAL_HOLD":
         return ()
 
-    if stage["name"] in TAIL_SEMANTICS_BY_NAME:
+    if stage["name"] in SEMANTICS_BY_NAME:
+        semantics = SEMANTICS_BY_NAME[stage["name"]]
+    elif stage["name"] in TAIL_SEMANTICS_BY_NAME:
         semantics = TAIL_SEMANTICS_BY_NAME[stage["name"]]
     elif not 0 <= stage_index < len(SEMANTIC_NAMES):
         return ()
@@ -107,18 +160,14 @@ def stage_specs(stage_index, stage):
             target, hard, minimum = 1.8, 2.4, 0.80
         elif semantic == "BODY":
             target, hard = 1.9, 2.4
-            minimum = 0.80 if stage_index in MAJOR_BODY_INDICES else 0.60
-            if stage["name"] == "BODY_REPOSITION":
-                minimum = 1.60
-            elif stage["name"] == "BODY_DOCK_FINAL":
-                minimum = 1.50
-            if stage_index == FROZEN_PRELOAD_INDEX:
-                minimum = 0.50
+            minimum = BODY_MINIMUM_BY_NAME.get(stage["name"],
+                                                0.80 if stage_index in MAJOR_BODY_INDICES else 0.60)
         else:
             raise ValueError("unknown retime semantic: " + semantic)
-        minimum = max(
-            minimum, PHYSX_BODY_MINIMUM_DURATIONS.get(stage_index, 0.0)
-        )
+        floor = (BODY_MINIMUM_BY_NAME.get(stage["name"], 0.0)
+                 if stage["name"] in SEMANTICS_BY_NAME else
+                 PHYSX_BODY_MINIMUM_DURATIONS.get(stage_index, 0.0))
+        minimum = max(minimum, floor)
         result.append({
             "segment_index": segment_index,
             "semantic": semantic,

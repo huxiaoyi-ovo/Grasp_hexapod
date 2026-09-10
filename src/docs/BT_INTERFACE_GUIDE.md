@@ -86,6 +86,13 @@ rosservice call /grasp_hexapod/switch_mode "target_mode: 'home'"
 | `dock` | tag 导引到充电桩 → 六腿抬起 → 调夹爪 `clamp` → 结束确认 | 四步全部完成 |
 | `release` | 调夹爪 `open` 松开载荷 | 夹爪张到位 |
 
+**抢占语义（2026-09-11 起,`grasp_hexapod_bt_control/bt_control_node` 实现）**:
+模式进行中收到**不同模式**的新请求时,不再返回 `busy: X is running`,而是立即
+终结进行中的请求(`success=false, message="preempted by <新模式>"`)并让机器人
+平滑回正到站立,再自动进入新模式;同模式重复调用按等待者合并,共享同一次结果。
+单调用方(行为树 RunMode)行为不变:阻塞至终态。首个模式必须是 `home`(上电安全门,
+其余模式返回 `"call home first"`)。
+
 ### 4.2 `/grasp_hexapod/gripper_act` — 夹爪服务(已实现,直接调)
 
 ```bash

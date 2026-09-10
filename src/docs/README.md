@@ -25,6 +25,7 @@
 | `src/docs/BT_INTERFACES.md` | 话题/服务字段级契约（唯一契约来源） |
 | `src/docs/BT_INTERFACE_GUIDE.md` | 接口速览（对接同事用）：是什么、怎么用、联调命令 |
 | `src/grasp_hexapod_bt/behavior_trees/hexapod_mission.xml` | Groot2 可视化稿（与 py_trees 人工同步） |
+| `src/grasp_hexapod_bt_control/` | **面向行为树的全链路 C++ 控制栈（新，可选替代旧控制栈）**：`bt_control_node`（服务切换状态机 + 抢占 + walk 由 `/cmd_vel` 驱动 + dock 成功必夹爪闭合）+ `remote_control_node`（手柄 → 服务调用与 `/cmd_vel`）；详见其 README |
 
 ## 2. 需要实现的接口
 
@@ -116,6 +117,23 @@ C1 除外（三态元组）。
 | 实机攀爬 climb | C1→C35 实机步态执行 | ⚠️ simulation-only，不授权实机（TODO-9） |
 
 ## 5. 变更记录
+
+- **2026-09-11 行为树服务化控制栈（grasp_hexapod_bt_control，可选新链路）**
+  - 新增 `src/grasp_hexapod_bt_control/`：`bt_control_node`（不订阅 `/joy` 与
+    `/remote_cmd`，由 `~/switch_mode` 服务切换状态机；`switch_mode` 增加**抢占
+    语义**——进行中的不同模式请求被终结并回正后进入新模式；WAIT_B 安全门只接受
+    `home`；walk 由 `/cmd_vel` 平面三自由度驱动，`~max_cmd_vel_age` 超时安全停步）
+    与 `remote_control_node`（手柄按键 → 服务调用，摇杆 → `/cmd_vel`，方向键 →
+    `gripper_act`）。
+  - **dock 末端夹持链路修正**：旧链路手柄 Y 键直连进入 dock 时不产生 BT 请求，
+    对接成功后不会调用夹爪（实测"没有夹爪闭合"的根因）；新链路 dock 只能经
+    服务进入，`success` 后必然 `gripper_act clamp` 且结果透传给调用方。
+  - C++ 包合并：`grasp_hexapod_control_cpp` 并入 `grasp_hexapod_control`
+    （src/include/node/vendor/bench/test），`grasp_hexapod_servo_cpp` 并入
+    `grasp_hexapod_servo`（launch 改名 `servo_two_boards_cpp.launch`）；
+    旧链路 Python 代码与 ROS 接口零改动。
+  - 新旧控制栈互斥运行（同一 `/grasp_hexapod/switch_mode` 服务，同一时刻
+    只能一个提供者）。
 
 - **2026-09-09 夹爪接口统一 + 舵机电压开关**
   - 手柄方向键夹爪控制由 `/gripper_des` 话题盲控改为调用 `/grasp_hexapod/gripper_act`

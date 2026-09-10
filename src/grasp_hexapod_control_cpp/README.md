@@ -8,31 +8,40 @@ OpenBLAS 线程池开销，稳定 30 Hz 控制循环并释放机载算力。
 
 ## 与 Python 版的关系
 
-| 层 | Python 包 | C++ 包（本包） | 切换方式 |
-|---|---|---|---|
-| 高层控制器 | `grasp_hexapod_control` / `run_real.py` | `grasp_hexapod_control_cpp` / `run_real_cpp` | `control_backend:=python\|cpp` |
-| 舵机驱动 | `grasp_hexapod_servo` | `grasp_hexapod_servo_cpp` | `servo_backend:=python\|cpp` |
+| 层 | Python 包 | C++ 包（本包） |
+|---|---|---|
+| 高层控制器 | `grasp_hexapod_control` / `run_real.py` | `grasp_hexapod_control_cpp` / `run_real_cpp` |
+| 舵机驱动 | `grasp_hexapod_servo` | `grasp_hexapod_servo_cpp` |
 
-- ROS 话题、服务、参数名与行为契约完全一致，节点同名（同一时刻只能运行一个）。
+- ROS 话题、服务、参数名与行为契约完全一致，节点同名（**两条链路不可同时运行**，
+  节点名与全部话题冲突）。
 - 仿真链（`run_sim.py` 等）保持 Python 不动；本包只覆盖实机链。
-- Python 版完整保留，可随时回滚。
+- **两条启动链完全独立，互不修改对方的 launch 文件**：
+  - Python 链：`roslaunch grasp_hexapod_control run_real.launch`（重构前后零变化）
+  - C++ 链：`roslaunch grasp_hexapod_control_cpp run_real_cpp.launch`（本包内自包含，
+    固定使用 C++ 舵机后端；内部子链为 `control_stack_cpp.launch`）
 
 ### 启动方式
 
 ```bash
-# 全 C++（高层控制 + 舵机后端）
-roslaunch grasp_hexapod_control_cpp run_real_full_cpp.launch
+# C++ 全链（高层控制 run_real_cpp + C++ 舵机后端）
+roslaunch grasp_hexapod_control_cpp run_real_cpp.launch
 
-# 只切高层控制器，舵机保持 Python
-roslaunch grasp_hexapod_control run_real.launch control_backend:=cpp
+# C++ 链常用参数透传（与 Python 版同名参数语义一致）
+roslaunch grasp_hexapod_control_cpp run_real_cpp.launch \
+    start_dock_perception:=false climb_side:=right
 
-# 全 Python（默认，行为与重构前完全一致）
+# Python 链（原版，完全未改动）
 roslaunch grasp_hexapod_control run_real.launch
 ```
 
+感知/导航子链（`dock_tag_system.launch`、`navigation_rtk_imu.launch`）作为
+独立子系统仍从 `grasp_hexapod_control` 包 include（相机与 RTK 栈与控制器
+后端无关，不复制）；`launch_real_cpp.sh` 启动脚本请改为调用上面的 C++ 链。
+
 配置文件（`climb_compact.json` / `workspace_bounds.csv` / `dock_system.yaml`）
-不复制，C++ 通过 `ros::package::getPath` 读取 `grasp_hexapod_control/config`；
-可用私有参数 `~control_config_dir` 覆盖。
+不复制，C++ 通过 `control_stack_cpp.launch` 传入的 `control_config_dir` 读取
+`grasp_hexapod_control/config` 共享目录。
 
 ## 结构
 

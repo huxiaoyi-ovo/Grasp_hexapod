@@ -1,5 +1,8 @@
 <launch>
-  <!-- 实机链路：joy -> GraspController -> 两块Servo板。 -->
+  <!-- 实机全 C++ 链路：joy -> run_real_cpp -> C++ Servo后端。
+       与 grasp_hexapod_control/launch/run_real.launch（Python 版）完全独立：
+       本文件不包含任何 Python 高层控制器切换参数；感知/导航子链
+       （dock_tag_system / navigation_rtk_imu）作为独立子系统按需启动。 -->
   <arg name="joy_dev" default="/dev/input/js0"/>
   <!-- mode只允许teleop或navigation；导航模式下手柄仍可接管。 -->
   <arg name="mode" default="teleop"/>
@@ -13,8 +16,7 @@
   <arg name="servo_diagnostics" default="false"/>
   <!-- 电压读取开关：轮询电压占用串口总线，默认关闭。 -->
   <arg name="voltage_read" default="false"/>
-  <!-- servo_backend：python（默认，grasp_hexapod_servo）或 cpp（grasp_hexapod_servo_cpp）。 -->
-  <arg name="servo_backend" default="python"/>
+  <!-- 本链路固定使用 C++ 舵机后端（grasp_hexapod_servo_cpp）。 -->
   <arg name="max_feedback_age" default="0.30"/>
   <arg name="max_feedback_skew" default="0.20"/>
   <arg name="climb_foot_gate_m" default="0.05"/>
@@ -105,7 +107,7 @@
     <arg name="pv_boundary_topic" value="$(arg pv_boundary_topic)"/>
   </include>
 
-  <include file="$(find grasp_hexapod_control)/launch/control_stack.launch">
+  <include file="$(find grasp_hexapod_control_cpp)/launch/control_stack_cpp.launch">
     <arg name="control_source" value="$(arg mode)"/>
     <arg name="joy_dev" value="$(arg joy_dev)"/>
     <arg name="controller_rate_hz" value="$(arg controller_rate_hz)"/>
@@ -188,7 +190,7 @@
     <arg name="detections_topic" value="$(arg dock_detections_topic)"/>
   </include>
 
-  <include if="$(eval arg('servo_backend') == 'cpp')"
+  <include
     file="$(find grasp_hexapod_servo_cpp)/launch/servo_two_boards.launch">
     <arg name="left_port" value="$(arg left_port)"/>
     <arg name="right_port" value="$(arg right_port)"/>
@@ -199,13 +201,4 @@
     <arg name="gripper_id" value="99"/>
     <arg name="gripper_command_duration_ms" value="400"/>
   </include>
-  <include unless="$(eval arg('servo_backend') == 'cpp')"
-    file="$(find grasp_hexapod_servo)/launch/servo_two_boards.launch">
-    <arg name="left_port" value="$(arg left_port)"/>
-    <arg name="right_port" value="$(arg right_port)"/>
-    <arg name="servo_rate_hz" value="$(arg servo_rate_hz)"/>
-    <arg name="command_duration_ms" value="$(arg command_duration_ms)"/>
-    <arg name="servo_diagnostics" value="$(arg servo_diagnostics)"/>
-    <arg name="voltage_read" value="$(arg voltage_read)"/>
-  </include>
-</launch>
+  </launch>

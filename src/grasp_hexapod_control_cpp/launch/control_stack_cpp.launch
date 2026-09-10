@@ -1,5 +1,7 @@
 <launch>
-  <!-- 内部公共链路：joy_node + 唯一高层控制节点。 -->
+  <!-- C++ 控制器内部公共链路：joy_node + 唯一高层控制节点（run_real_cpp）。
+       与 grasp_hexapod_control/launch/control_stack.launch 完全独立，
+       参数名与默认值保持一致；配置文件仍指向 grasp_hexapod_control/config 共享。 -->
   <arg name="control_source" default="teleop"/>
   <arg name="joy_dev" default="/dev/input/js0"/>
   <arg name="controller_rate_hz" default="30.0"/>
@@ -77,11 +79,12 @@
   </node>
 
   <node
-    pkg="grasp_hexapod_control"
-    type="run_real.py"
+    pkg="grasp_hexapod_control_cpp"
+    type="run_real_cpp"
     name="grasp_hexapod_control"
     output="screen"
     required="true">
+    <param name="control_config_dir" value="$(find grasp_hexapod_control)/config"/>
     <param name="control_source" value="$(arg control_source)"/>
     <param name="controller_rate_hz" value="$(arg controller_rate_hz)"/>
     <param

@@ -22,7 +22,7 @@ pkg_check_modules(YAML_CPP REQUIRED yaml-cpp)
 
 catkin_package(
   INCLUDE_DIRS include
-  LIBRARIES grasp_hexapod_control_core
+  LIBRARIES grasp_hexapod_control_core grasp_hexapod_control_ros
   CATKIN_DEPENDS cv_bridge geometry_msgs grasp_hexapod_msgs rospy roscpp sensor_msgs std_msgs tf tf2_ros tf2 roslib trajectory_msgs
   DEPENDS EIGEN3
 )

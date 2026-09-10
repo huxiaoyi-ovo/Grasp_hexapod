@@ -1,0 +1,33 @@
+<launch>
+  <!-- 全链路：手柄 → 遥控器 → 现有 Python 行为树（run_real_bt.py）→
+       bt_control_node → 舵机/夹爪。
+       行为树通过 /grasp_hexapod/switch_mode 驱动状态机（与遥控器共用同一服务，
+       双方互相抢占）；/grasp_hexapod/bt_state 可用既有 bt_monitor.py/仪表盘查看。
+       remote_test 为空时启动主链（需 LoRa /lora/command 任务指令）。 -->
+  <arg name="remote_test" default="walk"/>
+  <arg name="bt_rate" default="30.0"/>
+  <arg name="bt_loop" default="true"/>
+  <arg name="bt_verbose" default="true"/>
+  <!-- 感知与导航（默认关闭，实机按需打开）。 -->
+  <arg name="start_dock_perception" default="false"/>
+  <arg name="start_rtk_imu_navigation" default="false"/>
+
+  <!-- 可选感知/导航栈（复用既有 launch，只读引用）。 -->
+  <include if="$(arg start_dock_perception)"
+    file="$(find grasp_hexapod_control)/launch/dock_tag_system.launch"/>
+  <include if="$(arg start_rtk_imu_navigation)"
+    file="$(find grasp_hexapod_control)/launch/navigation_rtk_imu.launch"/>
+
+  <!-- 现有 Python 行为树（零改动）：RunMode → /grasp_hexapod/switch_mode。 -->
+  <node pkg="grasp_hexapod_bt" type="run_real_bt.py" name="run_real_bt"
+        output="screen">
+    <param name="rate" value="$(arg bt_rate)"/>
+    <param name="loop" value="$(arg bt_loop)"/>
+    <param name="remote_test" value="$(arg remote_test)"/>
+    <param name="verbose" value="$(arg bt_verbose)"/>
+  </node>
+
+  <!-- 遥控直驱链路（joy + remote_control + bt_control + 舵机/夹爪）。 -->
+  <include file="$(find grasp_hexapod_bt_control)/launch/control_only.launch"
+           pass_all_args="true"/>
+</launch>

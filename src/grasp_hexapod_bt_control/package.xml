@@ -1,0 +1,33 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>grasp_hexapod_bt_control</name>
+  <version>0.1.0</version>
+  <description>
+    面向行为树的六足全链路控制栈（纯服务切换状态机）。
+    bt_control_node：不订阅 /joy，由 /grasp_hexapod/switch_mode 服务切换
+    WAIT_B/RESETTING/HOLD/RUNNING 状态机（带抢占），walk 模式由 /cmd_vel 驱动；
+    remote_control_node：把手柄 /joy 映射为服务调用与 /cmd_vel。
+    复用 grasp_hexapod_control 的数值核心库与 config/，与现有 Python 行为树
+    （grasp_hexapod_bt）配合构成全链路。
+  </description>
+  <maintainer email="artrc@todo.todo">artrc</maintainer>
+  <license>BSD-3-Clause</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <depend>grasp_hexapod_msgs</depend>
+  <depend>grasp_hexapod_control</depend>
+  <depend>roscpp</depend>
+  <depend>sensor_msgs</depend>
+  <depend>std_msgs</depend>
+  <depend>geometry_msgs</depend>
+  <depend>tf2_ros</depend>
+  <depend>tf2</depend>
+  <depend>roslib</depend>
+  <depend>eigen</depend>
+  <depend>yaml-cpp</depend>
+
+  <exec_depend>joy</exec_depend>
+  <exec_depend>grasp_hexapod_servo</exec_depend>
+  <exec_depend>grasp_hexapod_bt</exec_depend>
+</package>

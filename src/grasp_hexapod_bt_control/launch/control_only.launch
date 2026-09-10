@@ -1,0 +1,175 @@
+<launch>
+  <!-- 遥控直驱链路（无行为树）：joy_node → remote_control_node →
+       bt_control_node → servo_two_boards_cpp。
+       按键与服务约定：A=walk B=home X=climb Y=dock（switch_mode 抢占式）；
+       方向键左=夹爪闭合 右=张开（gripper_act）；左摇杆=walk 步态 /cmd_vel。
+       与旧链路互斥：同一时刻只能运行一个 switch_mode 提供者。 -->
+  <arg name="joy_dev" default="/dev/input/js0"/>
+  <arg name="joy_deadzone" default="0.20"/>
+
+  <!-- 控制核心参数（与 grasp_hexapod_control/launch/control_stack_cpp.launch 同名同默认）。 -->
+  <arg name="control_source" default="teleop"/>
+  <arg name="controller_rate_hz" default="30.0"/>
+  <arg name="enable_link_collision_check" default="true"/>
+  <arg name="max_feedback_age" default="0.30"/>
+  <arg name="max_feedback_skew" default="0.20"/>
+  <arg name="max_cmd_vel_age" default="0.2"/>
+  <arg name="climb_foot_gate_m" default="0.02"/>
+  <arg name="enable_real_climb" default="false"/>
+  <arg name="climb_side" default="left"/>
+  <arg name="enable_real_dock" default="true"/>
+  <arg name="bt_hold_lease_s" default="0.15"/>
+
+  <!-- 遥控器映射参数（沿用原手柄映射命名）。 -->
+  <arg name="button_a" default="0"/>
+  <arg name="button_b" default="1"/>
+  <arg name="button_x" default="2"/>
+  <arg name="button_y" default="3"/>
+  <arg name="axis_gripper" default="6"/>
+  <arg name="axis_right" default="0"/>
+  <arg name="axis_forward" default="1"/>
+  <arg name="axis_yaw" default="3"/>
+  <arg name="axis_right_scale" default="-1.0"/>
+  <arg name="axis_forward_scale" default="1.0"/>
+  <arg name="axis_yaw_scale" default="1.0"/>
+  <arg name="max_linear_speed" default="0.20"/>
+  <arg name="max_yaw_rate" default="0.50"/>
+  <arg name="remote_rate_hz" default="30.0"/>
+
+  <!-- 导航/IMU/对接输入。 -->
+  <arg name="max_pose_age" default="0.5"/>
+  <arg name="max_pose_skew" default="0.2"/>
+  <arg name="max_boundary_age" default="1.0"/>
+  <arg name="navigation_boundary_margin_m" default="0.03"/>
+  <arg name="navigation_xiaolan_body_clearance_m" default="0.13"/>
+  <arg name="base_pose_topic" default="/grasp_hexapod/navigation/base_pose"/>
+  <arg name="xiaolan_pose_topic" default="/grasp_hexapod/navigation/xiaolan_pose"/>
+  <arg name="pv_boundary_topic" default="/grasp_hexapod/navigation/pv_boundary"/>
+  <arg name="landing_topic" default="/grasp_hexapod/landing_confirmed"/>
+  <arg name="imu_topic" default="/grasp_hexapod/imu"/>
+  <arg name="real_climb_max_imu_age" default="0.2"/>
+  <arg name="real_climb_max_position_error_m" default="0.05"/>
+  <arg name="real_climb_max_orientation_error_deg" default="10.0"/>
+  <arg name="real_climb_max_angular_speed_deg_s" default="30.0"/>
+  <arg name="real_climb_persistence_frames" default="3"/>
+  <arg name="lock_confirmed_topic" default="/grasp_hexapod/dock/lock_confirmed"/>
+  <arg name="dock_image_topic" default="/dock_camera/image_raw"/>
+  <arg name="dock_camera_info_topic" default="/dock_camera/camera_info"/>
+  <arg name="dock_system_config" default="$(find grasp_hexapod_control)/config/dock_system.yaml"/>
+  <arg name="dock_require_real_calibrated" default="true"/>
+  <arg name="dock_allow_uncalibrated" default="false"/>
+  <arg name="dock_lock_confirmation_max_age_s" default="0.5"/>
+  <arg name="dock_allow_inference" default="false"/>
+  <arg name="dock_require_lock_confirmation" default="false"/>
+  <arg name="dock_min_stable_frames" default="10"/>
+  <arg name="dock_max_perception_age" default="0.35"/>
+  <arg name="dock_linear_speed_m_s" default="0.05"/>
+  <arg name="dock_update_rate_hz" default="30.0"/>
+  <arg name="dock_perception_rate_hz" default="10.0"/>
+  <arg name="dock_leg_lift_speed_m_s" default="0.05"/>
+  <arg name="dock_sit_settle_duration_s" default="0.5"/>
+  <arg name="dock_lock_frame" default="dock_lock_center"/>
+  <arg name="dock_pin_frame_prefix" default="dock_pin_from_tag_"/>
+
+  <!-- 舵机后端（固定 C++ 版；左板含夹爪 ID 99）。 -->
+  <arg name="left_port" default="/dev/ttyTHS0"/>
+  <arg name="right_port" default="/dev/ttyACM0"/>
+  <arg name="baudrate" default="115200"/>
+  <arg name="servo_rate_hz" default="30.0"/>
+  <arg name="servo_diagnostics" default="true"/>
+  <arg name="voltage_read" default="false"/>
+  <arg name="gripper_id" default="99"/>
+  <arg name="gripper_command_duration_ms" default="400"/>
+
+  <node pkg="joy" type="joy_node" name="joy_node" output="screen">
+    <param name="dev" value="$(arg joy_dev)"/>
+    <param name="deadzone" value="$(arg joy_deadzone)"/>
+    <param name="autorepeat_rate" value="60.0"/>
+    <param name="coalesce_interval" value="0.001"/>
+  </node>
+
+  <!-- 遥控器节点：/joy → switch_mode / gripper_act 服务 + /cmd_vel。 -->
+  <node pkg="grasp_hexapod_bt_control" type="remote_control_node"
+        name="grasp_hexapod_remote_control" output="screen">
+    <param name="button_a" value="$(arg button_a)"/>
+    <param name="button_b" value="$(arg button_b)"/>
+    <param name="button_x" value="$(arg button_x)"/>
+    <param name="button_y" value="$(arg button_y)"/>
+    <param name="axis_gripper" value="$(arg axis_gripper)"/>
+    <param name="axis_right" value="$(arg axis_right)"/>
+    <param name="axis_forward" value="$(arg axis_forward)"/>
+    <param name="axis_yaw" value="$(arg axis_yaw)"/>
+    <param name="axis_right_scale" value="$(arg axis_right_scale)"/>
+    <param name="axis_forward_scale" value="$(arg axis_forward_scale)"/>
+    <param name="axis_yaw_scale" value="$(arg axis_yaw_scale)"/>
+    <param name="max_linear_speed" value="$(arg max_linear_speed)"/>
+    <param name="max_yaw_rate" value="$(arg max_yaw_rate)"/>
+    <param name="rate_hz" value="$(arg remote_rate_hz)"/>
+    <param name="max_joy_age" value="$(arg max_cmd_vel_age)"/>
+  </node>
+
+  <!-- 行为树控制节点：不订阅 /joy，服务切换状态机，walk 由 /cmd_vel 驱动。 -->
+  <node pkg="grasp_hexapod_bt_control" type="bt_control_node"
+        name="grasp_hexapod_bt_control" output="screen" required="true">
+    <param name="control_config_dir" value="$(find grasp_hexapod_control)/config"/>
+    <param name="control_source" value="$(arg control_source)"/>
+    <param name="controller_rate_hz" value="$(arg controller_rate_hz)"/>
+    <param name="enable_link_collision_check" value="$(arg enable_link_collision_check)"/>
+    <param name="max_feedback_age" value="$(arg max_feedback_age)"/>
+    <param name="max_feedback_skew" value="$(arg max_feedback_skew)"/>
+    <param name="max_cmd_vel_age" value="$(arg max_cmd_vel_age)"/>
+    <param name="climb_foot_gate_m" value="$(arg climb_foot_gate_m)"/>
+    <param name="enable_real_climb" value="$(arg enable_real_climb)"/>
+    <param name="climb_side" value="$(arg climb_side)"/>
+    <param name="enable_real_dock" value="$(arg enable_real_dock)"/>
+    <param name="bt_hold_lease_s" value="$(arg bt_hold_lease_s)"/>
+    <param name="max_linear_speed" value="$(arg max_linear_speed)"/>
+    <param name="max_yaw_rate" value="$(arg max_yaw_rate)"/>
+    <param name="navigation_linear_speed" value="$(arg max_linear_speed)"/>
+    <param name="max_pose_age" value="$(arg max_pose_age)"/>
+    <param name="max_pose_skew" value="$(arg max_pose_skew)"/>
+    <param name="max_boundary_age" value="$(arg max_boundary_age)"/>
+    <param name="navigation_boundary_margin_m" value="$(arg navigation_boundary_margin_m)"/>
+    <param name="navigation_xiaolan_body_clearance_m" value="$(arg navigation_xiaolan_body_clearance_m)"/>
+    <param name="base_pose_topic" value="$(arg base_pose_topic)"/>
+    <param name="xiaolan_pose_topic" value="$(arg xiaolan_pose_topic)"/>
+    <param name="pv_boundary_topic" value="$(arg pv_boundary_topic)"/>
+    <param name="landing_topic" value="$(arg landing_topic)"/>
+    <param name="imu_topic" value="$(arg imu_topic)"/>
+    <param name="real_climb_max_imu_age" value="$(arg real_climb_max_imu_age)"/>
+    <param name="real_climb_max_position_error_m" value="$(arg real_climb_max_position_error_m)"/>
+    <param name="real_climb_max_orientation_error_deg" value="$(arg real_climb_max_orientation_error_deg)"/>
+    <param name="real_climb_max_angular_speed_deg_s" value="$(arg real_climb_max_angular_speed_deg_s)"/>
+    <param name="real_climb_persistence_frames" value="$(arg real_climb_persistence_frames)"/>
+    <param name="lock_confirmed_topic" value="$(arg lock_confirmed_topic)"/>
+    <param name="dock_image_topic" value="$(arg dock_image_topic)"/>
+    <param name="dock_camera_info_topic" value="$(arg dock_camera_info_topic)"/>
+    <param name="dock_system_config" value="$(arg dock_system_config)"/>
+    <param name="dock_require_real_calibrated" value="$(arg dock_require_real_calibrated)"/>
+    <param name="dock_allow_uncalibrated" value="$(arg dock_allow_uncalibrated)"/>
+    <param name="dock_lock_confirmation_max_age_s" value="$(arg dock_lock_confirmation_max_age_s)"/>
+    <param name="dock_allow_inference" value="$(arg dock_allow_inference)"/>
+    <param name="dock_require_lock_confirmation" value="$(arg dock_require_lock_confirmation)"/>
+    <param name="dock_min_stable_frames" value="$(arg dock_min_stable_frames)"/>
+    <param name="dock_max_perception_age" value="$(arg dock_max_perception_age)"/>
+    <param name="dock_linear_speed_m_s" value="$(arg dock_linear_speed_m_s)"/>
+    <param name="dock_update_rate_hz" value="$(arg dock_update_rate_hz)"/>
+    <param name="dock_perception_rate_hz" value="$(arg dock_perception_rate_hz)"/>
+    <param name="dock_leg_lift_speed_m_s" value="$(arg dock_leg_lift_speed_m_s)"/>
+    <param name="dock_sit_settle_duration_s" value="$(arg dock_sit_settle_duration_s)"/>
+    <param name="dock_lock_frame" value="$(arg dock_lock_frame)"/>
+    <param name="dock_pin_frame_prefix" value="$(arg dock_pin_frame_prefix)"/>
+  </node>
+
+  <!-- 双板舵机驱动（C++ 版；左板含夹爪）。 -->
+  <include file="$(find grasp_hexapod_servo)/launch/servo_two_boards_cpp.launch">
+    <arg name="left_port" value="$(arg left_port)"/>
+    <arg name="right_port" value="$(arg right_port)"/>
+    <arg name="baudrate" value="$(arg baudrate)"/>
+    <arg name="servo_rate_hz" value="$(arg servo_rate_hz)"/>
+    <arg name="servo_diagnostics" value="$(arg servo_diagnostics)"/>
+    <arg name="voltage_read" value="$(arg voltage_read)"/>
+    <arg name="gripper_id" value="$(arg gripper_id)"/>
+    <arg name="gripper_command_duration_ms" value="$(arg gripper_command_duration_ms)"/>
+  </include>
+</launch>

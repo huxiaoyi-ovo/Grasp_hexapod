@@ -215,6 +215,10 @@ std::optional<std::pair<Matrix4d, std::vector<int>>> DockMode::perceptionPose(
     cached_ids = observed.decoded_ids;
     last_perception_reason = "";
     using_last_complete_frame = false;
+    // 必须在此返回：robot_state.lock_from_pin 在实机链路上为空，
+    // 落到函数尾部的解引用是未定义行为（实测读到恒为"水平0mm/倾斜90deg"
+    // 的垃圾矩阵，导致按Y后跳过搜索对准直接原地坐下）。
+    return std::make_pair(*cached_pose, cached_ids);
   } else {
     using_last_complete_frame = false;
   }

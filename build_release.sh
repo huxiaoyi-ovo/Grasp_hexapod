@@ -4,7 +4,7 @@
 # 用法:
 #   ./build_release.sh                    # 标准编译（Release）
 #   ./build_release.sh -j4                # 限制并行度（Eigen 重模板内存紧张时用）
-#   ./build_release.sh --pkg grasp_hexapod_control_cpp   # 只编译单个包
+#   ./build_release.sh --pkg grasp_hexapod_control   # 只编译单个包
 #
 # 为什么必须用本脚本（2026-09 实测教训）:
 #   直接 `catkin_make` 时 CMAKE_BUILD_TYPE 为空 → C++ 以 -O0 编译。

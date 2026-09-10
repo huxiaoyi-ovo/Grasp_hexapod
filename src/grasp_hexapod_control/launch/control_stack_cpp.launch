@@ -79,7 +79,7 @@
   </node>
 
   <node
-    pkg="grasp_hexapod_control_cpp"
+    pkg="grasp_hexapod_control"
     type="run_real_cpp"
     name="grasp_hexapod_control"
     output="screen"

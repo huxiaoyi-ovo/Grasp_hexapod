@@ -2,19 +2,21 @@
 <package format="2">
   <name>grasp_hexapod_servo</name>
   <version>0.0.0</version>
-  <description>Grasp Hexapod 的 LX-15D 舵机驱动。</description>
+  <description>
+    Grasp Hexapod 的 LX-15D 舵机驱动。
+    scripts/ 为 Python 版（servo.py），src/include/node 为 C++ 版
+    （原 grasp_hexapod_servo_cpp 合并而来），ROS 接口完全一致，运行期二选一。
+  </description>
   <maintainer email="artrc@todo.todo">artrc</maintainer>
   <license>TODO</license>
 
   <buildtool_depend>catkin</buildtool_depend>
-  <build_depend>rospy</build_depend>
-  <build_depend>sensor_msgs</build_depend>
-  <build_depend>std_msgs</build_depend>
-  <build_export_depend>rospy</build_export_depend>
-  <build_export_depend>sensor_msgs</build_export_depend>
-  <build_export_depend>std_msgs</build_export_depend>
-  <exec_depend>rospy</exec_depend>
-  <exec_depend>sensor_msgs</exec_depend>
-  <exec_depend>std_msgs</exec_depend>
+  <depend>grasp_hexapod_msgs</depend>
+  <depend>rospy</depend>
+  <!-- C++ 驱动（原 grasp_hexapod_servo_cpp 合并而来）。 -->
+  <depend>roscpp</depend>
+  <depend>serial</depend>
+  <depend>sensor_msgs</depend>
+  <depend>std_msgs</depend>
   <exec_depend>python3-serial</exec_depend>
 </package>

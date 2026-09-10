@@ -13,7 +13,7 @@
   <arg name="servo_diagnostics" default="false"/>
   <!-- 电压读取开关：轮询电压占用串口总线，默认关闭。 -->
   <arg name="voltage_read" default="false"/>
-  <!-- servo_backend：python（默认，grasp_hexapod_servo）或 cpp（grasp_hexapod_servo_cpp）。 -->
+  <!-- servo_backend：python（默认，grasp_hexapod_servo）或 cpp（servo_two_boards_cpp.launch，原 grasp_hexapod_servo_cpp）。 -->
   <arg name="servo_backend" default="python"/>
   <arg name="max_feedback_age" default="0.30"/>
   <arg name="max_feedback_skew" default="0.20"/>
@@ -189,7 +189,7 @@
   </include>
 
   <include if="$(eval arg('servo_backend') == 'cpp')"
-    file="$(find grasp_hexapod_servo_cpp)/launch/servo_two_boards.launch">
+    file="$(find grasp_hexapod_servo)/launch/servo_two_boards_cpp.launch">
     <arg name="left_port" value="$(arg left_port)"/>
     <arg name="right_port" value="$(arg right_port)"/>
     <arg name="servo_rate_hz" value="$(arg servo_rate_hz)"/>

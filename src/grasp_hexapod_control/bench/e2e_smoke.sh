@@ -5,7 +5,7 @@ source /home/artrc/guangfu/Grasp_hexapod/devel/setup.bash
 roscore > /tmp/roscore_e2e.log 2>&1 &
 CORE_PID=$!
 sleep 3
-rosrun grasp_hexapod_control_cpp run_real_cpp \
+rosrun grasp_hexapod_control run_real_cpp \
   _enable_real_dock:=false _dock_system_config:=/nonexistent.yaml \
   > /tmp/cpp_node_e2e.log 2>&1 &
 NODE_PID=$!

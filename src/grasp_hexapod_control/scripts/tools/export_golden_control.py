@@ -4,7 +4,7 @@
 用与 run_real.py 完全相同的 GraspController 控制链（纯 CPU，不依赖 ROS），
 在确定性输入序列下逐帧录制 q_des / 足端目标，并导出运动学快照、
 compact 左右镜像、dock_system 解析结果与接近几何，供
-grasp_hexapod_control_cpp 的 gtest 逐项对比。
+grasp_hexapod_control（C++ 部分）的 gtest 逐项对比。
 
 序列设计（两侧实现必须完全一致）：
     reset_then_walk : 扰动关节角 -> B 回站 -> 恒定速度步态 -> 反向 -> 停止
@@ -35,7 +35,7 @@ DT = 1.0 / 30.0
 CLIMB_FOOT_GATE_M = 0.05  # 与 run_real.launch 的 climb_foot_gate_m 默认一致
 GOLDEN_PATH = (
     SCRIPTS_DIR.parents[1]
-    / "grasp_hexapod_control_cpp"
+    / "grasp_hexapod_control"
     / "test"
     / "golden_control_trajectories.json"
 )

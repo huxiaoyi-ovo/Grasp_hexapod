@@ -175,13 +175,13 @@ roslaunch grasp_hexapod_servo_cpp servo_two_boards.launch \
 ### 单独启动一块板
 
 ```bash
-rosrun grasp_hexapod_servo_cpp servo_node _side:=left _port:=/dev/ttyTHS0
+rosrun grasp_hexapod_servo servo_node _side:=left _port:=/dev/ttyTHS0
 ```
 
 > launch 参数名与 Python 版 `grasp_hexapod_servo` 完全相同；若要将
 > `grasp_hexapod_control/run_real.launch` 切到本包，只需把其中的
 > `$(find grasp_hexapod_servo)/launch/servo_two_boards.launch` 改为
-> `$(find grasp_hexapod_servo_cpp)/launch/servo_two_boards.launch`。
+> `$(find grasp_hexapod_servo)/launch/servo_two_boards_cpp.launch`。
 
 ## 依赖
 

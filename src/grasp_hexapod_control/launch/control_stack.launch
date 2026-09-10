@@ -1,6 +1,9 @@
 <launch>
   <!-- 内部公共链路：joy_node + 唯一高层控制节点。 -->
   <arg name="control_source" default="teleop"/>
+  <!-- control_backend：python（默认，grasp_hexapod_control/run_real.py）
+       或 cpp（grasp_hexapod_control_cpp/run_real_cpp，金标回归等价的移植版）。 -->
+  <arg name="control_backend" default="python"/>
   <arg name="joy_dev" default="/dev/input/js0"/>
   <arg name="controller_rate_hz" default="30.0"/>
   <arg name="enable_link_collision_check" default="true"/>
@@ -81,7 +84,8 @@
     type="run_real.py"
     name="grasp_hexapod_control"
     output="screen"
-    required="true">
+    required="true"
+    if="$(eval arg('control_backend') == 'python')">
     <param name="control_source" value="$(arg control_source)"/>
     <param name="controller_rate_hz" value="$(arg controller_rate_hz)"/>
     <param
@@ -144,5 +148,15 @@
     <param name="dock_sit_settle_duration_s" value="$(arg dock_sit_settle_duration_s)"/>
     <param name="dock_lock_frame" value="$(arg dock_lock_frame)"/>
     <param name="dock_pin_frame_prefix" value="$(arg dock_pin_frame_prefix)"/>
+  </node>
+
+  <node
+    pkg="grasp_hexapod_control_cpp"
+    type="run_real_cpp"
+    name="grasp_hexapod_control"
+    output="screen"
+    required="true"
+    unless="$(eval arg('control_backend') == 'python')">
+    <param name="control_config_dir" value="$(find grasp_hexapod_control)/config"/>
   </node>
 </launch>

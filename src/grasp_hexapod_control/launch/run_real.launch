@@ -15,6 +15,8 @@
   <arg name="voltage_read" default="false"/>
   <!-- servo_backend：python（默认，grasp_hexapod_servo）或 cpp（grasp_hexapod_servo_cpp）。 -->
   <arg name="servo_backend" default="python"/>
+  <!-- control_backend：python（默认，run_real.py）或 cpp（run_real_cpp）。 -->
+  <arg name="control_backend" default="python"/>
   <arg name="max_feedback_age" default="0.30"/>
   <arg name="max_feedback_skew" default="0.20"/>
   <arg name="climb_foot_gate_m" default="0.05"/>
@@ -107,6 +109,7 @@
 
   <include file="$(find grasp_hexapod_control)/launch/control_stack.launch">
     <arg name="control_source" value="$(arg mode)"/>
+    <arg name="control_backend" value="$(arg control_backend)"/>
     <arg name="joy_dev" value="$(arg joy_dev)"/>
     <arg name="controller_rate_hz" value="$(arg controller_rate_hz)"/>
     <arg

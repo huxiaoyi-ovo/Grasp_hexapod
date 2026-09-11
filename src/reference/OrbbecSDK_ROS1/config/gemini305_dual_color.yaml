@@ -1,0 +1,30 @@
+# Gemini 305 series Dual Color Streams overrides.
+# All other parameters inherit their defaults from gemini_301_series.launch.
+
+device_preset: Dual Color Streams
+
+# left_color
+enable_left_color: true
+left_color_width: 0
+left_color_height: 0
+left_color_fps: 0
+left_color_format: ANY
+left_color_rotation: -1
+left_color_flip: false
+left_color_mirror: false
+enable_left_color_decimation_filter: false
+left_color_decimation_filter_scale: -1
+enable_left_color_undistortion: false
+
+# right_color
+enable_right_color: true
+right_color_width: 0
+right_color_height: 0
+right_color_fps: 0
+right_color_format: ANY
+right_color_rotation: -1
+right_color_flip: false
+right_color_mirror: false
+enable_right_color_decimation_filter: false
+right_color_decimation_filter_scale: -1
+enable_right_color_undistortion: false

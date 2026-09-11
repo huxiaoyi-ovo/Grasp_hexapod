@@ -5,6 +5,7 @@
 #   ./build_release.sh                    # 标准编译（Release）
 #   ./build_release.sh -j4                # 限制并行度（Eigen 重模板内存紧张时用）
 #   ./build_release.sh --pkg grasp_hexapod_control   # 只编译单个包
+#   ./build_release.sh --setup-orbbec     # 首次部署 Orbbec 相机：装依赖 + udev 规则后编译
 #
 # 为什么必须用本脚本（2026-09 实测教训）:
 #   直接 `catkin_make` 时 CMAKE_BUILD_TYPE 为空 → C++ 以 -O0 编译。
@@ -43,12 +44,53 @@ if [ -f "$CACHE" ]; then
   fi
 fi
 
-# --- 编译: Release 强制固定，额外参数原样透传 ---
+# --- Orbbec 相机包（src/reference/OrbbecSDK_ROS1，Gemini 336L）---
+# 普通 catkin 包，随下方 catkin_make 一同编译，无单独编译步骤。
+# SDK 预编译库只保留 arm64（Jetson）；换 x64 主机需从上游补 SDK/lib/x64。
+# 相机是标准 USB 设备，首次使用必须装 udev 规则，否则非 root 下枚举不到设备。
+ORBBEC_PKG="$WS_DIR/src/reference/OrbbecSDK_ROS1"
+
+setup_orbbec() {
+  if [ ! -f "$ORBBEC_PKG/package.xml" ]; then
+    echo "错误: 未找到 Orbbec 相机包: $ORBBEC_PKG" >&2
+    exit 1
+  fi
+  echo "==> 安装 orbbec_camera 依赖"
+  # 首选 rosdep（按 package.xml 自动解析）；raw.githubusercontent.com 被墙时
+  # 回退到 apt 直装完整映射清单（与 package.xml 一致，幂等）。
+  if rosdep install --from-paths "$ORBBEC_PKG" --ignore-src -y; then
+    echo "==> rosdep 依赖安装完成"
+  else
+    echo "警告: rosdep 不可用（GitHub 连接问题），改用 apt 直装依赖清单" >&2
+    sudo apt-get install -y \
+      ros-noetic-roscpp ros-noetic-sensor-msgs ros-noetic-std-msgs \
+      ros-noetic-std-srvs ros-noetic-image-transport \
+      ros-noetic-camera-info-manager ros-noetic-cv-bridge \
+      ros-noetic-dynamic-reconfigure ros-noetic-image-geometry \
+      ros-noetic-message-filters ros-noetic-tf2 ros-noetic-tf2-ros \
+      ros-noetic-pluginlib ros-noetic-nodelet \
+      ros-noetic-diagnostic-updater ros-noetic-backward-ros \
+      libudev-dev libusb-1.0-0-dev libdw-dev
+  fi
+  echo "==> 安装 Orbbec udev 规则（需要 sudo；脚本内含 udevadm reload+trigger）"
+  sudo bash "$ORBBEC_PKG/scripts/install_udev_rules.sh"
+  echo "==> udev 就绪：重新插拔相机 USB 后生效，验证: lsusb | grep -i 2bc5"
+}
+
+# --- 编译: Release 强制固定，额外参数原样透传（--setup-orbbec 除外）---
 JOBS="$(nproc)"
 EXTRA_ARGS=()
+SETUP_ORBBEC=0
 for arg in "$@"; do
-  EXTRA_ARGS+=("$arg")
+  if [ "$arg" = "--setup-orbbec" ]; then
+    SETUP_ORBBEC=1
+  else
+    EXTRA_ARGS+=("$arg")
+  fi
 done
+if [ "$SETUP_ORBBEC" -eq 1 ]; then
+  setup_orbbec
+fi
 if [[ "${EXTRA_ARGS[*]:-}" != *-j* ]]; then
   EXTRA_ARGS=("-j$JOBS" "${EXTRA_ARGS[@]}")
 fi

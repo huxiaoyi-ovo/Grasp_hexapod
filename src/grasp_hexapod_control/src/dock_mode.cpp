@@ -42,6 +42,7 @@ DockMode::DockMode(GraspController* controller, PerceptionInterface* perception,
                    bool require_lock_confirmation, double linear_speed_m_s,
                    double update_rate_hz, double perception_rate_hz,
                    double leg_lift_speed_m_s, double sit_settle_duration_s,
+                   double leg_lift_height_m, double leg_lift_level_tolerance_m,
                    std::function<void(bool, const std::string&)> logger)
     : controller_(controller),
       perception_(perception),
@@ -50,6 +51,8 @@ DockMode::DockMode(GraspController* controller, PerceptionInterface* perception,
   linear_speed_m_s_ = linear_speed_m_s;
   leg_lift_speed_m_s_ = leg_lift_speed_m_s;
   sit_settle_duration_s_ = sit_settle_duration_s;
+  leg_lift_height_m_ = leg_lift_height_m;
+  leg_lift_level_tolerance_m_ = leg_lift_level_tolerance_m;
   update_period = 1.0 / update_rate_hz;
   perception_period = 1.0 / perception_rate_hz;
   update_dt = controller_->dt;
@@ -61,6 +64,14 @@ DockMode::DockMode(GraspController* controller, PerceptionInterface* perception,
   }
   if (!std::isfinite(sit_settle_duration_s_) || sit_settle_duration_s_ < 0.0) {
     throw ConfigError("dock sit_settle_duration_s must be finite and nonnegative");
+  }
+  if (!std::isfinite(leg_lift_height_m_) || leg_lift_height_m_ <= 0.0) {
+    throw ConfigError("dock leg_lift_height_m must be finite and positive");
+  }
+  if (!std::isfinite(leg_lift_level_tolerance_m_) ||
+      leg_lift_level_tolerance_m_ < 0.0) {
+    throw ConfigError(
+        "dock leg_lift_level_tolerance_m must be finite and nonnegative");
   }
 }
 
@@ -403,7 +414,8 @@ DockResult DockMode::sitSettleStep(const JointAngles& current) {
       std::min(sit_settle_duration_s_, sit_settle_elapsed_ + update_dt);
   if (sit_settle_elapsed_ >= sit_settle_duration_s_) {
     setState(kLegLift,
-             "下坐稳定完成，开始将六腿收至同一高度（至少抬升60mm）");
+             formatCn("下坐稳定完成，开始将六腿收至同一高度（至少抬升%.0fmm）",
+                      leg_lift_height_m_ * 1000.0));
     return legLiftStep(current);
   }
   setState(kSitSettle, formatCn("下坐稳定等待中：%.2f/%.2fs", sit_settle_elapsed_,
@@ -421,7 +433,7 @@ DockResult DockMode::legLiftStep(const JointAngles& current) {
     highest = std::max(highest, (*leg_lift_start_feet_)[leg].z());
     lowest = std::min(lowest, (*leg_lift_start_feet_)[leg].z());
   }
-  const double target_z = highest + kLegLiftHeight;
+  const double target_z = highest + leg_lift_height_m_;
   const double travel = target_z - lowest;
 
   if (leg_lift_progress_ >= travel) {
@@ -430,7 +442,7 @@ DockResult DockMode::legLiftStep(const JointAngles& current) {
       feet[leg].z() = target_z;
     }
     const double actual_spread = peakToPeak(actualFeet(current), 2);
-    if (actual_spread > kLegLiftLevelTolerance) {
+    if (actual_spread > leg_lift_level_tolerance_m_) {
       setState(kLegLift, formatCn("统一高度收敛中：实际高度差%.1fmm",
                                   actual_spread * 1000.0));
       return makeResult(feet, std::nullopt);

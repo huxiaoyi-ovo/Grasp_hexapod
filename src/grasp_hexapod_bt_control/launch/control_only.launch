@@ -3,9 +3,16 @@
        bt_control_node → servo_two_boards_cpp。
        按键与服务约定：A=walk B=home X=climb Y=dock（switch_mode 抢占式）；
        方向键左=夹爪闭合 右=张开（gripper_act）；左摇杆=walk 步态 /cmd_vel。
-       与旧链路互斥：同一时刻只能运行一个 switch_mode 提供者。 -->
+       与旧链路互斥：同一时刻只能运行一个 switch_mode 提供者。
+       Y=dock 需要 tag 感知，按需 start_dock_perception:=true 启动 apriltag 链。 -->
   <arg name="joy_dev" default="/dev/input/js0"/>
   <arg name="joy_deadzone" default="0.20"/>
+
+  <!-- dock 感知栈（默认关闭，实机按需打开）：usb_cam + image_proc + apriltag_ros
+       + dock TF 链 → dock_lock_center / dock_pin_from_tag_*（DockPerceptionRos 查询）。 -->
+  <arg name="start_dock_perception" default="true"/>
+  <include if="$(arg start_dock_perception)"
+    file="$(find grasp_hexapod_control)/launch/dock_tag_system.launch"/>
 
   <!-- 控制核心参数（与 grasp_hexapod_control/launch/control_stack_cpp.launch 同名同默认）。 -->
   <arg name="control_source" default="teleop"/>
@@ -15,7 +22,7 @@
   <arg name="max_feedback_skew" default="0.20"/>
   <arg name="max_cmd_vel_age" default="0.2"/>
   <arg name="climb_foot_gate_m" default="0.02"/>
-  <arg name="enable_real_climb" default="false"/>
+  <arg name="enable_real_climb" default="true"/>
   <arg name="climb_side" default="left"/>
   <arg name="enable_real_dock" default="true"/>
   <arg name="bt_hold_lease_s" default="0.15"/>
@@ -68,6 +75,8 @@
   <arg name="dock_perception_rate_hz" default="10.0"/>
   <arg name="dock_leg_lift_speed_m_s" default="0.05"/>
   <arg name="dock_sit_settle_duration_s" default="0.5"/>
+  <arg name="dock_leg_lift_height_m" default="0.06"/>
+  <arg name="dock_leg_lift_level_tolerance_m" default="0.003"/>
   <arg name="dock_lock_frame" default="dock_lock_center"/>
   <arg name="dock_pin_frame_prefix" default="dock_pin_from_tag_"/>
 
@@ -157,6 +166,8 @@
     <param name="dock_perception_rate_hz" value="$(arg dock_perception_rate_hz)"/>
     <param name="dock_leg_lift_speed_m_s" value="$(arg dock_leg_lift_speed_m_s)"/>
     <param name="dock_sit_settle_duration_s" value="$(arg dock_sit_settle_duration_s)"/>
+    <param name="dock_leg_lift_height_m" value="$(arg dock_leg_lift_height_m)"/>
+    <param name="dock_leg_lift_level_tolerance_m" value="$(arg dock_leg_lift_level_tolerance_m)"/>
     <param name="dock_lock_frame" value="$(arg dock_lock_frame)"/>
     <param name="dock_pin_frame_prefix" value="$(arg dock_pin_frame_prefix)"/>
   </node>

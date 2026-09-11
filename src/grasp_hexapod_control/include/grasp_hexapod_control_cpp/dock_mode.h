@@ -82,6 +82,7 @@ class DockMode {
            bool require_lock_confirmation, double linear_speed_m_s,
            double update_rate_hz, double perception_rate_hz,
            double leg_lift_speed_m_s, double sit_settle_duration_s,
+           double leg_lift_height_m, double leg_lift_level_tolerance_m,
            std::function<void(bool is_warn, const std::string& message)> logger);
 
   // 先回到控制器保留的攀爬末关节姿态，再开放视觉伺服。
@@ -147,6 +148,8 @@ class DockMode {
   double linear_speed_m_s_ = 0.050;
   double leg_lift_speed_m_s_ = 0.050;
   double sit_settle_duration_s_ = 0.5;
+  double leg_lift_height_m_ = kLegLiftHeight;
+  double leg_lift_level_tolerance_m_ = kLegLiftLevelTolerance;
   std::function<void(bool, const std::string&)> logger_;
 
   std::optional<JointAngles> entry_start_;

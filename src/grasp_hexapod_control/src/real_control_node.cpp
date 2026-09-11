@@ -896,6 +896,8 @@ void RealControlNode::ensureDockMode() {
       pnh.param("dock_perception_rate_hz", 10.0),
       pnh.param("dock_leg_lift_speed_m_s", 0.05),
       pnh.param("dock_sit_settle_duration_s", 0.5),
+      pnh.param("dock_leg_lift_height_m", 0.06),
+      pnh.param("dock_leg_lift_level_tolerance_m", 0.003),
       [](bool is_warn, const std::string& message) {
         if (is_warn) {
           ROS_WARN("%s", message.c_str());

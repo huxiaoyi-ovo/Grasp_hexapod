@@ -8,13 +8,11 @@
   <arg name="bt_rate" default="30.0"/>
   <arg name="bt_loop" default="true"/>
   <arg name="bt_verbose" default="true"/>
-  <!-- 感知与导航（默认关闭，实机按需打开）。 -->
+  <!-- 导航栈（默认关闭，实机按需打开）；dock 感知栈已移入 control_only.launch，
+       经下方 start_dock_perception 透传控制。 -->
   <arg name="start_dock_perception" default="false"/>
   <arg name="start_rtk_imu_navigation" default="false"/>
 
-  <!-- 可选感知/导航栈（复用既有 launch，只读引用）。 -->
-  <include if="$(arg start_dock_perception)"
-    file="$(find grasp_hexapod_control)/launch/dock_tag_system.launch"/>
   <include if="$(arg start_rtk_imu_navigation)"
     file="$(find grasp_hexapod_control)/launch/navigation_rtk_imu.launch"/>
 

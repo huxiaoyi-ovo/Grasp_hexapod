@@ -1,28 +1,34 @@
 #!/usr/bin/env bash
 #===============================================================================
-# 串口重命名脚本 (bash 版)
+# 串口/摄像头重命名脚本 (bash 版)
 #-------------------------------------------------------------------------------
 # 功能:
-#   1. 读取指定串口(如 /dev/ttyUSB0)的 udev 设备信息
-#   2. 根据配置生成 udev 规则,为串口创建固定的软链接名称
-#   3. 可选: 固定串口物理位置(基于 USB 端口路径 KERNELS)
-#   4. 可选: 同时设置串口权限(MODE,默认 0666,解决非 dialout 组用户无法打开的问题)
+#   1. 读取指定设备(串口 /dev/ttyUSB* /dev/ttyACM* 或摄像头 /dev/video*)的 udev 设备信息
+#   2. 根据配置生成 udev 规则,为设备创建固定的软链接名称
+#   3. 可选: 固定设备物理位置(基于 USB 端口路径 KERNELS)
+#   4. 可选: 同时设置设备权限(MODE,默认 0666,解决非 dialout/video 组用户无法打开的问题)
 #   5. 在脚本同目录下查找规则文件:
 #        - 存在规则文件 -> 在现有规则文件中新增一条规则
 #        - 不存在      -> 新建规则文件并添加规则
 #   6. 将规则文件复制到系统 udev 规则目录 /etc/udev/rules.d/
 #   7. 重新载入规则: udevadm control --reload-rules
-#   8. 刷新串口: udevadm trigger,并验证新名称是否生效
+#   8. 刷新设备: udevadm trigger,并验证新名称是否生效
 #
 # 用法:
 #   ./serial_rename.sh                          # 使用配置区中的设置
 #   ./serial_rename.sh /dev/ttyUSB1 ttyRobot    # 命令行覆盖串口和名称
+#   ./serial_rename.sh /dev/video8 cam_dock     # 摄像头同样适用(/dev/video*)
 #   (写入系统规则目录需要 root,非 root 运行时脚本会自动用 sudo 重新执行)
 #
 # 说明:
 #   udev 无法安全地直接修改内核串口节点的名字,业界标准做法是通过
 #   udev 规则为设备创建稳定的软链接,即 /dev/<新名称> 会指向实际的
 #   /dev/ttyUSBx 或 /dev/ttyACMx。重新插拔后新名称依然有效。
+#   摄像头(/dev/video*)按同样方式生成软链接;UVC 相机通常暴露两个节点
+#   (采集节点 index=0 + metadata 节点 index=1),脚本自动追加 ATTR{index}=="0"
+#   只绑定采集节点,避免两个节点同时命中同一条规则。
+#   规则文件按设备类型区分: 串口写入 99-serial-rename.rules,
+#   摄像头写入 99-camera-rename.rules。
 #   若配置了 RULE_MODE,规则会同时设置设备节点权限(如 MODE="0666"),
 #   避免普通用户因不在 dialout 组而无法打开串口。
 #===============================================================================
@@ -31,11 +37,11 @@
 # ===== 用户配置区:修改这里的配置后保存,再运行脚本即可 =====
 # ==============================================================================
 
-# 1. 当前插入的串口设备(要被重命名的设备)
-#    留空 "" 时,脚本会列出检测到的串口让你交互选择
+# 1. 当前插入的设备(要被重命名的串口/摄像头,如 /dev/ttyUSB0 /dev/video8)
+#    留空 "" 时,脚本会列出检测到的串口和摄像头让你交互选择
 CURRENT_PORT="/dev/ttyUSB0"
 
-# 2. 修改后的串口名称(软链接名,不带 /dev/ 前缀)
+# 2. 修改后的设备名称(软链接名,不带 /dev/ 前缀)
 NEW_NAME="ENCODER"
 
 # 3. 串口设备权限 (udev MODE 属性)
@@ -54,7 +60,8 @@ FIX_POSITION=1
 ASK_CONFIRM=1
 
 # 6. 规则文件相关配置
-RULES_FILE_NAME="99-serial-rename.rules"   # 新建规则文件时使用的文件名(位于脚本同目录)
+RULES_FILE_NAME=""                          # 规则文件名(位于脚本同目录);留空则按设备类型自动选择:
+                                            # 串口 -> 99-serial-rename.rules, 摄像头 -> 99-camera-rename.rules
 RULES_DIR="/etc/udev/rules.d"              # 系统 udev 规则目录
 
 # ==============================================================================
@@ -80,7 +87,7 @@ ensure_root() {
     exec sudo bash "${BASH_SOURCE[0]}" "$@"
 }
 
-# ---- 读取串口 udev 信息 ----
+# ---- 读取设备 udev 信息 ----
 # 结果写入全局变量: VID PID SERIAL POS
 # 返回 0 成功, 1 失败
 get_port_info() {
@@ -147,7 +154,9 @@ AWK
 
 # ---- 根据读取到的信息生成 udev 规则文本 ----
 build_rule() {
-    local r='SUBSYSTEM=="tty"'
+    local subsys="tty"
+    [ "$DEV_KIND" = "video4linux" ] && subsys="video4linux"
+    local r="SUBSYSTEM==\"$subsys\""
     if [ "$FIX_POSITION" = "1" ] && [ -n "$POS" ]; then
         r="$r, KERNELS==\"$POS\""
     fi
@@ -155,6 +164,10 @@ build_rule() {
     r="$r, ATTRS{idProduct}==\"$PID\""
     if [ -n "$SERIAL" ]; then
         r="$r, ATTRS{serial}==\"$SERIAL\""
+    fi
+    # 摄像头通常暴露两个节点(采集 index=0 + metadata index=1),仅绑定采集节点
+    if [ "$DEV_KIND" = "video4linux" ]; then
+        r="$r, ATTR{index}==\"0\""
     fi
     r="$r, SYMLINK+=\"$NEW_NAME\""
     if [ -n "$RULE_MODE" ]; then
@@ -166,6 +179,7 @@ build_rule() {
 # ---- 在脚本同目录查找规则文件: 存在则输出路径, 不存在返回 1 ----
 find_rules_file() {
     local files=() f i choice
+    local other_default filtered=()
     if [ -f "$SCRIPT_DIR/$RULES_FILE_NAME" ]; then
         printf '%s\n' "$SCRIPT_DIR/$RULES_FILE_NAME"
         return 0
@@ -173,6 +187,13 @@ find_rules_file() {
     shopt -s nullglob
     files=( "$SCRIPT_DIR"/*.rules )
     shopt -u nullglob
+    # 回退扫描时排除另一类设备的默认规则文件,避免把规则追加到错误的文件
+    other_default="99-camera-rename.rules"
+    [ "$DEV_KIND" = "video4linux" ] && other_default="99-serial-rename.rules"
+    for f in "${files[@]}"; do
+        [ "$(basename "$f")" = "$other_default" ] || filtered+=( "$f" )
+    done
+    files=( "${filtered[@]}" )
     if [ "${#files[@]}" -eq 0 ]; then
         return 1
     fi
@@ -225,7 +246,7 @@ append_or_create_rule() {
     else
         f="$SCRIPT_DIR/$RULES_FILE_NAME"
         {
-            echo "# 串口重命名规则(由 serial_rename.sh 自动生成)"
+            echo "# 设备重命名规则(由 serial_rename.sh 自动生成)"
             echo "# 修改后执行: sudo udevadm control --reload-rules && sudo udevadm trigger"
             printf '%s\n%s\n' "$comment" "$rule"
         } > "$f"
@@ -252,10 +273,15 @@ install_and_reload() {
             || warn "重载规则失败,请手动执行: sudo udevadm control --reload-rules"
     fi
 
-    step "刷新串口设备..."
+    step "刷新设备..."
     udevadm trigger 2>/dev/null || warn "触发设备刷新失败,请手动执行: sudo udevadm trigger"
     # 针对目标设备再触发一次,确保软链接立即生成
-    local syspath="/sys/class/tty/$(basename "$CURRENT_PORT")"
+    local syspath
+    if [ "$DEV_KIND" = "video4linux" ]; then
+        syspath="/sys/class/video4linux/$(basename "$CURRENT_PORT")"
+    else
+        syspath="/sys/class/tty/$(basename "$CURRENT_PORT")"
+    fi
     [ -e "$syspath" ] && udevadm trigger --action=change "$syspath" 2>/dev/null
     udevadm settle 2>/dev/null
 }
@@ -265,7 +291,7 @@ verify() {
     step "等待 udev 处理..."
     sleep 2
     if [ -L "/dev/$NEW_NAME" ] || [ -e "/dev/$NEW_NAME" ]; then
-        ok "新串口名称已生效: /dev/$NEW_NAME -> $(readlink -f "/dev/$NEW_NAME")"
+        ok "新设备名称已生效: /dev/$NEW_NAME -> $(readlink -f "/dev/$NEW_NAME")"
     else
         warn "尚未检测到 /dev/$NEW_NAME"
         echo "       请重新插拔设备,或手动执行:"
@@ -280,27 +306,27 @@ main() {
     if [ $# -ge 2 ] && [ -n "$2" ]; then NEW_NAME="$2"; fi
 
     echo "========================================================"
-    echo "串口重命名脚本"
+    echo "串口/摄像头重命名脚本"
     echo "========================================================"
 
     ensure_root "$@"
 
-    # 1. 确定目标串口
+    # 1. 确定目标设备
     shopt -s nullglob
-    PORTS=( /dev/ttyUSB* /dev/ttyACM* )
+    PORTS=( /dev/ttyUSB* /dev/ttyACM* /dev/video* )
     shopt -u nullglob
 
     if [ -n "$CURRENT_PORT" ] && [[ "$CURRENT_PORT" != /dev/* ]]; then
         CURRENT_PORT="/dev/$CURRENT_PORT"
     fi
     if [ -z "$CURRENT_PORT" ]; then
-        [ "${#PORTS[@]}" -gt 0 ] || { err "未检测到任何串口(/dev/ttyUSB* /dev/ttyACM*),请先插入串口设备"; exit 1; }
+        [ "${#PORTS[@]}" -gt 0 ] || { err "未检测到任何可重命名设备(/dev/ttyUSB* /dev/ttyACM* /dev/video*),请先插入设备"; exit 1; }
         if [ ! -t 0 ]; then
-            err "检测到多个串口且当前无交互终端,无法选择"
-            err "请在配置区设置 CURRENT_PORT,或用命令行参数指定串口"
+            err "检测到多个设备且当前无交互终端,无法选择"
+            err "请在配置区设置 CURRENT_PORT,或用命令行参数指定设备"
             exit 1
         fi
-        log "检测到以下串口,请输入序号选择:"
+        log "检测到以下设备,请输入序号选择:"
         local i=1 choice
         for p in "${PORTS[@]}"; do
             printf '  %d. %s\n' "$i" "$p"
@@ -322,14 +348,27 @@ main() {
     fi
 
     if [ ! -e "$CURRENT_PORT" ]; then
-        err "配置的串口不存在: $CURRENT_PORT"
+        err "配置的设备不存在: $CURRENT_PORT"
         if [ "${#PORTS[@]}" -gt 0 ]; then
-            echo "       当前检测到的串口: ${PORTS[*]}"
+            echo "       当前检测到的设备: ${PORTS[*]}"
             echo "       请修改脚本顶部的 CURRENT_PORT 配置"
         else
-            echo "       未检测到任何串口,请先插入串口设备"
+            echo "       未检测到任何设备,请先插入串口或摄像头"
         fi
         exit 1
+    fi
+
+    # 识别设备类型: video* 为摄像头(video4linux),其余按串口处理
+    case "$CURRENT_PORT" in
+        /dev/video*) DEV_KIND="video4linux" ;;
+        *)           DEV_KIND="tty" ;;
+    esac
+    if [ -z "$RULES_FILE_NAME" ]; then
+        if [ "$DEV_KIND" = "video4linux" ]; then
+            RULES_FILE_NAME="99-camera-rename.rules"
+        else
+            RULES_FILE_NAME="99-serial-rename.rules"
+        fi
     fi
 
     # 校验新名称
@@ -340,8 +379,8 @@ main() {
             ;;
     esac
 
-    # 2. 读取串口信息
-    log "正在读取串口信息: $CURRENT_PORT"
+    # 2. 读取设备信息
+    log "正在读取设备信息: $CURRENT_PORT"
     if ! get_port_info "$CURRENT_PORT"; then
         exit 1
     fi
@@ -394,7 +433,7 @@ main() {
     verify
 
     echo ""
-    ok "串口重命名流程结束"
+    ok "设备重命名流程结束"
     echo "       新名称: /dev/$NEW_NAME (指向 $CURRENT_PORT)"
     echo "       规则文件: $SCRIPT_DIR/$(basename "$rules_file")"
 }

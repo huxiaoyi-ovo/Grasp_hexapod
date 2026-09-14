@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>xiaolan_yolo_detection</name>
+  <version>0.1.0</version>
+  <description>Single-class Xiaolan detection with TensorRT GPU or ONNX CPU inference and aligned-depth X/Z localization.</description>
+  <maintainer email="user@example.com">user</maintainer>
+  <license>MIT</license>
+  <buildtool_depend>catkin</buildtool_depend>
+  <depend>rospy</depend>
+  <depend>std_msgs</depend>
+  <depend>sensor_msgs</depend>
+  <depend>cv_bridge</depend>
+  <build_depend>message_generation</build_depend>
+  <exec_depend>message_runtime</exec_depend>
+  <exec_depend>python3-numpy</exec_depend>
+  <exec_depend>python3-opencv</exec_depend>
+  <test_depend>python3-nose</test_depend>
+</package>

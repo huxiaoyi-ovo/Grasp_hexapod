@@ -35,4 +35,4 @@ source "$WS_DIR/devel/setup.bash"
 set -u
 
 # --- 启动（附加参数原样透传给 launch 文件） ---
-exec roslaunch grasp_hexapod_control run_real_cpp.launch "$@"
+exec roslaunch grasp_hexapod_control run_real.launch "$@"

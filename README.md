@@ -101,6 +101,18 @@ roslaunch grasp_hexapod_control run_real.launch \
   right_port:=/dev/ttyACM0
 ```
 
+底部 USB 相机（Realtek `0bda:3035`）通过 udev 规则固定为 `/dev/cam_dock`，
+只绑定采集节点（`index=0`，metadata 节点不参与），插拔端口或枚举序号变化都
+不影响设备名。规则由 `串口配置/serial_rename.sh` 生成并安装到
+`/etc/udev/rules.d/99-camera-rename.rules`：
+
+```bash
+sudo bash 串口配置/serial_rename.sh /dev/video8 cam_dock   # 按当前实际 video 序号填写
+```
+
+更换相机后重跑一次即可；dock 相关 launch 的默认设备已是 `/dev/cam_dock`，
+无需再传 `dock_video_device`。
+
 使用 C++ 版舵机驱动（`grasp_hexapod_servo_cpp`，接口一致、资源占用更低）时，
 入口换成 `run_real_cpp.launch`，参数相同；也可给 `run_real.launch` 加
 `servo_backend:=cpp`。

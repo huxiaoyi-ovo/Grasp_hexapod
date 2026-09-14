@@ -1,30 +1,26 @@
-"""实机视觉对接模式。
+"""基于黑白同心圆的实机视觉对接模式。
 
-DockMode只负责三件事：接管攀爬结束关节姿态、读取AprilTag TF、把闭环
-机身修正转换为六足base_link目标。关节反馈、DLS逆运动学和舵机下发
-统一走run_real.py -> GraspController链路。
+本文件包含完整感知与动作状态机，不依赖原 dock_mode.py。改名为
+dock_mode.py 后，run_real 可沿用原有导入接口。足端目标仍交给公共
+GraspController 执行 DLS 和舵机控制。默认 SUCCESS 表示收腿完成，
+由 run_real 的行为树请求随后执行夹紧；要求锁紧确认时需外部夹紧执行器。
 """
 
 from dataclasses import dataclass
-from itertools import combinations
-from typing import Mapping
+from threading import Event, Lock, Thread
 
+import cv2
 import numpy as np
 import rospy
-import tf2_ros
+from cv_bridge import CvBridge, CvBridgeError
+from sensor_msgs.msg import CameraInfo, Image
+
+from typing import Mapping
 import yaml
-from tf.transformations import quaternion_matrix
-
-from kinematics import JOINT_VELOCITY_LIMIT
-from utils import package_config_path, pose_to_transform, transform_points
+from utils import package_config_path, transform_points
 
 
-# AprilTag感知：apriltag_ros发布相机到标签的动态TF，DockMode只查询完整TF链。
 TAG_IDS = (0, 1, 2, 3)
-TAG_SIZE = 0.040
-TAG_DIRECTIONS = {0: "+y", 1: "+x", 2: "-y", 3: "-x"}
-MAX_POSITION_ERROR = 0.03
-MAX_ANGLE_ERROR = np.deg2rad(15.0)
 
 
 def rigid_transform(translation=(0.0, 0.0, 0.0), rotation=None):
@@ -121,190 +117,6 @@ REAL_CALIBRATED = DOCK_SYSTEM["real_calibrated"]
 TAG_FROM_PIN = {tag_id: invert_transform(pose) for tag_id, pose in PIN_FROM_TAG.items()}
 
 
-def pose_matrix(pose):
-    if np.shape(pose) == (4, 4):
-        return np.asarray(pose, dtype=np.float64).copy()
-    result = pose_to_transform(pose)
-    if result is None:
-        raise ValueError("invalid pose quaternion")
-    return result
-
-
-def pin_pose_from_detection(tag_id, detection, lock_from_camera=LOCK_FROM_CAMERA, tag_from_pin=None):
-    """用一个已完整解码的标签计算插销相对卡紧机构的位姿。"""
-    tag_from_pin = TAG_FROM_PIN if tag_from_pin is None else tag_from_pin
-    return lock_from_camera @ pose_matrix(detection.pose.pose.pose) @ tag_from_pin[tag_id]
-
-
-def rotation_angle(rotation):
-    cosine = np.clip((np.trace(rotation) - 1.0) / 2.0, -1.0, 1.0)
-    return float(np.arccos(cosine))
-
-
-def pose_difference(left, right):
-    position = np.linalg.norm(left[:3, 3] - right[:3, 3])
-    rotation = left[:3, :3].T @ right[:3, :3]
-    return position, rotation_angle(rotation)
-
-
-def consistent_poses(poses, max_position=MAX_POSITION_ERROR, max_angle=MAX_ANGLE_ERROR):
-    """多标签同时可见时，选择彼此一致的最大候选集合。"""
-    if len(poses) < 2:
-        return poses
-    for size in range(len(poses), 1, -1):
-        valid_groups = []
-        for group in combinations(poses, size):
-            errors = [pose_difference(a[1], b[1]) for a, b in combinations(group, 2)]
-            if all(p <= max_position and a <= max_angle for p, a in errors):
-                score = sum(p / max_position + a / max_angle for p, a in errors)
-                valid_groups.append((score, group))
-        if valid_groups:
-            return list(min(valid_groups, key=lambda item: item[0])[1])
-    return []
-
-
-def fuse_poses(poses):
-    """融合一致位姿，并返回最大位置和角度离散值。"""
-    result = poses[0][1].copy()
-    result[:3, 3] = np.mean([pose[:3, 3] for _, pose in poses], axis=0)
-    left, _, right = np.linalg.svd(np.mean([pose[:3, :3] for _, pose in poses], axis=0))
-    left[:, -1] *= np.linalg.det(left @ right)
-    result[:3, :3] = left @ right
-    errors = [pose_difference(result, pose) for _, pose in poses]
-    return result, max(p for p, _ in errors), max(a for _, a in errors)
-
-
-def pose_is_plausible(pose, lock_from_camera=LOCK_FROM_CAMERA):
-    if pose is None or np.shape(pose) != (4, 4) or not np.isfinite(pose).all():
-        return False
-    rotation = pose[:3, :3]
-    if not np.allclose(rotation.T @ rotation, np.eye(3), atol=1e-3):
-        return False
-    if np.linalg.det(rotation) < 0.999:
-        return False
-    camera_from_pin = invert_transform(lock_from_camera) @ pose
-    return 0.01 <= camera_from_pin[2, 3] <= 1.5 and np.linalg.norm(camera_from_pin[:2, 3]) <= 0.5
-
-
-def confidence_score(decoded_count, position_spread, angle_spread):
-    base = 0.6 + 0.12 * (decoded_count - 1)
-    agreement = 1.0 - 0.25 * (
-        min(position_spread / MAX_POSITION_ERROR, 1.0)
-        + min(angle_spread / MAX_ANGLE_ERROR, 1.0)
-    )
-    return float(np.clip(base * agreement, 0.0, 1.0))
-
-
-@dataclass(frozen=True)
-class PerceptionResult:
-    valid: bool = False
-    lock_from_pin: object = None
-    stamp: object = None
-    decoded_ids: tuple = ()
-    inferred_ids: tuple = ()
-    confidence: float = 0.0
-    position_spread: float = float("inf")
-    angle_spread: float = float("inf")
-    reason: str = "no perception result"
-
-
-class DockPerception:
-    """通过TF读取每个完整标签对应的锁紧机构到插销位姿。"""
-    def __init__(self, max_age=0.35, lock_frame="dock_lock_center",
-                 pin_frame_prefix="dock_pin_from_tag_", tf_buffer=None,
-                 dock_system_path=None):
-        dock_system = load_dock_system(dock_system_path)
-        self.max_age = float(max_age)
-        self.lock_from_camera = dock_system["lock_from_camera"]
-        self.lock_frame = str(lock_frame)
-        self.pin_frames = {
-            tag_id: "{}{}".format(pin_frame_prefix, tag_id) for tag_id in TAG_IDS
-        }
-        self.tf_buffer = tf_buffer or tf2_ros.Buffer()
-        self.tf_listener = (
-            None if tf_buffer is not None
-            else tf2_ros.TransformListener(self.tf_buffer)
-        )
-        self.stamp = None
-        self.result = PerceptionResult()
-
-    @staticmethod
-    def _matrix(transform_stamped):
-        transform_msg = transform_stamped.transform
-        quaternion = transform_msg.rotation
-        pose = quaternion_matrix((quaternion.x, quaternion.y, quaternion.z, quaternion.w))
-        translation = transform_msg.translation
-        pose[:3, 3] = (translation.x, translation.y, translation.z)
-        return pose
-
-    def _invalid(self, reason):
-        self.result = PerceptionResult(stamp=self.stamp, reason=reason)
-        return self.result
-
-    def reset(self):
-        self.result = PerceptionResult()
-
-    def latest(self, max_age=None):
-        max_age = self.max_age if max_age is None else float(max_age)
-        now = rospy.Time.now()
-        candidates = []
-        stamps = {}
-        for tag_id, pin_frame in self.pin_frames.items():
-            try:
-                transform_stamped = self.tf_buffer.lookup_transform(
-                    self.lock_frame, pin_frame, rospy.Time(0), rospy.Duration(0.0)
-                )
-                stamp = transform_stamped.header.stamp
-                self.stamp = stamp
-                if abs((now - stamp).to_sec()) > max_age:
-                    continue
-                pose = self._matrix(transform_stamped)
-            except (
-                tf2_ros.LookupException,
-                tf2_ros.ConnectivityException,
-                tf2_ros.ExtrapolationException,
-                AttributeError,
-                TypeError,
-                ValueError,
-            ):
-                continue
-            if np.isfinite(pose).all():
-                candidates.append((tag_id, pose))
-                stamps[tag_id] = stamp
-        if not candidates:
-            return self._invalid("no fresh complete dock TF")
-        candidates.sort(
-            key=lambda item: stamps[item[0]].to_sec(), reverse=True
-        )
-        poses = consistent_poses(candidates)
-        poses_agree = bool(poses)
-        # 一致性只作为观测质量诊断。只要存在完整且有限的标签位姿，
-        # 就使用时间戳最新的候选，不按ID编号设置优先级。
-        if not poses:
-            poses = candidates[:1]
-        pose, position_spread, angle_spread = fuse_poses(poses)
-        decoded = tuple(sorted(tag_id for tag_id, _ in poses))
-        self.stamp = max(
-            (stamps[tag_id] for tag_id in decoded), key=lambda stamp: stamp.to_sec()
-        )
-        plausible = pose_is_plausible(pose, self.lock_from_camera)
-        tag_text = ",".join(
-            "ID{}({})".format(tag_id, TAG_DIRECTIONS[tag_id])
-            for tag_id in decoded
-        )
-        quality_reason = "AprilTag {} pose".format(tag_text)
-        if not poses_agree:
-            quality_reason = "tag poses disagree; using {}".format(tag_text)
-        elif not plausible:
-            quality_reason += "; outside nominal camera workspace"
-        self.result = PerceptionResult(
-            True, pose, self.stamp, decoded, (),
-            confidence_score(len(decoded), position_spread, angle_spread),
-            position_spread, angle_spread, quality_reason,
-        )
-        return self.result
-
-
 @dataclass(frozen=True)
 class DockRobotState:
     joints: object = None
@@ -324,13 +136,435 @@ class DockResult:
     state: str = ""
 
 
+
+# SolidWorks目标尺寸。这里的环宽是相邻外径之差，单边径向宽度为其一半。
+PIN_DIAMETER_M = 0.0435
+RING_OUTER_DIAMETERS_M = np.array(
+    (0.060, 0.080, 0.092, 0.112, 0.126, 0.146, 0.162, 0.182),
+    dtype=np.float64,
+)
+RING_COLORS = ("white", "black", "white", "black",
+               "white", "black", "white", "black")
+OUTER_RING_DIAMETER_M = float(RING_OUTER_DIAMETERS_M[-1])
+RING_DIAMETER_RATIOS = RING_OUTER_DIAMETERS_M / OUTER_RING_DIAMETER_M
+
+# dock_camera.yaml中去畸变图像的投影内参。
+DEFAULT_CAMERA_MATRIX = np.array(
+    (
+        (599.885800, 0.0, 675.797400),
+        (0.0, 624.318580, 364.069370),
+        (0.0, 0.0, 1.0),
+    ),
+    dtype=np.float64,
+)
+
+
+@dataclass(frozen=True)
+class RingDetection:
+    """一帧图像中的同心圆检测结果，像素坐标采用去畸变图像坐标。"""
+
+    valid: bool = False
+    center_px: object = None
+    major_diameter_px: float = 0.0
+    minor_diameter_px: float = 0.0
+    major_angle_rad: float = 0.0
+    matched_boundaries: int = 0
+    mean_ratio_error: float = float("inf")
+    reason: str = "no ring detection"
+
+
+@dataclass(frozen=True)
+class PerceptionResult:
+    """圆环中心（即插销轴线）相对卡紧机构的位姿。"""
+
+    valid: bool = False
+    lock_from_pin: object = None
+    stamp: object = None
+    detection: object = None
+    reason: str = "no perception result"
+
+
+def _gray_image(image):
+    image = np.asarray(image)
+    if image.ndim == 2:
+        return image.astype(np.uint8, copy=False)
+    if image.ndim == 3 and image.shape[2] == 3:
+        return cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    if image.ndim == 3 and image.shape[2] == 4:
+        return cv2.cvtColor(image, cv2.COLOR_BGRA2GRAY)
+    raise ValueError("ring image must be mono, BGR, or BGRA")
+
+
+def _circle_candidates(edges):
+    """从完整圆或画面边缘处的局部圆弧生成圆模型。"""
+
+    height, width = edges.shape
+    candidates = []
+    for contour in cv2.findContours(
+        edges, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE
+    )[-2]:
+        points = contour[:, 0].astype(np.float64)
+        inside = (
+            (points[:, 0] > 3) & (points[:, 0] < width - 4)
+            & (points[:, 1] > 3) & (points[:, 1] < height - 4)
+        )
+        indices = np.flatnonzero(inside)
+        border_arcs = np.split(
+            points[indices], np.flatnonzero(np.diff(indices) > 1) + 1
+        )
+        arcs = []
+        for arc in border_arcs:
+            if len(arc) < 30:
+                continue
+            step = max(3, min(10, len(arc) // 30))
+            incoming = arc - np.roll(arc, step, axis=0)
+            outgoing = np.roll(arc, -step, axis=0) - arc
+            cosine = np.sum(incoming * outgoing, axis=1) / (
+                np.linalg.norm(incoming, axis=1)
+                * np.linalg.norm(outgoing, axis=1) + 1e-9
+            )
+            corners = np.flatnonzero(
+                (cosine < 0.45)
+                & (np.arange(len(arc)) > step)
+                & (np.arange(len(arc)) < len(arc) - step)
+            )
+            selected = []
+            for index in corners[np.argsort(cosine[corners])]:
+                if all(abs(index - old) > 2 * step for old in selected):
+                    selected.append(int(index))
+            bounds = [0] + sorted(selected) + [len(arc)]
+            arcs.extend(arc[start + (step if start else 0):
+                            stop - (step if stop < len(arc) else 0)]
+                        for start, stop in zip(bounds, bounds[1:]))
+
+        for arc in arcs:
+            if len(arc) < 30:
+                continue
+            x, y = arc.T
+            a, b, c = np.linalg.lstsq(
+                np.column_stack((x, y, np.ones(len(arc)))),
+                -(x * x + y * y), rcond=None,
+            )[0]
+            center = np.array((-0.5 * a, -0.5 * b))
+            radius_squared = float(center @ center - c)
+            if radius_squared <= 0.0:
+                continue
+            radius = np.sqrt(radius_squared)
+            radial = np.hypot(x - center[0], y - center[1])
+            residual = float(np.median(np.abs(radial - radius)))
+            phase = np.unwrap(np.arctan2(y - center[1], x - center[0]))
+            coverage = float(np.ptp(phase))
+            if (20.0 < radius < 8.0 * max(edges.shape)
+                    and residual <= 3.0 and coverage >= 0.08):
+                candidates.append((center, float(radius), residual, coverage))
+
+    unique = []
+    for candidate in sorted(candidates, key=lambda item: (-item[3], item[2])):
+        if any(np.linalg.norm(candidate[0] - old[0]) < 4.0
+               and abs(candidate[1] - old[1]) < 0.015 * old[1]
+               for old in unique):
+            continue
+        unique.append(candidate)
+    return unique[:32]
+
+
+_RING_THETA = np.linspace(0.0, 2.0 * np.pi, 360, endpoint=False)
+_RING_COS = np.cos(_RING_THETA)
+_RING_SIN = np.sin(_RING_THETA)
+_RING_MIDDLE_RATIOS = 0.5 * (
+    np.r_[PIN_DIAMETER_M / OUTER_RING_DIAMETER_M, RING_DIAMETER_RATIOS[:-1]]
+    + RING_DIAMETER_RATIOS
+)
+_RING_EXPECTED_WHITE = np.array([color == "white" for color in RING_COLORS])
+
+
+def _models_support(distance, gray, threshold, centers, outer_radii):
+    """批量采样全部圆环，保持原有可见边缘和黑白顺序判据。"""
+    height, width = gray.shape
+    centers = np.asarray(centers)
+    outer_radii = np.asarray(outer_radii)
+
+    def samples(ratios, image):
+        radii = outer_radii[:, None, None] * ratios[None, :, None]
+        x = np.rint(centers[:, 0, None, None] + radii * _RING_COS).astype(int)
+        y = np.rint(centers[:, 1, None, None] + radii * _RING_SIN).astype(int)
+        visible = (x > 0) & (x < width - 1) & (y > 0) & (y < height - 1)
+        values = image[np.clip(y, 0, height - 1), np.clip(x, 0, width - 1)]
+        return values, visible, np.count_nonzero(visible, axis=-1)
+
+    values, visible, count = samples(RING_DIAMETER_RATIOS, distance)
+    support = np.count_nonzero((values <= 3.0) & visible, axis=-1) / np.maximum(count, 1)
+    support = np.where(count >= 8, support, 0.0)
+    values, visible, count = samples(_RING_MIDDLE_RATIOS, gray)
+    matches = ((values > threshold) == _RING_EXPECTED_WHITE[:, None]) & visible
+    colors = np.count_nonzero(matches, axis=-1) / np.maximum(count, 1)
+    return (np.count_nonzero(support >= 0.28, axis=1), np.sum(support, axis=1),
+            np.count_nonzero((count >= 8) & (colors >= 0.65), axis=1))
+
+
+def detect_concentric_rings(image):
+    """以已知半径和黑白顺序联合识别完整圆环及局部圆弧。"""
+
+    gray = _gray_image(image)
+    if min(gray.shape) < 64:
+        return RingDetection(reason="image is too small")
+    blurred = cv2.GaussianBlur(gray, (5, 5), 0.0)
+    threshold, _ = cv2.threshold(
+        blurred, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU
+    )
+    edges = cv2.Canny(blurred, max(20, int(0.35 * threshold)),
+                      max(60, int(0.90 * threshold)))
+    candidates = _circle_candidates(edges)
+    if not candidates:
+        return RingDetection(reason="no usable ring arcs")
+
+    distance = cv2.distanceTransform(255 - edges, cv2.DIST_L2, 3)
+    hypotheses = [
+        (center, radius / ratio, residual)
+        for center, radius, residual, _coverage in candidates
+        for ratio in RING_DIAMETER_RATIOS
+        if 2.0 * radius / ratio >= 0.35 * min(gray.shape)
+    ]
+    best = None
+    # 分批控制临时数组大小，同时消除每个候选、每个圆环的Python循环。
+    for start in range(0, len(hypotheses), 16):
+        batch = hypotheses[start:start + 16]
+        strongs, supports, colors_all = _models_support(
+            distance, blurred, threshold,
+            [item[0] for item in batch], [item[1] for item in batch],
+        )
+        for (center, outer_radius, residual), strong, support, colors in zip(
+                batch, strongs, supports, colors_all):
+            score = (strong, colors, support, -residual)
+            if strong >= 3 and colors >= 3 and (best is None or score > best[0]):
+                best = (score, center, outer_radius, int(strong), float(support))
+
+    if best is None:
+        return RingDetection(reason="fewer than three credible ring boundaries")
+    _, center, outer_radius, matched, support = best
+    diameter = 2.0 * outer_radius
+    return RingDetection(
+        valid=True, center_px=center, major_diameter_px=diameter,
+        minor_diameter_px=diameter, major_angle_rad=0.0,
+        matched_boundaries=matched,
+        mean_ratio_error=max(0.0, 1.0 - support / matched),
+        reason="{} ring boundaries".format(matched),
+    )
+
+
+def camera_from_ring(detection, camera_matrix):
+    """由外环已知直径计算圆环中心在相机光学坐标系中的位置。"""
+
+    if not detection.valid:
+        raise ValueError("valid ring detection is required")
+    camera_matrix = np.asarray(camera_matrix, dtype=np.float64).reshape(3, 3)
+    fx, fy = float(camera_matrix[0, 0]), float(camera_matrix[1, 1])
+    cx, cy = float(camera_matrix[0, 2]), float(camera_matrix[1, 2])
+    if fx <= 0.0 or fy <= 0.0:
+        raise ValueError("camera focal lengths must be positive")
+
+    # 弱透视下圆的长轴基本不受平面倾斜压缩，用长轴估距更直接。
+    direction = detection.major_angle_rad
+    focal = float(np.hypot(fx * np.cos(direction), fy * np.sin(direction)))
+    z = focal * OUTER_RING_DIAMETER_M / detection.major_diameter_px
+    u, v = np.asarray(detection.center_px, dtype=np.float64).reshape(2)
+    pose = np.eye(4, dtype=np.float64)
+    pose[:3, 3] = ((u - cx) * z / fx, (v - cy) * z / fy, z)
+    return pose
+
+
+class RingPerception:
+    """订阅底部相机并保存最新的同心圆位姿。"""
+
+    def __init__(
+        self,
+        image_topic=None,
+        camera_info_topic=None,
+        max_age=0.35,
+        camera_matrix=None,
+        lock_from_camera=None,
+        dock_system_path=None,
+        image_is_rectified=None,
+        **_compatibility,
+    ):
+        dock_system = load_dock_system(dock_system_path)
+        image_topic = image_topic or rospy.get_param(
+            "~dock_image_topic", "/dock_camera/image_rect_color"
+        )
+        camera_info_topic = camera_info_topic or rospy.get_param(
+            "~dock_camera_info_topic", "/dock_camera/camera_info"
+        )
+        self.image_is_rectified = bool(
+            rospy.get_param("~dock_image_is_rectified", "image_rect" in image_topic)
+            if image_is_rectified is None else image_is_rectified
+        )
+        legacy_max_age = float(max_age)
+        if not np.isfinite(legacy_max_age) or legacy_max_age <= 0.0:
+            raise ValueError("dock perception max_age must be finite and positive")
+        # 实机圆环识别完成后的总帧龄实测约0.45~0.74s；旧AprilTag的
+        # 0.35s默认值会拒绝所有正常结果。保留拍摄时间戳，独立配置总帧龄。
+        self.max_age = float(rospy.get_param(
+            "~dock_ring_max_age_s", max(1.0, legacy_max_age)
+        ))
+        if not np.isfinite(self.max_age) or self.max_age <= 0.0:
+            raise ValueError("dock_ring_max_age_s must be finite and positive")
+        rospy.loginfo("同心圆最大总帧龄：%.2fs（按相机拍摄时间计算）", self.max_age)
+        self.camera_matrix = np.asarray(
+            DEFAULT_CAMERA_MATRIX if camera_matrix is None else camera_matrix,
+            dtype=np.float64,
+        ).reshape(3, 3).copy()
+        self.lock_from_camera = np.asarray(
+            dock_system["lock_from_camera"]
+            if lock_from_camera is None else lock_from_camera,
+            dtype=np.float64,
+        ).reshape(4, 4).copy()
+        self.bridge = CvBridge()
+        self.lock = Lock()
+        self.raw_calibration = None
+        self.calibration_size = None
+        self.camera_info_received = camera_matrix is not None and self.image_is_rectified
+        self.result = PerceptionResult()
+        self.rectification_maps = None
+        self.rectification_key = None
+        self.pending_image = None
+        self.image_ready = Event()
+        self.stop_worker = Event()
+        self.image_subscriber = rospy.Subscriber(
+            image_topic, Image, self._image_callback, queue_size=1,
+            buff_size=16 * 1024 * 1024,
+        )
+        self.info_subscriber = rospy.Subscriber(
+            camera_info_topic, CameraInfo, self._camera_info_callback, queue_size=1
+        )
+        self.image_worker = Thread(target=self._image_loop, daemon=True)
+        self.image_worker.start()
+        rospy.on_shutdown(self.close)
+
+    def close(self):
+        self.stop_worker.set()
+        self.image_ready.set()
+        self.image_subscriber.unregister()
+        self.info_subscriber.unregister()
+
+    def _image_loop(self):
+        while not self.stop_worker.is_set():
+            self.image_ready.wait(0.2)
+            with self.lock:
+                message = self.pending_image
+                self.pending_image = None
+                self.image_ready.clear()
+            if message is not None and not self.stop_worker.is_set():
+                self._process_image(message)
+
+
+    def _camera_info_callback(self, message):
+        projection = np.asarray(message.P, dtype=np.float64).reshape(3, 4)
+        intrinsic = projection[:, :3]
+        if intrinsic[0, 0] <= 0.0 or intrinsic[1, 1] <= 0.0:
+            intrinsic = np.asarray(message.K, dtype=np.float64).reshape(3, 3)
+        if (np.isfinite(intrinsic).all()
+                and intrinsic[0, 0] > 0.0 and intrinsic[1, 1] > 0.0):
+            with self.lock:
+                self.camera_matrix = intrinsic.copy()
+                self.calibration_size = (message.width, message.height)
+                self.camera_info_received = True
+                raw_k = np.asarray(message.K, dtype=np.float64).reshape(3, 3)
+                distortion = np.asarray(message.D, dtype=np.float64)
+                rectification = np.asarray(message.R, dtype=np.float64).reshape(3, 3)
+                self.raw_calibration = None
+                if (message.distortion_model in ("plumb_bob", "rational_polynomial")
+                        and np.isfinite(raw_k).all() and np.isfinite(distortion).all()
+                        and np.isfinite(rectification).all()
+                        and raw_k[0, 0] > 0.0 and raw_k[1, 1] > 0.0):
+                    self.raw_calibration = (raw_k.copy(), distortion.copy(),
+                                            rectification.copy())
+
+    def _image_callback(self, message):
+        # ROS回调只保留最新帧，耗时识别交给工作线程，避免旧帧排队。
+        with self.lock:
+            self.pending_image = message
+            self.image_ready.set()
+
+    def _process_image(self, message):
+        try:
+            gray = self.bridge.imgmsg_to_cv2(message, desired_encoding="mono8")
+            with self.lock:
+                camera_matrix = self.camera_matrix.copy()
+                raw_calibration = self.raw_calibration
+                info_received = self.camera_info_received
+                calibration_size = self.calibration_size
+            if not info_received:
+                raise ValueError("waiting for valid camera_info")
+            image_size = (gray.shape[1], gray.shape[0])
+            if calibration_size is not None and image_size != calibration_size:
+                raise ValueError("image size does not match camera_info")
+            if not self.image_is_rectified:
+                if raw_calibration is None:
+                    raise ValueError("raw image requires valid supported camera calibration")
+                raw_k, distortion, rectification = raw_calibration
+                key = (image_size, raw_k.tobytes(), distortion.tobytes(),
+                       rectification.tobytes(), camera_matrix.tobytes())
+                if key != self.rectification_key:
+                    self.rectification_maps = cv2.initUndistortRectifyMap(
+                        raw_k, distortion, rectification, camera_matrix,
+                        image_size, cv2.CV_32FC1,
+                    )
+                    self.rectification_key = key
+                gray = cv2.remap(gray, *self.rectification_maps, cv2.INTER_LINEAR)
+            detection = detect_concentric_rings(gray)
+            camera_pose = camera_from_ring(detection, camera_matrix) if detection.valid else None
+        except (CvBridgeError, TypeError, ValueError, cv2.error) as error:
+            detection = RingDetection(reason=str(error))
+
+        with self.lock:
+            if not detection.valid:
+                self.result = PerceptionResult(
+                    stamp=message.header.stamp,
+                    detection=detection,
+                    reason=detection.reason,
+                )
+                return
+            lock_pose = self.lock_from_camera @ camera_pose
+            self.result = PerceptionResult(
+                valid=True,
+                lock_from_pin=lock_pose,
+                stamp=message.header.stamp,
+                detection=detection,
+                reason=detection.reason,
+            )
+
+    def reset(self):
+        with self.lock:
+            self.result = PerceptionResult()
+
+    def latest(self):
+        with self.lock:
+            result = self.result
+        if result.stamp is None:
+            return result
+        age = (rospy.Time.now() - result.stamp).to_sec()
+        if age < 0.0 or age > self.max_age:
+            return PerceptionResult(
+                stamp=result.stamp,
+                reason="ring image is stale: age={:.3f}s, limit={:.3f}s; {}".format(
+                    age, self.max_age, result.reason
+                ),
+            )
+        return result
+
+
+# run_real切换导入模块后可继续使用原有的DockPerception名称。
+DockPerception = RingPerception
+
+
 class DockMode:
-    """用任一完整AprilTag到达预对接姿态，再锁存并向下对接。"""
+    """同心圆感知与完整对接动作；可直接作为 dock_mode 模块使用。"""
     IDLE = "idle"
     CLIMB_TERMINAL_ENTRY = "climb_terminal_entry"
     BODY_RAISE = "body_raise"
     SEARCHING_TAG = "searching_tag"
-    WAITING_TAG = "waiting_tag"
+    WAITING_RING = "waiting_ring"
+    WAITING_TAG = WAITING_RING
     PREALIGN = "prealign"
     PRE_DESCENT_SETTLE = "pre_descent_settle"
     DESCENT = "descent"
@@ -342,10 +576,10 @@ class DockMode:
     TERMINAL_STATES = (SUCCESS, FAILED)
     STATE_LABELS = {
         IDLE: "待机",
-        CLIMB_TERMINAL_ENTRY: "恢复攀爬末端姿态",
+        CLIMB_TERMINAL_ENTRY: "保持对接入口姿态",
         BODY_RAISE: "对接初始姿态抬升",
         SEARCHING_TAG: "平面扫描AprilTag",
-        WAITING_TAG: "等待AprilTag",
+        WAITING_TAG: "等待同心圆",
         PREALIGN: "视觉预对准",
         PRE_DESCENT_SETTLE: "下降前稳定",
         DESCENT: "机械导向下降",
@@ -364,12 +598,14 @@ class DockMode:
     TAG_SEARCH_RADIUS_M = 0.020
     TAG_SEARCH_SPEED_M_S = 0.020
     PRE_DESCENT_SETTLE_DURATION_S = 0.5
-    LEG_LIFT_HEIGHT_M = 0.060
+    LEG_LIFT_HEIGHT_M = 0.040
     LEG_LIFT_SPEED_M_S = 0.050
     LEG_LIFT_LEVEL_TOLERANCE_M = 0.003
     SIT_SETTLE_DURATION_S = 0.5
     # None表示在进入下降时使用TF的垂直距离；也可在本文件中改为固定米数。
     DESCENT_DISTANCE_M = None
+
+    HOLE_DEPTH_M = 0.043
 
     def __init__(self, controller, perception=None, require_lock_confirmation=False,
                  linear_speed_m_s=LINEAR_SPEED_M_S, update_rate_hz=30.0,
@@ -458,12 +694,13 @@ class DockMode:
             )
 
     def enter(self, current_joints, climb_terminal_joints=None):
-        """先回到控制器保留的攀爬末关节姿态，再开放视觉伺服。"""
+        """保持当前支撑姿态后抬升；历史攀爬关节参数仅保留调用兼容性。"""
+        # B回站或手动调整后，历史末姿态会引入横向足端位移。
+        # 对接入口必须从当前反馈开始，不能先恢复历史关节目标。
+        del climb_terminal_joints
         current = np.asarray(current_joints, dtype=np.float64).reshape(6, 3)
-        target = current if climb_terminal_joints is None else np.asarray(
-            climb_terminal_joints, dtype=np.float64
-        ).reshape(6, 3)
-        if not np.isfinite(current).all() or not np.isfinite(target).all():
+        target = current
+        if not np.isfinite(current).all():
             raise ValueError("dock entry joints must be finite")
         self.active = True
         self.perception.reset()
@@ -497,9 +734,8 @@ class DockMode:
         self.perception_sampled = False
         self.last_perception_reason = "no perception result"
         self.using_last_complete_frame = False
-        ratio = np.abs(target - current) / JOINT_VELOCITY_LIMIT
-        self.entry_duration = max(0.5, 1.875 * float(np.max(ratio)))
-        self._set_state(self.CLIMB_TERMINAL_ENTRY, "正在进入攀爬结束关节姿态")
+        self.entry_duration = 0.5
+        self._set_state(self.CLIMB_TERMINAL_ENTRY, "保持当前关节姿态，准备竖直抬升")
 
     def exit(self):
         self.active = False
@@ -535,52 +771,6 @@ class DockMode:
         if self.active:
             self._set_state(self.FAILED, str(reason))
 
-    def _perception_pose(self, robot_state):
-        raw = self._field(robot_state, "lock_from_pin")
-        decoded_ids = tuple(self._field(robot_state, "decoded_ids") or ())
-        if raw is None:
-            self.perception_elapsed += self.update_dt
-            refresh = (
-                not self.perception_sampled
-                or self.perception_elapsed + 1e-12 >= self.perception_period
-            )
-            if not refresh:
-                if self.cached_pose is None:
-                    return None, (), self.last_perception_reason
-                reason = (
-                    "使用最后完整AprilTag帧推算"
-                    if self.using_last_complete_frame else ""
-                )
-                return self.cached_pose.copy(), self.cached_ids, reason
-
-            self.perception_elapsed = 0.0
-            observed = self.perception.latest()
-            self.perception_sampled = True
-            if not getattr(observed, "valid", False):
-                self.last_perception_reason = observed.reason
-                if self.cached_pose is None:
-                    return None, (), observed.reason
-                self.using_last_complete_frame = True
-                return (
-                    self.cached_pose.copy(), self.cached_ids,
-                    "使用最后完整AprilTag帧推算",
-                )
-            raw = observed.lock_from_pin
-            decoded_ids = tuple(observed.decoded_ids)
-            self.last_perception_reason = ""
-            self.using_last_complete_frame = False
-        else:
-            self.using_last_complete_frame = False
-        try:
-            pose = np.asarray(raw, dtype=np.float64).reshape(4, 4)
-        except (TypeError, ValueError):
-            return None, (), "invalid lock_from_pin shape"
-        if not np.isfinite(pose).all():
-            return None, (), "non-finite lock_from_pin"
-        self.cached_pose = pose.copy()
-        self.cached_ids = decoded_ids
-        return pose, decoded_ids, ""
-
     def _actual_feet(self, joints):
         return self.controller.kinematic.forward_base(joints)
 
@@ -602,7 +792,7 @@ class DockMode:
             self.body_raise_progress = 0.0
             self._set_state(
                 self.BODY_RAISE,
-                "攀爬结束姿态指令已完成，关节误差{:.2f}deg（{}）；开始足端向下移动40mm".format(
+                "对接入口姿态保持已完成，关节误差{:.2f}deg（{}）；开始足端向下移动40mm".format(
                     np.rad2deg(error), quality
                 ),
             )
@@ -626,14 +816,7 @@ class DockMode:
         feet[:, 2] -= self.body_raise_progress
         if self.body_raise_progress >= self.BODY_RAISE_HEIGHT_M:
             self.last_visual_target = feet.copy()
-            self.search_anchor_feet = feet.copy()
-            self.search_body_offset[:] = 0.0
-            self.search_angle = -0.5 * np.pi
-            self.search_on_circle = False
-            self._set_state(
-                self.SEARCHING_TAG,
-                "初始姿态已抬升40mm；开始以20mm半径、20mm/s圆周扫描",
-            )
+            self._set_state(self.WAITING_RING, "初始抬升完成，等待同心圆")
         else:
             self._set_state(
                 self.BODY_RAISE,
@@ -641,38 +824,6 @@ class DockMode:
                     self.body_raise_progress * 1000.0
                 ),
             )
-        return self._result(feet=feet)
-
-    def _tag_search_step(self, current, reason):
-        if self.search_anchor_feet is None:
-            self.search_anchor_feet = self._synced_feet(current).copy()
-        if self.search_on_circle:
-            self.search_angle -= (
-                self.TAG_SEARCH_SPEED_M_S * self.update_dt
-                / self.TAG_SEARCH_RADIUS_M
-            )
-        target = self.TAG_SEARCH_RADIUS_M * np.array((
-            np.cos(self.search_angle), np.sin(self.search_angle)
-        ))
-        delta = target - self.search_body_offset
-        distance = float(np.linalg.norm(delta))
-        step = min(self.TAG_SEARCH_SPEED_M_S * self.update_dt, distance)
-        if distance > 1e-9:
-            self.search_body_offset += delta * step / distance
-        if distance <= step + 1e-9:
-            self.search_body_offset[:] = target
-            self.search_on_circle = True
-        feet = transform_points(
-            transform((-self.search_body_offset[0], -self.search_body_offset[1], 0.0)),
-            self.search_anchor_feet,
-        )
-        self.last_visual_target = feet.copy()
-        self._set_state(
-            self.SEARCHING_TAG,
-            "机身圆周扫描偏移=({:.1f},{:.1f})mm；{}".format(
-                *(self.search_body_offset * 1000.0), reason
-            ),
-        )
         return self._result(feet=feet)
 
     def _visual_step(self, current, pose):
@@ -741,7 +892,7 @@ class DockMode:
         if self.sit_settle_elapsed >= self.sit_settle_duration_s:
             self._set_state(
                 self.LEG_LIFT,
-                "下坐稳定完成，开始将六腿收至同一高度（至少抬升60mm）",
+                "下坐稳定完成，开始将六腿收至同一高度（至少抬升40mm）",
             )
             return self._leg_lift_step(current)
         self._set_state(
@@ -764,12 +915,14 @@ class DockMode:
         if self.leg_lift_progress >= travel:
             feet = self.leg_lift_start_feet.copy()
             feet[:, 2] = target_z
-            actual_spread = float(np.ptp(self._actual_feet(current)[:, 2]))
-            if actual_spread > self.LEG_LIFT_LEVEL_TOLERANCE_M:
+            actual_z = self._actual_feet(current)[:, 2]
+            actual_spread = float(np.ptp(actual_z))
+            target_error = float(np.max(np.abs(actual_z - target_z)))
+            if max(actual_spread, target_error) > self.LEG_LIFT_LEVEL_TOLERANCE_M:
                 self._set_state(
                     self.LEG_LIFT,
-                    "统一高度收敛中：实际高度差{:.1f}mm".format(
-                        actual_spread * 1000.0
+                    "收腿收敛中：高度差{:.1f}mm，目标误差{:.1f}mm".format(
+                        actual_spread * 1000.0, target_error * 1000.0
                     ),
                 )
                 return self._result(feet=feet)
@@ -814,29 +967,53 @@ class DockMode:
         self.last_update_result = self._update_once(robot_state)
         return self.last_update_result
 
+    def _perception_pose(self, robot_state):
+        raw = self._field(robot_state, "lock_from_pin")
+        if raw is None:
+            self.perception_elapsed += self.update_dt
+            refresh = (
+                not self.perception_sampled
+                or self.perception_elapsed + 1e-12 >= self.perception_period
+            )
+            if not refresh:
+                return (
+                    None if self.cached_pose is None else self.cached_pose.copy(),
+                    self.last_perception_reason,
+                )
+            self.perception_elapsed = 0.0
+            self.perception_sampled = True
+            observed = self.perception.latest()
+            if not getattr(observed, "valid", False):
+                self.cached_pose = None
+                self.last_perception_reason = observed.reason
+                return None, observed.reason
+            raw = observed.lock_from_pin
+            self.last_perception_reason = ""
+        try:
+            pose = np.asarray(raw, dtype=np.float64).reshape(4, 4)
+        except (TypeError, ValueError):
+            return None, "invalid lock_from_pin shape"
+        if not np.isfinite(pose).all():
+            return None, "non-finite lock_from_pin"
+        self.cached_pose = pose.copy()
+        return pose, ""
+
     def _update_once(self, robot_state=None):
-        # 终态优先返回，避免run_real进入HOLD、不再注入DockRobotState后
-        # 把已经确认的SUCCESS覆盖成关节反馈缺失FAILED。
         if self.state in self.TERMINAL_STATES:
-            terminal_joints = self._field(robot_state, "joints")
-            if terminal_joints is None:
-                return self._result()
+            joints = self._field(robot_state, "joints")
             try:
-                terminal_joints = np.asarray(
-                    terminal_joints, dtype=np.float64
+                joints = None if joints is None else np.asarray(
+                    joints, dtype=np.float64
                 ).reshape(6, 3)
             except (TypeError, ValueError):
-                return self._result()
-            return self._result(joints=terminal_joints.copy())
+                joints = None
+            return self._result(joints=None if joints is None else joints.copy())
 
         current = self._field(robot_state, "joints")
-        if current is None:
-            self.fail_execution("对接执行缺少统一控制链路的关节反馈")
-            return self._result()
         try:
             current = np.asarray(current, dtype=np.float64).reshape(6, 3)
         except (TypeError, ValueError):
-            self.fail_execution("关节反馈形状无效")
+            self.fail_execution("对接执行缺少有效的18关节反馈")
             return self._result()
         if not np.isfinite(current).all():
             self.fail_execution("关节反馈包含非有限值")
@@ -846,8 +1023,6 @@ class DockMode:
             return self._update_entry(current)
         if self.state == self.BODY_RAISE:
             return self._body_raise_step(current)
-
-        # 锁存预对接姿态后不再依赖AprilTag，避免标签离开视野时中断机械对接。
         if self.state == self.PRE_DESCENT_SETTLE:
             return self._pre_descent_settle_step(current)
         if self.state == self.DESCENT:
@@ -857,66 +1032,48 @@ class DockMode:
         if self.state == self.LEG_LIFT:
             return self._leg_lift_step(current)
 
-        confirmed = self._field(robot_state, "lock_confirmed")
-        if confirmed is True:
-            self._set_state(self.SUCCESS, "锁紧机构已确认，对接成功")
-            return self._result(joints=current.copy())
         if self.state == self.ALIGNED:
+            if self._field(robot_state, "lock_confirmed") is True:
+                self._set_state(self.SUCCESS, "锁紧机构已确认，对接成功")
             return self._result(joints=current.copy())
 
-        pose, decoded_ids, perception_reason = self._perception_pose(robot_state)
+        pose, perception_reason = self._perception_pose(robot_state)
         if pose is None:
-            if self.state == self.SEARCHING_TAG:
-                return self._tag_search_step(current, perception_reason)
-            self._set_state(self.WAITING_TAG, "等待完整AprilTag：" + perception_reason)
-            # 本次对接尚未得到过完整标签时保持当前位置。
-            return self._result(joints=current.copy())
-
-        if self.state == self.SEARCHING_TAG:
-            # 扫描一旦发现完整标签，立即以当前实际足端开始视觉闭环。
+            rospy.logwarn_throttle(2.0, "等待同心圆：%s", perception_reason or "no ring detection")
+            # 失去目标时停在实测姿态，重获目标后不累计失效前的足端指令。
             self.last_visual_target = self._synced_feet(current).copy()
+            self._set_state(
+                self.WAITING_RING,
+                "等待同心圆：" + (perception_reason or "no ring detection"),
+            )
+            return self._result(joints=current.copy())
 
         horizontal = float(np.linalg.norm(pose[:2, 3]))
-        tilt = float(np.arccos(np.clip(pose[2, 2], -1.0, 1.0)))
-        ready = horizontal <= self.PREALIGN_POSITION_REFERENCE
-        tags = ",".join(
-            "ID{}({})".format(tag_id, TAG_DIRECTIONS[tag_id])
-            for tag_id in decoded_ids
-        ) or "外部TF"
-        if perception_reason:
-            tags += "[最后完整帧推算]"
-        if ready:
-            # 水平轨迹已进入导向锥可接管区域；冻结实际足端，后续只下降。
-            tf_distance = max(0.0, -float(pose[2, 3]))
+        if horizontal <= self.PREALIGN_POSITION_REFERENCE:
+            # 只保证导向行程充足；机身的实际下止点由导向锥机械限定。
             self.descent_total = (
-                tf_distance
+                max(0.0, -float(pose[2, 3])) + self.HOLE_DEPTH_M
                 if self.DESCENT_DISTANCE_M is None
                 else max(0.0, float(self.DESCENT_DISTANCE_M))
             )
             self.descent_remaining = self.descent_total
-            self.descent_duration = (
-                self.descent_total / self.linear_speed_m_s
-            )
+            self.descent_duration = self.descent_total / self.linear_speed_m_s
             self.pre_descent_elapsed = 0.0
             self.pre_descent_feet = self._synced_feet(current).copy()
             self.last_visual_target = self.pre_descent_feet.copy()
             self._set_state(
                 self.PRE_DESCENT_SETTLE,
-                "{}到达下降参考：水平{:.1f}mm，倾斜{:.2f}deg；稳定等待0.5s".format(
-                    tags, horizontal * 1000.0, np.rad2deg(tilt)
+                "同心圆到达下降参考：水平{:.1f}mm；稳定等待0.5s".format(
+                    horizontal * 1000.0
                 ),
             )
             return self._result(feet=self.pre_descent_feet.copy())
 
         self._set_state(
             self.PREALIGN,
-            "{}水平调整：水平{:.1f}mm，倾斜{:.2f}deg（仅显示）".format(
-                tags, horizontal * 1000.0, np.rad2deg(tilt)
-            ),
+            "同心圆水平调整：水平{:.1f}mm".format(horizontal * 1000.0),
         )
-        # 姿态和高度保持不变，只累计X/Y目标。
-        feet = self._visual_step(current, pose)
-        return self._result(feet=feet)
+        return self._result(feet=self._visual_step(current, pose))
 
     def descent_has_started(self):
         return self.state in (
@@ -925,31 +1082,105 @@ class DockMode:
         )
 
 
+def _synthetic_ring_image(center=(680, 350), outer_diameter=360, y_scale=1.0):
+    """生成仅供self_check使用的标准目标。"""
+
+    image = np.full((720, 1280), 255, dtype=np.uint8)
+    scale = float(outer_diameter) / OUTER_RING_DIAMETER_M
+    for diameter, color in reversed(list(zip(RING_OUTER_DIAMETERS_M, RING_COLORS))):
+        radius_x = int(round(0.5 * diameter * scale))
+        radius_y = int(round(radius_x * y_scale))
+        cv2.ellipse(
+            image, tuple(center), (radius_x, radius_y), 0.0, 0.0, 360.0,
+            255 if color == "white" else 0, -1,
+        )
+    pin_radius_x = int(round(0.5 * PIN_DIAMETER_M * scale))
+    pin_radius_y = int(round(pin_radius_x * y_scale))
+    cv2.ellipse(
+        image, tuple(center), (pin_radius_x, pin_radius_y),
+        0.0, 0.0, 360.0, 128, -1,
+    )
+    return image
+
+
 def self_check():
-    """不依赖pytest的单文件四标签与下降状态机自检。"""
+    """不依赖相机和舵机的圆环识别及动作状态机自检。"""
+
     from types import SimpleNamespace
 
-    for tag_id in TAG_IDS:
-        camera_from_tag = invert_transform(LOCK_FROM_CAMERA) @ PIN_FROM_TAG[tag_id]
-        detection = SimpleNamespace(
-            pose=SimpleNamespace(pose=SimpleNamespace(pose=camera_from_tag))
-        )
-        if not np.allclose(pin_pose_from_detection(tag_id, detection), np.eye(4)):
-            raise AssertionError("ID{} TF self-check failed".format(tag_id))
+    # 总帧龄从拍摄时间计算；正常慢识别可用，停流/未来时间戳仍拒绝。
+    perception = RingPerception.__new__(RingPerception)
+    perception.lock = Lock()
+    perception.max_age = 1.0
+    original_now = rospy.Time.now
+    try:
+        rospy.Time.now = staticmethod(lambda: rospy.Time.from_sec(10.0))
+        for stamp, valid in ((9.4, True), (8.9, False), (10.1, False)):
+            perception.result = PerceptionResult(
+                valid=True, stamp=rospy.Time.from_sec(stamp), reason="5 ring boundaries"
+            )
+            assert perception.latest().valid == valid
+    finally:
+        rospy.Time.now = original_now
+
+    detection = detect_concentric_rings(_synthetic_ring_image())
+    if not detection.valid or detection.matched_boundaries < 6:
+        raise AssertionError("front-view ring detection self-check failed")
+    if np.linalg.norm(detection.center_px - np.array((680.0, 350.0))) > 2.0:
+        raise AssertionError("ring center self-check failed")
+    shifted = detect_concentric_rings(
+        _synthetic_ring_image(center=(610, 390), outer_diameter=300)
+    )
+    if not shifted.valid or np.linalg.norm(
+        shifted.center_px - np.array((610.0, 390.0))
+    ) > 3.0:
+        raise AssertionError("shifted ring detection self-check failed")
+    partial_image = _synthetic_ring_image(
+        center=(610, 390), outer_diameter=300
+    )[:, :625]
+    partial = detect_concentric_rings(partial_image)
+    if not partial.valid or np.linalg.norm(
+        partial.center_px - np.array((610.0, 390.0))
+    ) > 5.0 or abs(partial.major_diameter_px - 300.0) > 12.0:
+        raise AssertionError("cropped ring-arc detection self-check failed")
+    occluded_image = _synthetic_ring_image(
+        center=(610, 390), outer_diameter=300
+    )
+    cv2.rectangle(occluded_image, (600, 0), (1279, 719), 255, -1)
+    occluded = detect_concentric_rings(occluded_image)
+    if not occluded.valid or np.linalg.norm(
+        occluded.center_px - np.array((610.0, 390.0))
+    ) > 5.0 or abs(occluded.major_diameter_px - 300.0) > 12.0:
+        raise AssertionError("occluded ring-arc detection self-check failed")
+    three = detect_concentric_rings(
+        _synthetic_ring_image(center=(1600, 360), outer_diameter=900)
+    )
+    if not three.valid or three.matched_boundaries != 3:
+        raise AssertionError("three-boundary detection self-check failed")
+    distractor = np.full((300, 300), 255, dtype=np.uint8)
+    cv2.circle(distractor, (150, 150), 80, 0, 8)
+    if detect_concentric_rings(distractor).valid:
+        raise AssertionError("single circle must not be accepted")
+
+    camera_pose = camera_from_ring(detection, DEFAULT_CAMERA_MATRIX)
+    if camera_pose[2, 3] <= 0.0 or not np.isfinite(camera_pose).all():
+        raise AssertionError("ring metric pose self-check failed")
 
     class Controller:
         dt = 0.1
-        kinematic = SimpleNamespace(
-            forward_base=lambda joints: np.zeros((6, 3))
-        )
+
+        def __init__(self):
+            self.feet = np.zeros((6, 3))
+            self.kinematic = SimpleNamespace(
+                forward_base=lambda joints: self.feet.copy()
+            )
 
         @staticmethod
         def _smooth_step(phase):
             return phase
 
-        @staticmethod
-        def _sync_actual_feet(joints):
-            return np.zeros((6, 3))
+        def _sync_actual_feet(self, joints):
+            return self.feet.copy()
 
     class Perception:
         def __init__(self, pose):
@@ -959,231 +1190,107 @@ def self_check():
             pass
 
         def latest(self):
-            return PerceptionResult(
-                valid=True, lock_from_pin=self.pose, decoded_ids=(2,)
+            return PerceptionResult(valid=True, lock_from_pin=self.pose)
+
+    # 用公共控制器和真实FK验证：即使调用方传入历史末姿态，
+    # 从站姿或攀爬末姿态进入时也只允许竖直抬升。
+    from control import GraspController
+    from kinematics import Q_STAND
+
+    for start_from_terminal in (False, True):
+        controller = GraspController(1.0 / 30.0)
+        current = (controller.climb_terminal_q.copy()
+                   if start_from_terminal else Q_STAND.copy())
+        initial_feet = controller.kinematic.forward_base(current)
+        initial_joints = current.copy()
+        entry_mode = DockMode(controller, Perception(transform((0.02, 0, -0.03))))
+        controller.attach_dock_mode(entry_mode)
+        controller.enter_dock(current)
+        entry_mode.perception.latest = lambda: (_ for _ in ()).throw(
+            AssertionError("entry and raise must not use visual corrections")
+        )
+        for _ in range(120):
+            current = controller.update(
+                current, np.zeros(4), dock_robot_state={"joints": current}
             )
+            result = controller.last_mode_result
+            if result.joint_positions is not None:
+                np.testing.assert_allclose(current, initial_joints, atol=1e-12)
+            if result.foot_positions_base is not None:
+                displacement = result.foot_positions_base - initial_feet
+                np.testing.assert_allclose(displacement[:, :2], 0.0, atol=1e-12)
+                assert np.all(displacement[:, 2] <= 0.0)
+            if entry_mode.state == entry_mode.WAITING_RING:
+                break
+        assert entry_mode.state == entry_mode.WAITING_RING
+        np.testing.assert_allclose(displacement[:, 2], -0.040, atol=1e-12)
+        actual_displacement = controller.kinematic.forward_base(current) - initial_feet
+        np.testing.assert_allclose(actual_displacement[:, :2], 0.0, atol=0.0001)
+        np.testing.assert_allclose(actual_displacement[:, 2], -0.040, atol=0.001)
 
-    class DropoutPerception(Perception):
-        def __init__(self, pose):
-            super().__init__(pose)
-            self.calls = 0
-
-        def latest(self):
-            self.calls += 1
-            if self.calls == 1:
-                return super().latest()
-            return PerceptionResult(reason="simulated tag loss")
-
-    raise_mode = DockMode(Controller(), Perception(np.eye(4)))
-    raise_mode.active, raise_mode.state = True, raise_mode.BODY_RAISE
-    raise_mode.body_raise_start_feet = np.zeros((6, 3))
-    raise_targets = []
-    for _ in range(8):
-        raise_result = raise_mode.update({"joints": np.zeros((6, 3))})
-        raise_targets.append(float(raise_result.foot_positions_base[0, 2]))
-    if raise_mode.state != raise_mode.SEARCHING_TAG:
-        raise AssertionError("40mm initial body raise transition self-check failed")
-    if not np.allclose(np.diff([0.0] + raise_targets), -0.005):
-        raise AssertionError("initial feet must move down 40mm at 50mm/s")
-
-    search_mode = DockMode(Controller(), Perception(None))
-    search_mode.active, search_mode.state = True, search_mode.SEARCHING_TAG
-    search_mode.search_anchor_feet = np.zeros((6, 3))
-    search_offsets = []
-    initial_angle = search_mode.search_angle
-    for _ in range(80):
-        result = search_mode._tag_search_step(
-            np.zeros((6, 3)), "simulated tag absence"
-        )
-        search_offsets.append(search_mode.search_body_offset.copy())
-        if result.foot_positions_base is None:
-            raise AssertionError("tag search must command feet")
-    search_offsets = np.asarray(search_offsets)
-    radii = np.linalg.norm(search_offsets, axis=1)
-    if np.max(radii) > search_mode.TAG_SEARCH_RADIUS_M + 1e-12:
-        raise AssertionError("circular tag search must stay inside 20mm radius")
-    if not np.allclose(radii[9:], search_mode.TAG_SEARCH_RADIUS_M):
-        raise AssertionError("tag search must follow the circular perimeter")
-    if initial_angle - search_mode.search_angle < 2.0 * np.pi:
-        raise AssertionError("tag search must complete a full circle")
-    increments = np.linalg.norm(
-        np.diff(np.vstack((np.zeros(2), search_offsets)), axis=0), axis=1
-    )
-    if np.max(increments) > search_mode.TAG_SEARCH_SPEED_M_S * Controller.dt + 1e-12:
-        raise AssertionError("tag search speed limit self-check failed")
-
-    yaw = np.deg2rad(20.0)
-    yaw_rotation = np.array((
-        (np.cos(yaw), -np.sin(yaw), 0.0),
-        (np.sin(yaw), np.cos(yaw), 0.0),
-        (0.0, 0.0, 1.0),
-    ))
-    geometry_mode = DockMode(Controller(), Perception(np.eye(4)))
-    geometry_pose = transform((0.010, -0.020, -0.030), yaw_rotation)
-    geometry_feet = geometry_mode._visual_step(
-        np.zeros((6, 3)), geometry_pose
-    )
-    if not np.allclose(geometry_feet[:, 2], 0.0) or not np.allclose(
-        geometry_mode.cached_pose[:3, :3], yaw_rotation
-    ):
-        raise AssertionError("prealign must only adjust X/Y")
-
-    dropout = DockMode(
-        Controller(), DropoutPerception(
-            transform((0.025, 0.0, -0.030), yaw_rotation)
-        )
-    )
-    dropout.active, dropout.state = True, dropout.WAITING_TAG
-    dropout_state = {"joints": np.zeros((6, 3))}
-    dropout.update(dropout_state)
-    frozen_rotation = dropout.cached_pose[:3, :3].copy()
-    cached_result = dropout.update(dropout_state)
-    if "最后完整帧推算" not in cached_result.reason:
-        raise AssertionError("last complete frame fallback self-check failed")
-    for _ in range(20):
-        if dropout.update(dropout_state).state == dropout.DESCENT:
-            break
-    if dropout.state != dropout.DESCENT:
-        raise AssertionError("cached pose descent transition self-check failed")
-    if not np.allclose(dropout.cached_pose[:3, :3], frozen_rotation):
-        raise AssertionError("tag fallback must not change rotation")
-    if not np.allclose(dropout.pre_descent_feet, 0.0):
-        raise AssertionError("pre-descent settle must freeze actual feet")
-
-    class FastController(Controller):
-        dt = 1.0 / 30.0
-
-        def __init__(self):
-            self.feet = np.zeros((6, 3))
-
-        def _sync_actual_feet(self, joints):
-            return self.feet.copy()
-
-    class CountingPerception(Perception):
-        def __init__(self, pose):
-            super().__init__(pose)
-            self.calls = 0
-
-        def latest(self):
-            self.calls += 1
-            return super().latest()
-
-    counted = CountingPerception(transform((0.030, 0.0, -0.030)))
-    fast_controller = FastController()
-    rate_mode = DockMode(
-        fast_controller, counted,
-        update_rate_hz=30.0, perception_rate_hz=10.0,
-    )
-    rate_mode.enter(np.zeros((6, 3)))
-    rate_mode.state = rate_mode.WAITING_TAG
-    frame_steps = []
-    for _ in range(4):
-        result = rate_mode.update(dropout_state)
-        frame_steps.append(float(np.max(np.linalg.norm(
-            result.foot_positions_base - fast_controller.feet, axis=1
-        ))))
-        fast_controller.feet = result.foot_positions_base.copy()
-    if counted.calls != 2:
-        raise AssertionError("10Hz dock/perception on 30Hz control self-check failed")
-    if not np.allclose(frame_steps, 0.05 / 30.0):
-        raise AssertionError("50mm/s accumulated 30Hz target self-check failed")
-
-    class MissingPerception(Perception):
-        def __init__(self):
-            super().__init__(None)
-            self.calls = 0
-
-        def latest(self):
-            self.calls += 1
-            return PerceptionResult(reason="no tag")
-
-    missing = MissingPerception()
-    waiting_mode = DockMode(
-        FastController(), missing,
-        update_rate_hz=30.0, perception_rate_hz=10.0,
-    )
-    waiting_mode.enter(np.zeros((6, 3)))
-    waiting_mode.state = waiting_mode.WAITING_TAG
-    for _ in range(4):
-        waiting_mode.update(dropout_state)
-    if missing.calls != 2:
-        raise AssertionError("waiting TF must remain at 10Hz")
-
-    pose = transform((0.0, 0.0, -0.030))
-    mode = DockMode(Controller(), Perception(pose))
-    mode.active, mode.state = True, mode.WAITING_TAG
     state = {"joints": np.zeros((6, 3))}
+    mode = DockMode(Controller(), Perception(transform((0.0, 0.0, -0.030))))
+    mode.active, mode.state = True, mode.WAITING_RING
     if mode.update(state).state != mode.PRE_DESCENT_SETTLE:
-        raise AssertionError("pre-descent settle transition self-check failed")
+        raise AssertionError("ring-to-descent transition self-check failed")
     mode.perception.latest = lambda: (_ for _ in ()).throw(
-        AssertionError("descent must not read AprilTag again")
+        AssertionError("descent must not read the ring image again")
     )
-    for _ in range(4):
-        if mode.update(state).state != mode.PRE_DESCENT_SETTLE:
-            raise AssertionError("0.5s pre-descent settle self-check failed")
-    if mode.update(state).state != mode.DESCENT:
-        raise AssertionError("descent transition self-check failed")
-    highest_lift = 0.0
-    lift_targets = []
-    settle_frames = 0
-    for _ in range(50):
+    for _ in range(60):
         result = mode.update(state)
-        if result.state == mode.SIT_SETTLE:
-            settle_frames += 1
-        if result.state == mode.LEG_LIFT and result.foot_positions_base is not None:
-            lift_height = float(np.max(result.foot_positions_base[:, 2]))
-            highest_lift = max(
-                highest_lift,
-                lift_height,
-            )
-            if result.reason.startswith("六腿同步抬起中"):
-                lift_targets.append(lift_height)
-        if mode.state in mode.TERMINAL_STATES:
+        if result.foot_positions_base is not None:
+            mode.controller.feet = result.foot_positions_base.copy()
+        if result.state in mode.TERMINAL_STATES:
             break
     if mode.state != mode.SUCCESS:
-        raise AssertionError("dock completion self-check failed")
-    if not np.isclose(settle_frames * mode.controller.dt, 0.5):
-        raise AssertionError("0.5s sit settle self-check failed")
-    if not np.isclose(highest_lift, mode.LEG_LIFT_HEIGHT_M):
-        raise AssertionError("60mm leg lift self-check failed")
-    if not np.allclose(np.diff([0.0] + lift_targets), 0.005):
-        raise AssertionError("50mm/s leg lift self-check failed")
+        raise AssertionError("ring docking completion self-check failed")
+    if mode.update(None).state != mode.SUCCESS:
+        raise AssertionError("terminal HOLD must preserve success without feedback")
 
-    uneven_mode = DockMode(Controller(), Perception(pose))
-    uneven_mode.active, uneven_mode.state = True, uneven_mode.LEG_LIFT
-    uneven_mode.leg_lift_start_feet = np.zeros((6, 3))
-    uneven_mode.leg_lift_start_feet[:, 2] = (
-        -0.020, -0.015, -0.010, -0.005, 0.0, -0.012
-    )
-    final_feet = None
-    for _ in range(30):
-        result = uneven_mode.update(state)
+    stalled = DockMode(Controller(), Perception(transform((0.0, 0.0, -0.030))))
+    stalled.active, stalled.state = True, stalled.LEG_LIFT
+    for _ in range(60):
+        stalled.update(state)
+    if stalled.state != stalled.LEG_LIFT:
+        raise AssertionError("equal-height feet below target must not report success")
+
+    confirmed = DockMode(Controller(), Perception(transform((0.020, 0.0, -0.030))),
+                         require_lock_confirmation=True)
+    confirmed.active, confirmed.state = True, confirmed.WAITING_RING
+    if confirmed.update(dict(state, lock_confirmed=True)).state == confirmed.SUCCESS:
+        raise AssertionError("early lock confirmation must not bypass docking")
+    confirmed.state = confirmed.LEG_LIFT
+    for _ in range(60):
+        result = confirmed.update(state)
         if result.foot_positions_base is not None:
-            final_feet = result.foot_positions_base
-        if uneven_mode.state == uneven_mode.SUCCESS:
+            confirmed.controller.feet = result.foot_positions_base.copy()
+        if result.state == confirmed.ALIGNED:
             break
-    if final_feet is None or not np.allclose(final_feet[:, 2], 0.060):
-        raise AssertionError("leg lift must finish at one common base Z")
-
-    class UnevenActualController(Controller):
-        kinematic = SimpleNamespace(
-            forward_base=lambda joints: np.column_stack((
-                np.zeros(6), np.zeros(6), np.linspace(0.0, 0.010, 6)
-            ))
-        )
-
-    level_mode = DockMode(UnevenActualController(), Perception(pose))
-    level_mode.active, level_mode.state = True, level_mode.LEG_LIFT
-    level_mode.leg_lift_start_feet = np.zeros((6, 3))
-    level_mode.leg_lift_progress = level_mode.LEG_LIFT_HEIGHT_M
-    level_result = level_mode.update(state)
-    if level_mode.state != level_mode.LEG_LIFT or level_result.foot_positions_base is None:
-        raise AssertionError("uneven actual feet must keep common lift target")
+    if confirmed.state != confirmed.ALIGNED or not result.request_lock:
+        raise AssertionError("confirmation mode must request lock after leg lift")
+    if confirmed.update(dict(state, lock_confirmed=True)).state != confirmed.SUCCESS:
+        raise AssertionError("aligned mode must accept lock confirmation")
     return True
 
 
 __all__ = (
-    "DockMode", "DockResult", "DockRobotState", "DockPerception", "PerceptionResult",
-    "TAG_IDS", "TAG_SIZE", "TAG_DIRECTIONS", "LOCK_FROM_CAMERA", "PIN_FROM_TAG", "REAL_CALIBRATED",
-    "load_dock_system", "self_check",
+    "load_dock_system",
+    "transform",
+    "invert_transform",
+    "LOCK_FROM_CAMERA",
+    "DockMode",
+    "DockResult",
+    "DockRobotState",
+    "DockPerception",
+    "RingPerception",
+    "PerceptionResult",
+    "RingDetection",
+    "PIN_DIAMETER_M",
+    "RING_OUTER_DIAMETERS_M",
+    "RING_COLORS",
+    "OUTER_RING_DIAMETER_M",
+    "DEFAULT_CAMERA_MATRIX",
+    "detect_concentric_rings",
+    "camera_from_ring",
+    "self_check",
 )

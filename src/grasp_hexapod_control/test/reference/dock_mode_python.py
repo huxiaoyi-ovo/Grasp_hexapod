@@ -7,7 +7,7 @@ GraspController 执行 DLS 和舵机控制。默认 SUCCESS 表示收腿完成�
 """
 
 from dataclasses import dataclass
-from threading import Lock
+from threading import Event, Lock, Thread
 
 import cv2
 import numpy as np
@@ -17,7 +17,6 @@ from sensor_msgs.msg import CameraInfo, Image
 
 from typing import Mapping
 import yaml
-from kinematics import JOINT_VELOCITY_LIMIT
 from utils import package_config_path, transform_points
 
 
@@ -269,34 +268,38 @@ def _circle_candidates(edges):
     return unique[:32]
 
 
-def _model_support(distance, gray, threshold, center, outer_radius):
-    """用全部可见边缘和黑白顺序共同验证一个同心圆模型。"""
+_RING_THETA = np.linspace(0.0, 2.0 * np.pi, 360, endpoint=False)
+_RING_COS = np.cos(_RING_THETA)
+_RING_SIN = np.sin(_RING_THETA)
+_RING_MIDDLE_RATIOS = 0.5 * (
+    np.r_[PIN_DIAMETER_M / OUTER_RING_DIAMETER_M, RING_DIAMETER_RATIOS[:-1]]
+    + RING_DIAMETER_RATIOS
+)
+_RING_EXPECTED_WHITE = np.array([color == "white" for color in RING_COLORS])
 
+
+def _models_support(distance, gray, threshold, centers, outer_radii):
+    """批量采样全部圆环，保持原有可见边缘和黑白顺序判据。"""
     height, width = gray.shape
-    theta = np.linspace(0.0, 2.0 * np.pi, 360, endpoint=False)
-    cos_theta, sin_theta = np.cos(theta), np.sin(theta)
-    inner = np.r_[PIN_DIAMETER_M / OUTER_RING_DIAMETER_M,
-                  RING_DIAMETER_RATIOS[:-1]]
-    strong = color_count = 0
-    support_sum = 0.0
-    for index, ratio in enumerate(RING_DIAMETER_RATIOS):
-        x = np.rint(center[0] + outer_radius * ratio * cos_theta).astype(int)
-        y = np.rint(center[1] + outer_radius * ratio * sin_theta).astype(int)
-        visible = (x > 0) & (x < width - 1) & (y > 0) & (y < height - 1)
-        if np.count_nonzero(visible) >= 8:
-            support = float(np.mean(distance[y[visible], x[visible]] <= 3.0))
-            support_sum += support
-            strong += support >= 0.28
+    centers = np.asarray(centers)
+    outer_radii = np.asarray(outer_radii)
 
-        middle = 0.5 * (inner[index] + ratio)
-        x = np.rint(center[0] + outer_radius * middle * cos_theta).astype(int)
-        y = np.rint(center[1] + outer_radius * middle * sin_theta).astype(int)
+    def samples(ratios, image):
+        radii = outer_radii[:, None, None] * ratios[None, :, None]
+        x = np.rint(centers[:, 0, None, None] + radii * _RING_COS).astype(int)
+        y = np.rint(centers[:, 1, None, None] + radii * _RING_SIN).astype(int)
         visible = (x > 0) & (x < width - 1) & (y > 0) & (y < height - 1)
-        if np.count_nonzero(visible) >= 8:
-            white = gray[y[visible], x[visible]] > threshold
-            expected = RING_COLORS[index] == "white"
-            color_count += np.mean(white == expected) >= 0.65
-    return int(strong), support_sum, int(color_count)
+        values = image[np.clip(y, 0, height - 1), np.clip(x, 0, width - 1)]
+        return values, visible, np.count_nonzero(visible, axis=-1)
+
+    values, visible, count = samples(RING_DIAMETER_RATIOS, distance)
+    support = np.count_nonzero((values <= 3.0) & visible, axis=-1) / np.maximum(count, 1)
+    support = np.where(count >= 8, support, 0.0)
+    values, visible, count = samples(_RING_MIDDLE_RATIOS, gray)
+    matches = ((values > threshold) == _RING_EXPECTED_WHITE[:, None]) & visible
+    colors = np.count_nonzero(matches, axis=-1) / np.maximum(count, 1)
+    return (np.count_nonzero(support >= 0.28, axis=1), np.sum(support, axis=1),
+            np.count_nonzero((count >= 8) & (colors >= 0.65), axis=1))
 
 
 def detect_concentric_rings(image):
@@ -316,18 +319,25 @@ def detect_concentric_rings(image):
         return RingDetection(reason="no usable ring arcs")
 
     distance = cv2.distanceTransform(255 - edges, cv2.DIST_L2, 3)
+    hypotheses = [
+        (center, radius / ratio, residual)
+        for center, radius, residual, _coverage in candidates
+        for ratio in RING_DIAMETER_RATIOS
+        if 2.0 * radius / ratio >= 0.35 * min(gray.shape)
+    ]
     best = None
-    for center, radius, residual, _coverage in candidates:
-        for ratio in RING_DIAMETER_RATIOS:
-            outer_radius = radius / ratio
-            if 2.0 * outer_radius < 0.35 * min(gray.shape):
-                continue
-            strong, support, colors = _model_support(
-                distance, blurred, threshold, center, outer_radius
-            )
+    # 分批控制临时数组大小，同时消除每个候选、每个圆环的Python循环。
+    for start in range(0, len(hypotheses), 16):
+        batch = hypotheses[start:start + 16]
+        strongs, supports, colors_all = _models_support(
+            distance, blurred, threshold,
+            [item[0] for item in batch], [item[1] for item in batch],
+        )
+        for (center, outer_radius, residual), strong, support, colors in zip(
+                batch, strongs, supports, colors_all):
             score = (strong, colors, support, -residual)
             if strong >= 3 and colors >= 3 and (best is None or score > best[0]):
-                best = (score, center, outer_radius, strong, support)
+                best = (score, center, outer_radius, int(strong), float(support))
 
     if best is None:
         return RingDetection(reason="fewer than three credible ring boundaries")
@@ -388,9 +398,17 @@ class RingPerception:
             rospy.get_param("~dock_image_is_rectified", "image_rect" in image_topic)
             if image_is_rectified is None else image_is_rectified
         )
-        self.max_age = float(max_age)
-        if not np.isfinite(self.max_age) or self.max_age <= 0.0:
+        legacy_max_age = float(max_age)
+        if not np.isfinite(legacy_max_age) or legacy_max_age <= 0.0:
             raise ValueError("dock perception max_age must be finite and positive")
+        # 实机圆环识别完成后的总帧龄实测约0.45~0.74s；旧AprilTag的
+        # 0.35s默认值会拒绝所有正常结果。保留拍摄时间戳，独立配置总帧龄。
+        self.max_age = float(rospy.get_param(
+            "~dock_ring_max_age_s", max(1.0, legacy_max_age)
+        ))
+        if not np.isfinite(self.max_age) or self.max_age <= 0.0:
+            raise ValueError("dock_ring_max_age_s must be finite and positive")
+        rospy.loginfo("同心圆最大总帧龄：%.2fs（按相机拍摄时间计算）", self.max_age)
         self.camera_matrix = np.asarray(
             DEFAULT_CAMERA_MATRIX if camera_matrix is None else camera_matrix,
             dtype=np.float64,
@@ -406,12 +424,38 @@ class RingPerception:
         self.calibration_size = None
         self.camera_info_received = camera_matrix is not None and self.image_is_rectified
         self.result = PerceptionResult()
+        self.rectification_maps = None
+        self.rectification_key = None
+        self.pending_image = None
+        self.image_ready = Event()
+        self.stop_worker = Event()
         self.image_subscriber = rospy.Subscriber(
-            image_topic, Image, self._image_callback, queue_size=1
+            image_topic, Image, self._image_callback, queue_size=1,
+            buff_size=16 * 1024 * 1024,
         )
         self.info_subscriber = rospy.Subscriber(
             camera_info_topic, CameraInfo, self._camera_info_callback, queue_size=1
         )
+        self.image_worker = Thread(target=self._image_loop, daemon=True)
+        self.image_worker.start()
+        rospy.on_shutdown(self.close)
+
+    def close(self):
+        self.stop_worker.set()
+        self.image_ready.set()
+        self.image_subscriber.unregister()
+        self.info_subscriber.unregister()
+
+    def _image_loop(self):
+        while not self.stop_worker.is_set():
+            self.image_ready.wait(0.2)
+            with self.lock:
+                message = self.pending_image
+                self.pending_image = None
+                self.image_ready.clear()
+            if message is not None and not self.stop_worker.is_set():
+                self._process_image(message)
+
 
     def _camera_info_callback(self, message):
         projection = np.asarray(message.P, dtype=np.float64).reshape(3, 4)
@@ -436,6 +480,12 @@ class RingPerception:
                                             rectification.copy())
 
     def _image_callback(self, message):
+        # ROS回调只保留最新帧，耗时识别交给工作线程，避免旧帧排队。
+        with self.lock:
+            self.pending_image = message
+            self.image_ready.set()
+
+    def _process_image(self, message):
         try:
             gray = self.bridge.imgmsg_to_cv2(message, desired_encoding="mono8")
             with self.lock:
@@ -452,11 +502,15 @@ class RingPerception:
                 if raw_calibration is None:
                     raise ValueError("raw image requires valid supported camera calibration")
                 raw_k, distortion, rectification = raw_calibration
-                map_x, map_y = cv2.initUndistortRectifyMap(
-                    raw_k, distortion, rectification, camera_matrix,
-                    image_size, cv2.CV_32FC1,
-                )
-                gray = cv2.remap(gray, map_x, map_y, cv2.INTER_LINEAR)
+                key = (image_size, raw_k.tobytes(), distortion.tobytes(),
+                       rectification.tobytes(), camera_matrix.tobytes())
+                if key != self.rectification_key:
+                    self.rectification_maps = cv2.initUndistortRectifyMap(
+                        raw_k, distortion, rectification, camera_matrix,
+                        image_size, cv2.CV_32FC1,
+                    )
+                    self.rectification_key = key
+                gray = cv2.remap(gray, *self.rectification_maps, cv2.INTER_LINEAR)
             detection = detect_concentric_rings(gray)
             camera_pose = camera_from_ring(detection, camera_matrix) if detection.valid else None
         except (CvBridgeError, TypeError, ValueError, cv2.error) as error:
@@ -490,7 +544,12 @@ class RingPerception:
             return result
         age = (rospy.Time.now() - result.stamp).to_sec()
         if age < 0.0 or age > self.max_age:
-            return PerceptionResult(stamp=result.stamp, reason="ring image is stale")
+            return PerceptionResult(
+                stamp=result.stamp,
+                reason="ring image is stale: age={:.3f}s, limit={:.3f}s; {}".format(
+                    age, self.max_age, result.reason
+                ),
+            )
         return result
 
 
@@ -517,7 +576,7 @@ class DockMode:
     TERMINAL_STATES = (SUCCESS, FAILED)
     STATE_LABELS = {
         IDLE: "待机",
-        CLIMB_TERMINAL_ENTRY: "恢复攀爬末端姿态",
+        CLIMB_TERMINAL_ENTRY: "保持对接入口姿态",
         BODY_RAISE: "对接初始姿态抬升",
         SEARCHING_TAG: "平面扫描AprilTag",
         WAITING_TAG: "等待同心圆",
@@ -539,7 +598,7 @@ class DockMode:
     TAG_SEARCH_RADIUS_M = 0.020
     TAG_SEARCH_SPEED_M_S = 0.020
     PRE_DESCENT_SETTLE_DURATION_S = 0.5
-    LEG_LIFT_HEIGHT_M = 0.060
+    LEG_LIFT_HEIGHT_M = 0.040
     LEG_LIFT_SPEED_M_S = 0.050
     LEG_LIFT_LEVEL_TOLERANCE_M = 0.003
     SIT_SETTLE_DURATION_S = 0.5
@@ -635,12 +694,13 @@ class DockMode:
             )
 
     def enter(self, current_joints, climb_terminal_joints=None):
-        """先回到控制器保留的攀爬末关节姿态，再开放视觉伺服。"""
+        """保持当前支撑姿态后抬升；历史攀爬关节参数仅保留调用兼容性。"""
+        # B回站或手动调整后，历史末姿态会引入横向足端位移。
+        # 对接入口必须从当前反馈开始，不能先恢复历史关节目标。
+        del climb_terminal_joints
         current = np.asarray(current_joints, dtype=np.float64).reshape(6, 3)
-        target = current if climb_terminal_joints is None else np.asarray(
-            climb_terminal_joints, dtype=np.float64
-        ).reshape(6, 3)
-        if not np.isfinite(current).all() or not np.isfinite(target).all():
+        target = current
+        if not np.isfinite(current).all():
             raise ValueError("dock entry joints must be finite")
         self.active = True
         self.perception.reset()
@@ -674,9 +734,8 @@ class DockMode:
         self.perception_sampled = False
         self.last_perception_reason = "no perception result"
         self.using_last_complete_frame = False
-        ratio = np.abs(target - current) / JOINT_VELOCITY_LIMIT
-        self.entry_duration = max(0.5, 1.875 * float(np.max(ratio)))
-        self._set_state(self.CLIMB_TERMINAL_ENTRY, "正在进入攀爬结束关节姿态")
+        self.entry_duration = 0.5
+        self._set_state(self.CLIMB_TERMINAL_ENTRY, "保持当前关节姿态，准备竖直抬升")
 
     def exit(self):
         self.active = False
@@ -733,7 +792,7 @@ class DockMode:
             self.body_raise_progress = 0.0
             self._set_state(
                 self.BODY_RAISE,
-                "攀爬结束姿态指令已完成，关节误差{:.2f}deg（{}）；开始足端向下移动40mm".format(
+                "对接入口姿态保持已完成，关节误差{:.2f}deg（{}）；开始足端向下移动40mm".format(
                     np.rad2deg(error), quality
                 ),
             )
@@ -833,7 +892,7 @@ class DockMode:
         if self.sit_settle_elapsed >= self.sit_settle_duration_s:
             self._set_state(
                 self.LEG_LIFT,
-                "下坐稳定完成，开始将六腿收至同一高度（至少抬升60mm）",
+                "下坐稳定完成，开始将六腿收至同一高度（至少抬升40mm）",
             )
             return self._leg_lift_step(current)
         self._set_state(
@@ -980,6 +1039,7 @@ class DockMode:
 
         pose, perception_reason = self._perception_pose(robot_state)
         if pose is None:
+            rospy.logwarn_throttle(2.0, "等待同心圆：%s", perception_reason or "no ring detection")
             # 失去目标时停在实测姿态，重获目标后不累计失效前的足端指令。
             self.last_visual_target = self._synced_feet(current).copy()
             self._set_state(
@@ -1047,6 +1107,21 @@ def self_check():
     """不依赖相机和舵机的圆环识别及动作状态机自检。"""
 
     from types import SimpleNamespace
+
+    # 总帧龄从拍摄时间计算；正常慢识别可用，停流/未来时间戳仍拒绝。
+    perception = RingPerception.__new__(RingPerception)
+    perception.lock = Lock()
+    perception.max_age = 1.0
+    original_now = rospy.Time.now
+    try:
+        rospy.Time.now = staticmethod(lambda: rospy.Time.from_sec(10.0))
+        for stamp, valid in ((9.4, True), (8.9, False), (10.1, False)):
+            perception.result = PerceptionResult(
+                valid=True, stamp=rospy.Time.from_sec(stamp), reason="5 ring boundaries"
+            )
+            assert perception.latest().valid == valid
+    finally:
+        rospy.Time.now = original_now
 
     detection = detect_concentric_rings(_synthetic_ring_image())
     if not detection.valid or detection.matched_boundaries < 6:
@@ -1116,6 +1191,42 @@ def self_check():
 
         def latest(self):
             return PerceptionResult(valid=True, lock_from_pin=self.pose)
+
+    # 用公共控制器和真实FK验证：即使调用方传入历史末姿态，
+    # 从站姿或攀爬末姿态进入时也只允许竖直抬升。
+    from control import GraspController
+    from kinematics import Q_STAND
+
+    for start_from_terminal in (False, True):
+        controller = GraspController(1.0 / 30.0)
+        current = (controller.climb_terminal_q.copy()
+                   if start_from_terminal else Q_STAND.copy())
+        initial_feet = controller.kinematic.forward_base(current)
+        initial_joints = current.copy()
+        entry_mode = DockMode(controller, Perception(transform((0.02, 0, -0.03))))
+        controller.attach_dock_mode(entry_mode)
+        controller.enter_dock(current)
+        entry_mode.perception.latest = lambda: (_ for _ in ()).throw(
+            AssertionError("entry and raise must not use visual corrections")
+        )
+        for _ in range(120):
+            current = controller.update(
+                current, np.zeros(4), dock_robot_state={"joints": current}
+            )
+            result = controller.last_mode_result
+            if result.joint_positions is not None:
+                np.testing.assert_allclose(current, initial_joints, atol=1e-12)
+            if result.foot_positions_base is not None:
+                displacement = result.foot_positions_base - initial_feet
+                np.testing.assert_allclose(displacement[:, :2], 0.0, atol=1e-12)
+                assert np.all(displacement[:, 2] <= 0.0)
+            if entry_mode.state == entry_mode.WAITING_RING:
+                break
+        assert entry_mode.state == entry_mode.WAITING_RING
+        np.testing.assert_allclose(displacement[:, 2], -0.040, atol=1e-12)
+        actual_displacement = controller.kinematic.forward_base(current) - initial_feet
+        np.testing.assert_allclose(actual_displacement[:, :2], 0.0, atol=0.0001)
+        np.testing.assert_allclose(actual_displacement[:, 2], -0.040, atol=0.001)
 
     state = {"joints": np.zeros((6, 3))}
     mode = DockMode(Controller(), Perception(transform((0.0, 0.0, -0.030))))

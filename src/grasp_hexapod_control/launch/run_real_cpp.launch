@@ -148,7 +148,7 @@
   <!-- 感知子链启动开关。 -->
   <arg name="start_dock_perception" default="true"/>
   <!-- 相机设备与分辨率/帧率/像素格式。 -->
-  <arg name="dock_video_device" default="/dev/video0"/>
+  <arg name="dock_video_device" default="/dev/cam_dock"/>
   <arg name="dock_image_width" default="1280"/>
   <arg name="dock_image_height" default="720"/>
   <!-- <arg name="dock_image_width" default="640"/>

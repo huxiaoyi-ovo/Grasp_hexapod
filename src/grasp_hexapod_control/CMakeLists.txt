@@ -150,3 +150,28 @@ endif()
 install(TARGETS run_real_cpp
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
+
+
+# Independent all-C++ ring chain; original run_real_cpp targets remain unchanged.
+find_package(OpenCV REQUIRED COMPONENTS core imgproc calib3d imgcodecs)
+add_library(grasp_hexapod_ring_core src/ring_detection.cpp src/ring_dock_mode.cpp)
+target_include_directories(grasp_hexapod_ring_core PUBLIC ${OpenCV_INCLUDE_DIRS})
+target_link_libraries(grasp_hexapod_ring_core grasp_hexapod_control_core ${OpenCV_LIBRARIES})
+target_compile_options(grasp_hexapod_ring_core PRIVATE -O3 -Wall -Wextra -ffp-contract=off)
+add_library(grasp_hexapod_ring_ros src/ring_perception_ros.cpp src/ring_control_node.cpp)
+target_link_libraries(grasp_hexapod_ring_ros grasp_hexapod_ring_core ${catkin_LIBRARIES})
+add_dependencies(grasp_hexapod_ring_ros ${catkin_EXPORTED_TARGETS})
+add_executable(run_real_ring_cpp node/run_real_ring_cpp_main.cpp)
+target_link_libraries(run_real_ring_cpp grasp_hexapod_ring_ros ${catkin_LIBRARIES})
+install(TARGETS grasp_hexapod_control_core grasp_hexapod_ring_core grasp_hexapod_ring_ros run_real_ring_cpp
+  LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+  RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
+
+if(CATKIN_ENABLE_TESTING)
+  catkin_add_gtest(test_ring_native test/test_ring_native.cpp ${GTEST_MAIN_SRC})
+  target_link_libraries(test_ring_native grasp_hexapod_ring_core)
+  target_compile_definitions(test_ring_native PRIVATE
+    RING_CONFIG_DIR="${CMAKE_CURRENT_SOURCE_DIR}/config"
+    RING_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/ring_fixtures"
+    RING_FIXTURE_JSON="${CMAKE_CURRENT_SOURCE_DIR}/test/ring_fixtures/expected.json")
+endif()

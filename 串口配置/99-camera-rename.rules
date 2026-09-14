@@ -1,0 +1,4 @@
+# 设备重命名规则(由 serial_rename.sh 自动生成)
+# 修改后执行: sudo udevadm control --reload-rules && sudo udevadm trigger
+# cam_dock (由 serial_rename.sh 自动生成, 2026-09-11 16:02:34)
+SUBSYSTEM=="video4linux", KERNELS=="1-2.4", ATTRS{idVendor}=="0bda", ATTRS{idProduct}=="3035", ATTRS{serial}=="200901010001", ATTR{index}=="0", SYMLINK+="cam_dock", MODE="0666"

@@ -89,7 +89,7 @@
   <!-- 默认沿用外部PoseStamped导航源；显式启用后由双RTK/IMU适配节点生成。 -->
   <!-- 本机与"小蓝"（目标车）的 RTK fix 话题。 -->
   <!-- 导航平移/升降限速。 -->
-  <arg name="max_linear_speed" default="0.20"/>
+  <arg name="max_linear_speed" default="0.30"/>
   <arg name="max_vertical_speed" default="0.02"/>
   <!-- 导航位姿/边界输入的新鲜度门限。 -->
   <arg name="max_pose_age" default="0.5"/>

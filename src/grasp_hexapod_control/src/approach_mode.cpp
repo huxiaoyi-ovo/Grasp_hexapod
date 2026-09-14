@@ -376,7 +376,9 @@ Eigen::Vector4d ApproachMode::autonomousCommand(
     const Vector2d position_error_pv = target_xy - current_xy;
     const double position_error = position_error_pv.norm();
     if (position_error > position_tolerance_) {
-      const double speed = std::min(auto_linear_speed_, 1.5 * position_error);
+      // 比例项 2.5：满速保持到误差 8cm 以内才减速，缩短末段蠕行；
+      // 过冲风险换来的提速，位置容差只有 3cm，不宜再放大。
+      const double speed = std::min(auto_linear_speed_, 2.5 * position_error);
       const Vector2d velocity_pv = speed * position_error_pv / position_error;
       // pv 速度转到当前 base_link；+x 右、+y 前。
       const double cosine = std::cos(current_yaw);

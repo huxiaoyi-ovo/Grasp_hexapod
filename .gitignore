@@ -24,7 +24,7 @@
 CLAUDE.md
 GEMINI.md
 CLAUDE_CODE_HANDOFF.md
-
+.zcode/
 # 本地环境和 Python 工具
 .env
 .env.*

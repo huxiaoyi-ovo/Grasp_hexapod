@@ -124,7 +124,8 @@ class ApproachMode {
   int stance_group_index_ = 0;
 
   // 实机优先保持足端轨迹和舵机跟踪平滑，不追求极限步频。
-  double phase_duration_ = 0.70;
+  // 0.3 m/s 下缩短周期控制步距约 15.5cm（步距 = v*(T+τ)），避免落点超出工作空间。
+  double phase_duration_ = 0.25;
   double phase_time_ = 0.0;
 
   // 共同支撑目标为 50 ms，并量化到最接近的整数控制帧。
@@ -137,10 +138,11 @@ class ApproachMode {
   double swing_lift_fraction_ = 0.45;
   // 梯形剖面加减速段占比，峰值速度由单程抬腿时间决定。
   double lift_accel_fraction_ = 0.15;
-  double max_linear_acceleration_ = 0.40;
+  double max_linear_acceleration_ = 0.60;
   double max_yaw_acceleration_ = 2.0;
   // 合并平移和偏航后，限制标准足端的平面速度预算。
-  double max_foot_planar_speed_ = 0.12;
+  // 这是实际限速瓶颈：navigation_linear_speed 配 0.20 也被这里砍回限幅值。
+  double max_foot_planar_speed_ = 0.30;
   double nominal_foot_radius_ = 0.0;
   Eigen::Vector4d requested_command_ = Eigen::Vector4d::Zero();
   Eigen::Vector4d active_phase_command_ = Eigen::Vector4d::Zero();

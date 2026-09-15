@@ -8,7 +8,7 @@
 
 interfaces:
   sensor_health:   { simulate: true,  topic: /grasp_hexapod/sensor_health }
-  encoder_state:   { simulate: true,  topic: /grasp_hexapod/encoder_state }
+  encoder_state:   { simulate: false,  topic: /grasp_hexapod/encoder_state }
   fix:             { simulate: true,  topic: /fix }
   # LoRa 话题级仿真（串口读取不仿真，由真实 lora_node 负责）
   lora_command:    { simulate: false,  topic: /lora/command }
@@ -20,7 +20,8 @@ interfaces:
 simulation:
   mission: recover          # 话题级注入的任务命令：RELEASE / RECOVER
   remote_test: ""           # 非空则跑遥控测试链：home|walk|climb|dock|spin_search|release
-  # 时间线（秒，模拟编码器落地/绞盘/各模式完成）
+  # 时间线（秒，仅用于话题级注入时刻：编码器落地/绞盘/恢复初始命令；
+  # mode_* 仅 bt_mock_world 使用，sim_feedback 的 switch_mode 不再看它）
   deploy: 7.0
   landing_t: 9.0
   winch_done: 80.0
@@ -28,14 +29,15 @@ simulation:
   mode_home: 5.0
   mode_release: 11.0
   mode_spin_search: 13.0
-  mode_approach: 22.0
-  mode_tag_nav: 24.0
+  mode_approach: 24.0      # 接近导航到攀爬点（RTK粗导航+tag精导航）
   mode_climb: 45.0
   mode_dock: 65.0
-  # 故障注入
-  clamp_fail: false         # true → dock 模式最终 FAILED（夹爪受限）
-  open_fail: false          # true → release 模式最终 FAILED（夹爪松开失败）
-  switch_fail_mode: ""      # 非空 → 切该模式立即被拒
+  # switch_mode 固定延迟：被调用后等待 N 秒返回 service 结果（默认成功；
+  # rosparam ~switch_delay 可覆盖）
+  switch_delay: 5.0
+  # 故障注入（作用于 gripper_act 路径）
+  clamp_fail: false         # true → 夹爪 clamp 返回失败（dock 最终 FAILED）
+  open_fail: false          # true → 夹爪 open 返回失败（release 最终 FAILED）
   cov_bad_windows: []       # RTK 协方差超限时段，如 "13-16,20-22"
 
 rtk_max_covariance: 0.04    # /fix 协方差阈值（m²）

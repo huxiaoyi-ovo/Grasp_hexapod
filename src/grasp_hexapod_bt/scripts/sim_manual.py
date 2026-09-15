@@ -44,7 +44,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 # ---------------------------------------------------------------------------
 SENSOR_NAMES = ("imu", "gps", "rtk", "servo", "stereo", "mono")
 MODES = ("home", "walk", "climb", "dock", "spin_search", "release",
-         "approach", "tag_nav")
+         "approach")
 REMOTE_MODES = ("idle", "home", "walk", "climb", "dock", "spin_search",
                 "release")
 
@@ -981,7 +981,7 @@ def selftest():
 
     # 空确认 / 排空
     assert core.confirm_mode(True)[0] is False
-    core.switch_mode_enter("tag_nav")
+    core.switch_mode_enter("approach")
     assert core.drain_pending() == 1
     print("[OK] 模式装填/单步/超时/排空状态机")
 

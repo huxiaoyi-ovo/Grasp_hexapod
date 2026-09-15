@@ -3,9 +3,11 @@
 
 架构（对应 src/docs/BT_INTERFACES.md）：
     - 所有运动/任务动作统一为“模式”：home / walk / climb / dock /
-      spin_search / release / approach / tag_nav；连续性子动作（tag 导引
-      到充电桩、六腿抬起、夹爪夹紧、结束确认等）都在对应模式内部由执行
-      节点自动完成，树中**一个模式只有一个 RunMode 节点**。
+      spin_search / release / approach；连续性子动作（tag 导引到充电桩、
+      六腿抬起、夹爪夹紧、结束确认、RTK 粗导航 + 视觉 tag 伺服到攀爬起点
+      等）都在对应模式内部由执行节点自动完成，树中**一个模式只有一个
+      RunMode 节点**。原独立 tag_nav 模式已并入 approach（粗导航 + 精导航
+      一体），树中不再单列。
     - ~/switch_mode（SwitchMode.srv）：请求携带目标模式，自动执行该模式
       完整流程，响应即【最终结果】（bool success + string message）。不再
       需要单独的 ModeResult 查询服务。
@@ -38,8 +40,7 @@ MODE_LABELS = {
     "dock": "对接夹紧 ㉙㉚（tag导引+抬腿+夹爪clamp+确认）",
     "spin_search": "自转搜索小蓝 ㉖",
     "release": "释放小蓝 ⑪（夹爪open）",
-    "approach": "粗导航到可视tag ㉗",
-    "tag_nav": "tag精导航到攀爬点",
+    "approach": "接近导航到攀爬点 ㉗（RTK粗导航+tag精导航）",
 }
 
 
@@ -353,7 +354,7 @@ def build_hexapod_tree(ctx, deploy_timeout_s=120.0, landing_timeout_s=120.0,
       │       │   ├─ 释放分支：RunMode("release") → RELEASED → ⑫
       │       │   │            → WaitHomeCmd → RunMode("home") → RESET_DONE
       │       │   └─ 回收分支：LANDED → [spin_search→approach(RTK监护)]
-      │       │            → RunMode("tag_nav") → RunMode("climb")
+      │       │            → RunMode("climb")
       │       │            → RunMode("dock") → CLAMPED → ㉜
       │       │            → WaitHomeCmd → RunMode("home") → RESET_DONE
       │       └─ ReportStatus DONE ㊱
@@ -398,9 +399,11 @@ def build_hexapod_tree(ctx, deploy_timeout_s=120.0, landing_timeout_s=120.0,
             ReportStatus(ctx, status="RESET_DONE"),    # 归位完成回传
         ])
 
-    # ---- 定位导航（spin_search + approach）带 RTK 协方差监护 ----
+    # ---- 接近导航（spin_search + approach）带 RTK 协方差监护 ----
     # 外层 memory=False（反应式）：WaitRtkPrecise 每 tick 复检，协方差超限即
     # hold_motion 停走并暂停内层；内层 memory=True 保证每模式只触发一次。
+    # approach 内部先 RTK 粗导航到可视 tag、再视觉 tag 伺服到攀爬起点
+    # （原独立 tag_nav 模式已并入），树中一个模式一个节点。
     locate_and_nav = py_trees.composites.Sequence(
         name="定位导航_带RTK精度监视", memory=False, children=[
             Timeout(
@@ -415,13 +418,12 @@ def build_hexapod_tree(ctx, deploy_timeout_s=120.0, landing_timeout_s=120.0,
                 ]),
         ])
 
-    # ---- 回收分支（⑲ 任务）：tag_nav → climb → dock ----
+    # ---- 回收分支（⑲ 任务）：approach → climb → dock ----
     recover_branch = py_trees.composites.Sequence(
         name="回收分支_抓取回收", memory=True, children=[
             CheckMissionMode(ctx, "recover", name="IsRecoveryMission"),
             ReportStatus(ctx, status="LANDED"),        # ㉕ 落地状态回传
-            locate_and_nav,                            # ㉖㉗ 搜索/定位/粗导航
-            _run_mode(ctx, "tag_nav"),                 # 识别tag→到达攀爬点
+            locate_and_nav,                            # ㉖㉗ 搜索/接近导航
             _run_mode(ctx, "climb"),                   # ㉘ 攀爬(含姿态准备)
             _run_mode(ctx, "dock"),                    # ㉙㉚ 对接(导引+抬腿+夹爪)
             ReportStatus(ctx, status="CLAMPED"),       # ㉛ 回传夹紧完成
@@ -534,8 +536,7 @@ class FakeBridge(BridgeContext):
             "mode_home": 2.0,
             "mode_release": 10.0,
             "mode_spin_search": 11.0,
-            "mode_approach": 20.0,
-            "mode_tag_nav": 22.0,
+            "mode_approach": 22.0,
             "mode_climb": 40.0,
             "mode_dock": 60.0,
         }
@@ -760,7 +761,7 @@ def selftest():
     assert ctx.status_log == ["LANDED", "CLAMPED", "RESET_DONE", "DONE"], ctx.status_log
     switched = [m for _, m in ctx.switch_log]
     assert switched == ["home", "spin_search", "approach",
-                        "tag_nav", "climb", "dock", "home"], switched
+                        "climb", "dock", "home"], switched
     print("[OK] 回收任务: 模式序列 =", switched, "状态上报 =", ctx.status_log)
 
     # --- 2. 释放任务正常推进（release 模式内部完成夹爪 open） ---
@@ -798,14 +799,15 @@ def selftest():
     assert status5 == Status.SUCCESS and ctx5.status_log == ["FAILED"], ctx5.status_log
     print("[OK] release 最终结果失败回退: 状态上报 =", ctx5.status_log)
 
-    # --- 6. tag_nav 导航失败 -> 失败回退 ---
-    ctx6 = FakeBridge(script={"mode_fail": {"tag_nav": {"at": 21.0,
-                                                        "message": "未识别到tag"}}})
+    # --- 6. approach 接近导航失败（tag 精导航未到达攀爬点）-> 失败回退 ---
+    ctx6 = FakeBridge(script={"mode_approach": 30.0,
+                              "mode_fail": {"approach": {"at": 21.0,
+                                                         "message": "未识别到tag"}}})
     tree6 = build_hexapod_tree(ctx6)
     status6 = run_until_done(tree6, ctx6)
     assert status6 == Status.SUCCESS and ctx6.status_log == ["LANDED", "FAILED"], (
         ctx6.status_log)
-    print("[OK] tag_nav 最终结果失败回退: 状态上报 =", ctx6.status_log)
+    print("[OK] approach 最终结果失败回退: 状态上报 =", ctx6.status_log)
 
     # --- 7. 传感器数据瞬时异常：停走暂停，恢复后继续到 DONE ---
     for sensor in SENSOR_NAMES:
@@ -816,7 +818,7 @@ def selftest():
         assert ctx7.status_log == ["LANDED", "CLAMPED", "RESET_DONE", "DONE"], (
             "{} {}".format(sensor, ctx7.status_log))
         assert [m for _, m in ctx7.switch_log] == [
-            "home", "spin_search", "approach", "tag_nav", "climb", "dock",
+            "home", "spin_search", "approach", "climb", "dock",
             "home"], (
             "{} {}".format(sensor, ctx7.switch_log))
     print("[OK] 传感器数据瞬时异常停走恢复后继续")

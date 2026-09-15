@@ -43,8 +43,9 @@ bt_control_node（无 /joy；服务切换状态机；walk 由 /cmd_vel 驱动）
   BT 服务的最终结果；失败 `ROS_ERROR` 并透传。`release` → open、
   `home` 完成 → open 同链路。
 - 状态机仍为 `WAIT_B/RESETTING/HOLD/RUNNING`；`home/walk/approach/climb/
-  dock/release` 可执行，`spin_search/tag_nav` 预留（返回 executor not
-  implemented）。
+  dock/release` 可执行，`spin_search` 预留（返回 executor not
+  implemented）。`approach` 为接近导航到攀爬起点（RTK 粗导航 + 视觉 tag
+  伺服，原 `tag_nav` 已并入本模式，不再是独立模式）。
 - 保留：`/grasp_hexapod/hold_motion` 租约、六腿反馈双板门控、导航/IMU/
   锁紧确认订阅、反馈丢失 → HOLD、攀爬监控与诊断。
 

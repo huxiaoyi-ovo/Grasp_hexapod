@@ -11,9 +11,11 @@
 
   架构（一模式一节点）：
     - 所有运动/任务动作统一为“模式”：home / walk / climb / dock /
-      spin_search / release / approach / tag_nav；
+      spin_search / release / approach；
     - RunMode(mode) 节点调 ~/switch_mode（SwitchMode.srv：阻塞式，自动执行
       该模式的完整连续性流程，响应即最终结果 success/message）；
+    - approach 模式内部依次完成：RTK 粗导航到可视 tag ㉗ + 视觉 tag 伺服到
+      攀爬起点（原独立 tag_nav 模式已并入本模式，树中不再单列）；
     - dock 模式内部自动完成：tag 导引到充电桩 ㉙ + 六腿抬起 + 夹爪 clamp +
       结束确认（不在树中单列）；release 模式内部完成夹爪 open（⑪）；
     - home = 回到初始姿态（含复位），替换遥控 B 复位/回站/A 使能；
@@ -29,8 +31,8 @@
     ⑪ 释放小蓝       -> RunMode(release)（内部夹爪 open）
     ㉕ 落地回传       -> ReportStatus(status=LANDED)
     ㉖ 自转搜索       -> RunMode(spin_search)
-    ㉗ 粗导航到tag    -> RunMode(approach)（WaitRtkPrecise 协方差监护）
-    识别tag→攀爬点   -> RunMode(tag_nav)
+    ㉗ 接近导航到攀爬点 -> RunMode(approach)（WaitRtkPrecise 协方差监护；
+                          内部：RTK粗导航到可视tag + 视觉tag伺服到攀爬起点）
     ㉘ 攀爬          -> RunMode(climb)
     ㉙㉚ 对接夹紧     -> RunMode(dock)（内部：tag导引+抬腿+夹爪clamp）
     ㉛ 回传夹紧完成   -> ReportStatus(status=CLAMPED)
@@ -87,17 +89,17 @@
             <Sequence name="回收分支_抓取回收">
               <Condition ID="IsRecoveryMission" name="任务=回收⑲"/>
               <Action ID="ReportStatus" name="落地状态回传_㉕" status="LANDED"/>
-              <!-- 定位导航：WaitRtkPrecise 每 tick 复检协方差，超限停走等待恢复 -->
+              <!-- 接近导航：WaitRtkPrecise 每 tick 复检协方差，超限停走等待恢复；
+                   approach 内部先 RTK 粗导航到可视 tag，再视觉 tag 伺服到攀爬起点 -->
               <ReactiveSequence name="定位导航_带RTK监护">
                 <Timeout msec="60000">
                   <Condition ID="WaitRtkPrecise" name="RTK协方差监护"/>
                 </Timeout>
                 <Sequence name="定位导航步骤">
                   <Action ID="RunMode" name="自转搜索小蓝_㉖" mode="spin_search"/>
-                  <Action ID="RunMode" name="粗导航到可视tag_㉗" mode="approach"/>
+                  <Action ID="RunMode" name="接近导航到攀爬点_㉗" mode="approach"/>
                 </Sequence>
               </ReactiveSequence>
-              <Action ID="RunMode" name="tag精导航到攀爬点" mode="tag_nav"/>
               <Action ID="RunMode" name="攀爬到小蓝上_㉘" mode="climb"/>
               <Action ID="RunMode" name="对接夹紧_㉙㉚" mode="dock"/>
               <Action ID="ReportStatus" name="回传夹紧完成_㉛" status="CLAMPED"/>
@@ -182,8 +184,8 @@
 
     <!-- 动作节点：统一模式执行 -->
     <Action ID="RunMode">
-      <description>执行一个模式：调 ~/switch_mode（SwitchMode.srv，阻塞式）。服务自动执行该模式的完整连续性流程并返回【最终结果】：dock 内含 tag 导引到充电桩 ㉙ + 六腿抬起 + 夹爪 clamp + 结束确认；release 内含夹爪 open ⑪；home 回到初始姿态（含复位）。success=true 完成 / false 失败（message 为问题）。</description>
-      <input_port name="mode" default="home">home / walk / climb / dock / spin_search / release / approach / tag_nav</input_port>
+      <description>执行一个模式：调 ~/switch_mode（SwitchMode.srv，阻塞式）。服务自动执行该模式的完整连续性流程并返回【最终结果】：dock 内含 tag 导引到充电桩 ㉙ + 六腿抬起 + 夹爪 clamp + 结束确认；release 内含夹爪 open ⑪；approach 内含 RTK 粗导航到可视 tag ㉗ + 视觉 tag 伺服到攀爬起点（原 tag_nav 已并入）；home 回到初始姿态（含复位）。success=true 完成 / false 失败（message 为问题）。</description>
+      <input_port name="mode" default="home">home / walk / climb / dock / spin_search / release / approach</input_port>
     </Action>
 
     <!-- 动作节点：任务 / LoRa -->

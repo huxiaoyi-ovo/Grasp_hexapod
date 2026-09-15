@@ -6,7 +6,7 @@
 
 ## 1. 概览与文件索引
 
-**架构**：所有运动/任务统一为"模式"（home/walk/climb/dock/spin_search/release/approach/tag_nav）；
+**架构**：所有运动/任务统一为"模式"（home/walk/climb/dock/spin_search/release/approach）；
 行为树一模式一节点 `RunMode(mode)` → `~/switch_mode`（阻塞执行完整流程，**响应即最终结果**）；
 夹爪 open/clamp 由 `release`/`dock` 模式内部调 `~/gripper_act`（不在树中；**系统唯一夹爪控制入口**，
 话题盲控与调试服务路径已删除）；编码器/传感器状态走话题；主链不含遥控（独立测试链）。
@@ -113,10 +113,24 @@ C1 除外（三态元组）。
 | `/lora/command`、`/lora/status` | 任务指令 / STA 上报 | ✅ mock / ✅ 真实 `lora_node.py` |
 | `/grasp_hexapod/remote_cmd` | 遥控（仅测试链） | ✅ 已实现 |
 | BridgeContext C1~C10 | 树 ↔ 世界桥接 | ✅ mock / ✅ 真实（run_real_bt.py，TODO-6） |
-| 控制栈模式 8 种 | home/walk/climb/dock/spin_search/release/approach/tag_nav | ⚠️ 需扩展（TODO-2） |
+| 控制栈模式 7 种 | home/walk/climb/dock/spin_search/release/approach | ⚠️ 需扩展（TODO-2） |
 | 实机攀爬 climb | C1→C35 实机步态执行 | ⚠️ simulation-only，不授权实机（TODO-9） |
 
 ## 5. 变更记录
+
+- **2026-09-15 `tag_nav` 并入 `approach`（模式由 8 个减为 7 个）**
+  - 行为树回收分支的 `RunMode(tag_nav)` 节点删除，原"RTK 粗导航到可视 tag ㉗"
+    与"识别 tag→攀爬点"两阶段合并为一个 `approach` 模式：模式内部依次完成
+    粗导航与视觉 tag 伺服，成功条件统一为"到达攀爬起点"（控制栈终态仍是
+    `ready for climb`）。
+  - 同步修改：`hexapod_mission.xml`、`hexapod_bt.py`（树结构/`MODE_LABELS`/
+    自检用例）、`bt_mock_world.py`、`bt_dashboard.py`、`sim_manual.py`、
+    `config/real_bt.yaml`，以及 `switch_mode` 实现方（`run_real.py`、
+    `bt_control_node`、`real_control_node`、`ring_control_node`）——`tag_nav`
+    不再是合法模式名，传 `tag_nav` 现在返回 `unknown mode`。
+  - 注意：控制栈的 `approach` 目前导航到标定接近点并返回 `ready for climb`；
+    其中的视觉 tag 伺服子阶段仍需在 `approach` 模式内实现（原 `tag_nav` 本就
+    是未实现的占位）。
 
 - **2026-09-11 行为树服务化控制栈（grasp_hexapod_bt_control，可选新链路）**
   - 新增 `src/grasp_hexapod_bt_control/`：`bt_control_node`（不订阅 `/joy` 与

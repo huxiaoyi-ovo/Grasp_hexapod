@@ -331,14 +331,13 @@ class RosControlNode:
     BT_MODE_LABELS = {
         "home": "return to stand",
         "walk": "manual approach gait",
-        "approach": "navigation approach",
+        "approach": "navigation approach to climb start",
         "climb": "compact climb",
         "dock": "dock and clamp",
         "release": "open gripper",
         "spin_search": "not implemented",
-        "tag_nav": "not implemented",
     }
-    BT_UNSUPPORTED_MODES = ("spin_search", "tag_nav")
+    BT_UNSUPPORTED_MODES = ("spin_search",)
     BT_DEFAULT_TICK_HZ = 30.0
 
     @staticmethod

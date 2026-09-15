@@ -4,9 +4,11 @@
 与 scripts/hexapod_bt.py 配套（hexapod_bt 为 ROS-free 纯逻辑，本节点实现其
 BridgeContext 并模拟全部模式/服务）：
     - 所有运动/任务动作 = 模式（home/walk/climb/dock/spin_search/release/
-      approach/tag_nav）；BT 一个模式一个 RunMode 节点，统一走
+      approach）；BT 一个模式一个 RunMode 节点，统一走
       ~/switch_mode（SwitchMode.srv）——服务自动执行该模式完整连续性流程，
       响应即【最终结果】（success=最终成功 + message=最终问题）。
+      approach 内含 RTK 粗导航到可视 tag + 视觉 tag 伺服到攀爬起点（原独立
+      tag_nav 模式已并入，不再是单独模式）。
     - 夹爪夹紧/松开 = 新建 ~/gripper_act（GripperAct.srv），由 release/dock
       模式内部调用，不在行为树中体现；到位结果折入 switch_mode 最终结果。
     - 编码器 = 持续发布 /grasp_hexapod/encoder_state（EncoderState topic，
@@ -45,8 +47,7 @@ DEFAULT_TIMELINE = {
     "mode_home": 5.0,          # 回到初始姿态(含复位)
     "mode_release": 11.0,      # 释放小蓝（夹爪 open 到位）
     "mode_spin_search": 13.0,  # 自转搜索（感知发现小蓝）
-    "mode_approach": 22.0,     # 粗导航到可视 tag
-    "mode_tag_nav": 24.0,      # tag 精导航到攀爬点
+    "mode_approach": 24.0,     # 接近导航到攀爬点（粗导航 + tag 精导航）
     "mode_climb": 45.0,        # 攀爬 C1→C35
     "mode_dock": 65.0,         # 对接（导引+抬腿+夹爪clamp）
 }
@@ -74,7 +75,7 @@ class ModeWorld:
     """
 
     MODE_NAMES = ("home", "walk", "climb", "dock", "spin_search",
-                  "release", "approach", "tag_nav")
+                  "release", "approach")
 
     def __init__(self, node):
         self.node = node

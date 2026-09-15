@@ -21,9 +21,11 @@ simulate 关掉即可由 lora_node 接管。
     服务(应答)      switch_mode   /grasp_hexapod/switch_mode
                     gripper_act   /grasp_hexapod/gripper_act
 
-模拟语义：时间线（landing/mode_* 完成时刻）、夹爪 clamp_fail/open_fail 注入、
-RTK 协方差 cov_bad_windows、模式拒绝 switch_fail_mode —— 复用 bt_mock_world 的
-ModeWorld/DEFAULT_TIMELINE（避免重复实现）。
+模拟语义：switch_mode **固定延迟返回 service 结果**——被调用后等待
+~switch_delay 秒（默认 5s）即返回成功，与时间线/模式状态无关；时间线
+（landing/deploy/winch_done/home_cmd）仅用于话题级注入时刻；夹爪
+clamp_fail/open_fail 注入在 gripper_act 路径生效；RTK 协方差
+cov_bad_windows —— 复用 bt_mock_world 的 DEFAULT_TIMELINE（避免重复实现）。
 
 LoRa 不仿真：/lora/command、/lora/status 由真实节点 reference/lora（lora_node.py）
 提供，sim_feedback 不发布 LoRa（配置中 lora_* 固定 simulate:false）。
@@ -65,9 +67,9 @@ SIM_DEFAULTS = {
     "landing_t": None,          # None -> 用 timeline["landing"]
     "deploy": None,             # None -> 用 timeline["deploy"]
     "winch_done": None,         # None -> 用 timeline["winch_done"]
+    "switch_delay": 5.0,        # switch_mode 固定延迟：被调用后 N 秒返回结果
     "clamp_fail": False,
     "open_fail": False,
-    "switch_fail_mode": "",
     "cov_bad_windows": [],
     "sensor_bad": "",
 }
@@ -104,9 +106,9 @@ class SimClock:
             if val is not None:
                 self.timeline[key] = float(val)
         self.start = rospy.get_time() if start_wall is None else start_wall
+        self.switch_delay = float(sim.get("switch_delay", 5.0))
         self.clamp_fail = bool(sim.get("clamp_fail", False))
         self.open_fail = bool(sim.get("open_fail", False))
-        self.switch_fail_mode = sim.get("switch_fail_mode", "")
 
     @property
     def now(self):
@@ -265,21 +267,14 @@ def activate(interfaces=None, sim=None, verbose=True):
             if mode not in ModeWorld.MODE_NAMES:
                 return SwitchModeResponse(success=False,
                                           message="未知模式 {}".format(mode))
-            if mode == clock.switch_fail_mode:
-                return SwitchModeResponse(success=False,
-                                          message="模式 {} 被拒绝".format(mode))
             if mode_world.active_mode != mode:
                 mode_world.active_mode = mode
                 rt.switch_log.append((clock.now, mode))
-                log("[sim] switch_mode -> %s（t=%.2fs）", mode, clock.now)
-            # 阻塞至该模式终态（与真实阻塞式 mode_server 语义一致），
-            # 期间不占用本服务线程外的资源；行为树侧同步等待最终结果。
-            while not rospy.is_shutdown():
-                state, message = mode_world.query_state(mode)
-                if state in ("SUCCESS", "FAILED"):
-                    break
-                rospy.sleep(0.05)
-            return SwitchModeResponse(success=state == "SUCCESS", message=message)
+                log("[sim] switch_mode -> %s（t=%.2fs，%.1fs 后返回）",
+                    mode, clock.now, clock.switch_delay)
+            # 被调用后固定等待 N 秒，再返回 service 结果（不立刻完成）。
+            rospy.sleep(clock.switch_delay)
+            return SwitchModeResponse(success=True, message="ok")
 
         rt.serv_switch = rospy.Service(srv, SwitchMode, on_switch)
         log("[sim] switch_mode 服务模拟：%s", srv)
@@ -337,7 +332,7 @@ def run():
     interfaces, sim = load_config(rospy.get_param("~config", DEFAULT_CONFIG_PATH))
     # rosparam 覆盖（与 bt_mock_world 同风格）
     for key in ("mission", "remote_test", "clamp_fail", "open_fail",
-                "switch_fail_mode", "cov_bad_windows", "landing_t"):
+                "cov_bad_windows", "landing_t", "switch_delay"):
         v = rospy.get_param("~" + key, None)
         if v is not None:
             sim[key] = v
@@ -348,43 +343,18 @@ def run():
 
 
 def selftest():
-    """离线：时间线/模式状态机/夹爪注入一致性（不依赖 ROS）。"""
-    class FakeClock:
-        """无 ROS 的 SimClock 替代（供 ModeWorld 直接测试）。"""
-        clamp_fail = False
-        open_fail = False
-        sim = dict(SIM_DEFAULTS)
-
-        def __init__(self, timeline_extra=None):
-            self.timeline = dict(DEFAULT_TIMELINE)
-            if timeline_extra:
-                self.timeline.update(timeline_extra)
-            self.now = 10.0
-
-        def mode_done_at(self, key):
-            return self.timeline.get(key, 1e9)
-
-    clock = FakeClock()
-    world = ModeWorld(clock)
-    assert world.query_state("home") == ("SUCCESS", "")       # home done @5
-    assert world.query_state("release") == ("RUNNING", "")    # release done @11
-    clock.now = 12.0
-    assert world.query_state("release") == ("SUCCESS", "")
-    print("[OK] 时间线/模式状态机（复用 bt_mock_world.ModeWorld）")
-
-    # 夹爪失败注入（dock 完成前触发）
-    clock2 = FakeClock()
-    clock2.clamp_fail = True
-    clock2.now = 64.0
-    world2 = ModeWorld(clock2)
-    assert world2.query_state("dock") == ("FAILED", "夹爪受限/open复位后仍失败")
-    print("[OK] dock 夹爪失败注入")
+    """离线：配置缺省与 switch_mode 固定延迟契约（不依赖 ROS）。"""
+    # switch_mode 固定延迟：默认 5s；受理校验依据（MODE_NAMES）可用
+    assert SIM_DEFAULTS["switch_delay"] == 5.0
+    assert "home" in ModeWorld.MODE_NAMES and "dock" in ModeWorld.MODE_NAMES
+    print("[OK] switch_mode 固定延迟契约（默认 5s，返回 service 结果）")
 
     # yaml 缺省接口清单可加载（LoRa 为话题级仿真；串口读取不仿真）
     interfaces, sim = load_config("/nonexistent.yaml")
     assert "lora_command" in interfaces and "lora_status" in interfaces
     assert all(v["simulate"] for v in interfaces.values())
     assert sim["mission"] == "recover"
+    assert sim["switch_delay"] == 5.0
     print("[OK] 配置缺省：可模拟接口全 simulate=true（含 LoRa 话题级；串口读取不仿真）")
 
     print("selftest 全部通过")

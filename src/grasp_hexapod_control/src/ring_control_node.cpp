@@ -695,10 +695,11 @@ bool RingControlNode::switchModeService(
   // 阻塞式 BT 服务：只提交请求/等待控制循环终态，不执行运动。
   static const std::map<std::string, std::string> bt_mode_labels = {
       {"home", "return to stand"},   {"walk", "manual approach gait"},
-      {"approach", "navigation approach"}, {"climb", "compact climb"},
+      {"approach", "navigation approach to climb start"},
+      {"climb", "compact climb"},
       {"dock", "dock and clamp"},    {"release", "open gripper"},
-      {"spin_search", "not implemented"}, {"tag_nav", "not implemented"}};
-  static const std::array<const char*, 2> bt_unsupported = {"spin_search", "tag_nav"};
+      {"spin_search", "not implemented"}};
+  static const std::array<const char*, 1> bt_unsupported = {"spin_search"};
 
   std::string mode = request.target_mode;
   for (char& c : mode) {

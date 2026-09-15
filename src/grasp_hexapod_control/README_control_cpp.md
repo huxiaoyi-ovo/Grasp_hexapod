@@ -105,7 +105,8 @@ Python 取模符号语义、`rows @ T.T` 的齐次变换列向量等价形式
   try/except 分支）。
 - 错误日志中的数字格式化（`%.9g` vs Python format）可能有微小排版差异，
   诊断摘要字符串的关键字段格式已对齐。
-- `switch_mode` 服务响应消息与 Python 一致；`spin_search`/`tag_nav` 仍拒绝。
+- `switch_mode` 服务响应消息与 Python 一致；`spin_search` 仍拒绝
+  （`approach` 已是接近导航到攀爬起点，原 `tag_nav` 并入其中、不再受理）。
 
 ## 移植中已知限制
 

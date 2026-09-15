@@ -651,10 +651,11 @@ bool BtControlNode::switchModeService(
   // 控制循环先平滑回正到 HOLD 再进入；单调用方（行为树）感知不到抢占。
   static const std::map<std::string, std::string> bt_mode_labels = {
       {"home", "return to stand"},   {"walk", "manual approach gait"},
-      {"approach", "navigation approach"}, {"climb", "compact climb"},
+      {"approach", "navigation approach to climb start"},
+      {"climb", "compact climb"},
       {"dock", "dock and clamp"},    {"release", "open gripper"},
-      {"spin_search", "not implemented"}, {"tag_nav", "not implemented"}};
-  static const std::array<const char*, 2> bt_unsupported = {"spin_search", "tag_nav"};
+      {"spin_search", "not implemented"}};
+  static const std::array<const char*, 1> bt_unsupported = {"spin_search"};
 
   std::string mode = request.target_mode;
   for (char& c : mode) {

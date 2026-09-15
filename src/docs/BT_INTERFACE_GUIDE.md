@@ -73,15 +73,14 @@
 rosservice call /grasp_hexapod/switch_mode "target_mode: 'home'"
 ```
 
-8 个模式各自要干的活、什么叫成功:
+7 个模式各自要干的活、什么叫成功:
 
 | 模式 | 干什么 | 返回 success=true 的条件 |
 |---|---|---|
 | `home` | 机构复位(释放夹爪) + 回初始站姿 | 姿态到位 |
 | `walk` | 遥控速度连续行走(仅测试链,随 remote_cmd) | 连续执行,直到遥控切走 |
 | `spin_search` | 原地自转 + 感知搜索小蓝 | 感知发现小蓝 |
-| `approach` | RTK 导航粗对准,进入小蓝可视范围 | 目标进入可视区 |
-| `tag_nav` | 视觉 tag 伺服到攀爬起始点 | 到达攀爬点 |
+| `approach` | RTK 导航粗对准进入小蓝可视范围 → 视觉 tag 伺服到攀爬起始点 | 到达攀爬点(ready for climb) |
 | `climb` | 攀爬姿态准备 + C1→C35 步态序列 | 全程爬完并稳定 |
 | `dock` | tag 导引到充电桩 → 六腿抬起 → 调夹爪 `clamp` → 结束确认 | 四步全部完成 |
 | `release` | 调夹爪 `open` 松开载荷 | 夹爪张到位 |
@@ -146,8 +145,8 @@ rostopic pub /lora/command std_msgs/String "data: 'CMD,HEX,RECOVER,NOW'"
 | 初始化 | — | 执行 `home` 模式 | — |
 | 下放 | `DEPLOY` | 等待 | — |
 | 落地 | —(编码器反馈) | 角度 ∈ [90°,180°] 判定落地 | `LANDED` |
-| 接近 | — | `spin_search` → `approach` | — |
-| 精准攀爬 | — | `tag_nav` → `climb` | — |
+| 接近 | — | `spin_search` → `approach`(内含 tag 精导航) | — |
+| 精准攀爬 | — | `climb` | — |
 | 对接夹紧 | — | `dock`(内部调夹爪 clamp) | `CLAMPED` |
 | 拉升回收 | `HOIST_DONE` | 等待 | — |
 | 恢复初始 | `HOME` | 执行 `home` 模式 | `RESET_DONE` |
@@ -185,14 +184,13 @@ rosrun grasp_hexapod_bt bt_dashboard.py      # Web 看板
 rosservice list | grep -E "switch_mode|gripper_act"
 ```
 
-**模式服务**(8 个模式,逐个测):
+**模式服务**(7 个模式,逐个测):
 
 ```bash
 rosservice call /grasp_hexapod/switch_mode "target_mode: 'home'"
 rosservice call /grasp_hexapod/switch_mode "target_mode: 'walk'"
 rosservice call /grasp_hexapod/switch_mode "target_mode: 'spin_search'"
 rosservice call /grasp_hexapod/switch_mode "target_mode: 'approach'"
-rosservice call /grasp_hexapod/switch_mode "target_mode: 'tag_nav'"
 rosservice call /grasp_hexapod/switch_mode "target_mode: 'climb'"
 rosservice call /grasp_hexapod/switch_mode "target_mode: 'dock'"
 rosservice call /grasp_hexapod/switch_mode "target_mode: 'release'"

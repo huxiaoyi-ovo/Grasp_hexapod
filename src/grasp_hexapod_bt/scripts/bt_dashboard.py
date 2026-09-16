@@ -93,7 +93,8 @@ GRIPPER_SERVICE = "/grasp_hexapod/gripper_act"
 SENSOR_NAMES = ("imu", "gps", "rtk", "servo", "stereo", "mono")
 BT_STALE_S = 5.0                    # bt_state 超时 -> 未连接横幅（树转灰显）
 JOY_STALE_S = 1.0                   # 手柄页停报 -> watchdog 补发全零帧（松手）
-LORA_OPS = ("RECOVER", "RELEASE", "DEPLOY", "HOIST_DONE", "HOME", "BOGUS")
+LORA_OPS = ("RECOVER", "RELEASE", "DEPLOY", "HOIST_DONE", "HOME", "ABORT",
+            "PAUSE", "RESUME", "BOGUS")
 AUTO_DELAY_S = 2.0                  # 自动模式：状态反馈后延迟发送秒数
 
 MODE_DEFS = [                       # 模式控制页按钮（label 用 hexapod_bt 口径）
@@ -112,6 +113,9 @@ REMOTE_CMDS = [                     # 远端控制台命令按钮
     {"op": "DEPLOY", "label": "下放开始", "desc": "CMD,HEX,DEPLOY 放行 WaitDeployment（绞盘下放门）"},
     {"op": "HOIST_DONE", "label": "拉升完成", "desc": "CMD,HEX,HOIST_DONE 放行 WaitWinchHoisted（回收完成门）"},
     {"op": "HOME", "label": "恢复初始", "desc": "CMD,HEX,HOME 放行 WaitHomeCmd（恢复初始姿态门）"},
+    {"op": "PAUSE", "label": "暂停", "desc": "CMD,HEX,PAUSE 一级暂停：挂起任务停走等待（RESUME 可恢复）"},
+    {"op": "RESUME", "label": "继续", "desc": "CMD,HEX,RESUME 解除一级暂停，任务从原阶段继续"},
+    {"op": "ABORT", "label": "急停打断", "desc": "CMD,HEX,ABORT 二级打断：终止任务走失败回退（home 尽力 + FAILED）"},
 ]
 
 # active_phase 前缀 -> 放行动作（channel: lora=LoRa 命令 / sim=模拟话题）。
@@ -121,6 +125,7 @@ PASS_MAP = [
     ("WaitTaskCommand", None, "等待地面任务命令（手动点 RECOVER / RELEASE 起任务）"),
     ("WaitSensorsReady", ("sim", "sensors_ok"), "注入全健康帧"),
     ("IsSensorDataOk", ("sim", "sensors_ok"), "注入全健康帧"),
+    ("IsAbortRequested", None, "任务已打断：失败回退中（home 尽力 + 上报 FAILED），不可恢复"),
     ("WaitDeployment", ("lora", "DEPLOY"), "发送 DEPLOY"),
     ("IsLandingConfirmed", ("sim", "landed"), "注入确认落地"),
     ("WaitRtkPrecise", ("sim", "rtk_good"), "注入良好 /fix"),
@@ -134,6 +139,7 @@ SUGGEST_MAP = [
     ("WaitDeployment", ("DEPLOY",), "等待绞盘下放：发送 DEPLOY 放行"),
     ("WaitWinchHoisted", ("HOIST_DONE",), "等待绞盘回收完成：发送 HOIST_DONE 放行"),
     ("WaitHomeCmd", ("HOME",), "等待恢复初始命令：发送 HOME 放行"),
+    ("任务暂停监护", ("RESUME",), "任务暂停中：发送 RESUME 从原阶段继续（ABORT 则终止任务）"),
     ("IsLandingConfirmed", (), "等待落地确认：到「模拟注入」页点确认落地，或开自动模式"),
     ("WaitRtkPrecise", (), "等待 RTK 精准：到「模拟注入」页开 RTK 精准，或开自动模式"),
     ("WaitSensorsReady", (), "等待传感器上线：到「模拟注入」页开传感器自检，或开自动模式"),
@@ -353,45 +359,47 @@ FALLBACK_TEMPLATES_JSON = (
     "{\"主链\":{\"tree_name\":\"主链\",\"nodes\":["
     "{\"name\":\"任务失败回退\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":0,\"is_leaf\":false},"
     "{\"name\":\"主流程_带安全监视\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":1,\"is_leaf\":false},"
+    "{\"name\":\"紧急打断监护_每tick\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":2,\"is_leaf\":true},"
     "{\"name\":\"传感器恢复超时\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":2,\"is_leaf\":false},"
     "{\"name\":\"IsSensorDataOk\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":3,\"is_leaf\":true},"
-    "{\"name\":\"任务阶段序列\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":2,\"is_leaf\":false},"
-    "{\"name\":\"WaitTaskCommand\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":3,\"is_leaf\":true},"
-    "{\"name\":\"SafetyInit 安全初始化\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":3,\"is_leaf\":false},"
-    "{\"name\":\"传感器上线超时\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":4,\"is_leaf\":false},"
-    "{\"name\":\"WaitSensorsReady\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":5,\"is_leaf\":true},"
-    "{\"name\":\"执行 回到初始姿态(含复位)\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":4,\"is_leaf\":true},"
-    "{\"name\":\"DeployAndLand 下放落地\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":3,\"is_leaf\":false},"
-    "{\"name\":\"下放等待超时\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":4,\"is_leaf\":false},"
-    "{\"name\":\"WaitDeployment\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":5,\"is_leaf\":true},"
-    "{\"name\":\"落地超时\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":4,\"is_leaf\":false},"
-    "{\"name\":\"IsLandingConfirmed\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":5,\"is_leaf\":true},"
-    "{\"name\":\"释放或回收分流\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":3,\"is_leaf\":false},"
-    "{\"name\":\"释放分支_释放小蓝\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":4,\"is_leaf\":false},"
-    "{\"name\":\"IsReleaseMission\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":5,\"is_leaf\":true},"
-    "{\"name\":\"执行 释放小蓝 ⑪（夹爪open）\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":5,\"is_leaf\":true},"
-    "{\"name\":\"ReportStatus\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":5,\"is_leaf\":true},"
-    "{\"name\":\"WaitWinchHoisted\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":5,\"is_leaf\":true},"
-    "{\"name\":\"WaitHomeCmd\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":5,\"is_leaf\":true},"
+    "{\"name\":\"任务暂停监护_可恢复\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":2,\"is_leaf\":false},"
+    "{\"name\":\"任务阶段序列\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":3,\"is_leaf\":false},"
+    "{\"name\":\"WaitTaskCommand\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":4,\"is_leaf\":true},"
+    "{\"name\":\"SafetyInit 安全初始化\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":4,\"is_leaf\":false},"
+    "{\"name\":\"传感器上线超时\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":5,\"is_leaf\":false},"
+    "{\"name\":\"WaitSensorsReady\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":6,\"is_leaf\":true},"
     "{\"name\":\"执行 回到初始姿态(含复位)\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":5,\"is_leaf\":true},"
-    "{\"name\":\"ReportStatus\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":5,\"is_leaf\":true},"
-    "{\"name\":\"回收分支_抓取回收\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":4,\"is_leaf\":false},"
-    "{\"name\":\"IsRecoveryMission\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":5,\"is_leaf\":true},"
-    "{\"name\":\"ReportStatus\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":5,\"is_leaf\":true},"
-    "{\"name\":\"定位导航_带RTK精度监视\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":5,\"is_leaf\":false},"
-    "{\"name\":\"RTK等待超时\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":6,\"is_leaf\":false},"
-    "{\"name\":\"WaitRtkPrecise\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":7,\"is_leaf\":true},"
-    "{\"name\":\"定位导航步骤\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":6,\"is_leaf\":false},"
-    "{\"name\":\"执行 自转搜索小蓝 ㉖\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":7,\"is_leaf\":true},"
-    "{\"name\":\"执行 接近导航到攀爬点 ㉗（RTK粗导航+tag精导航）\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":7,\"is_leaf\":true},"
-    "{\"name\":\"执行 攀爬到小蓝上 ㉘\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":5,\"is_leaf\":true},"
-    "{\"name\":\"执行 对接夹紧 ㉙㉚（tag导引+抬腿+夹爪clamp+确认）\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":5,\"is_leaf\":true},"
-    "{\"name\":\"ReportStatus\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":5,\"is_leaf\":true},"
-    "{\"name\":\"WaitWinchHoisted\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":5,\"is_leaf\":true},"
-    "{\"name\":\"WaitHomeCmd\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":5,\"is_leaf\":true},"
-    "{\"name\":\"执行 回到初始姿态(含复位)\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":5,\"is_leaf\":true},"
-    "{\"name\":\"ReportStatus\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":5,\"is_leaf\":true},"
-    "{\"name\":\"ReportStatus\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":3,\"is_leaf\":true},"
+    "{\"name\":\"DeployAndLand 下放落地\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":4,\"is_leaf\":false},"
+    "{\"name\":\"下放等待超时\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":5,\"is_leaf\":false},"
+    "{\"name\":\"WaitDeployment\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":6,\"is_leaf\":true},"
+    "{\"name\":\"落地超时\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":5,\"is_leaf\":false},"
+    "{\"name\":\"IsLandingConfirmed\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":6,\"is_leaf\":true},"
+    "{\"name\":\"释放或回收分流\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":4,\"is_leaf\":false},"
+    "{\"name\":\"释放分支_释放小蓝\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":5,\"is_leaf\":false},"
+    "{\"name\":\"IsReleaseMission\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":6,\"is_leaf\":true},"
+    "{\"name\":\"执行 释放小蓝 ⑪（夹爪open）\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":6,\"is_leaf\":true},"
+    "{\"name\":\"ReportStatus\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":6,\"is_leaf\":true},"
+    "{\"name\":\"WaitWinchHoisted\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":6,\"is_leaf\":true},"
+    "{\"name\":\"WaitHomeCmd\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":6,\"is_leaf\":true},"
+    "{\"name\":\"执行 回到初始姿态(含复位)\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":6,\"is_leaf\":true},"
+    "{\"name\":\"ReportStatus\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":6,\"is_leaf\":true},"
+    "{\"name\":\"回收分支_抓取回收\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":5,\"is_leaf\":false},"
+    "{\"name\":\"IsRecoveryMission\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":6,\"is_leaf\":true},"
+    "{\"name\":\"ReportStatus\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":6,\"is_leaf\":true},"
+    "{\"name\":\"定位导航_带RTK精度监视\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":6,\"is_leaf\":false},"
+    "{\"name\":\"RTK等待超时\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":7,\"is_leaf\":false},"
+    "{\"name\":\"WaitRtkPrecise\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":8,\"is_leaf\":true},"
+    "{\"name\":\"定位导航步骤\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":7,\"is_leaf\":false},"
+    "{\"name\":\"执行 自转搜索小蓝 ㉖\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":8,\"is_leaf\":true},"
+    "{\"name\":\"执行 接近导航到攀爬点 ㉗（RTK粗导航+tag精导航）\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":8,\"is_leaf\":true},"
+    "{\"name\":\"执行 攀爬到小蓝上 ㉘\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":6,\"is_leaf\":true},"
+    "{\"name\":\"执行 对接夹紧 ㉙㉚（tag导引+抬腿+夹爪clamp+确认）\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":6,\"is_leaf\":true},"
+    "{\"name\":\"ReportStatus\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":6,\"is_leaf\":true},"
+    "{\"name\":\"WaitWinchHoisted\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":6,\"is_leaf\":true},"
+    "{\"name\":\"WaitHomeCmd\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":6,\"is_leaf\":true},"
+    "{\"name\":\"执行 回到初始姿态(含复位)\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":6,\"is_leaf\":true},"
+    "{\"name\":\"ReportStatus\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":6,\"is_leaf\":true},"
+    "{\"name\":\"ReportStatus\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":4,\"is_leaf\":true},"
     "{\"name\":\"失败处理\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":1,\"is_leaf\":false},"
     "{\"name\":\"回到初始姿态(尽力)\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":2,\"is_leaf\":false},"
     "{\"name\":\"执行 回到初始姿态(含复位)\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":3,\"is_leaf\":true},"

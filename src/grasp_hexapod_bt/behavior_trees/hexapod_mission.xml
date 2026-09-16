@@ -14,6 +14,9 @@
       spin_search / release / approach；
     - RunMode(mode) 节点调 ~/switch_mode（SwitchMode.srv：阻塞式，自动执行
       该模式的完整连续性流程，响应即最终结果 success/message）；
+    - 两级异常打断：一级 PAUSE/RESUME（LoRa 帧，可恢复暂停——PauseGate
+      挂起任务序列、hold 停走，恢复从原阶段继续）；二级 ABORT/B键/单模式
+      执行超时 watchdog（终止——走失败回退：home 尽力 + 上报 FAILED）；
     - approach 模式内部依次完成：RTK 粗导航到可视 tag ㉗ + 视觉 tag 伺服到
       攀爬起点（原独立 tag_nav 模式已并入本模式，树中不再单列）；
     - dock 模式内部自动完成：tag 导引到充电桩 ㉙ + 六腿抬起 + 夹爪 clamp +
@@ -41,6 +44,8 @@
     归位执行         -> RunMode(home)
     归位完成回传     -> ReportStatus(status=RESET_DONE)
     ㊱ 完成通知       -> ReportStatus(status=DONE)
+    异常打断 ABORT/B键/watchdog -> IsAbortRequested（失败回退：home+FAILED）
+    任务暂停 PAUSE/RESUME       -> PauseGate（挂起/恢复，LoRa CMD,HEX,PAUSE,…）
 -->
 <root BTCPP_format="4" main_tree_to_execute="HexapodMission">
 
@@ -48,15 +53,21 @@
   <BehaviorTree ID="HexapodMission">
     <!--
       外层 Fallback：主流程任一步失败 -> 失败处理分支（尽力 home 回初始姿态
-      + 上报 FAILED）。ReactiveSequence 使 IsSensorDataOk 每 tick 复检：
-      任一传感器数据异常 -> hold_motion 停走并暂停主流程（暂停非中止）；
-      连续异常超过 Timeout(10s) -> FAILURE 走失败回退。
+      + 上报 FAILED）。ReactiveSequence 每 tick 复检：
+      IsAbortRequested：二级打断（LoRa ABORT / 遥控B键，读后清）-> FAILURE
+      走失败回退，任务终止；
+      IsSensorDataOk：任一传感器数据异常 -> hold_motion 停走并暂停主流程
+      （暂停非中止）；连续异常超过 Timeout(10s) -> FAILURE 走失败回退；
+      PauseGate：一级暂停（LoRa PAUSE/RESUME）-> 暂停期间不 tick 任务序列
+      （子树状态保留、hold 停走），RESUME 后从原阶段继续，watchdog 冻结。
     -->
     <Fallback name="任务失败回退">
       <ReactiveSequence name="主流程_带安全监视">
+        <Condition ID="IsAbortRequested" name="紧急打断监护_每tick"/>
         <Timeout msec="10000">
           <Condition ID="IsSensorDataOk" name="传感器数据健康监护_每tick"/>
         </Timeout>
+        <Decorator ID="PauseGate" name="任务暂停监护_可恢复">
         <Sequence name="任务阶段序列">
           <Action ID="WaitTaskCommand" name="等待任务命令_⑤⑲"/>
           <Sequence name="SafetyInit 安全初始化">
@@ -111,6 +122,7 @@
           </Fallback>
           <Action ID="ReportStatus" name="完成通知_㊱" status="DONE"/>
         </Sequence>
+        </Decorator>
       </ReactiveSequence>
       <!-- 失败处理：home 尽力回初始姿态（含复位），无论成败必报 FAILED -->
       <Sequence name="失败处理">
@@ -162,6 +174,12 @@
     <Condition ID="IsSensorDataOk">
       <description>统一传感器数据自检（每 tick）：IMU/GPS/编码器/舵机/双目/单目按频率+新鲜度判健康（订阅 /grasp_hexapod/sensor_health + /grasp_hexapod/encoder_state）。任一不 fresh → hold_motion 停走、RUNNING 暂停等待恢复（暂停非中止，恢复即继续）；连续异常超过外层 Timeout(10s) → FAILURE 走失败回退。</description>
     </Condition>
+    <Condition ID="IsAbortRequested">
+      <description>二级打断监护（每 tick，主流程最高优先级）：LoRa CMD,HEX,ABORT 或遥控 B 键（remote_cmd reset_edge 上升沿）置位打断事件（读后清）→ FAILURE 走失败回退（home 尽力 + 上报 FAILED），任务终止。</description>
+    </Condition>
+    <Decorator ID="PauseGate">
+      <description>一级暂停门（可恢复）：LoRa CMD,HEX,PAUSE 置位 / RESUME 清除。暂停期间不 tick 任务阶段序列（子树状态与 memory 保留、hold_motion 停走），RESUME 后从原阶段继续；RunMode watchdog 计时同步冻结。</description>
+    </Decorator>
     <Condition ID="WaitSensorsReady">
       <description>传感器链路上线门禁（一次性启动检查）：六路传感器均收到过消息（online）。未全在线则等待（RUNNING），超时走失败回退。</description>
     </Condition>
@@ -184,7 +202,7 @@
 
     <!-- 动作节点：统一模式执行 -->
     <Action ID="RunMode">
-      <description>执行一个模式：调 ~/switch_mode（SwitchMode.srv，阻塞式）。服务自动执行该模式的完整连续性流程并返回【最终结果】：dock 内含 tag 导引到充电桩 ㉙ + 六腿抬起 + 夹爪 clamp + 结束确认；release 内含夹爪 open ⑪；approach 内含 RTK 粗导航到可视 tag ㉗ + 视觉 tag 伺服到攀爬起点（原 tag_nav 已并入）；home 回到初始姿态（含复位）。success=true 完成 / false 失败（message 为问题）。</description>
+      <description>执行一个模式：调 ~/switch_mode（SwitchMode.srv，阻塞式）。服务自动执行该模式的完整连续性流程并返回【最终结果】：dock 内含 tag 导引到充电桩 ㉙ + 六腿抬起 + 夹爪 clamp + 结束确认；release 内含夹爪 open ⑪；approach 内含 RTK 粗导航到可视 tag ㉗ + 视觉 tag 伺服到攀爬起点（原 tag_nav 已并入）；home 回到初始姿态（含复位）。success=true 完成 / false 失败（message 为问题）。RUNNING 累计超过 ~mode_timeouts（walk 不限时；暂停/停走期间冻结）按异常打断走失败回退。</description>
       <input_port name="mode" default="home">home / walk / climb / dock / spin_search / release / approach</input_port>
     </Action>
 

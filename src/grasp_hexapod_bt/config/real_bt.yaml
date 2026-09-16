@@ -7,15 +7,15 @@
 # 接真实地面站时把 lora_command simulate 改为 false，由 lora_node 接管。
 
 interfaces:
-  sensor_health:   { simulate: true,  topic: /grasp_hexapod/sensor_health }
+  sensor_health:   { simulate: false,  topic: /grasp_hexapod/sensor_health }
   encoder_state:   { simulate: false,  topic: /grasp_hexapod/encoder_state }
-  fix:             { simulate: true,  topic: /fix }
+  fix:             { simulate: false,  topic: /fix }
   # LoRa 话题级仿真（串口读取不仿真，由真实 lora_node 负责）
   lora_command:    { simulate: false,  topic: /lora/command }
-  lora_status:     { simulate: true,  topic: /lora/status }
-  remote_cmd:      { simulate: true,  topic: /grasp_hexapod/remote_cmd }
+  lora_status:     { simulate: false,  topic: /lora/status }
+  remote_cmd:      { simulate: false,  topic: /grasp_hexapod/remote_cmd }
   switch_mode:     { simulate: true,  service: /grasp_hexapod/switch_mode }
-  gripper_act:     { simulate: true,  service: /grasp_hexapod/gripper_act }
+  gripper_act:     { simulate: false,  service: /grasp_hexapod/gripper_act }
 
 simulation:
   mission: recover          # 话题级注入的任务命令：RELEASE / RECOVER

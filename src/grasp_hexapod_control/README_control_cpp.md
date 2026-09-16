@@ -107,6 +107,10 @@ Python 取模符号语义、`rows @ T.T` 的齐次变换列向量等价形式
   诊断摘要字符串的关键字段格式已对齐。
 - `switch_mode` 服务响应消息与 Python 一致；`spin_search` 仍拒绝
   （`approach` 已是接近导航到攀爬起点，原 `tag_nav` 并入其中、不再受理）。
+  已知差异（2026-09-15 起）：Python `run_real.py` 的 switch_mode 已升级为
+  抢占语义（异模式新请求立即终结旧请求 `preempted by X` + 平滑回正过渡），
+  本包 `real_control_node` / `ring_control_node` 仍为 `busy: X is running`
+  拒绝式，如需对齐按 bt_control_node 的抢占实现移植。
 
 ## 移植中已知限制
 

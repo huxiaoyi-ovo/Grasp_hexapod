@@ -118,6 +118,29 @@ C1 除外（三态元组）。
 
 ## 5. 变更记录
 
+- **2026-09-15 两级异常打断 + Python 控制栈抢占补齐**
+  - 行为树主链新增两级打断：**一级暂停（可恢复）**——LoRa `CMD,HEX,PAUSE`/
+    `RESUME`，`PauseGate` 装饰任务阶段序列（暂停时不 tick 子树、状态与 memory
+    保留、hold 停走），恢复后从原阶段继续，watchdog 计时同步冻结；**二级打断
+    （终止）**——LoRa `CMD,HEX,ABORT` / 遥控 B 键（reset_edge 上升沿）/ 单模式
+    执行超时 watchdog（run_real_bt `~mode_timeouts`，默认 home 180s ~ dock
+    900s，walk 不限时），`IsAbortRequested`（主流程最高优先级，每 tick 复检）
+    触发整树走失败回退（home 尽力 + 上报 FAILED）。
+  - **run_real.py switch_mode 从 busy 拒绝升级为抢占语义**（对齐
+    bt_control_node）：异模式新请求立即终结旧请求（`preempted by <新模式>`），
+    控制循环先平滑回正（started=False 过渡，`_begin_smooth_reset` 与 B 键
+    共用同一中止路径），回正到 HOLD 后再进入新模式——否则树打断后的
+    `RunMode(home)` 会被 busy 拒绝，树报 FAILED 而机体未停。
+  - 配套：bt_dashboard 远端命令页新增 暂停/继续/急停打断 按钮（走 LoRa
+    通道，与地面站同帧格式）、放行/建议映射更新；sim_manual 新增
+    abort/pause/resume 单步动作；bt_mock_world 支持 `_abort_at`/
+    `_pause_windows` 时间线注入；sim_feedback 支持 `~abort_at` 注入。
+    注意：C++ 移植版 real/ring_control_node 仍为 busy 拒绝式（无抢占），
+    bt_control_node 抢占已存在零改动；sim_feedback 的 switch_mode 模拟仍为
+    固定延迟、不模拟抢占。
+  - 另：run_real_bt 无 /fix 时的 RTK 门控由"默认放行"改为 **fail-closed**
+    （按超限停走等待，日志同步更正），避免 GPS 链路未上线时静默放行。
+
 - **2026-09-15 `tag_nav` 并入 `approach`（模式由 8 个减为 7 个）**
   - 行为树回收分支的 `RunMode(tag_nav)` 节点删除，原"RTK 粗导航到可视 tag ㉗"
     与"识别 tag→攀爬点"两阶段合并为一个 `approach` 模式：模式内部依次完成

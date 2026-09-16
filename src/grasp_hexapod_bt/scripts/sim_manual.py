@@ -74,6 +74,13 @@ ACTIONS = {
     "task_bogus": {"label": "非法命令 BOGUS", "group": "① 任务命令", "kind": "once",
                    "cls": "warn",
                    "note": "注入非法任务命令 → 测试 WaitTaskCommand 失败回退路径"},
+    "abort_cmd": {"label": "ABORT 急停打断", "group": "① 任务命令", "kind": "once",
+                  "cls": "warn",
+                  "note": "CMD,HEX,ABORT → 二级打断：终止任务走失败回退（home 尽力 + FAILED）"},
+    "pause_cmd": {"label": "PAUSE 暂停", "group": "① 任务命令", "kind": "once",
+                  "note": "CMD,HEX,PAUSE → 一级暂停：挂起任务停走等待（RESUME 可恢复）"},
+    "resume_cmd": {"label": "RESUME 继续", "group": "① 任务命令", "kind": "once",
+                   "note": "CMD,HEX,RESUME → 解除一级暂停，任务从原阶段继续"},
     "sensors_ok": {"label": "全健康帧（单次）", "group": "② 传感器", "kind": "once",
                    "note": "sensor_health 六路全 fresh + 编码器未落地帧"
                           "（落地门由「确认落地」独立放行）"},
@@ -453,6 +460,12 @@ class ManualNode:
                 return self._lora(action, "RELEASE")
             if action == "task_bogus":
                 return self._lora(action, "BOGUS")
+            if action == "abort_cmd":
+                return self._lora(action, "ABORT")
+            if action == "pause_cmd":
+                return self._lora(action, "PAUSE")
+            if action == "resume_cmd":
+                return self._lora(action, "RESUME")
             if action == "deploy":
                 return self._lora(action, "DEPLOY")
             if action == "hoist_done":

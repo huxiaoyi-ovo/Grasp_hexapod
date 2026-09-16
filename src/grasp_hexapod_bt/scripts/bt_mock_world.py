@@ -23,6 +23,8 @@ BridgeContext 并模拟全部模式/服务）：
     rosrun grasp_hexapod_bt bt_mock_world.py _rtk_cov_bad:=13-15  # RTK协方差停走
     rosrun grasp_hexapod_bt bt_mock_world.py _clamp_fail:=true    # dock夹紧失败
     rosrun grasp_hexapod_bt bt_mock_world.py _remote_test:=dock   # 遥控测试链
+    rosrun grasp_hexapod_bt bt_mock_world.py _abort_at:=15        # t=15s 注入 ABORT 打断
+    rosrun grasp_hexapod_bt bt_mock_world.py _pause_windows:=30-36 # 暂停窗口（RESUME 语义）
 """
 
 import os
@@ -134,6 +136,21 @@ class MockRosBridge(hexapod_bt.BridgeContext):
     def rtk_covariance_ok(self):
         return not any(s <= self.t <= e for s, e in self.node.cov_bad_windows)
 
+    # ---- 异常打断（两级） ----
+    def poll_abort_command(self):
+        # 时间线注入：t 越过 ~abort_at 时产生一次打断事件（读后清）
+        if self.node.abort_at is not None and self.t >= self.node.abort_at:
+            self.node.abort_at = None
+            self.node.log("  [ABORT] t={:6.2f}s 注入打断命令（任务终止）".format(self.t))
+            return True
+        return False
+
+    def is_paused(self):
+        return any(s <= self.t <= e for s, e in self.node.pause_windows)
+
+    def mode_timeout(self, mode):
+        return None                     # mock 世界不限时
+
     def hold_motion(self, reason):
         # 段首打印，避免刷屏
         if not self.hold_log or self.t - self.hold_log[-1][0] > 0.35:
@@ -211,6 +228,10 @@ def run_node():
             self.open_fail = bool(rospy.get_param("~open_fail", False))
             self.switch_fail_mode = rospy.get_param("~switch_fail_mode", "")
             self.cov_bad_windows = parse_cov_bad(rospy.get_param("~rtk_cov_bad", ""))
+            self.pause_windows = parse_cov_bad(rospy.get_param("~pause_windows", ""))
+            self.abort_at = rospy.get_param("~abort_at", None)
+            if self.abort_at is not None:
+                self.abort_at = float(self.abort_at)
             self.timeline = dict(DEFAULT_TIMELINE)
             for key in DEFAULT_TIMELINE:
                 param = rospy.get_param("~" + key, None)
@@ -547,6 +568,8 @@ def selftest():
         open_fail = False
         switch_fail_mode = ""
         cov_bad_windows = []
+        pause_windows = [(8.0, 11.0)]
+        abort_at = 11.0
         timeline = dict(DEFAULT_TIMELINE)
 
         def mode_done_at(self, key):
@@ -572,6 +595,17 @@ def selftest():
     assert world.query_state("home") == ("SUCCESS", "")
     assert world.query_state("release") == ("RUNNING", "")
     print("[OK] 模式状态机时间线语义")
+
+    # 打断/暂停桥接：t=10 在暂停窗口(8,12)内；t>=11 触发一次 ABORT（读后清）
+    bridge = MockRosBridge(FakeNode())
+    assert bridge.is_paused() is True
+    assert bridge.poll_abort_command() is False       # t=10 < abort_at=11
+    FakeNode.now = 11.5
+    assert bridge.is_paused() is False
+    assert bridge.poll_abort_command() is True        # 一次性事件
+    assert bridge.poll_abort_command() is False       # 读后清
+    assert bridge.mode_timeout("dock") is None
+    print("[OK] 打断/暂停桥接（ABORT 一次性事件 + PAUSE 电平窗口）")
     print("selftest 全部通过")
 
 

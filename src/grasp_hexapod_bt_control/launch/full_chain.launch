@@ -13,8 +13,8 @@
   <arg name="start_dock_perception" default="false"/>
   <arg name="start_rtk_imu_navigation" default="false"/>
 
-  <include if="$(arg start_rtk_imu_navigation)"
-    file="$(find grasp_hexapod_control)/launch/navigation_rtk_imu.launch"/>
+  <!-- <include if="$(arg start_rtk_imu_navigation)"
+    file="$(find grasp_hexapod_control)/launch/navigation_rtk_imu.launch"/> -->
 
   <!-- 现有 Python 行为树（零改动）：RunMode → /grasp_hexapod/switch_mode。 -->
   <node pkg="grasp_hexapod_bt" type="run_real_bt.py" name="run_real_bt"

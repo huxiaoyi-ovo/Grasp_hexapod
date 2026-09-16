@@ -72,6 +72,7 @@ SIM_DEFAULTS = {
     "open_fail": False,
     "cov_bad_windows": [],
     "sensor_bad": "",
+    "abort_at": None,           # 非空 -> t≥该时刻注入一次 CMD,HEX,ABORT（二级打断）
 }
 
 
@@ -224,6 +225,10 @@ def activate(interfaces=None, sim=None, verbose=True):
                 due.append(("winch", "CMD,HEX,HOIST_DONE,NOW"))
             if "home_cmd" not in rt._lora["sent"] and t >= clock.mode_done_at("home_cmd"):
                 due.append(("home_cmd", "CMD,HEX,HOME,NOW"))
+            abort_at = sim.get("abort_at")
+            if (abort_at is not None and "abort" not in rt._lora["sent"]
+                    and t >= float(abort_at)):
+                due.append(("abort", "CMD,HEX,ABORT,NOW"))
             for key, frame in due:
                 rt._lora["sent"].add(key)
                 rt._lora["pub"].publish(rt._lora["cls"](data=frame))
@@ -332,7 +337,7 @@ def run():
     interfaces, sim = load_config(rospy.get_param("~config", DEFAULT_CONFIG_PATH))
     # rosparam 覆盖（与 bt_mock_world 同风格）
     for key in ("mission", "remote_test", "clamp_fail", "open_fail",
-                "cov_bad_windows", "landing_t", "switch_delay"):
+                "cov_bad_windows", "landing_t", "switch_delay", "abort_at"):
         v = rospy.get_param("~" + key, None)
         if v is not None:
             sim[key] = v

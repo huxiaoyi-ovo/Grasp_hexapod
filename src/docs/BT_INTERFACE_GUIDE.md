@@ -85,12 +85,25 @@ rosservice call /grasp_hexapod/switch_mode "target_mode: 'home'"
 | `dock` | tag 导引到充电桩 → 六腿抬起 → 调夹爪 `clamp` → 结束确认 | 四步全部完成 |
 | `release` | 调夹爪 `open` 松开载荷 | 夹爪张到位 |
 
-**抢占语义（2026-09-11 起,`grasp_hexapod_bt_control/bt_control_node` 实现）**:
-模式进行中收到**不同模式**的新请求时,不再返回 `busy: X is running`,而是立即
-终结进行中的请求(`success=false, message="preempted by <新模式>"`)并让机器人
-平滑回正到站立,再自动进入新模式;同模式重复调用按等待者合并,共享同一次结果。
+**抢占语义（`grasp_hexapod_control/run_real.py` 与 `grasp_hexapod_bt_control/bt_control_node`
+两端一致）**:
+模式进行中收到**不同模式**的新请求时,立即终结进行中的请求
+(`success=false, message="preempted by <新模式>"`),控制栈先把机器人平滑
+回正到站立,再自动进入新模式;同模式重复调用按等待者合并,共享同一次结果。
 单调用方(行为树 RunMode)行为不变:阻塞至终态。首个模式必须是 `home`(上电安全门,
-其余模式返回 `"call home first"`)。
+其余模式返回 `"call home first"`;bt_control_node 实现)。
+
+> 注意:C++ 移植版 `real_control_node` / `ring_control_node` 仍为
+> `busy: X is running` 拒绝式(无抢占),行为树打断依赖其 B 键路径或等旧模式
+> 自然终结;需要时按 bt_control_node 的抢占实现补齐。
+
+**两级异常打断（2026-09-15 起）**:
+- 一级·暂停(可恢复):`PAUSE` 挂起任务序列(hold 停走、子树状态保留),
+  `RESUME` 从原阶段继续,watchdog 计时暂停期间冻结;
+- 二级·打断(终止):`ABORT` / B 键 / watchdog → 失败回退(home 尽力 +
+  上报 `FAILED`)。
+  行为树侧守护节点:`IsAbortRequested`(主流程最高优先级,每 tick 复检)与
+  `PauseGate`(装饰任务阶段序列,暂停时不 tick 子树、状态保留)。
 
 ### 4.2 `/grasp_hexapod/gripper_act` — 夹爪服务(已实现,直接调)
 
@@ -113,6 +126,9 @@ rosservice call /grasp_hexapod/gripper_act "action: 'clamp'"   # 夹紧
 | `DEPLOY` | 无人机下放开始 | 等编码器确认落地 → 上报 `LANDED` |
 | `HOIST_DONE` | 拉升回收完成 | 等待 HOME 命令 |
 | `HOME` | 恢复初始 | 执行 home 模式 → 上报 `RESET_DONE` |
+| `PAUSE` | 一级暂停(可恢复) | 挂起任务停走等待,`RESUME` 后从原阶段继续 |
+| `RESUME` | 解除暂停 | 任务从原阶段继续(watchdog 计时同步恢复) |
+| `ABORT` | 二级打断(终止) | 整树走失败回退:home 尽力 + 上报 `FAILED`,任务终止 |
 
 手动测试(不接 LoRa 硬件时):
 
@@ -121,6 +137,8 @@ rostopic pub /lora/command std_msgs/String "data: 'CMD,HEX,RECOVER,NOW'"
 ```
 
 > 注意:`DEPLOY / HOIST_DONE / HOME` 是**读后清除**的——消费一次即失效,不会重复触发。
+> 打断/暂停另有触发源:遥控 **B 键**(reset_edge)等效 `ABORT`;单模式执行超过
+> `~mode_timeouts`(run_real_bt 参数,walk 不限时)由树内 watchdog 自主打断。
 
 ### 4.4 `/lora/status` — 状态上报(上行)
 

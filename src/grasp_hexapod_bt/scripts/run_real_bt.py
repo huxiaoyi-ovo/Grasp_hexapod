@@ -13,6 +13,13 @@ sim_feedback.py（按 config/real_bt.yaml 对 simulate:true 的接口模拟发�
     发布：/grasp_hexapod/bt_state（BtStateArray，≤5Hz 的行为树状态快照，
           供 bt_monitor.py 终端 / bt_dashboard.py Web 实时可视化）
 
+两级异常打断（树内 IsAbortRequested / PauseGate 消费）：
+    /lora/command CMD,HEX,ABORT,NOW  → 二级打断：终止任务走失败回退
+    /lora/command CMD,HEX,PAUSE,NOW  → 一级暂停：挂起任务（可恢复）
+    /lora/command CMD,HEX,RESUME,NOW → 解除暂停
+    遥控 B 键（remote_cmd reset_edge 上升沿）→ 等效 ABORT
+    单模式执行超时 watchdog：~mode_timeouts（秒/模式，walk 不限时）
+
 依赖的真实节点/服务：
     - encoder_driver/encoder_status_node → /grasp_hexapod/encoder_state
     - grasp_hexapod_bt/sensor_health_monitor → /grasp_hexapod/sensor_health
@@ -69,10 +76,13 @@ class RosBridgeContext(hexapod_bt.BridgeContext):
         self._sensor_health = None
         self._fix = None
         self._remote = None
+        self._remote_reset_prev = False
         self._task = None
         self._deploy_done = False
         self._winch_done = False
         self._home_cmd = False
+        self._abort = False
+        self._paused = False
 
     # ---- 话题缓存 ----
     def reset_per_mission(self):
@@ -80,6 +90,8 @@ class RosBridgeContext(hexapod_bt.BridgeContext):
 
         传感器健康/编码器/RTK 必须重新收到新帧才放行对应门禁；编码器落地
         状态一并清空——上一轮的 landed=True 不得自动确认下一轮落地。
+        暂停电平一并清空；**打断锁存不清**——未消费的 ABORT（如任务空档期
+        到达）在新任务首 tick 即生效（操作员打断意图优先）。
         """
         with self._lock:
             self._mode_call = None
@@ -91,6 +103,7 @@ class RosBridgeContext(hexapod_bt.BridgeContext):
             self._deploy_done = False
             self._winch_done = False
             self._home_cmd = False
+            self._paused = False
 
     def on_sensor_health(self, msg):
         with self._lock:
@@ -106,8 +119,15 @@ class RosBridgeContext(hexapod_bt.BridgeContext):
             self._fix = msg
 
     def on_remote_cmd(self, msg):
+        # reset_edge（B 键）上升沿 → 置打断锁存：模式执行期执行端本就会中止
+        # 服务请求，这里补的是让树的 Wait 等待阶段也能被 B 键打断。
+        reset_edge = bool(msg.reset_edge)
         with self._lock:
+            prev = self._remote_reset_prev
             self._remote = msg
+            self._remote_reset_prev = reset_edge
+            if reset_edge and not prev:
+                self._abort = True
 
     def on_lora_command(self, msg):
         text = str(msg.data).strip()
@@ -127,6 +147,15 @@ class RosBridgeContext(hexapod_bt.BridgeContext):
                 self._winch_done = True
             elif op == "HOME":
                 self._home_cmd = True
+            elif op == "ABORT":
+                self._abort = True
+                self.n.logwarn("收到打断命令 ABORT：任务将终止并走失败回退")
+            elif op == "PAUSE":
+                self._paused = True
+                self.n.logwarn("收到暂停命令 PAUSE：任务挂起（等待 RESUME）")
+            elif op == "RESUME":
+                self._paused = False
+                self.n.loginfo("收到继续命令 RESUME：任务恢复")
             else:
                 # 契约 C6：非 RELEASE/RECOVER 的命令 → 非法任务命令，
                 # 原样交树走失败回退（与 mock 语义一致）。
@@ -166,8 +195,10 @@ class RosBridgeContext(hexapod_bt.BridgeContext):
         with self._lock:
             fix = self._fix
         if fix is None:
-            self.n.logwarn_throttle(30.0, "未收到 /fix，协方差监护默认放行")
-            return True
+            # fail-closed：无数据按超限处理（WaitRtkPrecise 停走等待恢复），
+            # 避免 GPS 链路未上线时门控静默放行。
+            self.n.logwarn_throttle(30.0, "未收到 /fix，协方差监护按超限处理（停走等待）")
+            return False
         diag = [fix.position_covariance[i * 3 + i] for i in range(3)]
         return max(diag) <= self.n.rtk_max_cov
 
@@ -177,6 +208,21 @@ class RosBridgeContext(hexapod_bt.BridgeContext):
         self.n.pub_hold.publish(self.n.String(data=str(reason)))
         self.n.logwarn_throttle(5.0, "[HOLD] 请求停走 reason=%s"
                                       "（BT租约暂停，依赖模式执行端保持状态）", reason)
+
+    # ---- 异常打断（两级：暂停可恢复 / 打断终止） ----
+    def poll_abort_command(self):
+        """ABORT 帧 / B 键置位的一次性事件（读后清）。"""
+        with self._lock:
+            abort = self._abort
+            self._abort = False
+        return abort
+
+    def is_paused(self):
+        with self._lock:
+            return self._paused
+
+    def mode_timeout(self, mode):
+        return self.n.mode_timeouts.get(mode)
 
     # ---- 模式执行（~/switch_mode 服务端为阻塞式语义：响应=最终结果；
     #      这里把调用放到后台线程，tick 侧立即返回 RUNNING，保证模式执行
@@ -308,11 +354,22 @@ def run():
     verbose = bool(rospy.get_param("~verbose", True))
     pos_x = rospy.get_param("~x", None)
     pos_y = rospy.get_param("~y", None)
+    # 单模式执行 watchdog（秒）：RUNNING 超限按异常打断走失败回退；
+    # 表内无条目的模式（walk）不限时。默认值保守，实机可按需覆盖。
+    mode_timeouts = {}
+    for mode_name, seconds in dict(rospy.get_param("~mode_timeouts", {
+            "home": 180.0, "release": 120.0, "spin_search": 600.0,
+            "approach": 900.0, "climb": 1800.0, "dock": 900.0})).items():
+        value = float(seconds)
+        if value <= 0.0:
+            raise ValueError("~mode_timeouts.{} must be positive".format(mode_name))
+        mode_timeouts[str(mode_name)] = value
 
     # ---- 真实桥接（统一标准名）：node 句柄 = 普通对象 + 闭包方法 ----
     node = type("Node", (), {})()
     node.String = String
     node.rtk_max_cov = rtk_max_cov
+    node.mode_timeouts = mode_timeouts
     node.pub_status = rospy.Publisher("/lora/status", String, queue_size=10)
     node.pub_bt = rospy.Publisher("/grasp_hexapod/bt_state", BtStateArray,
                                   queue_size=5)

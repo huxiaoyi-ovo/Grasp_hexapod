@@ -724,9 +724,27 @@ class RosControlNode:
         with self.bt_condition:
             active = self.bt_request
             if active is not None and active["final"] is None:
-                if active["mode"] != mode:
-                    return response(False, "busy: {} is running".format(active["mode"]))
-                active["waiters"] += 1
+                if active["mode"] == mode:
+                    active["waiters"] += 1
+                else:
+                    # 抢占（与 bt_control_node 抢占语义一致）：立即终结旧
+                    # 请求（旧调用方马上收到失败），再登记新请求；控制循环
+                    # 随后把机器人平滑回正到站立（started=False 过渡），回正
+                    # 完成后再进入新模式。锁不可重入：final 就地写入。
+                    active["final"] = (False, "preempted by {}".format(mode))
+                    self.bt_hold_deadline = 0.0
+                    self.bt_hold_active = False
+                    self.bt_condition.notify_all()
+                    rospy.logwarn("BT request preempted: %s -> %s",
+                                  active["mode"], mode)
+                    active = {
+                        "mode": mode,
+                        "started": False,
+                        "final": None,
+                        "waiters": 1,
+                        "dock_clamped": False,
+                    }
+                    self.bt_request = active
             else:
                 active = {
                     "mode": mode,
@@ -795,11 +813,23 @@ class RosControlNode:
             rospy.logwarn("Gripper %s failed: %s", action, message)
 
     def _start_bt_request(self, request, q_cur):
-        """在已有反馈帧内一次性进入现有模式；后续只由update推进。"""
+        """在已有反馈帧内一次性进入现有模式；后续只由update推进。
+
+        抢占过渡（与 bt_control_node 一致）：新请求登记时机器人可能还在
+        RUNNING（被抢占的旧模式运动中）——本帧只中止当前运动进入 RESETTING
+        （started 保持 False），回正到 HOLD 后本函数被再次调用，再正式进入
+        新模式；RESETTING 期间同样等待，不重复触发回正。
+        """
 
         if request["started"]:
             return
         mode = request["mode"]
+        if self.state == self.RUNNING:
+            self._begin_smooth_reset("BT preempt: {}".format(mode))
+            rospy.logwarn("BT preempt: 中止当前运动，回正后进入 %s", mode)
+            return
+        if self.state == self.RESETTING:
+            return
         request["started"] = True
         self.command[:] = 0.0
         self.manual_override = False
@@ -871,6 +901,10 @@ class RosControlNode:
 
     def _finish_bt_mode_if_terminal(self, request):
         if request is None or request["final"] is not None:
+            return
+        if not request["started"]:
+            # 抢占过渡期（回正中/刚回正未进入新模式）：不判终态，防止把
+            # 回正完成误判成模式完成（如 home 的 HOLD+复位完成条件）。
             return
         mode = request["mode"]
         if mode == "home" and self.state == self.HOLD and not self.controller.reset_active:
@@ -1498,6 +1532,25 @@ class RosControlNode:
             if log:
                 rospy.loginfo("Motion paused: %s", reason)
 
+    def _begin_smooth_reset(self, reason):
+        """中止当前运动并平滑回正到站立（B键与BT抢占共用入口）。
+
+        终结进行中的自动任务/攀爬/对接后进入 RESETTING；回正由控制循环
+        RESETTING 分支推进（reset_to_stand + update），完成即 HOLD。
+        """
+        if self.local_execution:
+            self.local_climb_armed = False
+            self.local_climb_entry_q = None
+        self._flush_real_climb_speed_diagnostic("reset")
+        self.state = self.RESETTING
+        self.controller.reset_active = False
+        self.controller.mission.cancel(reason)
+        self.controller.abort_climb()
+        if self.controller.dock_mode is not None and self.controller.dock_mode.active:
+            self.controller.dock_mode.exit()
+        self.manual_override = False
+        self.command[:] = 0.0
+
     def _process_buttons(self, button_presses, controls_ready, q_cur):
         """处理一次按钮事件；B不依赖Joy或关节反馈是否有效。"""
         a_pressed = bool(self._read(button_presses, self.button_a))
@@ -1508,18 +1561,7 @@ class RosControlNode:
             # B 是唯一无条件抢占：无论BT服务是否在等待，都先唤醒调用方，
             # 再沿用原有回站路径。
             self._abort_bt_request("aborted by B")
-            if self.local_execution:
-                self.local_climb_armed = False
-                self.local_climb_entry_q = None
-            self._flush_real_climb_speed_diagnostic("reset")
-            self.state = self.RESETTING
-            self.controller.reset_active = False
-            self.controller.mission.cancel("reset requested by B")
-            self.controller.abort_climb()
-            if self.controller.dock_mode is not None and self.controller.dock_mode.active:
-                self.controller.dock_mode.exit()
-            self.manual_override = False
-            self.command[:] = 0.0
+            self._begin_smooth_reset("reset requested by B")
             rospy.loginfo("B pressed: returning to stand")
             return
 

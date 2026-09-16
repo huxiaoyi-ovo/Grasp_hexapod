@@ -185,7 +185,7 @@ def test_bt_mode_validation_and_unsupported_modes_fail_closed(monkeypatch):
     assert unsupported.message == "executor not implemented: spin_search"
 
 
-def test_bt_same_mode_waiters_share_terminal_and_different_mode_is_busy(monkeypatch):
+def test_bt_same_mode_waiters_share_terminal(monkeypatch):
     node = _bt_node()
     monkeypatch.setattr(RUN_REAL.rospy, "is_shutdown", lambda: False,
                         raising=False)
@@ -205,19 +205,91 @@ def test_bt_same_mode_waiters_share_terminal_and_different_mode_is_busy(monkeypa
             if node.bt_request is not None and node.bt_request["waiters"] == 2:
                 break
         threading.Event().wait(0.001)
-    busy = RUN_REAL.RosControlNode._switch_mode_callback(
-        node, types.SimpleNamespace(target_mode="walk")
-    )
     request = node.bt_request
     RUN_REAL.RosControlNode._finish_bt_request(node, request, True, "done")
     first.join(timeout=1.0)
     second.join(timeout=1.0)
 
-    assert not busy.success and "busy: home" in busy.message
     assert sorted((item.success, item.message) for item in replies) == [
         (True, "done"), (True, "done")
     ]
     assert node.bt_request is None
+
+
+def test_bt_different_mode_preempts_active_request(monkeypatch):
+    """异模式新请求立即终结旧请求（preempted by X），新请求等待终态。"""
+    node = _bt_node()
+    monkeypatch.setattr(RUN_REAL.rospy, "is_shutdown", lambda: False,
+                        raising=False)
+    replies = []
+
+    def call(mode):
+        replies.append(RUN_REAL.RosControlNode._switch_mode_callback(
+            node, types.SimpleNamespace(target_mode=mode)
+        ))
+
+    first = threading.Thread(target=call, args=("home",))
+    first.start()
+    for _ in range(100):
+        with node.bt_condition:
+            if node.bt_request is not None and node.bt_request["waiters"] == 1:
+                break
+        threading.Event().wait(0.001)
+    old_request = node.bt_request
+
+    second = threading.Thread(target=call, args=("walk",))
+    second.start()
+    for _ in range(100):
+        with node.bt_condition:
+            if (node.bt_request is not None
+                    and node.bt_request["mode"] == "walk"):
+                break
+        threading.Event().wait(0.001)
+
+    # 旧请求已被立即终结，旧调用方拿到失败；新请求未 started（回正过渡）
+    first.join(timeout=1.0)
+    assert not first.is_alive()
+    assert replies[0].success is False
+    assert replies[0].message == "preempted by walk"
+    assert old_request["final"] == (False, "preempted by walk")
+    with node.bt_condition:
+        new_request = node.bt_request
+    assert new_request["mode"] == "walk" and new_request["started"] is False
+    assert node.bt_hold_deadline == 0.0 and not node.bt_hold_active
+
+    RUN_REAL.RosControlNode._finish_bt_request(node, new_request, True, "ok")
+    second.join(timeout=1.0)
+    assert replies[1].success is True and replies[1].message == "ok"
+    assert node.bt_request is None
+
+
+def test_bt_preempt_transition_resets_before_new_mode():
+    """started=False 且 RUNNING：先平滑回正（不进入新模式、不判终态）。"""
+    node = _bt_node()
+    node.state = node.RUNNING
+    node.bt_request = {
+        "mode": "home",
+        "started": False,
+        "final": None,
+        "waiters": 1,
+        "dock_clamped": False,
+    }
+
+    RUN_REAL.RosControlNode._start_bt_request(node, node.bt_request, Q_STAND)
+
+    assert node.bt_request["started"] is False
+    assert node.state == node.RESETTING
+    assert node.controller.mission.cancelled
+    assert node.controller.aborted
+    assert node.controller.dock_mode.exited
+
+    # RESETTING 期间不重复触发回正
+    RUN_REAL.RosControlNode._start_bt_request(node, node.bt_request, Q_STAND)
+    assert node.bt_request["started"] is False
+
+    # 回正未进入模式前不判终态（防把回正完成误判成 home 完成）
+    RUN_REAL.RosControlNode._finish_bt_mode_if_terminal(node, node.bt_request)
+    assert node.bt_request["final"] is None
 
 
 def test_b_aborts_bt_before_existing_reset_path():

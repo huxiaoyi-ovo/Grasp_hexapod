@@ -56,9 +56,10 @@ struct DockResult {
 
 class DockMode {
  public:
-  // 状态常量与 Python 字符串一一对应。
+  // 圆环状态机；middle_lift为本链路独立阶段。
   static constexpr const char* kIdle = "idle";
   static constexpr const char* kClimbTerminalEntry = "climb_terminal_entry";
+  static constexpr const char* kMiddleLift = "middle_lift";
   static constexpr const char* kBodyRaise = "body_raise";
   static constexpr const char* kSearchingTag = "searching_tag";
   static constexpr const char* kWaitingTag = "waiting_ring";
@@ -84,7 +85,7 @@ class DockMode {
            std::function<void(bool is_warn, const std::string& message)> logger,
            std::optional<double> alignment_speed_m_s = std::nullopt);
 
-  // 先回到控制器保留的攀爬末关节姿态，再开放视觉伺服。
+  // 保持当前入口姿态，再开放视觉伺服。
   void enter(const JointAngles& current_joints,
              const JointAngles* climb_terminal_joints);
   void exit();
@@ -92,6 +93,10 @@ class DockMode {
 
   DockResult update(const DockRobotState& robot_state);
   bool descentHasStarted() const;
+  static bool isMiddleLeg(int leg) { return leg == 2 || leg == 5; }
+  const std::optional<JointAngles>& middleHold() const { return middle_hold_q_; }
+  // 唯一对接输出入口：DLS之后覆盖中腿，检查边界/碰撞并保存已发指令。
+  JointAngles acceptCommand(const JointAngles& candidate, const JointAngles& current);
 
   // Python 属性面（公有，供壳层与测试读取）。
   bool active = false;
@@ -115,7 +120,7 @@ class DockMode {
   static constexpr double kPrealignPositionReference = 0.004;
   static constexpr double kLinearSpeed = 0.050;
   static constexpr double kBodyRaiseHeight = 0.040;
-  static constexpr double kTagSearchRadius = 0.020;
+  static constexpr double kTagSearchRadius = 0.030;
   static constexpr double kTagSearchSpeed = 0.020;
   static constexpr double kPreDescentSettleDuration = 0.5;
   static constexpr double kLegLiftHeight = 0.040;
@@ -175,6 +180,42 @@ class DockMode {
   std::optional<FootPositions> sit_settle_feet_;
   std::optional<FootPositions> leg_lift_start_feet_;
   double leg_lift_progress_ = 0.0;
+
+ private:
+  // 仅圆环对接使用；不改变站姿与攀爬的公共关节边界。
+  static constexpr double kLiftKneeLimit = 100.0 * M_PI / 180.0;
+  static constexpr double kLiftKneePlanLimit = 98.0 * M_PI / 180.0;
+  static constexpr double kLiftAnkleLimit = 118.0 * M_PI / 180.0;
+  static constexpr double kLiftJointSpeed = 20.0 * M_PI / 180.0;
+  static constexpr double kLiftTrackingTolerance = 2.0 * M_PI / 180.0;
+  void resetLegLift();
+  bool planLegLift(const JointAngles& current, std::array<double, kLegCount>* lift_heights = nullptr);
+  static constexpr double kDescentHorizontalAdjustment = .030;  // 支撑下降期间二维水平调整最大30mm，收腿不受此约束
+  bool descentPose(double progress, const JointAngles& previous, JointAngles& target) const;
+  bool planDescent(const JointAngles& current);
+  struct DescentWaypoint { JointAngles joints; double height; double duration; };
+  std::vector<DescentWaypoint> descent_path_;
+  size_t descent_index_ = 1, descent_lift_index_ = 1;
+  double descent_segment_elapsed_ = 0.;
+  std::optional<JointAngles> descent_command_q_;
+  FootPositions freezeMiddleFeet(FootPositions feet) const;
+  bool trackingHealthy(const JointAngles& current);
+  std::optional<JointAngles> middle_hold_q_;
+  std::optional<JointAngles> last_command_q_;
+  double support_wait_elapsed_ = 0.0;
+  double body_raise_elapsed_ = 0.0;
+  double descent_elapsed_ = 0.0;
+  DockResult stopLegLift(const JointAngles& current, const std::string& message);
+  std::optional<JointAngles> lift_start_q_;
+  std::optional<JointAngles> lift_target_q_;
+  std::optional<JointAngles> lift_command_q_;
+  std::optional<JointAngles> lift_last_feedback_q_;
+  // 失败终态必须保留撤销后的目标，即使 HOLD 不再注入反馈。
+  std::optional<JointAngles> lift_stop_q_;
+  double lift_duration_ = 0.0;
+  double lift_elapsed_ = 0.0;
+  double lift_wall_elapsed_ = 0.0;
+  double lift_settled_time_ = 0.0;
 };
 
 }  // namespace grasp_hexapod_control_cpp

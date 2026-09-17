@@ -39,14 +39,15 @@ class RingController : public grasp_hexapod_control_cpp::GraspController {
       for(const auto& leg:*result.joint_positions) if(!leg.allFinite()) {
         ring_mode->failExecution("dock joint target is non-finite"); return q;
       }
-      q_des=*result.joint_positions; return q_des;
+      q_des=ring_mode->acceptCommand(*result.joint_positions,q); return q_des;
     }
-    if(!result.foot_positions_base) {q_des=q; return q_des;}
+    if(!result.foot_positions_base) {q_des=ring_mode->acceptCommand(q,q); return q_des;}
     for(const auto& foot:*result.foot_positions_base) if(!foot.allFinite()) {
       ring_mode->failExecution("dock foot target is non-finite");return q;
     }
     foot_desired_base=*result.foot_positions_base;
-    return calJointPoses(q);
+    q_des=ring_mode->acceptCommand(calJointPoses(q),q);
+    return q_des;
   }
 };
 }

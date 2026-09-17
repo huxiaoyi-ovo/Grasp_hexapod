@@ -1263,11 +1263,11 @@ _PAGE_TEMPLATE = """<!DOCTYPE html>
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Hexapod 行为树 · 实时看板</title>
 <style>
-  :root { color-scheme: dark; }
+  :root { color-scheme: light; }
   * { box-sizing: border-box; }
-  body { margin:0; background:#0f172a; color:#e2e8f0;
+  body { margin:0; background:#f1f5f9; color:#1e293b;
          font: 14px/1.5 "SF Mono", Consolas, "Noto Sans Mono CJK SC", monospace; }
-  header { padding:10px 16px; background:#1e293b; border-bottom:2px solid #334155;
+  header { padding:10px 16px; background:#ffffff; border-bottom:2px solid #e2e8f0;
            display:flex; flex-wrap:wrap; gap:10px; align-items:center; }
   header .title { font-weight:700; font-size:16px; margin-right:auto; }
   .chip { padding:3px 10px; border-radius:12px; font-size:13px; font-weight:700;
@@ -1275,45 +1275,45 @@ _PAGE_TEMPLATE = """<!DOCTYPE html>
   .chip small { font-weight:400; opacity:.85; }
   .st { display:inline-block; width:9px; height:9px; border-radius:50%;
         margin-right:5px; vertical-align:middle; }
-  #staleBar { display:none; background:#7c2d12; color:#fed7aa; padding:4px 16px; font-size:12px; }
+  #staleBar { display:none; background:#ffedd5; color:#9a3412; padding:4px 16px; font-size:12px; }
 
-  #tabs { display:flex; background:#0b1120; border-bottom:1px solid #334155;
+  #tabs { display:flex; background:#ffffff; border-bottom:1px solid #e2e8f0;
           overflow-x:auto; }
   #tabs button { padding:10px 18px; background:transparent; color:#94a3b8;
-                 border:none; border-right:1px solid #1e293b;
+                 border:none; border-right:1px solid #ffffff;
                  border-bottom:2px solid transparent; white-space:nowrap;
                  font:inherit; font-size:14px; font-weight:700; cursor:pointer; }
-  #tabs button.act { color:#e2e8f0; background:#131c30; border-bottom-color:#3b82f6; }
+  #tabs button.act { color:#c2410c; background:#fff7ed; border-bottom-color:#f97316; }
   .view { padding:14px 16px 60px; }
 
   /* ---- 行为树页 ---- */
   #viewBt .legend { display:flex; gap:14px; flex-wrap:wrap; padding:6px 12px;
-        background:#0b1120; border:1px solid #334155; border-radius:8px;
+        background:#ffffff; border:1px solid #e2e8f0; border-radius:8px;
         font-size:12px; color:#94a3b8; margin-bottom:10px; }
-  #phaseBox { padding:10px 14px; background:#1e293b; border:1px solid #334155;
+  #phaseBox { padding:10px 14px; background:#ffffff; border:1px solid #e2e8f0;
               border-radius:8px; margin-bottom:10px; }
   #phaseBox .label { color:#94a3b8; font-size:12px; }
   #phaseName { font-size:18px; font-weight:700; margin:2px 0; }
-  #phaseFb { color:#cbd5e1; font-size:13px; min-height:18px; }
+  #phaseFb { color:#475569; font-size:13px; min-height:18px; }
   #treeSel { display:flex; gap:8px; margin:0 0 8px; align-items:center; }
   #treeSel span { color:#94a3b8; font-size:12px; }
   #treeSel button { padding:3px 12px; border-radius:6px; cursor:pointer;
-        background:#1e293b; color:#e2e8f0; border:1px solid #334155; font:inherit; font-size:12px; }
-  #treeSel button.act { background:#1d4ed8; border-color:#60a5fa; }
+        background:#ffffff; color:#1e293b; border:1px solid #e2e8f0; font:inherit; font-size:12px; }
+  #treeSel button.act { background:#ea580c; border-color:#c2410c; color:#ffffff; }
   #waiting { display:none; padding:24px; text-align:center; color:#94a3b8;
-             font-size:14px; border:1px dashed #334155; border-radius:8px; margin-bottom:8px; }
+             font-size:14px; border:1px dashed #e2e8f0; border-radius:8px; margin-bottom:8px; }
   #treeWrap { padding:4px 2px; overflow:auto; }
   ul.tree, ul.tree ul { list-style:none; margin:0; padding:0 0 0 20px; position:relative; }
   ul.tree { padding-left:4px; }
   ul.tree li { position:relative; padding:3px 0 3px 16px; }
   ul.tree li::before { content:""; position:absolute; left:0; top:0; bottom:0;
-                       width:1px; background:#263449; }
+                       width:1px; background:#e2e8f0; }
   ul.tree li:after  { content:""; position:absolute; left:0; top:16px;
-                      width:12px; height:1px; background:#263449; }
+                      width:12px; height:1px; background:#e2e8f0; }
   ul.tree li:last-child::before { bottom:auto; height:16px; }
   .node { display:inline-block; max-width:660px; padding:4px 10px 5px 8px;
-          border-radius:6px; border:1px solid #263449; border-left:3px solid #64748b;
-          background:#131c30; }
+          border-radius:6px; border:1px solid #e2e8f0; border-left:3px solid #64748b;
+          background:#ffffff; }
   .node .nm { font-weight:600; }
   .node .fb { color:#94a3b8; font-size:12px; margin-top:1px; white-space:normal; }
   .node .dot { display:inline-block; width:9px; height:9px; border-radius:50%;
@@ -1321,75 +1321,90 @@ _PAGE_TEMPLATE = """<!DOCTYPE html>
   .node .dot.pulse { animation: pulse 1.6s ease-in-out infinite; }
   @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:.35; } }
   @media (prefers-reduced-motion: reduce) { .node .dot.pulse { animation:none; } }
-  .node.r-running { border-left-color:#3b82f6; background:rgba(59,130,246,.13);
-                    border-color:#2b5fd9; }
+  .node.r-running { border-left-color:#f97316; background:rgba(249,115,22,.12);
+                    border-color:#fdba74; }
   .node.r-success { border-left-color:#22c55e; background:rgba(34,197,94,.10); }
   .node.r-failure { border-left-color:#ef4444; background:rgba(239,68,68,.12); }
   .node.r-invalid { border-left-color:#475569; opacity:.5; }
-  .node.onpath { border-color:#3b4f77; }
+  .node.onpath { border-color:#fdba74; }
   .node.dimmed { opacity:.42; }
-  .node.cur { border-color:#22d3ee; border-left-color:#22d3ee;
-              box-shadow:0 0 0 2px rgba(34,211,238,.45);
-              background:rgba(34,211,238,.10); opacity:1; }
+  .node.cur { border-color:#2563eb; border-left-color:#2563eb;
+              box-shadow:0 0 0 2px rgba(37,99,235,.40);
+              background:rgba(37,99,235,.08); opacity:1; }
   .node .curtag { display:none; margin-left:8px; padding:0 6px; border-radius:8px;
-                  font-size:11px; background:#155e75; color:#a5f3fc; }
+                  font-size:11px; background:#1d4ed8; color:#dbeafe; }
   .node.cur .curtag { display:inline-block; }
   .branch-mark { color:#64748b; font-size:11px; margin-right:3px; }
 
-  /* ---- 主控台布局：树为主区 + 右侧双列控制栏（控制列 / 远端列） ---- */
+  /* ---- 主控台布局：树为主区 + 右侧悬浮岛式控制面板（控制列 / 远端列） ---- */
   .mainLayout { display:flex; gap:14px; align-items:flex-start; }
   #treeCol { flex:1 1 auto; min-width:0; }
-  #sideCol { flex:0 0 768px; display:flex; gap:12px; align-items:flex-start;
-             max-height:calc(100vh - 280px); overflow-y:auto; padding-bottom:4px; }
+  /* 悬浮岛：四边 16px 外边距、圆角 20、单层低透明度柔和投影；
+     随页面滚动吸附在视口上方 16px（窄屏单列布局自动取消吸附） */
+  #sideCol { flex:0 0 768px; display:flex; gap:14px; align-items:flex-start;
+             max-height:calc(100vh - 280px); overflow-y:auto;
+             margin:16px; padding:6px 18px;
+             background:linear-gradient(180deg,#ffffff,#f8fafc);
+             border:1px solid #1e293b;
+             border-radius:20px;
+             box-shadow:0 8px 24px rgba(15,23,42,.12);
+             position:sticky; top:16px;
+             scrollbar-width:thin; scrollbar-color:#cbd5e1 transparent; }
+  #sideCol::-webkit-scrollbar { width:8px; }
+  #sideCol::-webkit-scrollbar-thumb { background:#cbd5e1; border-radius:4px; }
   .sideInner { flex:1 1 0; min-width:0; display:flex; flex-direction:column; gap:12px; }
-  #sideCol .card { margin-bottom:0; }
+  /* 岛内分区：卡片去底色描边，改用分隔线，保持“一整块浮动面板”的观感 */
+  #sideCol .card { margin-bottom:0; background:transparent; border:none;
+                   border-radius:0; padding:6px 0 12px;
+                   border-bottom:1px solid #1e293b; }
+  #sideCol .sideInner .card:last-child { border-bottom:none; }
   #sideCol .card h3 { margin-bottom:6px; }
   #sideA .modeGrid { grid-template-columns:repeat(2, 1fr); }
   @media (max-width:1420px) { #sideCol { flex-basis:660px; } }
   @media (max-width:1200px) {
     .mainLayout { flex-direction:column; }
-    #sideCol { flex:none; width:100%; max-height:none; }
+    #sideCol { flex:none; width:100%; max-height:none; position:static; }
   }
   @media (max-width:760px) { #sideCol { flex-direction:column; } }
 
   /* ---- 通用按钮/卡片 ---- */
-  .card { background:#131c30; border:1px solid #334155; border-radius:10px;
+  .card { background:#ffffff; border:1px solid #e2e8f0; border-radius:10px;
           padding:12px 14px; margin-bottom:14px; }
-  .card h3 { margin:0 0 10px; font-size:14px; color:#e2e8f0; }
+  .card h3 { margin:0 0 10px; font-size:14px; color:#1e293b; }
   .card h3 small { color:#94a3b8; font-weight:400; font-size:12px; }
   button.b { padding:6px 14px; border-radius:8px; cursor:pointer;
-        background:#1e293b; color:#e2e8f0; border:1px solid #334155;
+        background:#ffffff; color:#1e293b; border:1px solid #e2e8f0;
         font:inherit; font-size:13px; }
-  button.b:hover { border-color:#60a5fa; }
+  button.b:hover { border-color:#fb923c; }
   button.b:disabled { opacity:.45; cursor:not-allowed; }
-  button.b.warn { border-color:#7f1d1d; color:#fca5a5; }
+  button.b.warn { border-color:#fecaca; color:#dc2626; }
   button.b.on { background:#166534; border-color:#22c55e; }
   .btnrow { display:flex; flex-wrap:wrap; gap:8px; }
   .note { color:#64748b; font-size:11px; margin:6px 0 0; }
   .logbox { max-height:240px; overflow:auto; font-size:12px; }
   .logbox .t { color:#64748b; margin-right:6px; }
-  .logbox .bad { color:#f87171; }
-  .logbox .ok { color:#86efac; }
+  .logbox .bad { color:#dc2626; }
+  .logbox .ok { color:#16a34a; }
 
   /* ---- 模式控制页 ---- */
   .modeGrid { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:10px; }
   button.mode { padding:14px 10px; border-radius:10px; cursor:pointer;
-        background:#1e293b; color:#e2e8f0; border:2px solid #334155;
+        background:#ffffff; color:#1e293b; border:2px solid #e2e8f0;
         font:inherit; font-weight:700; font-size:15px; }
   button.mode small { display:block; font-weight:400; font-size:11px; color:#94a3b8; margin-top:3px; }
-  button.mode:hover { border-color:#60a5fa; }
+  button.mode:hover { border-color:#fb923c; }
   button.mode:active { transform:scale(.97); }
   button.mode:disabled { opacity:.4; cursor:not-allowed; }
   button.mode.busy { border-color:#f59e0b; }
 
   /* ---- 模拟注入页 ---- */
   .simrow { display:flex; align-items:center; gap:10px; padding:10px 0;
-            border-bottom:1px dashed #263449; }
+            border-bottom:1px dashed #e2e8f0; }
   .simrow:last-child { border-bottom:none; }
   .simrow .desc { flex:1; min-width:0; }
   .simrow .desc b { font-size:13px; }
   .simrow .desc span { display:block; color:#64748b; font-size:11px; }
-  .sw { width:52px; height:26px; border-radius:13px; background:#334155;
+  .sw { width:52px; height:26px; border-radius:13px; background:#e2e8f0;
         border:1px solid #475569; position:relative; cursor:pointer; flex:none;
         transition:background .2s; }
   .sw::after { content:""; position:absolute; top:2px; left:2px; width:20px;
@@ -1399,32 +1414,32 @@ _PAGE_TEMPLATE = """<!DOCTYPE html>
 
   /* ---- 远端控制台 ---- */
   .linkstat { display:flex; flex-wrap:wrap; gap:8px; margin:8px 0; }
-  .pathline { background:#0b1120; border:1px solid #263449; border-radius:6px;
-              padding:6px 8px; font-size:12px; color:#93c5fd; word-break:break-all; }
+  .pathline { background:#ffffff; border:1px solid #e2e8f0; border-radius:6px;
+              padding:6px 8px; font-size:12px; color:#ea580c; word-break:break-all; }
   .rbtns { display:flex; flex-wrap:wrap; gap:10px; }
   button.cmd { flex:1 1 130px; padding:12px 10px; border-radius:10px; cursor:pointer;
-        background:#1e293b; color:#e2e8f0; border:2px solid #334155;
+        background:#ffffff; color:#1e293b; border:2px solid #e2e8f0;
         font:inherit; font-weight:700; font-size:14px; text-align:center; }
   button.cmd small { display:block; font-weight:400; font-size:11px; color:#94a3b8; margin-top:2px; }
-  button.cmd:hover { border-color:#60a5fa; }
+  button.cmd:hover { border-color:#fb923c; }
   button.cmd:disabled { opacity:.4; cursor:not-allowed; }
   button.cmd.ready { border-color:#f59e0b; box-shadow:0 0 0 2px rgba(245,158,11,.4);
         background:rgba(245,158,11,.12); animation: pulse 1.6s ease-in-out infinite; }
   button.cmd .abadge { display:none; margin-left:6px; padding:0 6px; border-radius:8px;
-        font-size:11px; background:#155e75; color:#a5f3fc; }
+        font-size:11px; background:#1d4ed8; color:#dbeafe; }
   button.cmd.armed .abadge { display:inline-block; }
   #autoBox { display:flex; gap:12px; align-items:center; flex-wrap:wrap;
-             padding:10px 12px; border-radius:8px; background:#0b1120;
-             border:1px solid #263449; margin-bottom:10px; }
-  #autoText { flex:1; min-width:200px; font-size:13px; color:#cbd5e1; }
-  #autoText b { color:#fbbf24; }
+             padding:10px 12px; border-radius:8px; background:#ffffff;
+             border:1px solid #e2e8f0; margin-bottom:10px; }
+  #autoText { flex:1; min-width:200px; font-size:13px; color:#475569; }
+  #autoText b { color:#ea580c; }
   .staTable { width:100%; border-collapse:collapse; font-size:12px; }
   .staTable th, .staTable td { text-align:left; padding:3px 6px;
-        border-bottom:1px solid #263449; }
+        border-bottom:1px solid #e2e8f0; }
   .staTable th { color:#94a3b8; font-weight:400; }
   .flog { font-size:11px; line-height:1.7; }
-  .flog .tx { color:#93c5fd; }
-  .flog .rx { color:#86efac; }
+  .flog .tx { color:#ea580c; }
+  .flog .rx { color:#16a34a; }
   .flog .t { color:#64748b; margin-right:5px; }
 
   /* ---- 虚拟手柄页 ---- */
@@ -1441,8 +1456,8 @@ _PAGE_TEMPLATE = """<!DOCTYPE html>
   #joyBtns { display:flex; gap:12px; justify-content:center; flex-wrap:wrap; }
   #joyDpad { display:grid; grid-template-columns:repeat(3, 58px);
              grid-template-rows:repeat(3, 46px); gap:5px; justify-content:center; }
-  button.dp { border-radius:10px; background:#1e293b; color:#e2e8f0;
-              border:2px solid #334155; font:inherit; font-weight:700;
+  button.dp { border-radius:10px; background:#ffffff; color:#1e293b;
+              border:2px solid #e2e8f0; font:inherit; font-weight:700;
               font-size:16px; line-height:1.1; touch-action:none;
               user-select:none; -webkit-user-select:none;
               -webkit-tap-highlight-color:transparent; cursor:pointer; }
@@ -1453,7 +1468,7 @@ _PAGE_TEMPLATE = """<!DOCTYPE html>
   button.dp[data-dpad=right] { grid-column:3; grid-row:2; }
   button.dp[data-dpad=down] { grid-column:2; grid-row:3; }
   button.pad { min-width:68px; min-height:68px; border-radius:50%;
-               background:#1e293b; color:#e2e8f0; border:2px solid #334155;
+               background:#ffffff; color:#1e293b; border:2px solid #e2e8f0;
                font:inherit; font-weight:700; font-size:18px; line-height:1.15;
                touch-action:none; user-select:none; -webkit-user-select:none;
                -webkit-tap-highlight-color:transparent; cursor:pointer; }
@@ -1465,27 +1480,27 @@ _PAGE_TEMPLATE = """<!DOCTYPE html>
               justify-content:flex-end; gap:8px; min-width:0; }
   .stick { position:relative; flex:0 1 auto; min-height:0;
            height:min(38vmin, 250px); aspect-ratio:1/1; border-radius:50%;
-           background:#131c30; border:2px solid #334155; touch-action:none;
+           background:#ffffff; border:2px solid #e2e8f0; touch-action:none;
            user-select:none; -webkit-user-select:none;
            -webkit-tap-highlight-color:transparent; }
   .stick::before { content:""; position:absolute; inset:0; margin:auto;
                    width:70%; height:70%; border-radius:50%;
-                   border:1px dashed #263449; }
+                   border:1px dashed #e2e8f0; }
   .knob { position:absolute; left:50%; top:50%; width:44%; height:44%;
-          margin:-22% 0 0 -22%; border-radius:50%; background:#334155;
+          margin:-22% 0 0 -22%; border-radius:50%; background:#e2e8f0;
           border:2px solid #64748b; pointer-events:none; transition:transform .08s; }
-  .stick.live .knob { background:#1d4ed8; border-color:#60a5fa; transition:none; }
+  .stick.live .knob { background:#ea580c; border-color:#fb923c; transition:none; }
   .stickLabel { color:#94a3b8; font-size:12px; white-space:nowrap; }
-  .stickLabel span { color:#e2e8f0; }
+  .stickLabel span { color:#1e293b; }
   #joyHint { color:#64748b; font-size:11px; text-align:center; }
 
   #toast { position:fixed; top:12px; right:12px; padding:8px 14px; border-radius:8px;
-           background:#14532d; border:1px solid #22c55e; color:#dcfce7; font-size:13px;
+           background:#f0fdf4; border:1px solid #86efac; color:#166534; font-size:13px;
            opacity:0; transition:opacity .25s; pointer-events:none; max-width:60vw; z-index:9; }
   #toast.show { opacity:1; }
-  #toast.bad { background:#7f1d1d; border-color:#ef4444; color:#fee2e2; }
+  #toast.bad { background:#fef2f2; border-color:#fca5a5; color:#b91c1c; }
   footer { position:fixed; bottom:0; right:8px; color:#475569; font-size:11px;
-           background:#0f172a; padding:0 4px; }
+           background:#f1f5f9; padding:0 4px; }
 </style>
 </head>
 <body>
@@ -1504,10 +1519,10 @@ _PAGE_TEMPLATE = """<!DOCTYPE html>
 
 <div id="viewBt" class="view">
   <div class="legend">
-    <span><span class="st" style="background:#3b82f6"></span>RUNNING 执行中</span>
+    <span><span class="st" style="background:#f97316"></span>RUNNING 执行中</span>
     <span><span class="st" style="background:#22c55e"></span>SUCCESS 已通过</span>
     <span><span class="st" style="background:#ef4444"></span>FAILURE 未通过</span>
-    <span><span class="st" style="background:#22d3ee"></span>当前节点</span>
+    <span><span class="st" style="background:#2563eb"></span>当前节点</span>
     <span><span class="st" style="background:#64748b"></span>INVALID 未访问</span>
   </div>
   <div id="phaseBox">
@@ -1542,8 +1557,8 @@ _PAGE_TEMPLATE = """<!DOCTYPE html>
         <div class="btnrow" style="margin-top:8px; align-items:center">
           <label style="font-size:13px">延迟
             <input type="number" id="simModeDelay" min="0" max="600" step="1"
-                   style="width:64px; background:#0b1120; color:#e2e8f0;
-                          border:1px solid #334155; border-radius:6px; padding:3px 6px"> 秒
+                   style="width:64px; background:#ffffff; color:#1e293b;
+                          border:1px solid #e2e8f0; border-radius:6px; padding:3px 6px"> 秒
           </label>
           <button class="b" id="simModeDelayBtn">应用延迟</button>
         </div>
@@ -1599,7 +1614,7 @@ _PAGE_TEMPLATE = """<!DOCTYPE html>
         <div id="ptyBox" style="display:none; margin-top:10px;">
           <div class="pathline" id="ptyPath">—</div>
           <p class="note">真实 lora_node 从上述虚拟串口收发（完整串口协议+校验）。启动命令：<br>
-            <span id="spawnCmd" style="color:#93c5fd"></span></p>
+            <span id="spawnCmd" style="color:#ea580c"></span></p>
           <label style="font-size:13px;cursor:pointer">
             <input type="checkbox" id="spawnChk"> 自动拉起 lora_node（子进程，随看板退出）
           </label>
@@ -1628,8 +1643,8 @@ _PAGE_TEMPLATE = """<!DOCTYPE html>
       <div class="card">
         <h3>机器人状态 <small>bt_state + STA 回传</small></h3>
         <div style="font-size:13px; margin-bottom:8px;">
-          阶段 <b id="rPhase" style="color:#7dd3fc">—</b> ·
-          任务 <b id="rMission" style="color:#86efac">—</b> ·
+          阶段 <b id="rPhase" style="color:#ea580c">—</b> ·
+          任务 <b id="rMission" style="color:#16a34a">—</b> ·
           根 <b id="rRoot">—</b>
         </div>
         <table class="staTable"><thead><tr><th>时间</th><th>STA 状态</th><th>x</th><th>y</th></tr></thead>
@@ -1683,7 +1698,7 @@ _PAGE_TEMPLATE = """<!DOCTYPE html>
 <footer>自动刷新 1s · bt_dashboard v2</footer>
 <script>
 "use strict";
-var COLORS = { RUNNING:"#3b82f6", SUCCESS:"#22c55e", FAILURE:"#ef4444", INVALID:"#64748b" };
+var COLORS = { RUNNING:"#f97316", SUCCESS:"#22c55e", FAILURE:"#ef4444", INVALID:"#64748b" };
 var MARKS  = { RUNNING:"●", SUCCESS:"✓", FAILURE:"✗", INVALID:"·" };
 var TEMPLATES = __TEMPLATES_JSON__;
 var MODE_DEFS = __MODES_JSON__;
@@ -2229,7 +2244,7 @@ setInterval(function(){
         "<span class='st' style='background:" + (subs > 0 ? "#22c55e" : "#f59e0b") +
         "'></span>/joy 订阅 " + subs + (subs > 0 ? "（链路通）" : "（未启动遥控链）");
       document.getElementById("joySend").innerHTML =
-        "<span class='st' style='background:" + (joySendOk ? "#3b82f6" : "#ef4444") +
+        "<span class='st' style='background:" + (joySendOk ? "#f97316" : "#ef4444") +
         "'></span>上报 " + (joySendOk ? "正常 ~20Hz" : "失败");
     })
     .catch(function(){});

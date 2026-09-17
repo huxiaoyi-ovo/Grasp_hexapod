@@ -14,6 +14,9 @@
       spin_search / release / approach；
     - RunMode(mode) 节点调 ~/switch_mode（SwitchMode.srv：阻塞式，自动执行
       该模式的完整连续性流程，响应即最终结果 success/message）；
+    - 任务分支 = 两棵子树：释放/回收各为独立 BehaviorTree
+      （ReleaseMissionSubtree / RecoverMissionSubtree），主链经 &lt;SubTree&gt;
+      引用；py_trees 侧对应 build_release_subtree / build_recover_subtree；
     - 两级异常打断：一级 PAUSE/RESUME（LoRa 帧，可恢复暂停——PauseGate
       挂起任务序列、hold 停走，恢复从原阶段继续）；二级 ABORT/B键/单模式
       执行超时 watchdog（终止——走失败回退：home 尽力 + 上报 FAILED）；
@@ -84,41 +87,12 @@
               <Condition ID="IsLandingConfirmed" name="编码器确认落地_⑩㉔"/>
             </Timeout>
           </Sequence>
-          <!-- 释放/回收分流：落地后按任务命令分流 -->
+          <!-- 释放/回收分流：落地后按任务命令分流到两棵任务子树
+              （子树定义见下方 BehaviorTree，与 py_trees
+               build_release_subtree / build_recover_subtree 人工同步） -->
           <Fallback name="释放或回收分流">
-            <!-- 释放分支（⑤ 任务）：release 模式内部完成（含夹爪 open） -->
-            <Sequence name="释放分支_释放小蓝">
-              <Condition ID="IsReleaseMission" name="任务=释放⑤"/>
-              <Action ID="RunMode" name="释放小蓝_⑪" mode="release"/>
-              <Action ID="ReportStatus" name="回传RELEASED" status="RELEASED"/>
-              <Action ID="WaitWinchHoisted" name="拉升绞盘回收_⑫"/>
-              <Action ID="WaitHomeCmd" name="等待恢复初始命令"/>
-              <Action ID="RunMode" name="恢复初始姿态" mode="home"/>
-              <Action ID="ReportStatus" name="回传RESET_DONE" status="RESET_DONE"/>
-            </Sequence>
-            <!-- 回收分支（⑲ 任务） -->
-            <Sequence name="回收分支_抓取回收">
-              <Condition ID="IsRecoveryMission" name="任务=回收⑲"/>
-              <Action ID="ReportStatus" name="落地状态回传_㉕" status="LANDED"/>
-              <!-- 接近导航：WaitRtkPrecise 每 tick 复检协方差，超限停走等待恢复；
-                   approach 内部先 RTK 粗导航到可视 tag，再视觉 tag 伺服到攀爬起点 -->
-              <ReactiveSequence name="定位导航_带RTK监护">
-                <Timeout msec="60000">
-                  <Condition ID="WaitRtkPrecise" name="RTK协方差监护"/>
-                </Timeout>
-                <Sequence name="定位导航步骤">
-                  <Action ID="RunMode" name="自转搜索小蓝_㉖" mode="spin_search"/>
-                  <Action ID="RunMode" name="接近导航到攀爬点_㉗" mode="approach"/>
-                </Sequence>
-              </ReactiveSequence>
-              <Action ID="RunMode" name="攀爬到小蓝上_㉘" mode="climb"/>
-              <Action ID="RunMode" name="对接夹紧_㉙㉚" mode="dock"/>
-              <Action ID="ReportStatus" name="回传夹紧完成_㉛" status="CLAMPED"/>
-              <Action ID="WaitWinchHoisted" name="拉升绞盘回收_㉜"/>
-              <Action ID="WaitHomeCmd" name="等待恢复初始命令"/>
-              <Action ID="RunMode" name="恢复初始姿态" mode="home"/>
-              <Action ID="ReportStatus" name="回传RESET_DONE" status="RESET_DONE"/>
-            </Sequence>
+            <SubTree ID="ReleaseMissionSubtree" name="释放分支_释放小蓝"/>
+            <SubTree ID="RecoverMissionSubtree" name="回收分支_抓取回收"/>
           </Fallback>
           <Action ID="ReportStatus" name="完成通知_㊱" status="DONE"/>
         </Sequence>
@@ -133,6 +107,47 @@
         <Action ID="ReportStatus" name="上报失败" status="FAILED"/>
       </Sequence>
     </Fallback>
+  </BehaviorTree>
+
+  <!-- ====================== 任务子树：释放分支（⑤） ====================== -->
+  <!-- 与 py_trees build_release_subtree(ctx) 人工保持一致；主链经 SubTree 引用。 -->
+  <BehaviorTree ID="ReleaseMissionSubtree">
+    <Sequence name="释放分支_释放小蓝">
+      <Condition ID="IsReleaseMission" name="任务=释放⑤"/>
+      <Action ID="RunMode" name="释放小蓝_⑪" mode="release"/>
+      <Action ID="ReportStatus" name="回传RELEASED" status="RELEASED"/>
+      <Action ID="WaitWinchHoisted" name="拉升绞盘回收_⑫"/>
+      <Action ID="WaitHomeCmd" name="等待恢复初始命令"/>
+      <Action ID="RunMode" name="恢复初始姿态" mode="home"/>
+      <Action ID="ReportStatus" name="回传RESET_DONE" status="RESET_DONE"/>
+    </Sequence>
+  </BehaviorTree>
+
+  <!-- ====================== 任务子树：回收分支（⑲） ====================== -->
+  <!-- 与 py_trees build_recover_subtree(ctx) 人工保持一致；主链经 SubTree 引用。 -->
+  <BehaviorTree ID="RecoverMissionSubtree">
+    <Sequence name="回收分支_抓取回收">
+      <Condition ID="IsRecoveryMission" name="任务=回收⑲"/>
+      <Action ID="ReportStatus" name="落地状态回传_㉕" status="LANDED"/>
+      <!-- 接近导航：WaitRtkPrecise 每 tick 复检协方差，超限停走等待恢复；
+           approach 内部先 RTK 粗导航到可视 tag，再视觉 tag 伺服到攀爬起点 -->
+      <ReactiveSequence name="定位导航_带RTK监护">
+        <Timeout msec="60000">
+          <Condition ID="WaitRtkPrecise" name="RTK协方差监护"/>
+        </Timeout>
+        <Sequence name="定位导航步骤">
+          <Action ID="RunMode" name="自转搜索小蓝_㉖" mode="spin_search"/>
+          <Action ID="RunMode" name="接近导航到攀爬点_㉗" mode="approach"/>
+        </Sequence>
+      </ReactiveSequence>
+      <Action ID="RunMode" name="攀爬到小蓝上_㉘" mode="climb"/>
+      <Action ID="RunMode" name="对接夹紧_㉙㉚" mode="dock"/>
+      <Action ID="ReportStatus" name="回传夹紧完成_㉛" status="CLAMPED"/>
+      <Action ID="WaitWinchHoisted" name="拉升绞盘回收_㉜"/>
+      <Action ID="WaitHomeCmd" name="等待恢复初始命令"/>
+      <Action ID="RunMode" name="恢复初始姿态" mode="home"/>
+      <Action ID="ReportStatus" name="回传RESET_DONE" status="RESET_DONE"/>
+    </Sequence>
   </BehaviorTree>
 
   <!-- ====================== 遥控独立测试链 ====================== -->
@@ -180,6 +195,12 @@
     <Decorator ID="PauseGate">
       <description>一级暂停门（可恢复）：LoRa CMD,HEX,PAUSE 置位 / RESUME 清除。暂停期间不 tick 任务阶段序列（子树状态与 memory 保留、hold_motion 停走），RESUME 后从原阶段继续；RunMode watchdog 计时同步冻结。</description>
     </Decorator>
+    <SubTree ID="ReleaseMissionSubtree">
+      <description>释放分支任务子树（⑤）：完整节点见 BehaviorTree ReleaseMissionSubtree，与 py_trees build_release_subtree(ctx) 人工同步。</description>
+    </SubTree>
+    <SubTree ID="RecoverMissionSubtree">
+      <description>回收分支任务子树（⑲）：完整节点见 BehaviorTree RecoverMissionSubtree，与 py_trees build_recover_subtree(ctx) 人工同步。</description>
+    </SubTree>
     <Condition ID="WaitSensorsReady">
       <description>传感器链路上线门禁（一次性启动检查）：六路传感器均收到过消息（online）。未全在线则等待（RUNNING），超时走失败回退。</description>
     </Condition>

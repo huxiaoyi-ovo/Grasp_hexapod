@@ -433,6 +433,70 @@ def _run_mode(ctx, mode):
     return RunMode(ctx, mode, name="执行 {}".format(label))
 
 
+def build_release_subtree(ctx):
+    """释放分支子树（⑤ 任务）：release 模式内部完成（含夹爪 open）。
+
+    结构（对应 Groot XML BehaviorTree ReleaseMissionSubtree）：
+      释放分支_释放小蓝（Sequence memory=True）
+      ├─ IsReleaseMission
+      ├─ RunMode(release) → RELEASED
+      ├─ 拉升⑫ → WaitHomeCmd → RunMode(home) → RESET_DONE
+    """
+    return py_trees.composites.Sequence(
+        name="释放分支_释放小蓝", memory=True, children=[
+            CheckMissionMode(ctx, "release", name="IsReleaseMission"),
+            _run_mode(ctx, "release"),
+            ReportStatus(ctx, status="RELEASED"),
+            WaitWinchHoisted(ctx),
+            WaitHomeCmd(ctx),                          # 等地面恢复初始命令
+            _run_mode(ctx, "home"),                    # 恢复初始姿态
+            ReportStatus(ctx, status="RESET_DONE"),    # 归位完成回传
+        ])
+
+
+def build_recover_subtree(ctx, rtk_wait_timeout_s=60.0):
+    """回收分支子树（⑲ 任务）：接近导航 → climb → dock → 收尾。
+
+    结构（对应 Groot XML BehaviorTree RecoverMissionSubtree）：
+      回收分支_抓取回收（Sequence memory=True）
+      ├─ IsRecoveryMission → LANDED
+      ├─ 定位导航_带RTK精度监视（spin_search → approach，RTK 协方差监护；
+      │   approach 内部含 RTK 粗导航 + 视觉 tag 伺服到攀爬起点）
+      └─ RunMode(climb) → RunMode(dock) → CLAMPED
+          → 拉升㉜ → WaitHomeCmd → RunMode(home) → RESET_DONE
+    """
+    # ---- 接近导航（spin_search + approach）带 RTK 协方差监护 ----
+    # 外层 memory=False（反应式）：WaitRtkPrecise 每 tick 复检，协方差超限即
+    # hold_motion 停走并暂停内层；内层 memory=True 保证每模式只触发一次。
+    locate_and_nav = py_trees.composites.Sequence(
+        name="定位导航_带RTK精度监视", memory=False, children=[
+            Timeout(
+                name="RTK等待超时",
+                child=WaitRtkPrecise(ctx),
+                duration=rtk_wait_timeout_s,
+            ),
+            py_trees.composites.Sequence(
+                name="定位导航步骤", memory=True, children=[
+                    _run_mode(ctx, "spin_search"),
+                    _run_mode(ctx, "approach"),
+                ]),
+        ])
+
+    return py_trees.composites.Sequence(
+        name="回收分支_抓取回收", memory=True, children=[
+            CheckMissionMode(ctx, "recover", name="IsRecoveryMission"),
+            ReportStatus(ctx, status="LANDED"),        # ㉕ 落地状态回传
+            locate_and_nav,                            # ㉖㉗ 搜索/接近导航
+            _run_mode(ctx, "climb"),                   # ㉘ 攀爬(含姿态准备)
+            _run_mode(ctx, "dock"),                    # ㉙㉚ 对接(导引+抬腿+夹爪)
+            ReportStatus(ctx, status="CLAMPED"),       # ㉛ 回传夹紧完成
+            WaitWinchHoisted(ctx),                     # ㉜ 拉升绞盘回收
+            WaitHomeCmd(ctx),                          # 等地面恢复初始命令
+            _run_mode(ctx, "home"),                    # 恢复初始姿态
+            ReportStatus(ctx, status="RESET_DONE"),    # 归位完成回传
+        ])
+
+
 def build_hexapod_tree(ctx, deploy_timeout_s=120.0, landing_timeout_s=120.0,
                        comms_timeout_s=10.0, rtk_wait_timeout_s=60.0,
                        sensor_fresh_timeout_s=10.0):
@@ -448,10 +512,10 @@ def build_hexapod_tree(ctx, deploy_timeout_s=120.0, landing_timeout_s=120.0,
       │       ├─ WaitTaskCommand ⑤/⑲
       │       ├─ SafetyInit：上线门禁 → home 回到初始姿态(含复位)
       │       ├─ DeployAndLand ⑨ → ⑩/㉔
-      │       ├─ 释放/回收分流（Selector）
-      │       │   ├─ 释放分支：RunMode("release") → RELEASED → ⑫
+      │       ├─ 释放/回收分流（Selector，两棵任务子树）
+      │       │   ├─ ReleaseSubtree：RunMode("release") → RELEASED → ⑫
       │       │   │            → WaitHomeCmd → RunMode("home") → RESET_DONE
-      │       │   └─ 回收分支：LANDED → [spin_search→approach(RTK监护)]
+      │       │   └─ RecoverSubtree：LANDED → [spin_search→approach(RTK监护)]
       │       │            → RunMode("climb")
       │       │            → RunMode("dock") → CLAMPED → ㉜
       │       │            → WaitHomeCmd → RunMode("home") → RESET_DONE
@@ -485,57 +549,11 @@ def build_hexapod_tree(ctx, deploy_timeout_s=120.0, landing_timeout_s=120.0,
             ),
         ])
 
-    # ---- 释放分支（⑤ 任务）：release 模式内部完成（含夹爪 open） ----
-    release_branch = py_trees.composites.Sequence(
-        name="释放分支_释放小蓝", memory=True, children=[
-            CheckMissionMode(ctx, "release", name="IsReleaseMission"),
-            _run_mode(ctx, "release"),
-            ReportStatus(ctx, status="RELEASED"),
-            WaitWinchHoisted(ctx),
-            WaitHomeCmd(ctx),                          # 等地面恢复初始命令
-            _run_mode(ctx, "home"),                    # 恢复初始姿态
-            ReportStatus(ctx, status="RESET_DONE"),    # 归位完成回传
-        ])
-
-    # ---- 接近导航（spin_search + approach）带 RTK 协方差监护 ----
-    # 外层 memory=False（反应式）：WaitRtkPrecise 每 tick 复检，协方差超限即
-    # hold_motion 停走并暂停内层；内层 memory=True 保证每模式只触发一次。
-    # approach 内部先 RTK 粗导航到可视 tag、再视觉 tag 伺服到攀爬起点
-    # （原独立 tag_nav 模式已并入），树中一个模式一个节点。
-    locate_and_nav = py_trees.composites.Sequence(
-        name="定位导航_带RTK精度监视", memory=False, children=[
-            Timeout(
-                name="RTK等待超时",
-                child=WaitRtkPrecise(ctx),
-                duration=rtk_wait_timeout_s,
-            ),
-            py_trees.composites.Sequence(
-                name="定位导航步骤", memory=True, children=[
-                    _run_mode(ctx, "spin_search"),
-                    _run_mode(ctx, "approach"),
-                ]),
-        ])
-
-    # ---- 回收分支（⑲ 任务）：approach → climb → dock ----
-    recover_branch = py_trees.composites.Sequence(
-        name="回收分支_抓取回收", memory=True, children=[
-            CheckMissionMode(ctx, "recover", name="IsRecoveryMission"),
-            ReportStatus(ctx, status="LANDED"),        # ㉕ 落地状态回传
-            locate_and_nav,                            # ㉖㉗ 搜索/接近导航
-            _run_mode(ctx, "climb"),                   # ㉘ 攀爬(含姿态准备)
-            _run_mode(ctx, "dock"),                    # ㉙㉚ 对接(导引+抬腿+夹爪)
-            ReportStatus(ctx, status="CLAMPED"),       # ㉛ 回传夹紧完成
-            WaitWinchHoisted(ctx),                     # ㉜ 拉升绞盘回收
-            WaitHomeCmd(ctx),                          # 等地面恢复初始命令
-            _run_mode(ctx, "home"),                    # 恢复初始姿态
-            ReportStatus(ctx, status="RESET_DONE"),    # 归位完成回传
-        ])
-
-    # ---- 释放/回收分流 ----
+    # ---- 释放/回收分流（两棵任务子树，构建函数见下） ----
     mission_branch = py_trees.composites.Selector(
         name="释放或回收分流", memory=False, children=[
-            release_branch,
-            recover_branch,
+            build_release_subtree(ctx),
+            build_recover_subtree(ctx),
         ])
 
     # ---- 主流程：每 tick 依次复检（memory=False）----

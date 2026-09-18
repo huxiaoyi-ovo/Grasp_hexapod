@@ -3,12 +3,14 @@
 // 模式作者只 include 本文件与 mode_base.h，永不 include bt_control_node.h。
 // ModeContext 由调度器（BtControlNode）实现并注入每个模式；对模式作者它是
 // 只读接口：拿 NodeHandle 建自己的订阅/发布、直接访问运动控制核心
-// GraspController、读节点级安全输入快照、调用夹爪服务、驱动机器状态机。
+// RingController（GraspController 的圆环扩展）、读节点级安全输入快照、
+// 调用夹爪服务、驱动机器状态机。
 #pragma once
 
 #include "grasp_hexapod_bt_control/io_inputs.h"
 
 #include "grasp_hexapod_control_cpp/control.h"
+#include "grasp_hexapod_control_cpp/ring_controller.h"
 
 #include <ros/ros.h>
 
@@ -23,6 +25,7 @@ using grasp_hexapod_control_cpp::GraspController;
 using grasp_hexapod_control_cpp::JointAngles;
 using grasp_hexapod_control_cpp::kJointCount;
 using grasp_hexapod_control_cpp::kLegCount;
+using grasp_hexapod_ring::RingController;
 
 // 机器状态机（调度器持有；模式经 ModeContext 读取/驱动）。
 // WaitB     上电安全门：不发布目标，只接受 home。
@@ -70,9 +73,10 @@ class ModeContext {
   // 私有命名空间 NodeHandle：模式读自己的 ~ 参数（各模式参数互不干扰）。
   virtual ros::NodeHandle& privateNodeHandle() = 0;
 
-  // 运动控制核心（步态/运动学/爬坡/对接原语），直接调用，不做白名单封装。
-  // 可用范围与线程规则见 docs/MODE_DEV_GUIDE.md。
-  virtual GraspController& controller() = 0;
+  // 运动控制核心（步态/运动学/爬坡/圆环对接原语），直接调用，不做白名单封装。
+  // RingController 是 GraspController 的圆环扩展：非 dock 路径行为与基类一致，
+  // kDock 走圆环状态机（ring_dock_mode）。可用范围与线程规则见 docs/MODE_DEV_GUIDE.md。
+  virtual RingController& controller() = 0;
 
   // 节点级安全输入只读快照。
   virtual const SharedInputs& inputs() const = 0;

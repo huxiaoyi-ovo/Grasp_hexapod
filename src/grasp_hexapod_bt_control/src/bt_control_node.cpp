@@ -307,7 +307,8 @@ BtControlNode::BtControlNode(ros::NodeHandle& nh, ros::NodeHandle& pnh)
   paths_.climb_compact_json = config_dir + "/climb_compact.json";
   paths_.workspace_bounds_csv = config_dir + "/workspace_bounds.csv";
 
-  controller_ = std::make_unique<GraspController>(
+  // RingController：非 dock 路径与 GraspController 一致；kDock 走圆环状态机。
+  controller_ = std::make_unique<RingController>(
       1.0 / 30.0, /*enable_link_collision_check=*/false,
       /*climb_timeout_uses_wall_time=*/true, paths_);
   loadParameters(pnh);
@@ -374,8 +375,8 @@ void BtControlNode::abortActiveMotion(const std::string& reason) {
   // home 与抢占共用的中止序列：取消任务/攀爬/对接后平滑回正。
   controller_->mission.cancel(reason);
   controller_->abortClimb();
-  if (controller_->dock_mode != nullptr && controller_->dock_mode->active) {
-    controller_->dock_mode->exit();
+  if (controller_->ring_mode != nullptr && controller_->ring_mode->active) {
+    controller_->ring_mode->exit();
   }
   controller_->reset_active = false;
   state_ = MachineState::Resetting;

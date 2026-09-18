@@ -158,12 +158,17 @@ add_library(grasp_hexapod_ring_core src/ring_detection.cpp src/ring_dock_mode.cp
 target_include_directories(grasp_hexapod_ring_core PUBLIC ${OpenCV_INCLUDE_DIRS})
 target_link_libraries(grasp_hexapod_ring_core grasp_hexapod_control_core ${OpenCV_LIBRARIES})
 target_compile_options(grasp_hexapod_ring_core PRIVATE -O3 -Wall -Wextra -ffp-contract=off)
-add_library(grasp_hexapod_ring_ros src/ring_perception_ros.cpp src/ring_control_node.cpp)
-target_link_libraries(grasp_hexapod_ring_ros grasp_hexapod_ring_core ${catkin_LIBRARIES})
+# ring_perception 只含 ROS 感知壳（图像订阅 + 圆环识别线程），
+# 供 run_real_ring_cpp 与 bt_control_node 共用；独立节点逻辑在 ring_ros。
+add_library(grasp_hexapod_ring_perception src/ring_perception_ros.cpp)
+target_link_libraries(grasp_hexapod_ring_perception grasp_hexapod_ring_core ${catkin_LIBRARIES})
+add_dependencies(grasp_hexapod_ring_perception ${catkin_EXPORTED_TARGETS})
+add_library(grasp_hexapod_ring_ros src/ring_control_node.cpp)
+target_link_libraries(grasp_hexapod_ring_ros grasp_hexapod_ring_perception ${catkin_LIBRARIES})
 add_dependencies(grasp_hexapod_ring_ros ${catkin_EXPORTED_TARGETS})
 add_executable(run_real_ring_cpp node/run_real_ring_cpp_main.cpp)
 target_link_libraries(run_real_ring_cpp grasp_hexapod_ring_ros ${catkin_LIBRARIES})
-install(TARGETS grasp_hexapod_control_core grasp_hexapod_ring_core grasp_hexapod_ring_ros run_real_ring_cpp
+install(TARGETS grasp_hexapod_control_core grasp_hexapod_ring_core grasp_hexapod_ring_perception grasp_hexapod_ring_ros run_real_ring_cpp
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
 

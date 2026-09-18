@@ -62,8 +62,9 @@ set(MODE_SOURCES
 
 # ---------------------------------------------------------------------------
 # bt_control_node：模式调度器（switch_mode 服务 + HOLD 租约 + 安全环路）。
-# 数值核心复用 grasp_hexapod_control 的 grasp_hexapod_control_core 纯计算库，
-# 本包只实现 ROS 壳与各模式的 ROS 接线。
+# 数值核心复用 grasp_hexapod_control 的 grasp_hexapod_control_core 纯计算库；
+# dock 感知/状态机走圆环链（grasp_hexapod_ring_perception + ring_core，
+# 与 run_real_ring_cpp 同源），本包只实现 ROS 壳与各模式的 ROS 接线。
 # ---------------------------------------------------------------------------
 add_executable(bt_control_node
   node/bt_control_main.cpp
@@ -73,7 +74,7 @@ add_executable(bt_control_node
 )
 target_link_libraries(bt_control_node
   grasp_hexapod_control_core
-  grasp_hexapod_control_ros
+  grasp_hexapod_ring_perception
   ${catkin_LIBRARIES}
   ${YAML_CPP_LIBRARIES}
 )
@@ -99,7 +100,7 @@ if(CATKIN_ENABLE_TESTING)
     ${MODE_FRAMEWORK_SOURCES}
     ${GTEST_MAIN_SRC}
   )
-  target_link_libraries(test_bt_control_routing grasp_hexapod_control_core ${catkin_LIBRARIES} ${YAML_CPP_LIBRARIES})
+  target_link_libraries(test_bt_control_routing grasp_hexapod_control_core grasp_hexapod_ring_core ${catkin_LIBRARIES} ${YAML_CPP_LIBRARIES})
   target_compile_definitions(test_bt_control_routing PRIVATE
     GRASP_CONTROL_CONFIG_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../grasp_hexapod_control/config")
 

@@ -129,6 +129,34 @@ rosrun grasp_hexapod_servo servo.py _side:=left _port:=/dev/ttyTHS0
 
 ---
 
+## 辅助节点：`servo_sine.py`（单舵机正弦摆动测试）
+
+通过 `/lf_des` 驱动 lf 腿中的一个舵机做正弦摆动，默认控制 **ID 3（lf ankle）**。
+目标关节角 = 中心角 + 幅值×sin(ω·t)（默认 0°±100°，即 −100°~+100° 全范围），
+速度字段按解析导数填入（`data[4:7]`；当前驱动不消费速度字段，仅为上层保留）。
+其余关节保持启动时的位置。
+
+```bash
+rosrun grasp_hexapod_servo servo_sine.py
+rosrun grasp_hexapod_servo servo_sine.py _amplitude_deg:=30 _frequency_hz:=0.2
+```
+
+| 参数 | 默认值 | 说明 |
+|------|--------|------|
+| `~servo_id` | `3` | lf 腿舵机 ID：1=thigh，2=knee，3=ankle |
+| `~center_deg` | `0.0` | 摆动中心角（度），0 为舵机中位 |
+| `~amplitude_deg` | `100.0` | 摆动幅值（度），默认 −100°~+100° |
+| `~frequency_hz` | `0.5` | 正弦频率参数（Hz） |
+| `~publish_rate_hz` | `30.0` | `/lf_des` 发布频率 |
+| `~power_whole_board` | `true` | 同时发布 `/lm_des`、`/lb_des`，补足整板上电条件 |
+| `~feedback_timeout_s` | `5.0` | 等待位置反馈的超时，超时的腿以零位为基准 |
+
+> 驱动板要求三条腿都收到目标且都请求加载才整板上电，台架单测保持默认
+> `power_whole_board:=true` 即可；若系统中还有其他节点在发布 `/lm_des`、
+> `/lb_des`，请设为 `false` 避免话题冲突。节点退出时自动下发卸力。
+
+---
+
 ## 依赖
 
 - `rospy`

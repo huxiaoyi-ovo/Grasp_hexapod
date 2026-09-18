@@ -24,6 +24,7 @@ include_directories(
 catkin_install_python(PROGRAMS
   scripts/servo.py
   scripts/servo_trace_replay.py
+  scripts/servo_sine.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 

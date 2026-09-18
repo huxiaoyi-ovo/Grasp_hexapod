@@ -1,4 +1,4 @@
-// dock 模式实现：入口门控（实机标定校验）、对接推进、成功后夹爪闭合。
+// dock 模式实现：入口门控（实机标定校验）、圆环对接推进、成功后夹爪闭合。
 #include "grasp_hexapod_bt_control/modes/mode_dock.h"
 #include "grasp_hexapod_bt_control/mode_registry.h"
 
@@ -9,7 +9,6 @@
 namespace grasp_hexapod_bt_control {
 namespace modes {
 
-using grasp_hexapod_control_cpp::DockRobotState;
 using grasp_hexapod_control_cpp::DockSystem;
 using grasp_hexapod_control_cpp::loadDockSystem;
 
@@ -34,26 +33,38 @@ DockMode::DockMode(ModeContext& ctx, const ModeTopics& topics)
 
 DockMode::~DockMode() = default;
 
-void DockMode::ensureCoreDock() {
-  // 按显式实机请求创建核心 DockMode，不给普通控制器增加 ROS 资源。
-  if (core_dock_ != nullptr) {
+void DockMode::ensureRingDock() {
+  // 按显式实机请求创建圆环 DockMode（接线与 run_real_ring_cpp 的
+  // ensureDockMode 一致），不给普通控制器增加 ROS 资源。
+  if (ring_dock_ != nullptr) {
     return;
   }
   ros::NodeHandle& pnh = ctx().privateNodeHandle();
-  perception_ = std::make_unique<grasp_hexapod_control_cpp::DockPerceptionRos>(
-      pnh.param("dock_max_perception_age", 0.35),
-      pnh.param<std::string>("dock_lock_frame", "dock_lock_center"),
-      pnh.param<std::string>("dock_pin_frame_prefix", "dock_pin_from_tag_"),
-      dock_system_config_);
-  core_dock_ = std::make_unique<grasp_hexapod_control_cpp::DockMode>(
-      &ctx().controller(), perception_.get(),
+  RingController& controller = ctx().controller();
+  // 话题名统一在 mode_topics.yaml 配置（规范禁止 launch 设置话题参数）；
+  // RingPerceptionRos 从 ~ 参数读取，这里在构造前注入。
+  pnh.setParam("dock_image_topic", topics().get("dock_image_topic"));
+  pnh.setParam("dock_camera_info_topic",
+               topics().get("dock_camera_info_topic"));
+  // RingPerceptionRos 自读 ~dock_max_perception_age，
+  // 圆环识别在自有线程执行，latest() 只读快照。
+  perception_ = std::make_unique<grasp_hexapod_ring::RingPerceptionRos>(
+      pnh, dock_system_config_);
+  ring_dock_ = std::make_unique<grasp_hexapod_ring::DockMode>(
+      controller.dt,
+      [&controller](const JointAngles& q, bool sync) {
+        return sync ? controller.syncActualFeet(q)
+                    : controller.kinematic.forwardBase(q);
+      },
+      [this]() { return perception_->latest(); },
+      [this]() { perception_->reset(); },
       pnh.param("dock_require_lock_confirmation", false),
       pnh.param("dock_linear_speed_m_s", 0.05),
       pnh.param("dock_update_rate_hz", 30.0),
       pnh.param("dock_perception_rate_hz", 10.0),
       pnh.param("dock_leg_lift_speed_m_s", 0.05),
       pnh.param("dock_sit_settle_duration_s", 0.5),
-      pnh.param("dock_leg_lift_height_m", 0.06),
+      pnh.param("dock_leg_lift_height_m", 0.04),
       pnh.param("dock_leg_lift_level_tolerance_m", 0.003),
       [](bool is_warn, const std::string& message) {
         if (is_warn) {
@@ -61,8 +72,9 @@ void DockMode::ensureCoreDock() {
         } else {
           ROS_INFO("%s", message.c_str());
         }
-      });
-  ctx().controller().attachDockMode(core_dock_.get());
+      },
+      pnh.param("dock_alignment_speed_m_s", 0.02));
+  controller.attachDockMode(ring_dock_.get());
 }
 
 bool DockMode::start(const JointAngles& q_cur, std::string& reason) {
@@ -85,7 +97,8 @@ bool DockMode::start(const JointAngles& q_cur, std::string& reason) {
         return false;
       }
     }
-    ensureCoreDock();
+    ensureRingDock();
+    // RingController::enterDock：abortClimb + 同步足端 + kDock + enter(q)。
     ctx().controller().enterDock(q_cur);
   } catch (const std::exception& error) {
     ROS_WARN("dock rejected: DockMode entry failed: %s", error.what());
@@ -94,7 +107,7 @@ bool DockMode::start(const JointAngles& q_cur, std::string& reason) {
   clamped_ = false;
   session_started_at_ = nowSeconds();
   ctx().setMachineState(MachineState::Running);
-  ROS_INFO("dock accepted: entering climb terminal posture, then starting visual docking");
+  ROS_INFO("dock accepted: entering climb terminal posture, then starting ring docking");
   return true;
 }
 
@@ -113,11 +126,11 @@ std::optional<bool> DockMode::dockLockConfirmed() {
 bool DockMode::onNodeHold(const std::string& reason) {
   // 对接中的节点级保持：failExecution 进 HOLD，不走通用取消路径。
   if (ctx().controller().mode != GraspController::kDock ||
-      core_dock_ == nullptr) {
+      ring_dock_ == nullptr) {
     return false;
   }
-  if (core_dock_->active) {
-    core_dock_->failExecution("DockMode stopped: " + reason);
+  if (ring_dock_->active) {
+    ring_dock_->failExecution("DockMode stopped: " + reason);
   }
   ctx().setMachineState(MachineState::Hold);
   ROS_WARN("DockMode failed into HOLD: %s", reason.c_str());
@@ -125,28 +138,28 @@ bool DockMode::onNodeHold(const std::string& reason) {
 }
 
 std::optional<JointAngles> DockMode::step(const ModeStepInput& input) {
-  GraspController& controller = ctx().controller();
-  DockRobotState dock_state;
+  RingController& controller = ctx().controller();
+  grasp_hexapod_ring::DockRobotState dock_state;
   dock_state.joints = input.q_cur;
   dock_state.lock_confirmed = dockLockConfirmed();
   const JointAngles q_des =
       controller.update(input.q_cur, Eigen::Vector4d::Zero(), nullptr,
                         &dock_state);
-  if (controller.mode == GraspController::kDock && core_dock_ != nullptr &&
-      grasp_hexapod_control_cpp::DockMode::isTerminalState(core_dock_->state) &&
+  if (controller.mode == GraspController::kDock && ring_dock_ != nullptr &&
+      grasp_hexapod_ring::DockMode::isTerminalState(ring_dock_->state) &&
       ctx().machineState() == MachineState::Running) {
     ctx().setMachineState(MachineState::Hold);
-    ROS_INFO("DockMode terminal HOLD: %s", core_dock_->reason.c_str());
+    ROS_INFO("DockMode terminal HOLD: %s", ring_dock_->reason.c_str());
   }
   return q_des;
 }
 
 std::optional<ModeOutcome> DockMode::checkTerminal() {
-  const grasp_hexapod_control_cpp::DockMode* dock = core_dock_.get();
+  const grasp_hexapod_ring::DockMode* dock = ring_dock_.get();
   if (dock == nullptr) {
     return std::nullopt;
   }
-  if (dock->state == grasp_hexapod_control_cpp::DockMode::kSuccess &&
+  if (dock->state == grasp_hexapod_ring::DockMode::kSuccess &&
       ctx().machineState() == MachineState::Hold) {
     if (!clamped_) {
       clamped_ = true;
@@ -162,7 +175,7 @@ std::optional<ModeOutcome> DockMode::checkTerminal() {
     }
     return std::nullopt;
   }
-  if (dock->state == grasp_hexapod_control_cpp::DockMode::kFailed) {
+  if (dock->state == grasp_hexapod_ring::DockMode::kFailed) {
     return ModeOutcome{ModeResult::Failure, dock->reason};
   }
   return std::nullopt;

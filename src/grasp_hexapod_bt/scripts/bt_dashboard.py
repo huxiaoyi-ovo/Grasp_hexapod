@@ -37,10 +37,16 @@
     虚拟手柄    原始帧发布 /joy（sensor_msgs/Joy，与实体手柄同话题同格式，
                 axes[8]/buttons[11]），语义转换仍在 remote_control*。
 
+页首常驻：资源监测 chips——整机 CPU/内存/温度/磁盘 + 看板进程自身
+CPU/RSS，1s 采样纯读 /proc 与 /sys（无 psutil 依赖，离线可用），悬浮
+显示明细与近 1 分钟走势；走独立 /sys.json 端点，不打断 state.json
+版本缓存（载荷未变不重渲染的设计保持不变）。
+
 接口：
     GET  /            页面（主控台）
     GET  /remote      同一页面，滚动定位到远端链路面板
     GET  /state.json  全量快照 JSON（bt/sim/mode/lora/remote + server_now）
+    GET  /sys.json    资源快照 JSON（整机 CPU/内存/温度/磁盘 + 看板进程占用）
     GET  /joy.json    手柄链路状态
     POST /mode        {"mode":"climb"}            -> switch_mode 服务
     POST /gripper     {"action":"open"}           -> gripper_act 服务
@@ -101,7 +107,7 @@ MODE_DEFS = [                       # 模式控制页按钮（label 用 hexapod_
     {"mode": "home", "label": "回到初始姿态", "full": "回到初始姿态(含复位)"},
     {"mode": "walk", "label": "行走", "full": "行走(连续)"},
     {"mode": "climb", "label": "攀爬", "full": "攀爬到小蓝上"},
-    {"mode": "dock", "label": "对接夹紧", "full": "对接夹紧(tag导引+抬腿+夹爪)"},
+    {"mode": "dock", "label": "对接夹紧", "full": "对接夹紧(圆环导引+抬腿+夹爪)"},
     {"mode": "spin_search", "label": "自转搜索", "full": "自转搜索小蓝"},
     {"mode": "release", "label": "释放小蓝", "full": "释放小蓝(夹爪open)"},
     {"mode": "approach", "label": "接近导航", "full": "接近导航到攀爬点(RTK粗导航+tag精导航)"},
@@ -356,78 +362,8 @@ class LoRaCodec:
 # 静态完整树模板（无数据时灰显完整树；运行时从 hexapod_bt 生成，失败回退）
 # ---------------------------------------------------------------------------
 FALLBACK_TEMPLATES_JSON = (
-    "{\"主链\":{\"tree_name\":\"主链\",\"nodes\":["
-    "{\"name\":\"任务失败回退\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":0,\"is_leaf\":false},"
-    "{\"name\":\"主流程_带安全监视\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":1,\"is_leaf\":false},"
-    "{\"name\":\"紧急打断监护_每tick\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":2,\"is_leaf\":true},"
-    "{\"name\":\"传感器恢复超时\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":2,\"is_leaf\":false},"
-    "{\"name\":\"IsSensorDataOk\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":3,\"is_leaf\":true},"
-    "{\"name\":\"任务暂停监护_可恢复\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":2,\"is_leaf\":false},"
-    "{\"name\":\"任务阶段序列\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":3,\"is_leaf\":false},"
-    "{\"name\":\"WaitTaskCommand\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":4,\"is_leaf\":true},"
-    "{\"name\":\"SafetyInit 安全初始化\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":4,\"is_leaf\":false},"
-    "{\"name\":\"传感器上线超时\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":5,\"is_leaf\":false},"
-    "{\"name\":\"WaitSensorsReady\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":6,\"is_leaf\":true},"
-    "{\"name\":\"执行 回到初始姿态(含复位)\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":5,\"is_leaf\":true},"
-    "{\"name\":\"DeployAndLand 下放落地\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":4,\"is_leaf\":false},"
-    "{\"name\":\"下放等待超时\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":5,\"is_leaf\":false},"
-    "{\"name\":\"WaitDeployment\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":6,\"is_leaf\":true},"
-    "{\"name\":\"落地超时\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":5,\"is_leaf\":false},"
-    "{\"name\":\"IsLandingConfirmed\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":6,\"is_leaf\":true},"
-    "{\"name\":\"释放或回收分流\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":4,\"is_leaf\":false},"
-    "{\"name\":\"释放分支_释放小蓝\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":5,\"is_leaf\":false},"
-    "{\"name\":\"IsReleaseMission\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":6,\"is_leaf\":true},"
-    "{\"name\":\"执行 释放小蓝 ⑪（夹爪open）\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":6,\"is_leaf\":true},"
-    "{\"name\":\"ReportStatus\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":6,\"is_leaf\":true},"
-    "{\"name\":\"WaitWinchHoisted\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":6,\"is_leaf\":true},"
-    "{\"name\":\"WaitHomeCmd\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":6,\"is_leaf\":true},"
-    "{\"name\":\"执行 回到初始姿态(含复位)\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":6,\"is_leaf\":true},"
-    "{\"name\":\"ReportStatus\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":6,\"is_leaf\":true},"
-    "{\"name\":\"回收分支_抓取回收\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":5,\"is_leaf\":false},"
-    "{\"name\":\"IsRecoveryMission\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":6,\"is_leaf\":true},"
-    "{\"name\":\"ReportStatus\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":6,\"is_leaf\":true},"
-    "{\"name\":\"定位导航_带RTK精度监视\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":6,\"is_leaf\":false},"
-    "{\"name\":\"RTK等待超时\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":7,\"is_leaf\":false},"
-    "{\"name\":\"WaitRtkPrecise\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":8,\"is_leaf\":true},"
-    "{\"name\":\"定位导航步骤\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":7,\"is_leaf\":false},"
-    "{\"name\":\"执行 自转搜索小蓝 ㉖\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":8,\"is_leaf\":true},"
-    "{\"name\":\"执行 接近导航到攀爬点 ㉗（RTK粗导航+tag精导航）\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":8,\"is_leaf\":true},"
-    "{\"name\":\"执行 攀爬到小蓝上 ㉘\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":6,\"is_leaf\":true},"
-    "{\"name\":\"执行 对接夹紧 ㉙㉚（tag导引+抬腿+夹爪clamp+确认）\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":6,\"is_leaf\":true},"
-    "{\"name\":\"ReportStatus\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":6,\"is_leaf\":true},"
-    "{\"name\":\"WaitWinchHoisted\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":6,\"is_leaf\":true},"
-    "{\"name\":\"WaitHomeCmd\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":6,\"is_leaf\":true},"
-    "{\"name\":\"执行 回到初始姿态(含复位)\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":6,\"is_leaf\":true},"
-    "{\"name\":\"ReportStatus\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":6,\"is_leaf\":true},"
-    "{\"name\":\"ReportStatus\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":4,\"is_leaf\":true},"
-    "{\"name\":\"失败处理\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":1,\"is_leaf\":false},"
-    "{\"name\":\"回到初始姿态(尽力)\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":2,\"is_leaf\":false},"
-    "{\"name\":\"执行 回到初始姿态(含复位)\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":3,\"is_leaf\":true},"
-    "{\"name\":\"home不可用也继续\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":3,\"is_leaf\":true},"
-    "{\"name\":\"ReportStatus\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":2,\"is_leaf\":true}"
-    "]},"
-    "\"遥控测试链\":{\"tree_name\":\"遥控测试链\",\"nodes\":["
-    "{\"name\":\"遥控器测试链\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":0,\"is_leaf\":false},"
-    "{\"name\":\"测试模式_home\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":1,\"is_leaf\":false},"
-    "{\"name\":\"遥控选择home\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":2,\"is_leaf\":true},"
-    "{\"name\":\"执行 回到初始姿态(含复位)\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":2,\"is_leaf\":true},"
-    "{\"name\":\"测试模式_walk\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":1,\"is_leaf\":false},"
-    "{\"name\":\"遥控选择walk\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":2,\"is_leaf\":true},"
-    "{\"name\":\"执行 行走\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":2,\"is_leaf\":true},"
-    "{\"name\":\"测试模式_climb\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":1,\"is_leaf\":false},"
-    "{\"name\":\"遥控选择climb\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":2,\"is_leaf\":true},"
-    "{\"name\":\"执行 攀爬到小蓝上 ㉘\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":2,\"is_leaf\":true},"
-    "{\"name\":\"测试模式_dock\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":1,\"is_leaf\":false},"
-    "{\"name\":\"遥控选择dock\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":2,\"is_leaf\":true},"
-    "{\"name\":\"执行 对接夹紧 ㉙㉚（tag导引+抬腿+夹爪clamp+确认）\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":2,\"is_leaf\":true},"
-    "{\"name\":\"测试模式_spin_search\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":1,\"is_leaf\":false},"
-    "{\"name\":\"遥控选择spin_search\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":2,\"is_leaf\":true},"
-    "{\"name\":\"执行 自转搜索小蓝 ㉖\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":2,\"is_leaf\":true},"
-    "{\"name\":\"测试模式_release\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":1,\"is_leaf\":false},"
-    "{\"name\":\"遥控选择release\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":2,\"is_leaf\":true},"
-    "{\"name\":\"执行 释放小蓝 ⑪（夹爪open）\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":2,\"is_leaf\":true},"
-    "{\"name\":\"空闲待命\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":1,\"is_leaf\":true}"
-    "]}}"
+    "{\"主链\":{\"tree_name\":\"主链\",\"nodes\":[{\"name\":\"任务失败回退\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":0,\"is_leaf\":false},{\"name\":\"主流程_带安全监视\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":1,\"is_leaf\":false},{\"name\":\"紧急打断监护_每tick\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":2,\"is_leaf\":true},{\"name\":\"传感器恢复超时\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":2,\"is_leaf\":false},{\"name\":\"IsSensorDataOk\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":3,\"is_leaf\":true},{\"name\":\"任务暂停监护_可恢复\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":2,\"is_leaf\":false},{\"name\":\"任务阶段序列\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":3,\"is_leaf\":false},{\"name\":\"WaitTaskCommand\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":4,\"is_leaf\":true},{\"name\":\"SafetyInit 安全初始化\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":4,\"is_leaf\":false},{\"name\":\"传感器上线超时\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":5,\"is_leaf\":false},{\"name\":\"WaitSensorsReady\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":6,\"is_leaf\":true},{\"name\":\"执行 回到初始姿态(含复位)\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":5,\"is_leaf\":true},{\"name\":\"DeployAndLand 下放落地\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":4,\"is_leaf\":false},{\"name\":\"下放等待超时\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":5,\"is_leaf\":false},{\"name\":\"WaitDeployment\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":6,\"is_leaf\":true},{\"name\":\"落地超时\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":5,\"is_leaf\":false},{\"name\":\"IsLandingConfirmed\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":6,\"is_leaf\":true},{\"name\":\"释放或回收分流\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":4,\"is_leaf\":false},{\"name\":\"释放分支_释放小蓝\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":5,\"is_leaf\":false},{\"name\":\"IsReleaseMission\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":6,\"is_leaf\":true},{\"name\":\"执行 释放小蓝 ⑪（夹爪open）\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":6,\"is_leaf\":true},{\"name\":\"ReportStatus\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":6,\"is_leaf\":true},{\"name\":\"WaitWinchHoisted\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":6,\"is_leaf\":true},{\"name\":\"WaitHomeCmd\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":6,\"is_leaf\":true},{\"name\":\"执行 回到初始姿态(含复位)\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":6,\"is_leaf\":true},{\"name\":\"ReportStatus\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":6,\"is_leaf\":true},{\"name\":\"回收分支_抓取回收\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":5,\"is_leaf\":false},{\"name\":\"IsRecoveryMission\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":6,\"is_leaf\":true},{\"name\":\"ReportStatus\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":6,\"is_leaf\":true},{\"name\":\"定位导航_带RTK精度监视\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":6,\"is_leaf\":false},{\"name\":\"RTK等待超时\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":7,\"is_leaf\":false},{\"name\":\"WaitRtkPrecise\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":8,\"is_leaf\":true},{\"name\":\"定位导航步骤\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":7,\"is_leaf\":false},{\"name\":\"执行 自转搜索小蓝 ㉖\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":8,\"is_leaf\":true},{\"name\":\"执行 接近导航到攀爬点 ㉗（RTK粗导航+tag精导航）\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":8,\"is_leaf\":true},{\"name\":\"执行 攀爬到小蓝上 ㉘\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":6,\"is_leaf\":true},{\"name\":\"执行 对接夹紧 ㉙㉚（tag导引+抬腿+夹爪clamp+确认）\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":6,\"is_leaf\":true},{\"name\":\"ReportStatus\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":6,\"is_leaf\":true},{\"name\":\"WaitWinchHoisted\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":6,\"is_leaf\":true},{\"name\":\"WaitHomeCmd\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":6,\"is_leaf\":true},{\"name\":\"执行 回到初始姿态(含复位)\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":6,\"is_leaf\":true},{\"name\":\"ReportStatus\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":6,\"is_leaf\":true},{\"name\":\"ReportStatus\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":4,\"is_leaf\":true},{\"name\":\"失败处理\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":1,\"is_leaf\":false},{\"name\":\"保持HOLD_不再回正\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":2,\"is_leaf\":true},{\"name\":\"ReportStatus\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":2,\"is_leaf\":true}]},\"遥控测试链\":{\"tree_name\":\"遥控测试链\",\"nodes\":[{\"name\":\"遥控器测试链\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":0,\"is_leaf\":false},{\"name\":\"测试模式_home\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":1,\"is_leaf\":false},{\"name\":\"遥控选择home\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":2,\"is_leaf\":true},{\"name\":\"执行 回到初始姿态(含复位)\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":2,\"is_leaf\":true},{\"name\":\"测试模式_walk\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":1,\"is_leaf\":false},{\"name\":\"遥控选择walk\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":2,\"is_leaf\":true},{\"name\":\"执行 行走\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":2,\"is_leaf\":true},{\"name\":\"测试模式_climb\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":1,\"is_leaf\":false},{\"name\":\"遥控选择climb\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":2,\"is_leaf\":true},{\"name\":\"执行 攀爬到小蓝上 ㉘\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":2,\"is_leaf\":true},{\"name\":\"测试模式_dock\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":1,\"is_leaf\":false},{\"name\":\"遥控选择dock\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":2,\"is_leaf\":true},{\"name\":\"执行 对接夹紧 ㉙㉚（tag导引+抬腿+夹爪clamp+确认）\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":2,\"is_leaf\":true},{\"name\":\"测试模式_spin_search\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":1,\"is_leaf\":false},{\"name\":\"遥控选择spin_search\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":2,\"is_leaf\":true},{\"name\":\"执行 自转搜索小蓝 ㉖\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":2,\"is_leaf\":true},{\"name\":\"测试模式_release\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":1,\"is_leaf\":false},{\"name\":\"遥控选择release\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":2,\"is_leaf\":true},{\"name\":\"执行 释放小蓝 ⑪（夹爪open）\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":2,\"is_leaf\":true},{\"name\":\"空闲待命\",\"status\":\"INVALID\",\"feedback\":\"\",\"depth\":1,\"is_leaf\":true}]}}"
+
 )
 
 
@@ -1103,6 +1039,170 @@ class AutoPilot:
 
 
 # ---------------------------------------------------------------------------
+# 资源监测（整机 CPU/内存/温度/磁盘 + 看板进程自身；纯 /proc 与 /sys 读取）
+# ---------------------------------------------------------------------------
+class SysMonitor:
+    """系统资源采样器：sample() 一拍，start() 后台线程按 interval 周期采。
+
+    不引入 psutil 依赖（与看板离线自包含原则一致）：
+      CPU   /proc/stat 累计节拍差分（首次拍无差分 -> None）
+      内存  /proc/meminfo MemTotal / MemAvailable
+      温度  /sys/class/thermal/thermal_zone*/ 取最热一路为头条，附前几路明细
+      磁盘  os.statvfs("/") 根分区占用
+      看板  /proc/self/stat utime+stime 差分 -> 进程 CPU%，VmRSS -> 进程内存
+    单项读取失败记 None（页面显示 —），不影响看板其余功能；hist 保留最近
+    HIST_LEN 拍 CPU/内存走势（约 1 分钟）供悬浮提示。每次采样经 notify()
+    驱动 /sys.json 更新（独立端点，不打断 state.json 的版本缓存）。
+    """
+
+    HIST_LEN = 60
+
+    def __init__(self, notify=None, interval=1.0):
+        self._notify = notify or (lambda: None)
+        self._interval = float(interval)
+        self._lock = threading.Lock()
+        self._data = {}
+        self._hist = []                # [{"cpu":..,"mem":..}] 最近 HIST_LEN 拍
+        self._cpu_tot = None           # /proc/stat 上一拍 (累计, idle+iowait)
+        self._self_tot = None          # 上一拍 (utime+stime, 时刻)
+        self._stop = threading.Event()
+        self._thread = None
+        self._clk = os.sysconf("SC_CLK_TCK")
+
+    # ---- 单项采样（失败静默置 None） ----
+    def _cpu_pct(self):
+        try:
+            with open("/proc/stat") as fh:
+                vals = [int(v) for v in fh.readline().split()[1:]]
+            total = float(sum(vals))
+            idle = float(vals[3] + (vals[4] if len(vals) > 4 else 0))
+        except (OSError, ValueError, IndexError):
+            return None
+        prev = self._cpu_tot
+        self._cpu_tot = (total, idle)
+        if prev is None:
+            return None
+        d_tot, d_idle = total - prev[0], idle - prev[1]
+        if d_tot <= 0:
+            return None
+        return max(0.0, min(100.0, (d_tot - d_idle) / d_tot * 100.0))
+
+    def _self_stats(self):
+        out = {"self_cpu": None, "self_rss_mb": None}
+        try:
+            # comm 可含空格，剥掉 "(...)" 段后 utime/stime 位于偏移 11/12
+            with open("/proc/self/stat") as fh:
+                fields = fh.read().rsplit(")", 1)[1].split()
+            ticks = float(fields[11]) + float(fields[12])
+            with open("/proc/self/status") as fh:
+                rss_kb = next((float(line.split()[1]) for line in fh
+                               if line.startswith("VmRSS:")), None)
+            now = time.time()
+            prev = self._self_tot
+            self._self_tot = (ticks, now)
+            if prev is not None and now > prev[1] and self._clk > 0:
+                out["self_cpu"] = max(0.0, (ticks - prev[0])
+                                      / ((now - prev[1]) * self._clk) * 100.0)
+            if rss_kb is not None:
+                out["self_rss_mb"] = rss_kb / 1024.0
+        except (OSError, ValueError, IndexError):
+            pass
+        return out
+
+    # ---- 一拍完整采样 ----
+    def sample(self):
+        data = {"cpu": self._cpu_pct(), "load1": None,
+                "mem_pct": None, "mem_used_gb": None, "mem_total_gb": None,
+                "temp_max": None, "temps": [],
+                "disk_pct": None, "disk_used_gb": None, "disk_total_gb": None}
+        try:
+            with open("/proc/loadavg") as fh:
+                data["load1"] = float(fh.read().split()[0])
+        except (OSError, ValueError, IndexError):
+            pass
+        try:
+            info = {}
+            with open("/proc/meminfo") as fh:
+                for line in fh:
+                    key, rest = line.split(":", 1)
+                    info[key] = float(rest.split()[0])          # kB
+            total, avail = info.get("MemTotal", 0.0), \
+                info.get("MemAvailable", info.get("MemFree", 0.0))
+            if total > 0:
+                used = total - avail
+                data["mem_total_gb"] = total / 1048576.0        # kB -> GB
+                data["mem_used_gb"] = used / 1048576.0
+                data["mem_pct"] = used / total * 100.0
+        except (OSError, ValueError, IndexError):
+            pass
+        try:
+            zones = []
+            base = "/sys/class/thermal"
+            for name in os.listdir(base):
+                if not name.startswith("thermal_zone"):
+                    continue
+                try:
+                    with open(os.path.join(base, name, "type")) as fh:
+                        ztype = fh.read().strip()
+                    with open(os.path.join(base, name, "temp")) as fh:
+                        ztemp = int(fh.read().strip()) / 1000.0
+                except (OSError, ValueError):
+                    continue
+                if ztemp > 0:
+                    zones.append({"zone": ztype, "temp": ztemp})
+            zones.sort(key=lambda z: -z["temp"])
+            if zones:
+                data["temps"] = zones[:4]
+                data["temp_max"] = zones[0]["temp"]
+        except OSError:
+            pass
+        try:
+            st = os.statvfs("/")
+            total = st.f_blocks * st.f_frsize
+            used = (st.f_blocks - st.f_bavail) * st.f_frsize
+            if total > 0:
+                data["disk_total_gb"] = total / 1073741824.0    # B -> GB
+                data["disk_used_gb"] = used / 1073741824.0
+                data["disk_pct"] = used / total * 100.0
+        except OSError:
+            pass
+        data.update(self._self_stats())
+        with self._lock:
+            self._data = data
+            if data["cpu"] is not None or data["mem_pct"] is not None:
+                self._hist.append({"cpu": data["cpu"],
+                                   "mem": data["mem_pct"]})
+                del self._hist[:-self.HIST_LEN]
+        self._notify()
+
+    # ---- 后台线程 ----
+    def start(self):
+        if self._thread is not None and self._thread.is_alive():
+            return
+        self._stop.clear()
+        self.sample()                  # 先出一拍（CPU 差分下一拍补上）
+        self._thread = threading.Thread(target=self._loop, daemon=True,
+                                        name="sys-monitor")
+        self._thread.start()
+
+    def stop(self):
+        self._stop.set()
+
+    def _loop(self):
+        while not self._stop.wait(self._interval):
+            try:
+                self.sample()
+            except Exception:  # noqa: BLE001 —— 监测异常不影响看板主功能
+                pass
+
+    def view(self):
+        with self._lock:
+            data = dict(self._data)
+            data["hist"] = list(self._hist)
+            return data
+
+
+# ---------------------------------------------------------------------------
 # 核心聚合（state.json 装配 + 版本号载荷缓存）
 # ---------------------------------------------------------------------------
 class DashboardCore:
@@ -1123,6 +1223,7 @@ class DashboardCore:
                               notify=self.bump)
         self.sim_modes = SimModeService(
             log=self.mode_log, notify=self.bump)
+        self.sysmon = SysMonitor(notify=self.bump)
 
     def bump(self):
         self._ver += 1
@@ -1510,6 +1611,11 @@ _PAGE_TEMPLATE = """<!DOCTYPE html>
   <span id="chipMission" class="chip">任务结果 —</span>
   <span id="chipLink" class="chip"><small>LoRa —</small></span>
   <span id="chipTime" class="chip"><small>—</small></span>
+  <span id="chipCpu" class="chip"><small>CPU —</small></span>
+  <span id="chipMem" class="chip"><small>内存 —</small></span>
+  <span id="chipTemp" class="chip"><small>—°C</small></span>
+  <span id="chipDisk" class="chip"><small>磁盘 —</small></span>
+  <span id="chipSelf" class="chip"><small>看板 —</small></span>
 </header>
 <nav id="tabs">
   <button id="tabBt" class="act">主控台</button>
@@ -2098,6 +2204,67 @@ function pollOnce(){
 }
 setInterval(pollOnce, 1000);
 
+/* ---- 资源监测 chips（/sys.json 独立 1s 轮询，不影响 state.json 缓存节奏） ---- */
+function sysColor(p){
+  p = p || 0;
+  return p >= 85 ? "#dc2626" : (p >= 60 ? "#ea580c" : "#16a34a");
+}
+function tempColor(t){
+  return t >= 85 ? "#dc2626" : (t >= 72 ? "#ea580c" : "#16a34a");
+}
+function pctTxt(v){ return (v == null ? "—" : Math.round(v) + "%"); }
+function gbTxt(v){ return (v == null ? "—" : v.toFixed(1) + "G"); }
+function setSysChip(id, html, title){
+  var el = document.getElementById(id);
+  el.innerHTML = "<small>" + html + "</small>";
+  el.title = title || "";
+}
+function renderSys(d){
+  var s = d.sys;
+  if (!s) return;
+  var tipHist = "";
+  if (s.hist && s.hist.length > 1){
+    var cs = s.hist.map(function(x){ return x.cpu; })
+                   .filter(function(x){ return x != null; });
+    if (cs.length > 1) tipHist = " · 近" + cs.length + "秒 CPU " +
+      Math.round(Math.min.apply(null, cs)) + "–" +
+      Math.round(Math.max.apply(null, cs)) + "%";
+  }
+  setSysChip("chipCpu",
+    "CPU <b style='color:" + sysColor(s.cpu) + "'>" + pctTxt(s.cpu) + "</b>",
+    "1分钟负载 " + (s.load1 == null ? "—" : s.load1.toFixed(2)) + tipHist);
+  setSysChip("chipMem",
+    "内存 <b style='color:" + sysColor(s.mem_pct) + "'>" + pctTxt(s.mem_pct) + "</b>",
+    "已用 " + gbTxt(s.mem_used_gb) + " / " + gbTxt(s.mem_total_gb));
+  setSysChip("chipTemp",
+    "<b style='color:" + (s.temp_max == null ? "#64748b" : tempColor(s.temp_max)) + "'>" +
+    (s.temp_max == null ? "—°C" : s.temp_max.toFixed(0) + "°C") + "</b>",
+    (s.temps || []).map(function(z){
+      return z.zone + " " + z.temp.toFixed(1) + "°C"; }).join(" · "));
+  setSysChip("chipDisk",
+    "磁盘 <b style='color:" + sysColor(s.disk_pct) + "'>" + pctTxt(s.disk_pct) + "</b>",
+    "已用 " + gbTxt(s.disk_used_gb) + " / " + gbTxt(s.disk_total_gb) + "（/ 根分区）");
+  setSysChip("chipSelf",
+    "看板 <b>" + pctTxt(s.self_cpu) + " · " +
+    (s.self_rss_mb == null ? "—" : Math.round(s.self_rss_mb) + "M") + "</b>",
+    "看板进程自身：CPU " + pctTxt(s.self_cpu) + " · 内存 " +
+    (s.self_rss_mb == null ? "—" : s.self_rss_mb.toFixed(1) + " MB"));
+}
+var sysInflight = false, lastSysPayload = "";
+setInterval(function(){
+  if (sysInflight) return;
+  sysInflight = true;
+  fetch("sys.json", { cache: "no-store" })
+    .then(function(r){ return r.text(); })
+    .then(function(txt){
+      sysInflight = false;
+      if (txt === lastSysPayload) return;
+      lastSysPayload = txt;
+      renderSys(JSON.parse(txt));
+    })
+    .catch(function(){ sysInflight = false; });
+}, 1000);
+
 /* ---- 虚拟手柄（/joy 原始帧，与实体手柄同话题同格式） ---- */
 var joyState = { axes:[0,0,0,0,0,0,0,0], buttons:[0,0,0,0,0,0,0,0,0,0,0] };
 function padFrame(){ return { axes: joyState.axes.slice(), buttons: joyState.buttons.slice() }; }
@@ -2318,6 +2485,12 @@ class Handler(BaseHTTPRequestHandler):
                 return
             self._respond(200, self.core.payload().encode("utf-8"),
                           "application/json; charset=utf-8")
+        elif path == "/sys.json":
+            if self.core is None:
+                self._json(503, {"ok": False, "msg": "core unavailable"})
+                return
+            self._json(200, {"server_now": time.time(),
+                             "sys": self.core.sysmon.view()})
         elif path == "/joy.json":
             if self.joy is None:
                 self._json(503, {"ok": False, "msg": "joy unavailable"})
@@ -2430,6 +2603,7 @@ def run():
     lora_mode = rospy.get_param("~lora_mode", "pty")
 
     core = DashboardCore()
+    core.sysmon.start()                # 资源监测 1s 采样（/sys.json）
 
     def _sim_mode_factory(handler):
         from grasp_hexapod_msgs.srv import SwitchMode, SwitchModeResponse
@@ -2517,7 +2691,8 @@ def run():
                   "_port:=%s）；模拟注入/模式控制自持，无 sim_manual 依赖",
                   _lan_ip(), port, core.lora.mode, pty_path, pty_path)
     import signal
-    rospy.on_shutdown(lambda: (stop.set(), core.lora.shutdown(), threading.Thread(
+    rospy.on_shutdown(lambda: (stop.set(), core.sysmon.stop(),
+                               core.lora.shutdown(), threading.Thread(
         target=httpd.shutdown, daemon=True).start()))
     signal.signal(signal.SIGTERM,
                   lambda *_a: rospy.signal_shutdown("sigterm"))
@@ -2527,6 +2702,7 @@ def run():
         pass
     finally:
         stop.set()
+        core.sysmon.stop()
         core.lora.shutdown()
         httpd.server_close()
         rospy.signal_shutdown("bt_dashboard exit")
@@ -2828,6 +3004,17 @@ def selftest():
     core.lora.shutdown()
     print("[OK] DashboardCore 载荷结构/版本缓存/链路发送")
 
+    # 8b. SysMonitor 资源采样：纯 /proc+/sys 读取与差分（无 ROS 依赖）
+    mon = SysMonitor(interval=0.05)
+    mon.start()
+    assert _wait_until(lambda: mon.view()["cpu"] is not None)
+    v = mon.view()
+    assert v["mem_pct"] > 0 and v["mem_total_gb"] > 0
+    assert v["disk_pct"] > 0 and v["self_rss_mb"] > 0
+    assert v["hist"] and v["hist"][-1]["mem"] == v["mem_pct"]
+    mon.stop()
+    print("[OK] SysMonitor 资源采样（CPU/内存/温度/磁盘/看板进程）")
+
     # 9. HTTP 往返：页面标记 + state.json + POST 各端点 + 坏请求
     try:
         from grasp_hexapod_msgs.msg import EncoderState  # noqa: F401
@@ -2842,6 +3029,7 @@ def selftest():
     core2.modes._caller = fake_caller
     Handler.core = core2
     Handler.joy = JoyLink(_FakeJoyPub(), make_msg=lambda a, b: (list(a), list(b)))
+    core2.sysmon.sample()              # 一拍填充资源数据（CPU 差分需第二拍）
     httpd = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
     port = httpd.server_address[1]
     threading.Thread(target=httpd.serve_forever, daemon=True).start()
@@ -2852,7 +3040,8 @@ def selftest():
                        "modeGrid", "data-gripper", "viewJoy",
                        "makeStick", "data-sim-toggle", "data-sim-once",
                        "data-op", "autoSw", "loraLinkCard",
-                       "spawnChk", "treeWrap",
+                       "spawnChk", "treeWrap", "chipCpu", "chipSelf",
+                       "renderSys",
                        "fetch(\"state.json\""]),
                 ("/remote", ["loraLinkCard", "makeStick"])):
             page = urllib.request.urlopen(base + path, timeout=5).read().decode("utf-8")
@@ -2863,6 +3052,10 @@ def selftest():
         st = json.loads(urllib.request.urlopen(base + "/state.json",
                                                timeout=5).read().decode("utf-8"))
         assert st["lora"]["mode"] == "pty" and st["remote"]["auto_on"] is False
+        st2 = json.loads(urllib.request.urlopen(base + "/sys.json",
+                                                timeout=5).read().decode("utf-8"))
+        assert st2["sys"]["mem_pct"] > 0 and st2["sys"]["self_rss_mb"] > 0
+        assert st2["sys"]["disk_pct"] > 0
 
         def _post(path_, payload):
             req = urllib.request.Request(

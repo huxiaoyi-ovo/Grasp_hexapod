@@ -122,8 +122,9 @@ python3 src/grasp_hexapod_bt_control/test/remote_control_e2e.py
 
 ## 已知边界
 
-- `dock` 全流程依赖真实视觉（AprilTag + `dock_system.yaml` 实标定）与可选
-  锁紧确认话题 `/grasp_hexapod/dock/lock_confirmed`；e2e 只验证到夹爪服务
+- `dock` 全流程依赖真实视觉（底部相机圆环识别，进程内 RingPerceptionRos，
+  `dock_system.yaml` 实标定）与可选锁紧确认话题
+  `/grasp_hexapod/dock/lock_confirmed`；e2e 只验证到夹爪服务
   链路（release 与 dock clamp 走同一 `actuateGripper` 实现）。
 - `climb` 需 `~enable_real_climb:=true` 且 IMU/RTK 数据可用（仅影响可选监控）。
 - `approach` 需 `~control_source:=navigation`。

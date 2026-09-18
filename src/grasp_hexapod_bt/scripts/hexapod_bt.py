@@ -455,15 +455,15 @@ def build_release_subtree(ctx):
 
 
 def build_recover_subtree(ctx, rtk_wait_timeout_s=60.0):
-    """回收分支子树（⑲ 任务）：接近导航 → climb → dock → 收尾。
+    """回收分支子树（⑲ 任务）：接近导航 → climb → home → dock → 收尾。
 
     结构（对应 Groot XML BehaviorTree RecoverMissionSubtree）：
       回收分支_抓取回收（Sequence memory=True）
       ├─ IsRecoveryMission → LANDED
       ├─ 定位导航_带RTK精度监视（spin_search → approach，RTK 协方差监护；
       │   approach 内部含 RTK 粗导航 + 视觉 tag 伺服到攀爬起点）
-      └─ RunMode(climb) → RunMode(dock) → CLAMPED
-          → 拉升㉜ → WaitHomeCmd → RunMode(home) → RESET_DONE
+      └─ RunMode(climb) → RunMode(home，含松开夹爪+归位) → RunMode(dock)
+          → CLAMPED → 拉升㉜ → WaitHomeCmd → RunMode(home) → RESET_DONE
     """
     # ---- 接近导航（spin_search + approach）带 RTK 协方差监护 ----
     # 外层 memory=False（反应式）：WaitRtkPrecise 每 tick 复检，协方差超限即
@@ -488,6 +488,7 @@ def build_recover_subtree(ctx, rtk_wait_timeout_s=60.0):
             ReportStatus(ctx, status="LANDED"),        # ㉕ 落地状态回传
             locate_and_nav,                            # ㉖㉗ 搜索/接近导航
             _run_mode(ctx, "climb"),                   # ㉘ 攀爬(含姿态准备)
+            _run_mode(ctx, "home"),                    # 攀爬后归位(home含松开夹爪)
             _run_mode(ctx, "dock"),                    # ㉙㉚ 对接(导引+抬腿+夹爪)
             ReportStatus(ctx, status="CLAMPED"),       # ㉛ 回传夹紧完成
             WaitWinchHoisted(ctx),                     # ㉜ 拉升绞盘回收
@@ -516,7 +517,7 @@ def build_hexapod_tree(ctx, deploy_timeout_s=120.0, landing_timeout_s=120.0,
       │       │   ├─ ReleaseSubtree：RunMode("release") → RELEASED → ⑫
       │       │   │            → WaitHomeCmd → RunMode("home") → RESET_DONE
       │       │   └─ RecoverSubtree：LANDED → [spin_search→approach(RTK监护)]
-      │       │            → RunMode("climb")
+      │       │            → RunMode("climb") → RunMode("home"含松爪)
       │       │            → RunMode("dock") → CLAMPED → ㉜
       │       │            → WaitHomeCmd → RunMode("home") → RESET_DONE
       │       └─ ReportStatus DONE ㊱
@@ -906,7 +907,7 @@ def selftest():
     assert ctx.status_log == ["LANDED", "CLAMPED", "RESET_DONE", "DONE"], ctx.status_log
     switched = [m for _, m in ctx.switch_log]
     assert switched == ["home", "spin_search", "approach",
-                        "climb", "dock", "home"], switched
+                        "climb", "home", "dock", "home"], switched
     print("[OK] 回收任务: 模式序列 =", switched, "状态上报 =", ctx.status_log)
 
     # --- 2. 释放任务正常推进（release 模式内部完成夹爪 open） ---
@@ -963,7 +964,7 @@ def selftest():
         assert ctx7.status_log == ["LANDED", "CLAMPED", "RESET_DONE", "DONE"], (
             "{} {}".format(sensor, ctx7.status_log))
         assert [m for _, m in ctx7.switch_log] == [
-            "home", "spin_search", "approach", "climb", "dock",
+            "home", "spin_search", "approach", "climb", "home", "dock",
             "home"], (
             "{} {}".format(sensor, ctx7.switch_log))
     print("[OK] 传感器数据瞬时异常停走恢复后继续")
@@ -1075,7 +1076,7 @@ def selftest():
     assert status16b == Status.SUCCESS, status16b
     assert ctx16b.status_log == ["LANDED", "CLAMPED", "FAILED"], ctx16b.status_log
     assert [m for _, m in ctx16b.switch_log] == [
-        "home", "spin_search", "approach", "climb", "dock"], (
+        "home", "spin_search", "approach", "climb", "home", "dock"], (
         ctx16b.switch_log)
     print("[OK] Wait 阶段 ABORT 失败回退: 状态上报 =", ctx16b.status_log)
 
@@ -1108,7 +1109,7 @@ def selftest():
     assert ctx18.status_log == ["LANDED", "CLAMPED", "RESET_DONE", "DONE"], (
         ctx18.status_log)
     assert [m for _, m in ctx18.switch_log] == [
-        "home", "spin_search", "approach", "climb", "dock", "home"], (
+        "home", "spin_search", "approach", "climb", "home", "dock", "home"], (
         ctx18.switch_log)
     print("[OK] 暂停挂起/恢复后继续: 状态上报 =", ctx18.status_log)
 

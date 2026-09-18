@@ -21,7 +21,7 @@
 #include "grasp_hexapod_bt_control/mode_topic_config.h"
 
 #include "grasp_hexapod_control_cpp/control.h"
-#include "grasp_hexapod_control_cpp/dock_mode.h"
+#include "grasp_hexapod_control_cpp/ring_controller.h"
 
 #include <grasp_hexapod_msgs/ModeStatus.h>
 #include <grasp_hexapod_msgs/SwitchMode.h>
@@ -94,7 +94,7 @@ class BtControlNode : public ModeContext, public SharedInputs {
   // ---------------------------------------------------------------------
   ros::NodeHandle& nodeHandle() override { return nh_; }
   ros::NodeHandle& privateNodeHandle() override { return pnh_; }
-  GraspController& controller() override { return *controller_; }
+  RingController& controller() override { return *controller_; }
   const SharedInputs& inputs() const override { return *this; }
   std::pair<bool, std::string> callGripper(const std::string& action) override;
   MachineState machineState() const override { return state_; }
@@ -152,7 +152,7 @@ class BtControlNode : public ModeContext, public SharedInputs {
   MachineState state_ = MachineState::WaitB;
 
   ControlPaths paths_;
-  std::unique_ptr<GraspController> controller_;
+  std::unique_ptr<RingController> controller_;
   std::unique_ptr<NavigationInput> navigation_;
   std::unique_ptr<ImuInput> imu_;
 

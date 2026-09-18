@@ -4,20 +4,22 @@
        按键与服务约定：A=walk B=home X=climb Y=dock（switch_mode 抢占式）；
        方向键左=夹爪闭合 右=张开（gripper_act）；左摇杆=walk 步态 /cmd_vel。
        与旧链路互斥：同一时刻只能运行一个 switch_mode 提供者。
-       Y=dock 需要 tag 感知，按需 start_dock_perception:=true 启动 apriltag 链。 -->
+       Y=dock 需要圆环感知，start_dock_perception:=true（默认）启动相机，
+       圆环识别在 bt_control_node 进程内执行。 -->
   <arg name="joy_dev" default="/dev/input/js0"/>
   <arg name="joy_deadzone" default="0.20"/>
 
-  <!-- dock 感知栈（默认关闭，实机按需打开）：usb_cam + image_proc + apriltag_ros
-       + dock TF 链 → dock_lock_center / dock_pin_from_tag_*（DockPerceptionRos 查询）。 -->
+  <!-- dock 感知（默认开启）：usb_cam 相机 → /dock_camera/image_raw，
+       圆环识别在 bt_control_node 进程内执行（RingPerceptionRos 自有线程），
+       与 run_real_ring_cpp 同源；不需要 apriltag/TF 链。 -->
   <arg name="start_dock_perception" default="true"/>
   <include if="$(arg start_dock_perception)"
-    file="$(find grasp_hexapod_control)/launch/dock_tag_system.launch"/>
+    file="$(find grasp_hexapod_control)/launch/dock_ring_camera.launch"/>
 
   <!-- 控制核心参数（与 grasp_hexapod_control/launch/control_stack_cpp.launch 同名同默认）。 -->
   <arg name="control_source" default="teleop"/>
   <arg name="controller_rate_hz" default="30.0"/>
-  <arg name="enable_link_collision_check" default="true"/>
+  <arg name="enable_link_collision_check" default="false"/>
   <arg name="max_feedback_age" default="0.30"/>
   <arg name="max_feedback_skew" default="0.20"/>
   <arg name="max_cmd_vel_age" default="0.2"/>
@@ -39,8 +41,10 @@
   <arg name="axis_right_scale" default="-1.0"/>
   <arg name="axis_forward_scale" default="1.0"/>
   <arg name="axis_yaw_scale" default="1.0"/>
-  <arg name="max_linear_speed" default="0.20"/>
-  <arg name="max_yaw_rate" default="0.50"/>
+  <!-- max_yaw_rate=1.55 与 ring 链路代码默认 max_linear_speed/foot_radius
+       (0.30/0.194，站立位形足端半径) 等值，两节点共用本值。 -->
+  <arg name="max_linear_speed" default="0.30"/>
+  <arg name="max_yaw_rate" default="1.55"/>
   <arg name="remote_rate_hz" default="30.0"/>
 
   <!-- 导航/IMU/对接输入（话题名统一在 config/mode_topics.yaml 配置）。 -->
@@ -59,19 +63,19 @@
   <arg name="dock_require_real_calibrated" default="true"/>
   <arg name="dock_allow_uncalibrated" default="false"/>
   <arg name="dock_lock_confirmation_max_age_s" default="0.5"/>
-  <arg name="dock_allow_inference" default="false"/>
   <arg name="dock_require_lock_confirmation" default="false"/>
-  <arg name="dock_min_stable_frames" default="10"/>
-  <arg name="dock_max_perception_age" default="0.35"/>
+  <!-- 圆环感知与运动参数（默认值与 run_real_ring_cpp 链一致）：
+       图像龄期上限、对接直线/对准速度与抬腿高度。
+       图像/标定话题名统一在 config/mode_topics.yaml 的 dock 节配置。 -->
+  <arg name="dock_max_perception_age" default="1.0"/>
   <arg name="dock_linear_speed_m_s" default="0.05"/>
+  <arg name="dock_alignment_speed_m_s" default="0.02"/>
   <arg name="dock_update_rate_hz" default="30.0"/>
   <arg name="dock_perception_rate_hz" default="10.0"/>
   <arg name="dock_leg_lift_speed_m_s" default="0.05"/>
   <arg name="dock_sit_settle_duration_s" default="0.5"/>
-  <arg name="dock_leg_lift_height_m" default="0.06"/>
+  <arg name="dock_leg_lift_height_m" default="0.04"/>
   <arg name="dock_leg_lift_level_tolerance_m" default="0.003"/>
-  <arg name="dock_lock_frame" default="dock_lock_center"/>
-  <arg name="dock_pin_frame_prefix" default="dock_pin_from_tag_"/>
 
   <!-- 舵机后端（固定 C++ 版；左板含夹爪 ID 99）。 -->
   <arg name="left_port" default="/dev/ttyTHS0"/>
@@ -143,19 +147,16 @@
     <param name="dock_require_real_calibrated" value="$(arg dock_require_real_calibrated)"/>
     <param name="dock_allow_uncalibrated" value="$(arg dock_allow_uncalibrated)"/>
     <param name="dock_lock_confirmation_max_age_s" value="$(arg dock_lock_confirmation_max_age_s)"/>
-    <param name="dock_allow_inference" value="$(arg dock_allow_inference)"/>
     <param name="dock_require_lock_confirmation" value="$(arg dock_require_lock_confirmation)"/>
-    <param name="dock_min_stable_frames" value="$(arg dock_min_stable_frames)"/>
     <param name="dock_max_perception_age" value="$(arg dock_max_perception_age)"/>
     <param name="dock_linear_speed_m_s" value="$(arg dock_linear_speed_m_s)"/>
+    <param name="dock_alignment_speed_m_s" value="$(arg dock_alignment_speed_m_s)"/>
     <param name="dock_update_rate_hz" value="$(arg dock_update_rate_hz)"/>
     <param name="dock_perception_rate_hz" value="$(arg dock_perception_rate_hz)"/>
     <param name="dock_leg_lift_speed_m_s" value="$(arg dock_leg_lift_speed_m_s)"/>
     <param name="dock_sit_settle_duration_s" value="$(arg dock_sit_settle_duration_s)"/>
     <param name="dock_leg_lift_height_m" value="$(arg dock_leg_lift_height_m)"/>
     <param name="dock_leg_lift_level_tolerance_m" value="$(arg dock_leg_lift_level_tolerance_m)"/>
-    <param name="dock_lock_frame" value="$(arg dock_lock_frame)"/>
-    <param name="dock_pin_frame_prefix" value="$(arg dock_pin_frame_prefix)"/>
   </node>
 
   <!-- 双板舵机驱动（C++ 版；左板含夹爪）。 -->

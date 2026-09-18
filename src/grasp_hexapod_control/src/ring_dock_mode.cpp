@@ -758,8 +758,8 @@ bool DockMode::planLegLift(const JointAngles& current, std::array<double, kLegCo
   lift_target_q_ = target;
   lift_command_q_ = current;
   leg_lift_start_feet_ = initial;
-  // 仅提前收起中腿提速1.5倍；同步缩放两项限速，保持原路径和先膝后踝顺序。
-  const double speed_scale = middle_only ? 1.5 : 1.;
+  // 仅提前收起中腿提速2倍；同步缩放两项限速，保持原路径和先膝后踝顺序。
+  const double speed_scale = middle_only ? 3.0 : 1.;
   lift_duration_ = std::max({.5, 1.875 * max_delta / (kLiftJointSpeed * speed_scale),
                             1.875 * max_foot_derivative / (leg_lift_speed_m_s_ * speed_scale)});
   const auto final_feet = model.forwardBase(target);

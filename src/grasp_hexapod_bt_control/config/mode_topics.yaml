@@ -12,8 +12,8 @@
 
 shared:
   # 六腿关节反馈/目标话题，顺序必须是 leg 索引 0..5：lf, lm, lb, rf, rm, rb。
-  joint_feedback: [/lf_pos, /lm_pos, /lb_pos, /rf_pos, /rm_pos, /rb_pos]
-  joint_command: [/lf_des, /lm_des, /lb_des, /rf_des, /rm_des, /rb_des]
+  joint_feedback: [/lb_pos, /lf_pos, /lm_pos, /rb_pos, /rf_pos, /rm_pos]
+  joint_command: [/lb_des, /lf_des, /lm_des, /rb_des, /rf_des, /rm_des]
   imu: /grasp_hexapod/imu
   # 导航位姿（approach 巡航与 climb 相对运动监控共用；frame 必须为 pv_map）。
   base_pose: /grasp_hexapod/navigation/base_pose
@@ -35,3 +35,6 @@ walk:
 
 dock:
   lock_confirmed: /grasp_hexapod/dock/lock_confirmed
+  # 圆环感知输入（RingPerceptionRos 订阅）；launch 不再设置话题参数。
+  dock_image_topic: /dock_camera/image_raw
+  dock_camera_info_topic: /dock_camera/camera_info

@@ -17,6 +17,7 @@ add_message_files(
   EncoderState.msg
   BtNodeState.msg
   BtStateArray.msg
+  ModeStatus.msg
 )
 
 # 自建服务：把 .srv 文件放进 srv/ 后在 FILES 中列出文件名。

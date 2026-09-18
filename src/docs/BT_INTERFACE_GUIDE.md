@@ -22,7 +22,8 @@
 2. **`switch_mode` 是阻塞式服务**:收到请求后你把该模式**从头执行到尾**,执行完才
    返回响应。响应即最终结果:
    - `success=true` → 行为树进入下一步;
-   - `success=false` → 行为树走失败处理(尽力执行 home,通过 LoRa 上报 `FAILED`);
+   - `success=false` → 行为树走失败处理(机器人保持 HOLD 等待地面处置,
+     通过 LoRa 上报 `FAILED`;2026-09-18 起失败不再执行 home 回正);
    - 服务没人应答 → 行为树立即按失败处理。
    - 执行期间**不要**提前返回 true/false;树会一直等。
 3. **幂等**:同一个模式已在执行中,又收到同样的请求时,不要重复触发一遍——直接
@@ -77,10 +78,10 @@ rosservice call /grasp_hexapod/switch_mode "target_mode: 'home'"
 
 | 模式 | 干什么 | 返回 success=true 的条件 |
 |---|---|---|
-| `home` | 机构复位(释放夹爪) + 回初始站姿 | 姿态到位 |
+| `home` | 先松开夹爪 + 平滑回初始站姿(2026-09-18 起顺序调整;夹爪失败仍回正但整体报失败) | 姿态到位且夹爪已松开 |
 | `walk` | 遥控速度连续行走(仅测试链,随 remote_cmd) | 连续执行,直到遥控切走 |
-| `spin_search` | 原地自转 + 感知搜索小蓝 | 感知发现小蓝 |
-| `approach` | RTK 导航粗对准进入小蓝可视范围 → 视觉 tag 伺服到攀爬起始点 | 到达攀爬点(ready for climb) |
+| `spin_search` | 【假实现】保持当前姿态 `~spin_search_fake_duration_s`(默认 5s)后成功;真实圆周搜索待实现 | 定时到 |
+| `approach` | 【默认假实现】保持当前姿态 `~approach_fake_duration_s`(默认 5s)后成功;真实 RTK+tag 导航在 `~approach_fake:=false` 时启用 | 假:定时到 / 真:ready for climb |
 | `climb` | 攀爬姿态准备 + C1→C35 步态序列 | 全程爬完并稳定 |
 | `dock` | tag 导引到充电桩 → 六腿抬起 → 调夹爪 `clamp` → 结束确认 | 四步全部完成 |
 | `release` | 调夹爪 `open` 松开载荷 | 夹爪张到位 |
@@ -97,11 +98,24 @@ rosservice call /grasp_hexapod/switch_mode "target_mode: 'home'"
 > `busy: X is running` 拒绝式(无抢占),行为树打断依赖其 B 键路径或等旧模式
 > 自然终结;需要时按 bt_control_node 的抢占实现补齐。
 
+> **模式状态反馈（2026-09-18 起）**:调度器在 `/grasp_hexapod/mode_status`
+>(`grasp_hexapod_msgs/ModeStatus`)发布当前模式/状态(idle|running|paused|
+> success|failed|preempted)/调用代次/原因,变化即发 + 空闲 1Hz 心跳。
+
+> **控制栈模式框架（2026-09-17 起）**:`bt_control_node` 内部已模式化——每个
+> 模式是 `grasp_hexapod_bt_control/src/modes/` 下一对独立 `mode_<name>.h/.cpp`,
+> 统一继承 `ModeBase`(start/step/checkTerminal + 可选 pause/resume/stop),
+> 文件末尾 `REGISTER_MODE` 宏自注册接入;所有话题名统一在
+> `grasp_hexapod_bt_control/config/mode_topics.yaml` 配置。对外服务/租约接口与
+> 响应报文不变。新写模式(如 `spin_search` 执行器)请从
+> `grasp_hexapod_bt_control/docs/MODE_DEV_GUIDE.md` 的三步清单开始,不要再
+> 改调度器。
+
 **两级异常打断（2026-09-15 起）**:
 - 一级·暂停(可恢复):`PAUSE` 挂起任务序列(hold 停走、子树状态保留),
   `RESUME` 从原阶段继续,watchdog 计时暂停期间冻结;
-- 二级·打断(终止):`ABORT` / B 键 / watchdog → 失败回退(home 尽力 +
-  上报 `FAILED`)。
+- 二级·打断(终止):`ABORT` / B 键 / watchdog → 失败回退(保持 HOLD +
+  上报 `FAILED`,不再执行 home)。
   行为树侧守护节点:`IsAbortRequested`(主流程最高优先级,每 tick 复检)与
   `PauseGate`(装饰任务阶段序列,暂停时不 tick 子树、状态保留)。
 
@@ -128,7 +142,7 @@ rosservice call /grasp_hexapod/gripper_act "action: 'clamp'"   # 夹紧
 | `HOME` | 恢复初始 | 执行 home 模式 → 上报 `RESET_DONE` |
 | `PAUSE` | 一级暂停(可恢复) | 挂起任务停走等待,`RESUME` 后从原阶段继续 |
 | `RESUME` | 解除暂停 | 任务从原阶段继续(watchdog 计时同步恢复) |
-| `ABORT` | 二级打断(终止) | 整树走失败回退:home 尽力 + 上报 `FAILED`,任务终止 |
+| `ABORT` | 二级打断(终止) | 整树走失败回退:保持 HOLD + 上报 `FAILED`,任务终止 |
 
 手动测试(不接 LoRa 硬件时):
 
@@ -151,7 +165,7 @@ rostopic pub /lora/command std_msgs/String "data: 'CMD,HEX,RECOVER,NOW'"
 | `CLAMPED` | 已夹紧对接 |
 | `RESET_DONE` | 已恢复初始姿态 |
 | `DONE` | 整个任务完成 |
-| `FAILED` | 任务失败(已尽力回 home) |
+| `FAILED` | 任务失败(机器人保持 HOLD,不回正) |
 
 ---
 
@@ -169,7 +183,7 @@ rostopic pub /lora/command std_msgs/String "data: 'CMD,HEX,RECOVER,NOW'"
 | 拉升回收 | `HOIST_DONE` | 等待 | — |
 | 恢复初始 | `HOME` | 执行 `home` 模式 | `RESET_DONE` |
 | 完成 | — | — | `DONE` |
-| 任一步失败 | — | 尽力执行 `home` | `FAILED` |
+| 任一步失败 | — | 保持 HOLD(不执行 home) | `FAILED` |
 
 (释放任务支线:`RELEASE` → release 模式 → `RELEASED` → `HOIST_DONE` → `HOME` → `RESET_DONE` → `DONE`)
 

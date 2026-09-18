@@ -1,0 +1,37 @@
+# =============================================================================
+# 模式话题名统一配置（bt_control_node 与全部模式共用）。
+#
+# - 由节点用 yaml-cpp 直接读取，路径由参数 ~topics_config 指定（默认本文件）。
+# - 每个模式一节，节名 = switch_mode 的模式名；模式类内 topics().get("key")
+#   只能读到本模式节，多人编辑互不冲突。
+# - 新增模式三步之一：在本文件加一节（见 docs/MODE_DEV_GUIDE.md）。
+# - shared 节为节点级安全环路（六腿反馈/目标、IMU、导航位姿），由调度器持有，
+#   各模式经 ModeContext::inputs() 只读访问；approach 与 climb 共用导航输入，
+#   故导航话题放在 shared 而不是某个模式节。
+# =============================================================================
+
+shared:
+  # 六腿关节反馈/目标话题，顺序必须是 leg 索引 0..5：lf, lm, lb, rf, rm, rb。
+  joint_feedback: [/lf_pos, /lm_pos, /lb_pos, /rf_pos, /rm_pos, /rb_pos]
+  joint_command: [/lf_des, /lm_des, /lb_des, /rf_des, /rm_des, /rb_des]
+  imu: /grasp_hexapod/imu
+  # 导航位姿（approach 巡航与 climb 相对运动监控共用；frame 必须为 pv_map）。
+  base_pose: /grasp_hexapod/navigation/base_pose
+  xiaolan_pose: /grasp_hexapod/navigation/xiaolan_pose
+  pv_boundary: /grasp_hexapod/navigation/pv_boundary
+  landing_confirmed: /grasp_hexapod/landing_confirmed
+
+services:
+  switch_mode: /grasp_hexapod/switch_mode
+  gripper_act: /grasp_hexapod/gripper_act
+
+bt:
+  hold_motion: /grasp_hexapod/hold_motion
+  # 模式状态反馈（grasp_hexapod_msgs/ModeStatus，变化即发 + 空闲 1Hz 心跳）。
+  mode_status: /grasp_hexapod/mode_status
+
+walk:
+  cmd_vel: /cmd_vel
+
+dock:
+  lock_confirmed: /grasp_hexapod/dock/lock_confirmed

@@ -19,7 +19,7 @@
       （暂停不消耗 watchdog 预算）；
       二级打断（终止）——/lora/command ABORT、遥控 B 键（reset_edge）、
       单模式执行超时 watchdog（~mode_timeouts），IsAbortRequested / RunMode
-      返回 FAILURE 使整树走失败回退：home 尽力 + 上报 FAILED。
+      返回 FAILURE 使整树走失败回退：保持 HOLD + 上报 FAILED。
     - 夹爪夹紧/松开：~/gripper_act（GripperAct.srv open/clamp），由
       release / dock 模式内部调用并折入最终结果，不出现在树中。
     - home（回到初始姿态，含复位）替换遥控 B 复位/回站/A 使能；主链不含
@@ -108,7 +108,7 @@ class BridgeContext:
         """二级打断事件（读后清）：True=请求终止任务。
 
         来源：/lora/command CMD,HEX,ABORT、遥控 B 键（reset_edge 上升沿）。
-        置位后树走失败回退分支（home 尽力 + 上报 FAILED），任务终止。
+        置位后树走失败回退分支（保持 HOLD + 上报 FAILED），任务终止。
         """
         raise NotImplementedError
 
@@ -268,7 +268,7 @@ class WaitRtkPrecise(py_trees.behaviour.Behaviour):
 
 class IsAbortRequested(py_trees.behaviour.Behaviour):
     """二级打断监护（每 tick，主流程最高优先级）：abort 事件置位 → FAILURE，
-    整树走失败回退（home 尽力 + 上报 FAILED），任务终止。
+    整树走失败回退（保持 HOLD + 上报 FAILED），任务终止。
 
     事件源：LoRa CMD,HEX,ABORT、遥控 B 键（reset_edge 上升沿）。锁存读后清；
     失败回退分支自身不再被本节点拦截（guard 只在主流程内）。
@@ -520,7 +520,7 @@ def build_hexapod_tree(ctx, deploy_timeout_s=120.0, landing_timeout_s=120.0,
       │       │            → RunMode("dock") → CLAMPED → ㉜
       │       │            → WaitHomeCmd → RunMode("home") → RESET_DONE
       │       └─ ReportStatus DONE ㊱
-      └─ 失败处理：home(尽力) → ReportStatus FAILED
+      └─ 失败处理：保持 HOLD → ReportStatus FAILED
     """
 
     # ---- SafetyInit：传感器上线 -> home 回到初始姿态(含复位) ----
@@ -581,14 +581,11 @@ def build_hexapod_tree(ctx, deploy_timeout_s=120.0, landing_timeout_s=120.0,
                 name="任务暂停监护_可恢复"),
         ])
 
-    # ---- 失败处理：home 尽力回初始姿态(含复位)，无论成败都上报 FAILED ----
+    # ---- 失败处理：不再执行 home 回正——机器人保持当前 HOLD 姿态，等待
+    # 地面站处置（远控/手动接管）；无论成败都上报 FAILED ----
     failure_handling = py_trees.composites.Sequence(
         name="失败处理", memory=True, children=[
-            py_trees.composites.Selector(
-                name="回到初始姿态(尽力)", memory=False, children=[
-                    _run_mode(ctx, "home"),
-                    py_trees.behaviours.Success(name="home不可用也继续"),
-                ]),
+            py_trees.behaviours.Success(name="保持HOLD_不再回正"),
             ReportStatus(ctx, status="FAILED"),
         ])
 
@@ -1068,7 +1065,7 @@ def selftest():
     assert status16 == Status.SUCCESS and ctx16.status_log == ["LANDED", "FAILED"], (
         ctx16.status_log)
     switched16 = [m for _, m in ctx16.switch_log]
-    assert switched16 == ["home", "spin_search", "approach", "home"], switched16
+    assert switched16 == ["home", "spin_search", "approach"], switched16
     print("[OK] 模式执行中 ABORT 失败回退: 状态上报 =", ctx16.status_log)
 
     # --- 15b. Wait 阶段（WaitWinchHoisted）ABORT -> 同样走失败回退 ---
@@ -1078,7 +1075,7 @@ def selftest():
     assert status16b == Status.SUCCESS, status16b
     assert ctx16b.status_log == ["LANDED", "CLAMPED", "FAILED"], ctx16b.status_log
     assert [m for _, m in ctx16b.switch_log] == [
-        "home", "spin_search", "approach", "climb", "dock", "home"], (
+        "home", "spin_search", "approach", "climb", "dock"], (
         ctx16b.switch_log)
     print("[OK] Wait 阶段 ABORT 失败回退: 状态上报 =", ctx16b.status_log)
 
@@ -1088,7 +1085,7 @@ def selftest():
     status16c = run_until_done(tree16c, ctx16c)
     assert status16c == Status.SUCCESS, status16c
     assert ctx16c.status_log == ["LANDED", "FAILED"], ctx16c.status_log
-    assert [m for _, m in ctx16c.switch_log] == ["home", "spin_search", "home"], (
+    assert [m for _, m in ctx16c.switch_log] == ["home", "spin_search"], (
         ctx16c.switch_log)
     print("[OK] B 键打断失败回退: 状态上报 =", ctx16c.status_log)
 
@@ -1123,7 +1120,7 @@ def selftest():
     assert status19 == Status.SUCCESS, status19
     assert ctx19.status_log == ["LANDED", "FAILED"], ctx19.status_log
     assert [m for _, m in ctx19.switch_log] == [
-        "home", "spin_search", "approach", "climb", "home"], ctx19.switch_log
+        "home", "spin_search", "approach", "climb"], ctx19.switch_log
     print("[OK] watchdog 模式执行超时打断: 状态上报 =", ctx19.status_log)
 
     # --- 20. abort 优先于 pause：暂停中仍可被打断 ---
@@ -1133,7 +1130,7 @@ def selftest():
     status20 = run_until_done(tree20, ctx20)
     assert status20 == Status.SUCCESS, status20
     assert ctx20.status_log == ["LANDED", "FAILED"], ctx20.status_log
-    assert [m for _, m in ctx20.switch_log] == ["home", "spin_search", "home"], (
+    assert [m for _, m in ctx20.switch_log] == ["home", "spin_search"], (
         ctx20.switch_log)
     print("[OK] 暂停中 ABORT 优先打断: 状态上报 =", ctx20.status_log)
 

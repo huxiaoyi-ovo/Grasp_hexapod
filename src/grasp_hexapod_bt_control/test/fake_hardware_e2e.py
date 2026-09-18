@@ -1,13 +1,18 @@
 """bt_control_node 端到端验证（伪舵机板 + 伪夹爪服务）。
 
 覆盖链路：
-1. WAIT_B 安全门：首次 home 之前请求 walk 被拒绝（"call home first"）。
-2. switch_mode(home)：回正到 HOLD，完成后自动调用夹爪 open。
+1. WAIT_B 安全门：首次 home 之前请求 walk 被拒绝（"call home first"）；
+   release 免门控，WAIT_B 下也能直接开夹爪。
+2. switch_mode(home)：先松夹爪再回正到 HOLD（夹爪结果即响应）；发布
+   /grasp_hexapod/mode_status（home/success）。
 3. switch_mode(walk) + /cmd_vel：步态目标持续变化；/cmd_vel 停发后安全停步，
    walk 以 "cmd_vel lost" 结束。
 4. 抢占：walk 进行中调用 switch_mode(home)，walk 立即以 "preempted by home"
    结束，home 正常完成。
-5. switch_mode(release)：内部调用夹爪 open（与 dock 成功后的 clamp 走同一
+5. HOLD 租约：walk 进行中发布 /grasp_hexapod/hold_motion 心跳，目标原地冻结
+   （仍持续发布保持上力），心跳停止后从冻结点恢复推进（PauseGate 语义）。
+6. approach 假模式（~approach_fake 默认 true）：约 5 秒后返回成功。
+7. switch_mode(release)：内部调用夹爪 open（与 dock 成功后的 clamp 走同一
    actuateGripper 服务链路）。
 
 注意：switch_mode 是"提交请求 → 等控制循环终态"的阻塞服务，控制循环只在新
@@ -26,9 +31,10 @@ from contextlib import contextmanager
 import numpy as np
 import rospy
 from geometry_msgs.msg import Twist
+from grasp_hexapod_msgs.msg import ModeStatus
 from grasp_hexapod_msgs.srv import GripperAct, SwitchMode
 from sensor_msgs.msg import JointState
-from std_msgs.msg import Float64MultiArray
+from std_msgs.msg import Float64MultiArray, String
 
 LEG_NAMES = ("lb", "lf", "lm", "rb", "rf", "rm")
 POSE_RATE_HZ = 30.0
@@ -57,6 +63,13 @@ class FakeHardware:
                       self.gripper_cb)
         self.pose_thread = threading.Thread(target=self.pose_loop, daemon=True)
         self.pose_thread.start()
+        self.mode_statuses = []
+        rospy.Subscriber("/grasp_hexapod/mode_status", ModeStatus,
+                         self.mode_status_cb, queue_size=5)
+
+    def mode_status_cb(self, msg):
+        with self.lock:
+            self.mode_statuses.append((msg.mode, msg.status, msg.run))
 
     def des_cb(self, leg, msg):
         assert len(msg.data) == 10, f"bad msg length {len(msg.data)}"
@@ -160,18 +173,26 @@ def main():
         switch.wait_for_service(timeout=15)
         rospy.loginfo("switch_mode service up")
 
-        # 1. WAIT_B 安全门：home 之前 walk 必须被拒。
+        # 1. WAIT_B 安全门：home 之前 walk 必须被拒；release 免门控可直接开夹爪。
         ok, message = call_mode(switch, "walk", timeout_s=15)
         assert ok is False, f"WAIT_B walk should be rejected, got {ok}"
         assert "call home first" in message, message
-        rospy.loginfo("PASS 1 WAIT_B gate: %s", message)
+        ok, message = call_mode(switch, "release", timeout_s=15)
+        assert ok is True, f"WAIT_B release should succeed: {message}"
+        assert fake.gripper_calls == ["open"], fake.gripper_calls
+        rospy.loginfo("PASS 1 WAIT_B gate: walk rejected; release opened gripper")
 
-        # 2. home：回正成功且触发夹爪 open；此后节点开始发布 /<leg>_des。
+        # 2. home：先松夹爪（免门控 release 已开过一次，这是第二次）再回正；
+        #    此后节点开始发布 /<leg>_des；mode_status 出现 home 终态。
         ok, message = call_mode(switch, "home", timeout_s=60)
         assert ok is True, f"home failed: {message}"
-        assert "open" in fake.gripper_calls, fake.gripper_calls
+        assert fake.gripper_calls.count("open") >= 2, fake.gripper_calls
         fake.wait_until(lambda: len(fake.legs_seen) == len(LEG_NAMES), 15,
                         "targets echoed to all 6 /<leg>_des topics")
+        fake.wait_until(
+            lambda: any(m == "home" and s == "success"
+                        for m, s, _ in fake.mode_statuses),
+            5, "mode_status home success")
         rospy.loginfo("PASS 2 home: %s (gripper=%s)", message,
                       fake.gripper_calls)
 
@@ -219,14 +240,82 @@ def main():
         assert "preempted by home" in preempt_result["message"], preempt_result
         rospy.loginfo("PASS 4 preempt: walk -> %s", preempt_result["message"])
 
-        # 5. release：内部调用夹爪 open（dock clamp 同链路）。
+        # 5. HOLD 租约：心跳期间目标原地冻结（仍发布），停止后恢复推进。
+        hold_result = {}
+
+        def hold_walk_worker():
+            hold_result["success"], hold_result["message"] = call_mode(
+                switch, "walk", timeout_s=60)
+
+        cmd = CmdVelPublisher(vx_forward=0.1)
+        with record_targets(fake):
+            walk_thread = threading.Thread(target=hold_walk_worker, daemon=True)
+            walk_thread.start()
+            time.sleep(1.0)  # 正常行进
+
+            hold_pub = rospy.Publisher("/grasp_hexapod/hold_motion", String,
+                                       queue_size=5)
+            beat_deadline = time.time() + 2.5
+
+            def beat():
+                rate = rospy.Rate(30)
+                while time.time() < beat_deadline and not rospy.is_shutdown():
+                    hold_pub.publish(String(data="paused"))
+                    rate.sleep()
+
+            beat_thread = threading.Thread(target=beat, daemon=True)
+            beat_thread.start()
+            time.sleep(1.0)  # 等租约生效
+            with fake.lock:
+                frozen_start = len(fake.walk_targets)
+            time.sleep(1.0)  # 冻结窗口（心跳期内）
+            with fake.lock:
+                frozen = np.array(fake.walk_targets[frozen_start:])
+            frozen_span = (float(np.ptp(frozen.reshape(frozen.shape[0], -1),
+                                        axis=0).max())
+                           if frozen.size else 1.0)
+            assert len(frozen) > 10, \
+                "no targets published during hold (servo must stay powered)"
+            assert frozen_span == 0.0, \
+                f"targets changed during hold lease: {frozen_span}"
+            beat_thread.join(timeout=5)
+            time.sleep(0.6)  # 租约过期 → resume
+            with fake.lock:
+                resumed_start = len(fake.walk_targets)
+            time.sleep(1.0)
+            with fake.lock:
+                resumed = np.array(fake.walk_targets[resumed_start:])
+            resumed_span = (float(np.ptp(resumed.reshape(resumed.shape[0], -1),
+                                         axis=0).max())
+                            if resumed.size else 0.0)
+            assert resumed_span > 1e-4, \
+                f"walk did not resume after hold lease expired (span={resumed_span})"
+            cmd.stop()  # 结束 walk：cmd_vel lost
+            walk_thread.join(timeout=30)
+            assert not walk_thread.is_alive(), "walk did not finish"
+        assert hold_result["success"] is False, hold_result
+        assert "cmd_vel lost" in hold_result["message"], hold_result
+        rospy.loginfo(
+            "PASS 5 hold lease: frozen span=0.0 (%d frames), resumed "
+            "span=%.4f rad", len(frozen), resumed_span)
+
+        # 6. approach 假模式（~approach_fake 默认 true）：约 5s 后返回成功。
+        t0 = time.time()
+        ok, message = call_mode(switch, "approach", timeout_s=30)
+        elapsed = time.time() - t0
+        assert ok is True, f"fake approach failed: {message}"
+        assert "fake approach completed" in message, message
+        assert 4.0 <= elapsed <= 10.0, f"fake approach duration={elapsed:.1f}s"
+        rospy.loginfo("PASS 6 fake approach: %s (%.1fs)", message, elapsed)
+
+        # 7. release：内部调用夹爪 open（dock clamp 同链路）。
         ok, message = call_mode(switch, "release", timeout_s=30)
         assert ok is True, f"release failed: {message}"
-        assert fake.gripper_calls.count("open") >= 2, fake.gripper_calls
-        rospy.loginfo("PASS 5 release: %s (gripper=%s)", message,
+        assert fake.gripper_calls.count("open") >= 3, fake.gripper_calls
+        rospy.loginfo("PASS 7 release: %s (gripper=%s)", message,
                       fake.gripper_calls)
 
-        rospy.loginfo("E2E OK: all 5 scenarios passed")
+        rospy.loginfo("E2E OK: all 7 scenarios passed")
     finally:
         node.terminate()
         node.wait(timeout=10)

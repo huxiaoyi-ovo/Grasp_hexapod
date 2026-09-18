@@ -43,25 +43,18 @@
   <arg name="max_yaw_rate" default="0.50"/>
   <arg name="remote_rate_hz" default="30.0"/>
 
-  <!-- 导航/IMU/对接输入。 -->
+  <!-- 导航/IMU/对接输入（话题名统一在 config/mode_topics.yaml 配置）。 -->
   <arg name="max_pose_age" default="0.5"/>
   <arg name="max_pose_skew" default="0.2"/>
   <arg name="max_boundary_age" default="1.0"/>
   <arg name="navigation_boundary_margin_m" default="0.03"/>
   <arg name="navigation_xiaolan_body_clearance_m" default="0.13"/>
-  <arg name="base_pose_topic" default="/grasp_hexapod/navigation/base_pose"/>
-  <arg name="xiaolan_pose_topic" default="/grasp_hexapod/navigation/xiaolan_pose"/>
-  <arg name="pv_boundary_topic" default="/grasp_hexapod/navigation/pv_boundary"/>
-  <arg name="landing_topic" default="/grasp_hexapod/landing_confirmed"/>
-  <arg name="imu_topic" default="/grasp_hexapod/imu"/>
   <arg name="real_climb_max_imu_age" default="0.2"/>
   <arg name="real_climb_max_position_error_m" default="0.05"/>
   <arg name="real_climb_max_orientation_error_deg" default="10.0"/>
   <arg name="real_climb_max_angular_speed_deg_s" default="30.0"/>
   <arg name="real_climb_persistence_frames" default="3"/>
-  <arg name="lock_confirmed_topic" default="/grasp_hexapod/dock/lock_confirmed"/>
-  <arg name="dock_image_topic" default="/dock_camera/image_raw"/>
-  <arg name="dock_camera_info_topic" default="/dock_camera/camera_info"/>
+  <arg name="topics_config" default="$(find grasp_hexapod_bt_control)/config/mode_topics.yaml"/>
   <arg name="dock_system_config" default="$(find grasp_hexapod_control)/config/dock_system.yaml"/>
   <arg name="dock_require_real_calibrated" default="true"/>
   <arg name="dock_allow_uncalibrated" default="false"/>
@@ -140,19 +133,12 @@
     <param name="max_boundary_age" value="$(arg max_boundary_age)"/>
     <param name="navigation_boundary_margin_m" value="$(arg navigation_boundary_margin_m)"/>
     <param name="navigation_xiaolan_body_clearance_m" value="$(arg navigation_xiaolan_body_clearance_m)"/>
-    <param name="base_pose_topic" value="$(arg base_pose_topic)"/>
-    <param name="xiaolan_pose_topic" value="$(arg xiaolan_pose_topic)"/>
-    <param name="pv_boundary_topic" value="$(arg pv_boundary_topic)"/>
-    <param name="landing_topic" value="$(arg landing_topic)"/>
-    <param name="imu_topic" value="$(arg imu_topic)"/>
+    <param name="topics_config" value="$(arg topics_config)"/>
     <param name="real_climb_max_imu_age" value="$(arg real_climb_max_imu_age)"/>
     <param name="real_climb_max_position_error_m" value="$(arg real_climb_max_position_error_m)"/>
     <param name="real_climb_max_orientation_error_deg" value="$(arg real_climb_max_orientation_error_deg)"/>
     <param name="real_climb_max_angular_speed_deg_s" value="$(arg real_climb_max_angular_speed_deg_s)"/>
     <param name="real_climb_persistence_frames" value="$(arg real_climb_persistence_frames)"/>
-    <param name="lock_confirmed_topic" value="$(arg lock_confirmed_topic)"/>
-    <param name="dock_image_topic" value="$(arg dock_image_topic)"/>
-    <param name="dock_camera_info_topic" value="$(arg dock_camera_info_topic)"/>
     <param name="dock_system_config" value="$(arg dock_system_config)"/>
     <param name="dock_require_real_calibrated" value="$(arg dock_require_real_calibrated)"/>
     <param name="dock_allow_uncalibrated" value="$(arg dock_allow_uncalibrated)"/>

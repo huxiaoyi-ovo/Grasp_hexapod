@@ -1,8 +1,15 @@
-# grasp_hexapod_bt_control — 行为树服务化控制栈
+# grasp_hexapod_bt_control — 行为树服务化控制栈（模式框架版）
 
 面向行为树（`grasp_hexapod_bt`，现有 Python/py_trees 版，**零改动**）的全链路
 C++ 控制栈：控制节点完全不依赖手柄话题，由服务切换状态机；手柄功能整体移到
 独立的遥控器节点。与 `src/docs/README.md` 描述的模式契约一致。
+
+`bt_control_node` 内部已重构为**统一模式框架**：每个模式（home/walk/approach/
+climb/dock/release/spin_search）是 `src/modes/` 下一对独立的 `mode_<name>.h/.cpp`
+（不同作者可分别维护），通过文件末尾 `REGISTER_MODE` 宏自注册接入调度器；
+所有话题名统一在 `config/mode_topics.yaml` 配置（yaml-cpp 直读）。新增模式的
+三步接入清单与接口契约见 **[docs/MODE_DEV_GUIDE.md](docs/MODE_DEV_GUIDE.md)**。
+对外接口（`switch_mode` 服务 + `hold_motion` 租约）与响应报文保持不变。
 
 > **与旧链路互斥**：`bt_control_node` 与 `grasp_hexapod_control` 的
 > `run_real.py`/`run_real_cpp` 提供同一个 `/grasp_hexapod/switch_mode` 服务，
@@ -16,7 +23,10 @@ C++ 控制栈：控制节点完全不依赖手柄话题，由服务切换状态�
                                              └─ 服务 /grasp_hexapod/gripper_act
 现有 Python 行为树 run_real_bt.py ── /grasp_hexapod/switch_mode、/hold_motion ──┐
                                                                               ▼
-bt_control_node（无 /joy；服务切换状态机；walk 由 /cmd_vel 驱动）
+bt_control_node（模式调度器：ModeContext 注入各模式实例）
+  ├─ modes/mode_home|walk|approach|climb|dock|release（每模式一对文件，自注册）
+  ├─ 共享输入：六腿反馈/IMU/导航（安全环路常驻，模式只读快照访问）
+  └─ 话题名统一来自 config/mode_topics.yaml（~topics_config 指定路径）
                               ▼ /{leg}_des
         servo_two_boards_cpp（左板含夹爪 ID 99）→ /{leg}_pos → bt_control_node
 ```
@@ -25,29 +35,40 @@ bt_control_node（无 /joy；服务切换状态机；walk 由 /cmd_vel 驱动）
 
 ### bt_control_node（`node/bt_control_main.cpp`）
 
-原 `real_control_node`（现 `grasp_hexapod_control/src/`）的服务化改造版，
-数值核心复用 `grasp_hexapod_control_core` 纯计算库。差异：
+模式调度器 + 共享安全环路，数值核心复用 `grasp_hexapod_control_core`
+纯计算库。各模式逻辑在 `src/modes/`（见模式开发指南）：
 
 - **不订阅** `/joy`、`/grasp_hexapod/remote_cmd`；手柄映射参数全部删除。
 - **`/grasp_hexapod/switch_mode` 带抢占语义**：进行中的不同模式请求被立即终结
   （`success=false, "preempted by X"`），新模式先平滑回正到 HOLD 再进入；
   同模式重复调用按等待者合并。单调用方（行为树）感知不到抢占。
-- **`/cmd_vel` 驱动 walk**：平面三自由度 `linear.x/linear.y/angular.z`，
-  **无 z 轴线速度**（`linear.z` 恒忽略）；按 `max_linear_speed` 向量模限幅、
-  `max_yaw_rate` 航向限幅。`~max_cmd_vel_age`（默认 0.2s）内无新速度指令 →
-  零命令停步回 HOLD，walk 以 `"cmd_vel lost"` 结束。
-- **WAIT_B 安全门**：上电初始态不发布目标（舵机卸力）；只接受 `home`，
-  其余模式拒绝 `"call home first"`（原"先按 B"安全语义的服务化等价）。
+- **`/cmd_vel` 驱动 walk**（订阅由 WalkMode 自持）：平面三自由度
+  `linear.x/linear.y/angular.z`，**无 z 轴线速度**；按 `max_linear_speed`
+  向量模限幅、`max_yaw_rate` 航向限幅。`~max_cmd_vel_age`（默认 0.2s）内
+  无新速度指令 → 零命令停步回 HOLD，walk 以 `"cmd_vel lost"` 结束。
+- **WAIT_B 安全门**：上电初始态不发布目标（舵机卸力）；只接受 `home`/`release`
+  （release 免门控，仅松夹爪），其余模式拒绝 `"call home first"`。
+- **home 顺序**：先松夹爪再平滑回正；夹爪失败仍完成回正（安全优先）但响应
+  报失败（夹爪错误消息透传）。
+- **approach/spin_search 假实现**（2026-09-18）：导航/感知栈未就绪时用于
+  整链联调——保持当前姿态定时返回成功。approach 真实导航在
+  `~approach_fake:=false` 时启用；时长 `~approach_fake_duration_s` /
+  `~spin_search_fake_duration_s`（默认 5.0s）。
 - **dock 末端夹持必然执行**：dock 只能经服务进入（原手柄 Y 直连路径已删），
   `DockMode` 到 `success` + HOLD 后调用 `gripper_act clamp`，夹爪结果即
   BT 服务的最终结果；失败 `ROS_ERROR` 并透传。`release` → open、
   `home` 完成 → open 同链路。
-- 状态机仍为 `WAIT_B/RESETTING/HOLD/RUNNING`；`home/walk/approach/climb/
-  dock/release` 可执行，`spin_search` 预留（返回 executor not
-  implemented）。`approach` 为接近导航到攀爬起点（RTK 粗导航 + 视觉 tag
+- **`/grasp_hexapod/mode_status` 模式状态反馈**（`ModeStatus.msg`）：当前模式/
+  状态（idle|running|paused|success|failed|preempted）/调用代次/原因，
+  变化即发 + 空闲 1Hz 心跳，供仪表盘与监控消费。
+- **`/grasp_hexapod/hold_motion` 租约 → pause/resume**：心跳期间活动模式原地
+  冻结（目标保持上一帧、持续发布保持上力，不取消模式）；心跳过期后从冻结点
+  恢复（对应行为树 PauseGate）。
+- 状态机仍为 `WAIT_B/RESETTING/HOLD/RUNNING`；七个模式均可经 switch_mode
+  调用（approach/spin_search 当前为假实现，见上）。`approach` 为接近导航到攀爬起点（RTK 粗导航 + 视觉 tag
   伺服，原 `tag_nav` 已并入本模式，不再是独立模式）。
-- 保留：`/grasp_hexapod/hold_motion` 租约、六腿反馈双板门控、导航/IMU/
-  锁紧确认订阅、反馈丢失 → HOLD、攀爬监控与诊断。
+- 保留：六腿反馈双板门控、反馈丢失 → HOLD、攀爬相对运动监控与速度诊断
+  （已随 climb 模式迁入 `modes/mode_climb.cpp`，逻辑不变）。
 
 ### remote_control_node（`node/remote_control_main.cpp`）
 
@@ -86,7 +107,11 @@ roslaunch grasp_hexapod_bt_control control_only.launch
 # gtest（反馈门控 + cmd_vel 限幅，无 ROS master 依赖）
 catkin_make run_tests_grasp_hexapod_bt_control_gtest_test_bt_control_routing
 
-# bt_control_node e2e：WAIT_B 门 / home+夹爪 / walk+cmd_vel / 抢占 / release
+# gtest（模式框架：注册表 / YAML 加载器 / ModeLifecycle 状态机）
+catkin_make run_tests_grasp_hexapod_bt_control_gtest_test_mode_framework
+
+# bt_control_node e2e：WAIT_B 门(含 release 免门控) / home 先夹爪后回正 /
+# walk+cmd_vel / 抢占 / hold 租约冻结恢复 / approach 假模式 / release
 python3 src/grasp_hexapod_bt_control/test/fake_hardware_e2e.py
 
 # 遥控器 e2e：cmd_vel 映射 / 失效归零 / 按键服务 / 方向键夹爪

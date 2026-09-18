@@ -47,7 +47,7 @@
     归位执行         -> RunMode(home)
     归位完成回传     -> ReportStatus(status=RESET_DONE)
     ㊱ 完成通知       -> ReportStatus(status=DONE)
-    异常打断 ABORT/B键/watchdog -> IsAbortRequested（失败回退：home+FAILED）
+    异常打断 ABORT/B键/watchdog -> IsAbortRequested（失败回退：保持HOLD+FAILED）
     任务暂停 PAUSE/RESUME       -> PauseGate（挂起/恢复，LoRa CMD,HEX,PAUSE,…）
 -->
 <root BTCPP_format="4" main_tree_to_execute="HexapodMission">
@@ -55,8 +55,8 @@
   <!-- ====================== 主任务树 ====================== -->
   <BehaviorTree ID="HexapodMission">
     <!--
-      外层 Fallback：主流程任一步失败 -> 失败处理分支（尽力 home 回初始姿态
-      + 上报 FAILED）。ReactiveSequence 每 tick 复检：
+      外层 Fallback：主流程任一步失败 -> 失败处理分支（保持 HOLD 等待地面处置
+      + 上报 FAILED，不再执行 home 回正）。ReactiveSequence 每 tick 复检：
       IsAbortRequested：二级打断（LoRa ABORT / 遥控B键，读后清）-> FAILURE
       走失败回退，任务终止；
       IsSensorDataOk：任一传感器数据异常 -> hold_motion 停走并暂停主流程
@@ -98,12 +98,10 @@
         </Sequence>
         </Decorator>
       </ReactiveSequence>
-      <!-- 失败处理：home 尽力回初始姿态（含复位），无论成败必报 FAILED -->
+      <!-- 失败处理：不再执行 home 回正——机器人保持当前 HOLD 姿态等待
+           地面站处置；无论成败必报 FAILED -->
       <Sequence name="失败处理">
-        <Fallback name="回到初始姿态_尽力">
-          <Action ID="RunMode" name="回到初始姿态_含复位" mode="home"/>
-          <Action ID="AlwaysSucceed" name="home不可用也继续"/>
-        </Fallback>
+        <Action ID="AlwaysSucceed" name="保持HOLD_不再回正"/>
         <Action ID="ReportStatus" name="上报失败" status="FAILED"/>
       </Sequence>
     </Fallback>
@@ -247,7 +245,7 @@
 
     <!-- 占位节点 -->
     <Action ID="AlwaysSucceed">
-      <description>恒成功占位：用于失败处理“home 尽力”与遥控“空闲待命”，保证后续上报不被前序阻塞。</description>
+      <description>恒成功占位：用于失败处理“保持HOLD_不再回正”与遥控“空闲待命”，保证后续上报不被前序阻塞。</description>
     </Action>
   </TreeNodesModel>
 

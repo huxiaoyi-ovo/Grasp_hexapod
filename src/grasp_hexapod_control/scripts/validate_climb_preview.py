@@ -240,11 +240,22 @@ def strict_concurrent27(compact):
     base_top, current_top = dict(baseline), dict(compact)
     base_top.pop("stages"); current_top.pop("stages")
     base_top.pop("stage_count"); current_top.pop("stage_count")
+    baseline_receipt = base_top.pop("front_v1_receipt")
+    current_receipt = current_top.pop("front_v1_receipt")
     require(base_top == current_top, "concurrent top-level identity")
+    remote_receipt = dict(baseline_receipt)
+    remote_settle_gate = dict(remote_receipt["settle_gate"])
+    remote_settle_gate.update(max_foot_target_error_m=.04, timeout_s=5.0)
+    remote_receipt["settle_gate"] = remote_settle_gate
+    require(current_receipt in (baseline_receipt, remote_receipt),
+            "concurrent front receipt gate identity")
+    rm = next(stage for stage in stages if stage["name"] == "RM")
+    rm_speed = rm["segment_durations_s"][1] == 1.7
     lm_level = next(stage for stage in stages if stage["name"] == "BODY_PRELOAD_LM")["segment_durations_s"] == [.5]
     lm_level_changed = {"BODY_PRELOAD_LM", "LM_LIFT", "BODY_ADVANCE_LM_AIR"} if lm_level else set()
+    rm_speed_changed = {"RM"} if rm_speed else set()
     for index, source in enumerate(baseline["stages"]):
-        if index not in consumed and source["name"] not in lm_level_changed:
+        if index not in consumed and source["name"] not in lm_level_changed | rm_speed_changed:
             require(next(stage for stage in stages if stage["name"] == source["name"]) == source,
                     "unchanged frozen stage " + source["name"])
     for name, (start, end) in sources.items():
@@ -323,6 +334,50 @@ def strict_concurrent27(compact):
         for name in left_names:
             require(next(stage for stage in stages if stage["name"] == name) == original[name],
                     "critical frozen stage " + name)
+    original_rm = original["RM"]
+    if rm_speed:
+        expected_base = np.asarray(original_rm["active_base_knots_m"], dtype=float).copy()
+        expected_base[2, 0, 2] -= .020
+        require(rm["active_legs"] == [5]
+                and rm["anchor_curve"] == original_rm["anchor_curve"]
+                and rm["pose_curve"] == original_rm["pose_curve"]
+                and rm["pose_start"] == original_rm["pose_start"]
+                and rm["pose_end"] == original_rm["pose_end"]
+                and rm["segment_durations_s"] == [original_rm["segment_durations_s"][0], 1.7,
+                                                    original_rm["segment_durations_s"][2], original_rm["segment_durations_s"][3]]
+                and np.allclose(rm["active_base_knots_m"], expected_base, rtol=0., atol=1e-12),
+                "C2 RM speed contract")
+        for key in original_rm:
+            if key not in ("segment_durations_s", "active_base_knots_m",
+                           "anchor_knots", "active_base_velocities_m_s"):
+                require(rm[key] == original_rm[key], "C2 RM speed contract")
+        times = np.r_[0., np.cumsum(rm["segment_durations_s"])]
+        mode = ClimbMode(None)
+        mode.config = compact
+        expected_world = []
+        for time_s, base_knot in zip(times, expected_base):
+            mode.stage_index = names.index("RM")
+            mode.phase_time = float(time_s)
+            pose, _, _ = mode._stage_reference()
+            expected_world.append((ClimbMode._world_from_base(pose)
+                                   @ np.r_[base_knot[0], 1.])[:3])
+        anchors = np.asarray(rm["anchor_knots"], dtype=float)
+        frozen = [leg for leg in range(6) if leg != 5]
+        require(np.allclose(anchors[:, 5], expected_world, rtol=0., atol=1e-12)
+                and np.allclose(anchors[:, frozen], np.asarray(original_rm["anchor_knots"])[0, frozen], rtol=0., atol=1e-12),
+                "C2 RM speed contract")
+        knots = np.asarray(rm["active_base_knots_m"], dtype=float)
+        durations = np.asarray(rm["segment_durations_s"], dtype=float)
+        chord = (knots[1:] - knots[:-1]) / durations[:, None, None]
+        expected_velocity = np.zeros_like(knots)
+        for knot_index in range(1, len(knots) - 1):
+            incoming, outgoing = chord[knot_index - 1], chord[knot_index]
+            magnitude = .4 * np.minimum(np.linalg.norm(incoming, axis=1), np.linalg.norm(outgoing, axis=1))
+            direction = incoming / np.maximum(np.linalg.norm(incoming, axis=1)[:, None], 1e-12)
+            direction += outgoing / np.maximum(np.linalg.norm(outgoing, axis=1)[:, None], 1e-12)
+            expected_velocity[knot_index] = direction / np.maximum(np.linalg.norm(direction, axis=1)[:, None], 1e-12) * magnitude[:, None]
+        require(np.allclose(rm["active_base_velocities_m_s"], expected_velocity, rtol=0., atol=1e-12),
+                "C2 RM speed contract")
     require(stages[-1]["pose_end"] == baseline["stages"][-1]["pose_end"]
             and stages[-1]["anchor_knots"][-1] == baseline["stages"][-1]["anchor_knots"][-1],
             "frozen terminal body and anchors")

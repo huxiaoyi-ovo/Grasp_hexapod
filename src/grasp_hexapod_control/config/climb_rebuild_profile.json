@@ -1,7 +1,7 @@
 {
   "schema": "COMPACT_CLIMB_REBUILD_PROFILE_V1",
   "version": 1,
-  "template_sha256": "f8da102282bffef261bfa0a2fe94b07558121f6c4bb38bc97c1c8c1c3061440f",
+  "template_sha256": "dc4eff1308e99369e815dc754037fc3fd11e0657297adb3fb6dc738ed600c711",
   "template_repo_relative_path": "src/grasp_hexapod_control/config/climb_compact.json",
   "model": {
     "repo_relative_path": "src/grasp_hexapod_description/meshes/xiaolan/base_link_xiaolan.STL",

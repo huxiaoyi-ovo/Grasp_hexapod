@@ -1,0 +1,798 @@
+{
+  "written": "src/docs/evidence/climb_c2_speed_20260909/retime_active.json",
+  "duration_mode": "audit_preserve",
+  "dense_base_stages": [
+    {
+      "stage": "PREP",
+      "segments": [
+        {
+          "segment_index": 0,
+          "semantic": "BODY",
+          "duration_s": 1.8,
+          "target_rad_s": 1.9,
+          "hard_gate_rad_s": 2.4,
+          "minimum_duration_s": 1.8,
+          "normalized_peak_rad": 2.8065912545244105,
+          "proposed_duration_s": 1.8,
+          "predicted_peak_rad_s": 1.5592173636246724
+        }
+      ]
+    },
+    {
+      "stage": "RM",
+      "segments": [
+        {
+          "segment_index": 0,
+          "semantic": "SWING_LIFT",
+          "duration_s": 0.51,
+          "target_rad_s": 3.0,
+          "hard_gate_rad_s": 3.4,
+          "minimum_duration_s": 0.35,
+          "normalized_peak_rad": 1.3334705773193611,
+          "proposed_duration_s": 0.51,
+          "predicted_peak_rad_s": 2.6146481908222765
+        },
+        {
+          "segment_index": 1,
+          "semantic": "SWING_TRANSFER",
+          "duration_s": 1.7,
+          "target_rad_s": 3.0,
+          "hard_gate_rad_s": 3.4,
+          "minimum_duration_s": 0.45,
+          "normalized_peak_rad": 5.527831744507356,
+          "proposed_duration_s": 1.7,
+          "predicted_peak_rad_s": 3.2516657320631506
+        },
+        {
+          "segment_index": 2,
+          "semantic": "SWING_TRANSFER",
+          "duration_s": 0.45,
+          "target_rad_s": 3.0,
+          "hard_gate_rad_s": 3.4,
+          "minimum_duration_s": 0.45,
+          "normalized_peak_rad": 0.6274743131381205,
+          "proposed_duration_s": 0.45,
+          "predicted_peak_rad_s": 1.3943873625291567
+        },
+        {
+          "segment_index": 3,
+          "semantic": "TOUCHDOWN",
+          "duration_s": 0.39,
+          "target_rad_s": 1.4,
+          "hard_gate_rad_s": 1.8,
+          "minimum_duration_s": 0.35,
+          "normalized_peak_rad": 0.5057890784761261,
+          "proposed_duration_s": 0.39,
+          "predicted_peak_rad_s": 1.2968950730157078
+        }
+      ]
+    },
+    {
+      "stage": "BODY",
+      "segments": [
+        {
+          "segment_index": 0,
+          "semantic": "BODY",
+          "duration_s": 0.8,
+          "target_rad_s": 1.9,
+          "hard_gate_rad_s": 2.4,
+          "minimum_duration_s": 0.8,
+          "normalized_peak_rad": 1.0246626927305926,
+          "proposed_duration_s": 0.8,
+          "predicted_peak_rad_s": 1.2808283659132407
+        }
+      ]
+    },
+    {
+      "stage": "PAIR",
+      "segments": [
+        {
+          "segment_index": 0,
+          "semantic": "SWING_LIFT",
+          "duration_s": 0.48,
+          "target_rad_s": 2.7,
+          "hard_gate_rad_s": 3.2,
+          "minimum_duration_s": 0.35,
+          "normalized_peak_rad": 1.1395418020370351,
+          "proposed_duration_s": 0.48,
+          "predicted_peak_rad_s": 2.3740454209104898
+        },
+        {
+          "segment_index": 1,
+          "semantic": "SWING_TRANSFER",
+          "duration_s": 2.2,
+          "target_rad_s": 2.7,
+          "hard_gate_rad_s": 3.2,
+          "minimum_duration_s": 0.45,
+          "normalized_peak_rad": 6.4162413777133445,
+          "proposed_duration_s": 2.2,
+          "predicted_peak_rad_s": 2.9164733535060656
+        },
+        {
+          "segment_index": 2,
+          "semantic": "TOUCHDOWN",
+          "duration_s": 0.78,
+          "target_rad_s": 1.4,
+          "hard_gate_rad_s": 1.8,
+          "minimum_duration_s": 0.35,
+          "normalized_peak_rad": 0.9315541789560281,
+          "proposed_duration_s": 0.78,
+          "predicted_peak_rad_s": 1.1943002294308052
+        }
+      ]
+    },
+    {
+      "stage": "LB_LF_GROUND_SHIFT",
+      "segments": [
+        {
+          "segment_index": 0,
+          "semantic": "SWING_LIFT",
+          "duration_s": 0.38,
+          "target_rad_s": 2.7,
+          "hard_gate_rad_s": 3.2,
+          "minimum_duration_s": 0.35,
+          "normalized_peak_rad": 0.9109950598069397,
+          "proposed_duration_s": 0.38,
+          "predicted_peak_rad_s": 2.3973554205445784
+        },
+        {
+          "segment_index": 1,
+          "semantic": "SWING_TRANSFER",
+          "duration_s": 0.65,
+          "target_rad_s": 2.7,
+          "hard_gate_rad_s": 3.2,
+          "minimum_duration_s": 0.45,
+          "normalized_peak_rad": 1.401147265042367,
+          "proposed_duration_s": 0.65,
+          "predicted_peak_rad_s": 2.155611176988257
+        },
+        {
+          "segment_index": 2,
+          "semantic": "TOUCHDOWN",
+          "duration_s": 0.53,
+          "target_rad_s": 1.4,
+          "hard_gate_rad_s": 1.8,
+          "minimum_duration_s": 0.35,
+          "normalized_peak_rad": 0.731080686549656,
+          "proposed_duration_s": 0.53,
+          "predicted_peak_rad_s": 1.3793975217918037
+        }
+      ]
+    },
+    {
+      "stage": "LM_GROUND_SHIFT",
+      "segments": [
+        {
+          "segment_index": 0,
+          "semantic": "SWING_LIFT",
+          "duration_s": 0.4,
+          "target_rad_s": 3.0,
+          "hard_gate_rad_s": 3.4,
+          "minimum_duration_s": 0.35,
+          "normalized_peak_rad": 1.038222399559579,
+          "proposed_duration_s": 0.4,
+          "predicted_peak_rad_s": 2.595555998898947
+        },
+        {
+          "segment_index": 1,
+          "semantic": "SWING_TRANSFER",
+          "duration_s": 0.65,
+          "target_rad_s": 3.0,
+          "hard_gate_rad_s": 3.4,
+          "minimum_duration_s": 0.45,
+          "normalized_peak_rad": 1.5171678313526171,
+          "proposed_duration_s": 0.65,
+          "predicted_peak_rad_s": 2.3341043559271033
+        },
+        {
+          "segment_index": 2,
+          "semantic": "TOUCHDOWN",
+          "duration_s": 0.52,
+          "target_rad_s": 1.4,
+          "hard_gate_rad_s": 1.8,
+          "minimum_duration_s": 0.35,
+          "normalized_peak_rad": 0.7039151405437976,
+          "proposed_duration_s": 0.52,
+          "predicted_peak_rad_s": 1.353682962584226
+        }
+      ]
+    },
+    {
+      "stage": "BODY2",
+      "segments": [
+        {
+          "segment_index": 0,
+          "semantic": "BODY",
+          "duration_s": 2.0,
+          "target_rad_s": 1.9,
+          "hard_gate_rad_s": 2.4,
+          "minimum_duration_s": 2.0,
+          "normalized_peak_rad": 3.642407178899978,
+          "proposed_duration_s": 2.0,
+          "predicted_peak_rad_s": 1.821203589449989
+        }
+      ]
+    },
+    {
+      "stage": "RM_HIGH_C",
+      "segments": [
+        {
+          "segment_index": 0,
+          "semantic": "SWING_LIFT",
+          "duration_s": 0.58,
+          "target_rad_s": 3.0,
+          "hard_gate_rad_s": 3.4,
+          "minimum_duration_s": 0.35,
+          "normalized_peak_rad": 1.4110894598992554,
+          "proposed_duration_s": 0.58,
+          "predicted_peak_rad_s": 2.432912861895268
+        },
+        {
+          "segment_index": 1,
+          "semantic": "SWING_TRANSFER",
+          "duration_s": 0.76,
+          "target_rad_s": 3.0,
+          "hard_gate_rad_s": 3.4,
+          "minimum_duration_s": 0.45,
+          "normalized_peak_rad": 2.169098614653873,
+          "proposed_duration_s": 0.76,
+          "predicted_peak_rad_s": 2.85407712454457
+        },
+        {
+          "segment_index": 2,
+          "semantic": "TOUCHDOWN",
+          "duration_s": 0.58,
+          "target_rad_s": 1.4,
+          "hard_gate_rad_s": 1.8,
+          "minimum_duration_s": 0.35,
+          "normalized_peak_rad": 0.5835900172212022,
+          "proposed_duration_s": 0.58,
+          "predicted_peak_rad_s": 1.0061896848641418
+        }
+      ]
+    },
+    {
+      "stage": "RB_RF_HIGH_C",
+      "segments": [
+        {
+          "segment_index": 0,
+          "semantic": "SWING_LIFT",
+          "duration_s": 0.52,
+          "target_rad_s": 2.7,
+          "hard_gate_rad_s": 3.2,
+          "minimum_duration_s": 0.35,
+          "normalized_peak_rad": 1.2759909533944225,
+          "proposed_duration_s": 0.52,
+          "predicted_peak_rad_s": 2.4538287565277352
+        },
+        {
+          "segment_index": 1,
+          "semantic": "SWING_TRANSFER",
+          "duration_s": 0.94,
+          "target_rad_s": 2.7,
+          "hard_gate_rad_s": 3.2,
+          "minimum_duration_s": 0.45,
+          "normalized_peak_rad": 2.219512385876053,
+          "proposed_duration_s": 0.94,
+          "predicted_peak_rad_s": 2.3611833892298435
+        },
+        {
+          "segment_index": 2,
+          "semantic": "TOUCHDOWN",
+          "duration_s": 0.57,
+          "target_rad_s": 1.4,
+          "hard_gate_rad_s": 1.8,
+          "minimum_duration_s": 0.35,
+          "normalized_peak_rad": 0.7590188626149901,
+          "proposed_duration_s": 0.57,
+          "predicted_peak_rad_s": 1.3316120396754212
+        }
+      ]
+    },
+    {
+      "stage": "RB_BODY_ADVANCE",
+      "segments": [
+        {
+          "segment_index": 0,
+          "semantic": "SWING_LIFT",
+          "duration_s": 0.35,
+          "target_rad_s": 3.0,
+          "hard_gate_rad_s": 3.4,
+          "minimum_duration_s": 0.35,
+          "normalized_peak_rad": 0.6682469337532687,
+          "proposed_duration_s": 0.35,
+          "predicted_peak_rad_s": 1.9092769535807679
+        },
+        {
+          "segment_index": 1,
+          "semantic": "SWING_TRANSFER",
+          "duration_s": 0.45,
+          "target_rad_s": 3.0,
+          "hard_gate_rad_s": 3.4,
+          "minimum_duration_s": 0.45,
+          "normalized_peak_rad": 0.48325682132055414,
+          "proposed_duration_s": 0.45,
+          "predicted_peak_rad_s": 1.0739040473790091
+        },
+        {
+          "segment_index": 2,
+          "semantic": "TOUCHDOWN",
+          "duration_s": 0.36,
+          "target_rad_s": 1.4,
+          "hard_gate_rad_s": 1.8,
+          "minimum_duration_s": 0.35,
+          "normalized_peak_rad": 0.27606157177320045,
+          "proposed_duration_s": 0.36,
+          "predicted_peak_rad_s": 0.7668376993700012
+        }
+      ]
+    },
+    {
+      "stage": "LM_RM_PRE_ADVANCE",
+      "segments": [
+        {
+          "segment_index": 0,
+          "semantic": "SWING_LIFT",
+          "duration_s": 0.35,
+          "target_rad_s": 2.7,
+          "hard_gate_rad_s": 3.2,
+          "minimum_duration_s": 0.35,
+          "normalized_peak_rad": 0.61478282414622,
+          "proposed_duration_s": 0.35,
+          "predicted_peak_rad_s": 1.7565223547034858
+        },
+        {
+          "segment_index": 1,
+          "semantic": "SWING_LIFT",
+          "duration_s": 0.35,
+          "target_rad_s": 2.7,
+          "hard_gate_rad_s": 3.2,
+          "minimum_duration_s": 0.35,
+          "normalized_peak_rad": 0.3402413175161209,
+          "proposed_duration_s": 0.35,
+          "predicted_peak_rad_s": 0.9721180500460598
+        },
+        {
+          "segment_index": 2,
+          "semantic": "SWING_TRANSFER",
+          "duration_s": 0.82,
+          "target_rad_s": 2.7,
+          "hard_gate_rad_s": 3.2,
+          "minimum_duration_s": 0.45,
+          "normalized_peak_rad": 2.208548048827528,
+          "proposed_duration_s": 0.82,
+          "predicted_peak_rad_s": 2.6933512790579615
+        },
+        {
+          "segment_index": 3,
+          "semantic": "TOUCHDOWN",
+          "duration_s": 0.5,
+          "target_rad_s": 1.4,
+          "hard_gate_rad_s": 1.8,
+          "minimum_duration_s": 0.35,
+          "normalized_peak_rad": 0.7110399133245731,
+          "proposed_duration_s": 0.5,
+          "predicted_peak_rad_s": 1.4220798266491461
+        }
+      ]
+    },
+    {
+      "stage": "LB_LF_BODY_ADVANCE_HIGH_STEP",
+      "segments": [
+        {
+          "segment_index": 0,
+          "semantic": "CRITICAL_BODY_TRANSFER",
+          "duration_s": 2.02,
+          "target_rad_s": 1.8,
+          "hard_gate_rad_s": 2.4,
+          "minimum_duration_s": 0.8,
+          "normalized_peak_rad": 3.462278231521548,
+          "proposed_duration_s": 2.02,
+          "predicted_peak_rad_s": 1.7139991245156179
+        }
+      ]
+    },
+    {
+      "stage": "RB_RF_TOP_INWARD_PAIR",
+      "segments": [
+        {
+          "segment_index": 0,
+          "semantic": "SWING_LIFT",
+          "duration_s": 0.35,
+          "target_rad_s": 2.7,
+          "hard_gate_rad_s": 3.2,
+          "minimum_duration_s": 0.35,
+          "normalized_peak_rad": 0.7885900402329054,
+          "proposed_duration_s": 0.35,
+          "predicted_peak_rad_s": 2.253114400665444
+        },
+        {
+          "segment_index": 1,
+          "semantic": "SWING_TRANSFER",
+          "duration_s": 0.96,
+          "target_rad_s": 2.7,
+          "hard_gate_rad_s": 3.2,
+          "minimum_duration_s": 0.45,
+          "normalized_peak_rad": 2.221409264326169,
+          "proposed_duration_s": 0.96,
+          "predicted_peak_rad_s": 2.3139679836730926
+        },
+        {
+          "segment_index": 2,
+          "semantic": "TOUCHDOWN",
+          "duration_s": 0.35,
+          "target_rad_s": 1.4,
+          "hard_gate_rad_s": 1.8,
+          "minimum_duration_s": 0.35,
+          "normalized_peak_rad": 0.3053488840371485,
+          "proposed_duration_s": 0.35,
+          "predicted_peak_rad_s": 0.8724253829632814
+        }
+      ]
+    },
+    {
+      "stage": "LM_BODY_TRANSFER",
+      "segments": [
+        {
+          "segment_index": 0,
+          "semantic": "SWING_LIFT",
+          "duration_s": 0.38,
+          "target_rad_s": 3.0,
+          "hard_gate_rad_s": 3.4,
+          "minimum_duration_s": 0.35,
+          "normalized_peak_rad": 0.8512610190103679,
+          "proposed_duration_s": 0.38,
+          "predicted_peak_rad_s": 2.240160576343073
+        },
+        {
+          "segment_index": 1,
+          "semantic": "SWING_TRANSFER",
+          "duration_s": 0.95,
+          "target_rad_s": 3.0,
+          "hard_gate_rad_s": 3.4,
+          "minimum_duration_s": 0.45,
+          "normalized_peak_rad": 1.540319286725654,
+          "proposed_duration_s": 0.95,
+          "predicted_peak_rad_s": 1.6213887228691097
+        },
+        {
+          "segment_index": 2,
+          "semantic": "TOUCHDOWN",
+          "duration_s": 0.54,
+          "target_rad_s": 1.4,
+          "hard_gate_rad_s": 1.8,
+          "minimum_duration_s": 0.35,
+          "normalized_peak_rad": 0.859593852609252,
+          "proposed_duration_s": 0.54,
+          "predicted_peak_rad_s": 1.591840467794911
+        }
+      ]
+    },
+    {
+      "stage": "RM_RIGHT_SYMMETRY",
+      "segments": [
+        {
+          "segment_index": 0,
+          "semantic": "SWING_TRANSFER",
+          "duration_s": 0.45,
+          "target_rad_s": 3.0,
+          "hard_gate_rad_s": 3.4,
+          "minimum_duration_s": 0.45,
+          "normalized_peak_rad": 0.8039073175082161,
+          "proposed_duration_s": 0.45,
+          "predicted_peak_rad_s": 1.7864607055738135
+        },
+        {
+          "segment_index": 1,
+          "semantic": "TOUCHDOWN",
+          "duration_s": 1.22,
+          "target_rad_s": 1.4,
+          "hard_gate_rad_s": 1.8,
+          "minimum_duration_s": 0.35,
+          "normalized_peak_rad": 1.778015850412061,
+          "proposed_duration_s": 1.22,
+          "predicted_peak_rad_s": 1.4573900413213614
+        }
+      ]
+    },
+    {
+      "stage": "BODY_LEFT_TRANSFER_PREP",
+      "segments": [
+        {
+          "segment_index": 0,
+          "semantic": "BODY",
+          "duration_s": 0.8,
+          "target_rad_s": 1.9,
+          "hard_gate_rad_s": 2.4,
+          "minimum_duration_s": 0.8,
+          "normalized_peak_rad": 0.9220527259850723,
+          "proposed_duration_s": 0.8,
+          "predicted_peak_rad_s": 1.1525659074813404
+        }
+      ]
+    },
+    {
+      "stage": "LB_LOW_STEP",
+      "segments": [
+        {
+          "segment_index": 0,
+          "semantic": "SWING_LIFT",
+          "duration_s": 1.4,
+          "target_rad_s": 3.0,
+          "hard_gate_rad_s": 3.4,
+          "minimum_duration_s": 0.35,
+          "normalized_peak_rad": 3.6274106031274203,
+          "proposed_duration_s": 1.4,
+          "predicted_peak_rad_s": 2.591007573662443
+        },
+        {
+          "segment_index": 1,
+          "semantic": "SWING_TRANSFER",
+          "duration_s": 0.5,
+          "target_rad_s": 3.0,
+          "hard_gate_rad_s": 3.4,
+          "minimum_duration_s": 0.45,
+          "normalized_peak_rad": 0.9974031813495423,
+          "proposed_duration_s": 0.5,
+          "predicted_peak_rad_s": 1.9948063626990846
+        },
+        {
+          "segment_index": 2,
+          "semantic": "TOUCHDOWN",
+          "duration_s": 1.2,
+          "target_rad_s": 1.4,
+          "hard_gate_rad_s": 1.8,
+          "minimum_duration_s": 0.35,
+          "normalized_peak_rad": 1.6700959232430945,
+          "proposed_duration_s": 1.2,
+          "predicted_peak_rad_s": 1.3917466027025789
+        }
+      ]
+    },
+    {
+      "stage": "BODY_RIGHT_BEFORE_LF",
+      "segments": [
+        {
+          "segment_index": 0,
+          "semantic": "BODY",
+          "duration_s": 1.2,
+          "target_rad_s": 1.9,
+          "hard_gate_rad_s": 2.4,
+          "minimum_duration_s": 1.2,
+          "normalized_peak_rad": 2.056060634879951,
+          "proposed_duration_s": 1.2,
+          "predicted_peak_rad_s": 1.713383862399959
+        }
+      ]
+    },
+    {
+      "stage": "LF_LOW_STEP",
+      "segments": [
+        {
+          "segment_index": 0,
+          "semantic": "SWING_LIFT",
+          "duration_s": 1.4,
+          "target_rad_s": 3.0,
+          "hard_gate_rad_s": 3.4,
+          "minimum_duration_s": 0.35,
+          "normalized_peak_rad": 3.606423441146941,
+          "proposed_duration_s": 1.4,
+          "predicted_peak_rad_s": 2.5760167436763868
+        },
+        {
+          "segment_index": 1,
+          "semantic": "SWING_TRANSFER",
+          "duration_s": 0.55,
+          "target_rad_s": 3.0,
+          "hard_gate_rad_s": 3.4,
+          "minimum_duration_s": 0.45,
+          "normalized_peak_rad": 1.1037401255152615,
+          "proposed_duration_s": 0.55,
+          "predicted_peak_rad_s": 2.006800228209566
+        },
+        {
+          "segment_index": 2,
+          "semantic": "TOUCHDOWN",
+          "duration_s": 1.0,
+          "target_rad_s": 1.4,
+          "hard_gate_rad_s": 1.8,
+          "minimum_duration_s": 0.35,
+          "normalized_peak_rad": 1.4723388344187391,
+          "proposed_duration_s": 1.0,
+          "predicted_peak_rad_s": 1.4723388344187391
+        }
+      ]
+    },
+    {
+      "stage": "BODY_PRELOAD_LM",
+      "segments": [
+        {
+          "segment_index": 0,
+          "semantic": "BODY",
+          "duration_s": 0.5,
+          "target_rad_s": 1.9,
+          "hard_gate_rad_s": 2.4,
+          "minimum_duration_s": 0.5,
+          "normalized_peak_rad": 0.1742160727287388,
+          "proposed_duration_s": 0.5,
+          "predicted_peak_rad_s": 0.3484321454574776
+        }
+      ]
+    },
+    {
+      "stage": "LM_LIFT",
+      "segments": [
+        {
+          "segment_index": 0,
+          "semantic": "SWING_LIFT",
+          "duration_s": 1.2,
+          "target_rad_s": 3.0,
+          "hard_gate_rad_s": 3.4,
+          "minimum_duration_s": 0.35,
+          "normalized_peak_rad": 3.4490559106527234,
+          "proposed_duration_s": 1.2,
+          "predicted_peak_rad_s": 2.8742132588772695
+        },
+        {
+          "segment_index": 1,
+          "semantic": "SWING_TRANSFER",
+          "duration_s": 0.45,
+          "target_rad_s": 3.0,
+          "hard_gate_rad_s": 3.4,
+          "minimum_duration_s": 0.45,
+          "normalized_peak_rad": 0.5013612564372822,
+          "proposed_duration_s": 0.45,
+          "predicted_peak_rad_s": 1.1141361254161828
+        }
+      ]
+    },
+    {
+      "stage": "BODY_ADVANCE_LM_AIR",
+      "segments": [
+        {
+          "segment_index": 0,
+          "semantic": "CRITICAL_BODY_TRANSFER",
+          "duration_s": 3.0,
+          "target_rad_s": 1.8,
+          "hard_gate_rad_s": 2.4,
+          "minimum_duration_s": 3.0,
+          "normalized_peak_rad": 2.025298918698355,
+          "proposed_duration_s": 3.0,
+          "predicted_peak_rad_s": 0.6750996395661183
+        }
+      ]
+    },
+    {
+      "stage": "LM_LEFT_FINAL_LAND",
+      "segments": [
+        {
+          "segment_index": 0,
+          "semantic": "TOUCHDOWN",
+          "duration_s": 0.8,
+          "target_rad_s": 1.4,
+          "hard_gate_rad_s": 1.8,
+          "minimum_duration_s": 0.35,
+          "normalized_peak_rad": 0.8029784023665547,
+          "proposed_duration_s": 0.8,
+          "predicted_peak_rad_s": 1.0037230029581934
+        }
+      ]
+    },
+    {
+      "stage": "RB_RF_DIRECT_FINAL",
+      "segments": [
+        {
+          "segment_index": 0,
+          "semantic": "SWING_LIFT",
+          "duration_s": 0.8,
+          "target_rad_s": 2.7,
+          "hard_gate_rad_s": 3.2,
+          "minimum_duration_s": 0.35,
+          "normalized_peak_rad": 0.8492907111293472,
+          "proposed_duration_s": 0.8,
+          "predicted_peak_rad_s": 1.0616133889116839
+        },
+        {
+          "segment_index": 1,
+          "semantic": "SWING_TRANSFER",
+          "duration_s": 1.1,
+          "target_rad_s": 2.7,
+          "hard_gate_rad_s": 3.2,
+          "minimum_duration_s": 0.45,
+          "normalized_peak_rad": 2.121716227965174,
+          "proposed_duration_s": 1.1,
+          "predicted_peak_rad_s": 1.9288329345137945
+        },
+        {
+          "segment_index": 2,
+          "semantic": "TOUCHDOWN",
+          "duration_s": 0.7,
+          "target_rad_s": 1.4,
+          "hard_gate_rad_s": 1.8,
+          "minimum_duration_s": 0.35,
+          "normalized_peak_rad": 0.7399696842486582,
+          "proposed_duration_s": 0.7,
+          "predicted_peak_rad_s": 1.0570995489266546
+        }
+      ]
+    },
+    {
+      "stage": "RM_BODY_REPOSITION",
+      "segments": [
+        {
+          "segment_index": 0,
+          "semantic": "SWING_LIFT",
+          "duration_s": 0.8,
+          "target_rad_s": 3.0,
+          "hard_gate_rad_s": 3.4,
+          "minimum_duration_s": 0.35,
+          "normalized_peak_rad": 1.423753744901564,
+          "proposed_duration_s": 0.8,
+          "predicted_peak_rad_s": 1.779692181126955
+        },
+        {
+          "segment_index": 1,
+          "semantic": "SWING_TRANSFER",
+          "duration_s": 0.9,
+          "target_rad_s": 3.0,
+          "hard_gate_rad_s": 3.4,
+          "minimum_duration_s": 0.45,
+          "normalized_peak_rad": 1.491656707041232,
+          "proposed_duration_s": 0.9,
+          "predicted_peak_rad_s": 1.6573963411569246
+        },
+        {
+          "segment_index": 2,
+          "semantic": "TOUCHDOWN",
+          "duration_s": 1.3,
+          "target_rad_s": 1.4,
+          "hard_gate_rad_s": 1.8,
+          "minimum_duration_s": 0.35,
+          "normalized_peak_rad": 0.8683027511830719,
+          "proposed_duration_s": 1.3,
+          "predicted_peak_rad_s": 0.6679251932177476
+        }
+      ]
+    },
+    {
+      "stage": "LB_LF_DOCK_TRANSFER",
+      "segments": [
+        {
+          "segment_index": 0,
+          "semantic": "SWING_LIFT",
+          "duration_s": 0.75,
+          "target_rad_s": 2.7,
+          "hard_gate_rad_s": 3.2,
+          "minimum_duration_s": 0.35,
+          "normalized_peak_rad": 1.1539417168192723,
+          "proposed_duration_s": 0.75,
+          "predicted_peak_rad_s": 1.5385889557590298
+        },
+        {
+          "segment_index": 1,
+          "semantic": "SWING_TRANSFER",
+          "duration_s": 1.1,
+          "target_rad_s": 2.7,
+          "hard_gate_rad_s": 3.2,
+          "minimum_duration_s": 0.45,
+          "normalized_peak_rad": 2.049453183736281,
+          "proposed_duration_s": 1.1,
+          "predicted_peak_rad_s": 1.8631392579420736
+        },
+        {
+          "segment_index": 2,
+          "semantic": "TOUCHDOWN",
+          "duration_s": 0.7,
+          "target_rad_s": 1.4,
+          "hard_gate_rad_s": 1.8,
+          "minimum_duration_s": 0.35,
+          "normalized_peak_rad": 0.5842521624732749,
+          "proposed_duration_s": 0.7,
+          "predicted_peak_rad_s": 0.8346459463903928
+        }
+      ]
+    }
+  ],
+  "dynamic_tracking_adjustments": [],
+  "evidence_boundary": "Offline continuous-seed dense IK retiming only; not contact, load, friction, clearance, stability, GPU PhysX, or hardware authorization."
+}

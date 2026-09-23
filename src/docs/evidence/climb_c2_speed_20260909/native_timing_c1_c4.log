@@ -1,0 +1,49 @@
+Not connected to PVD
++++ Using GPU PhysX
+Physics Engine: PhysX
+Physics Device: cuda:0
+GPU Pipeline: disabled
+Importing module 'gym_38' (/home/artrc/isaacgym/python/isaacgym/_bindings/linux-x86_64/gym_38.so)
+Setting GYM_USD_PLUG_INFO_PATH to /home/artrc/isaacgym/python/isaacgym/_bindings/linux-x86_64/usd/plugInfo.json
+PhysX contact scales: rest_offset=0m contact_offset=20mm friction_offset_threshold=1mm friction_correlation_distance=0.5mm robot_thickness=1mm
+Compact climb config selected: /home/artrc/Grasp_hexapod/src/grasp_hexapod_control/config/climb_compact.json (side=left)
+Compact climb scene loaded (C1:PREP -> C4:PAIR, 1x, 9.6s)
+Xiaolan loaded: 22664 exact static collision triangles
+Physics: 240 Hz, controller: 30 Hz, actuator: 30 Hz
+Robot loaded: 25 rigid bodies, 18 DOFs
+Control DOF mapping ready: 18 joints
+Compact climb joint velocity limit: 1.2x (same Isaac drive baseline as Approach: stiffness=100, damping=0.8, URDF effort unchanged; 1.2x is the LX-15D official no-load upper-bound candidate, >1.2x is diagnostics-only and not hardware-aligned; Isaac gains are not calibrated servo gains)
+Compact climb: initialized at C1:PREP entry snapshot
+Compact climb started (--climb-start, real feedback gates)
+A: enable/pause motion | B: reset to stand | X: compact climb
+[climb] state=RUNNING stage=1/27 phase=PREP prior_tracking_error=2.34679e-08rad prior_foot_target_error=5.33354e-09m
+[render] frame=0 fps=250219.2
+[render] frame=240 fps=236.2
+[climb] C1 PREP metrics: t=1.83s track=0.005938rad foot=0.003308m limit_margin=0.3715rad worst_joint=rm/ankle@1.83s worst_foot=rm@0.97s root=0.008064m@1.23s world_foot=0.007501mlm@1.73s support_drift=0.007501m end_track=0.005938rad end_foot=0.0006547m end_root=0.007036m end_world_foot=0.007499m
+[climb] state=RUNNING stage=2/27 phase=RM prior_tracking_error=0.00593828rad prior_foot_target_error=0.000654684m
+[render] frame=480 fps=239.1
+[render] frame=720 fps=241.6
+[render] frame=960 fps=242.7
+[render] frame=1200 fps=240.4
+[climb] C2 RM metrics: t=3.77s track=0.01086rad foot=0.009544m limit_margin=0.03479rad worst_joint=lm/ankle@3.43s worst_foot=rm@2.93s root=0.007431m@2.97s world_foot=0.01357mrm@2.93s support_drift=0.0005598m end_track=0.006444rad end_foot=0.001228m end_root=0.00651m end_world_foot=0.007475m
+[climb] state=RUNNING stage=3/27 phase=BODY prior_tracking_error=0.00644397rad prior_foot_target_error=0.00122762m
+[render] frame=1440 fps=201.9
+[climb] C3 BODY metrics: t=0.87s track=0.01492rad foot=0.004712m limit_margin=0.4912rad worst_joint=lm/ankle@0.83s worst_foot=rm@0.50s root=0.008479m@0.53s world_foot=0.008885mlm@0.77s support_drift=0.002663m end_track=0.01477rad end_foot=0.00314m end_root=0.005953m end_world_foot=0.008863m
+[climb] state=RUNNING stage=4/27 phase=PAIR prior_tracking_error=0.0147688rad prior_foot_target_error=0.00314001m
+[render] frame=1680 fps=205.3
+[render] frame=1920 fps=208.6
+[render] frame=2160 fps=208.7
+[render] frame=2400 fps=174.0
+[climb] C4 PAIR metrics: t=3.77s track=0.01527rad foot=0.008652m limit_margin=0.03043rad worst_joint=lm/ankle@3.43s worst_foot=rb@3.17s root=0.006023m@0.30s world_foot=0.01145mrf@3.17s support_drift=0.0009058m end_track=0.01477rad end_foot=0.003184m end_root=0.00583m end_world_foot=0.008857m
+[climb] state=DONE stage=4/27 phase=PAIR prior_tracking_error=0.0147732rad prior_foot_target_error=0.00318442m
+[climb] diagnostics-only metrics: /tmp/climb_c2_speed_20260909/native_timing_metrics.json
+[climb] DONE at t=10.2s, tracking_error=0.0147732rad, foot_target_error=0.00318442m, reason=none, holding final pose for 2s
+[render] frame=2640 fps=144.4
+[render] frame=2880 fps=144.1
+[climb] hold check: joint drift over 2s 0.0mrad, joint tracking error 14.8mrad
+[climb] preview gate hold_q_drift_lt_20mrad: value=0.00739098 threshold=20.0 PASS
+[climb] preview gate end_foot_target_error_le_0.015m: value=0.00318467 threshold=0.015 PASS
+[climb] preview gate end_root_position_error_le_0.05m: value=0.0058304 threshold=0.05 PASS
+[climb] preview gate global_max_root_position_error_le_0.20m: value=0.00847891 threshold=0.2 PASS
+[climb] preview gate global_min_joint_limit_margin_ge_0rad: value=0.0304283 threshold=0.0 PASS
+[climb] PREVIEW VERDICT: SUCCESS (simulation preview gates only; not contact, load, stability, or hardware proof)

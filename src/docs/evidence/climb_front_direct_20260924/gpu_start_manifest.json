@@ -1,0 +1,46 @@
+{
+  "launch_utc": "2026-09-24T11:14:14.526584+00:00",
+  "command": [
+    "/home/artrc/miniconda3/bin/conda",
+    "run",
+    "--no-capture-output",
+    "-n",
+    "grasp_hexapod",
+    "python3",
+    "-u",
+    "src/grasp_hexapod_control/scripts/run_sim.py",
+    "--climb-start",
+    "--climb-config",
+    "src/grasp_hexapod_control/config/climb_front_direct.json",
+    "--climb-speed",
+    "1",
+    "--climb-joint-speed",
+    "1.8",
+    "--climb-metrics",
+    "src/docs/evidence/climb_front_direct_20260924/gpu_metrics.json"
+  ],
+  "cwd": "/home/artrc/Grasp_hexapod",
+  "candidate_config_sha256": "a7bcb4d00ff5afb5ec6b74d1270a2e151af2a9a59ba9c3e7c890e82251fac442",
+  "config_stage_count": 21,
+  "rates_hz": {
+    "physics": 240,
+    "controller": 30,
+    "actuator_writes": 30
+  },
+  "preview_flags": {
+    "headless": false,
+    "climb_speed": 1.0,
+    "climb_joint_speed": 1.8
+  },
+  "runtime_sha256": {
+    "src/grasp_hexapod_control/config/climb_front_direct.json": "a7bcb4d00ff5afb5ec6b74d1270a2e151af2a9a59ba9c3e7c890e82251fac442",
+    "src/grasp_hexapod_control/scripts/run_sim.py": "6b8ed32e642b58e35794caffbd89491ee9084bf9e225343aa6ead497fe848c8f",
+    "src/grasp_hexapod_control/scripts/climb_mode.py": "7ee03f04516d795db1a5281b99bb08128908330d82e8b993a5a6f9cbd1fd0822",
+    "src/grasp_hexapod_control/scripts/control.py": "66f3c5490d58aeb3ef3913f81676a26f0d3789e1632cb60597d07dcb6659901a",
+    "src/grasp_hexapod_control/scripts/utils/climb.py": "bc57241156a71df1e5bbee51d164ceb1c8962d47efc5fcf13c5181a92a37ba5a",
+    "src/grasp_hexapod_description/urdf/grasp_hexapod.urdf": "2a0bb25650d77cbd260642a154e45ea8e0dca1b523248e56ea35095c24f3d30c"
+  },
+  "display": ":1",
+  "evidence_boundary": "One visible Isaac Gym preview; simulation diagnostics only.",
+  "pid": 270331
+}

@@ -1154,8 +1154,22 @@ class GraspController:
             JOINT_UPPER,
         )
 
+        # Simulation-only front candidates may request a bounded higher
+        # command cap.  Side, non-climb and hardware paths retain the shared
+        # 4 rad/s limit exactly.
+        velocity_limit = JOINT_VELOCITY_LIMIT
+        climb_config = self.climb_mode.config
+        if (
+            self.mode == self.CLIMB
+            and climb_config is not None
+            and climb_config.get("climb_orientation") == "front"
+            and not self.climb_mode.hardware_execution
+        ):
+            requested_cap = climb_config.get("simulation_joint_velocity_limit_rad_s")
+            if requested_cap is not None:
+                velocity_limit = float(requested_cap)
         # 舵机能力兜底: 单帧关节增量限幅
-        step = JOINT_VELOCITY_LIMIT * self.dt
+        step = velocity_limit * self.dt
         self.last_update_velocity_limit_clip_count = int(np.count_nonzero(
             np.abs(q_candidate - q_cur) > step
         ))

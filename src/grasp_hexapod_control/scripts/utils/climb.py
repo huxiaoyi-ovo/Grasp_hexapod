@@ -536,6 +536,8 @@ def select_compact_climb_side(config, side):
     """返回 compact 的独立侧别副本，right 按小蓝 world x 中心镜像。"""
 
     side = validate_compact_climb_side(side)
+    if config.get("climb_orientation") == "front" and side == "right":
+        raise ValueError("front compact climbing has no right-side mirror")
     selected = deepcopy(config)
     if side == "left":
         return selected

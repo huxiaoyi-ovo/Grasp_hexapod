@@ -1,0 +1,330 @@
+{
+  "source_config_sha256": "18a85c4a502f6df7bf482a5c07c58647523b36a8762607bc04beab53c485b9c7",
+  "candidate_terminal_pose": [
+    0.285,
+    -0.067694497636,
+    0.275,
+    0.0,
+    0.0,
+    -1.5707963267948966
+  ],
+  "world_anchors_m": [
+    [
+      0.225,
+      0.029290969374546658,
+      0.15701442195016274
+    ],
+    [
+      0.48,
+      0.029291533282554738,
+      0.19649999761581421
+    ],
+    [
+      0.235,
+      0.12627607590696494,
+      0.16031617914426252
+    ],
+    [
+      0.225,
+      -0.16467983526606975,
+      0.1583358226638817
+    ],
+    [
+      0.48,
+      -0.16467927135566987,
+      0.19649999761581421
+    ],
+    [
+      0.235,
+      -0.26166507117951365,
+      0.1603161700790826
+    ]
+  ],
+  "ik_seed_rad": [
+    [
+      1.2919674151312226,
+      -0.10107175364326412,
+      1.6138603802468952
+    ],
+    [
+      0.10170764807000951,
+      -0.9528939678919058,
+      1.6654665427627748
+    ],
+    [
+      -0.4301844464280031,
+      -0.41914110334173565,
+      1.410424410026175
+    ],
+    [
+      -1.2919605970946955,
+      0.1194670840329234,
+      -1.6309621262674094
+    ],
+    [
+      -0.1017048498107572,
+      0.9528961628017356,
+      -1.665471486418166
+    ],
+    [
+      0.4301838361208222,
+      0.41914097389509486,
+      -1.4104243094206674
+    ]
+  ],
+  "solved_q_rad": [
+    [
+      1.2919843274300735,
+      0.27115402440387,
+      1.2216408576724558
+    ],
+    [
+      0.10170847622700893,
+      -0.5005135464667777,
+      1.3788807256756082
+    ],
+    [
+      -0.43018352732200904,
+      -0.015620495930255267,
+      1.0542751735109184
+    ],
+    [
+      -1.2919735815836917,
+      -0.2558738879174221,
+      -1.2394404092213185
+    ],
+    [
+      -0.10170402165055487,
+      0.500514200220051,
+      -1.3788848604201145
+    ],
+    [
+      0.43018475522681615,
+      0.0156203787421016,
+      -1.0542750573236306
+    ]
+  ],
+  "ik_max_foot_residual_m": 1.3012154247381127e-06,
+  "min_joint_margin_rad": 0.2678152447731838,
+  "same_leg_collision_free": [
+    true,
+    true,
+    true,
+    true,
+    true,
+    true
+  ],
+  "queries": [
+    {
+      "label": "LB-LM_knee",
+      "pair_check": {
+        "pair": [
+          {
+            "leg": "lb",
+            "link": "knee"
+          },
+          {
+            "leg": "lm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "triangle_candidates_checked",
+        "filtered_triangle_counts": {
+          "left": 2602,
+          "right": 14319
+        },
+        "triangle_test_count": 1760,
+        "broad_phase_candidates": 1,
+        "mesh_collision": true,
+        "triangle_hit": {
+          "left_link": "knee",
+          "left_leg": 0,
+          "left_component": 0,
+          "left_triangle": 20598,
+          "right_link": "knee",
+          "right_leg": 2,
+          "right_component": 0,
+          "right_triangle": 305
+        },
+        "cache_reused": false
+      }
+    },
+    {
+      "label": "RB-RM_knee",
+      "pair_check": {
+        "pair": [
+          {
+            "leg": "rb",
+            "link": "knee"
+          },
+          {
+            "leg": "rm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "triangle_candidates_checked",
+        "filtered_triangle_counts": {
+          "left": 2619,
+          "right": 17443
+        },
+        "triangle_test_count": 477,
+        "broad_phase_candidates": 1,
+        "mesh_collision": true,
+        "triangle_hit": {
+          "left_link": "knee",
+          "left_leg": 3,
+          "left_component": 0,
+          "left_triangle": 20498,
+          "right_link": "knee",
+          "right_leg": 5,
+          "right_component": 0,
+          "right_triangle": 1173
+        },
+        "cache_reused": false
+      }
+    },
+    {
+      "label": "body-LM_knee",
+      "pair_check": {
+        "pair": [
+          {
+            "leg": null,
+            "link": "body"
+          },
+          {
+            "leg": "lm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "conservative_triangle_AABB_prefilter_excluded_all_pairs",
+        "filtered_triangle_counts": {
+          "left": 0,
+          "right": 0
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": false
+      }
+    },
+    {
+      "label": "body-LM_ankle",
+      "pair_check": {
+        "pair": [
+          {
+            "leg": null,
+            "link": "body"
+          },
+          {
+            "leg": "lm",
+            "link": "ankle"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 13
+        },
+        "pair_status": "conservative_triangle_AABB_prefilter_excluded_all_pairs",
+        "filtered_triangle_counts": {
+          "left": 0,
+          "right": 0
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": false
+      }
+    },
+    {
+      "label": "body-RM_knee",
+      "pair_check": {
+        "pair": [
+          {
+            "leg": null,
+            "link": "body"
+          },
+          {
+            "leg": "rm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "conservative_triangle_AABB_prefilter_excluded_all_pairs",
+        "filtered_triangle_counts": {
+          "left": 0,
+          "right": 0
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": false
+      }
+    },
+    {
+      "label": "body-RM_ankle",
+      "pair_check": {
+        "pair": [
+          {
+            "leg": null,
+            "link": "body"
+          },
+          {
+            "leg": "rm",
+            "link": "ankle"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 13
+        },
+        "pair_status": "conservative_triangle_AABB_prefilter_excluded_all_pairs",
+        "filtered_triangle_counts": {
+          "left": 0,
+          "right": 0
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": false
+      }
+    }
+  ],
+  "gates": {
+    "ik_residual_le_0_015m": true,
+    "joint_margin_positive": true,
+    "same_leg_collision_free_all": true,
+    "all_exact_pairs_clear": false
+  },
+  "pass": false
+}

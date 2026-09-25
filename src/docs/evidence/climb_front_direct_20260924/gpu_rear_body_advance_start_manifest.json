@@ -1,0 +1,51 @@
+{
+  "candidate_config_sha256": "4421aff133035f358e69ed33ddaa649d580750d868f2318736efc17e797bf60c",
+  "source_candidate": "rear_body_advance_candidate.json",
+  "source_candidate_sha256": "4421aff133035f358e69ed33ddaa649d580750d868f2318736efc17e797bf60c",
+  "pid": 275531,
+  "started_unix_s": 1790251674.774364,
+  "display": ":1",
+  "xauthority_set": true,
+  "command": [
+    "/home/artrc/miniconda3/bin/conda",
+    "run",
+    "--no-capture-output",
+    "-n",
+    "grasp_hexapod",
+    "python3",
+    "-u",
+    "src/grasp_hexapod_control/scripts/run_sim.py",
+    "--climb-start",
+    "--climb-config",
+    "src/grasp_hexapod_control/config/climb_front_direct.json",
+    "--climb-speed",
+    "1",
+    "--climb-joint-speed",
+    "1.8",
+    "--climb-metrics",
+    "src/docs/evidence/climb_front_direct_20260924/gpu_rear_body_advance_metrics.json"
+  ],
+  "runtime_sha256": {
+    "src/grasp_hexapod_control/scripts/run_sim.py": "6b8ed32e642b58e35794caffbd89491ee9084bf9e225343aa6ead497fe848c8f",
+    "src/grasp_hexapod_control/scripts/climb_mode.py": "7ee03f04516d795db1a5281b99bb08128908330d82e8b993a5a6f9cbd1fd0822",
+    "src/grasp_hexapod_control/scripts/control.py": "66f3c5490d58aeb3ef3913f81676a26f0d3789e1632cb60597d07dcb6659901a",
+    "src/grasp_hexapod_control/scripts/utils/climb.py": "bc57241156a71df1e5bbee51d164ceb1c8962d47efc5fcf13c5181a92a37ba5a",
+    "src/grasp_hexapod_description/urdf/grasp_hexapod.urdf": "2a0bb25650d77cbd260642a154e45ea8e0dca1b523248e56ea35095c24f3d30c"
+  },
+  "rates_hz": {
+    "physics": 240,
+    "controller": 30,
+    "dof_target": 30
+  },
+  "preview_flags": {
+    "climb_speed": 1.0,
+    "climb_joint_speed": 1.8,
+    "headless": false
+  },
+  "stages": 21,
+  "cpu_audit_sha256": "b90c10155515719be07b7a1b1a2484c1c0a28835fea491d9974050b4055c26ce",
+  "mesh_audit_sha256": "94b5b88f935c3c1391f41f55a9809fbfd8f7f1d108c865d81eed08fc8b4b2141",
+  "preflight_sha256": "8ef3abc53af70a525dd54bcc957a85d72a858590e41ae9a238a2cb03c31bb72a",
+  "mesh_queries": 46,
+  "mesh_real_triangle_hits": 0
+}

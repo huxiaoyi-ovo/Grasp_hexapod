@@ -1,0 +1,132 @@
+{
+  "candidate_config_sha256": "a7bcb4d00ff5afb5ec6b74d1270a2e151af2a9a59ba9c3e7c890e82251fac442",
+  "prelaunch_manifest_sha256": "aedb1d0ce48044aed02084cc252ade8f767827af867b3116e8df21bc942d183e",
+  "gpu_metrics_sha256": "2f5b19283ffb951acb777803f6d61e363d841f60ff5a6a5cfee0c996a517bc59",
+  "gpu_console_sha256": "d65f9ac2d6faa6fa18fef03590812e99ba297671c876ada159feb3cd2a754964",
+  "cpu_fast_audit_sha256": "ba9cccf8e4c76b38b9cd56128a432da24568ed745eee3877affc22aa10731ed9",
+  "pid": 270331,
+  "display": ":1",
+  "command": [
+    "/home/artrc/miniconda3/bin/conda",
+    "run",
+    "--no-capture-output",
+    "-n",
+    "grasp_hexapod",
+    "python3",
+    "-u",
+    "src/grasp_hexapod_control/scripts/run_sim.py",
+    "--climb-start",
+    "--climb-config",
+    "src/grasp_hexapod_control/config/climb_front_direct.json",
+    "--climb-speed",
+    "1",
+    "--climb-joint-speed",
+    "1.8",
+    "--climb-metrics",
+    "src/docs/evidence/climb_front_direct_20260924/gpu_metrics.json"
+  ],
+  "runtime_sha256": {
+    "src/grasp_hexapod_control/config/climb_front_direct.json": "a7bcb4d00ff5afb5ec6b74d1270a2e151af2a9a59ba9c3e7c890e82251fac442",
+    "src/grasp_hexapod_control/scripts/run_sim.py": "6b8ed32e642b58e35794caffbd89491ee9084bf9e225343aa6ead497fe848c8f",
+    "src/grasp_hexapod_control/scripts/climb_mode.py": "7ee03f04516d795db1a5281b99bb08128908330d82e8b993a5a6f9cbd1fd0822",
+    "src/grasp_hexapod_control/scripts/control.py": "66f3c5490d58aeb3ef3913f81676a26f0d3789e1632cb60597d07dcb6659901a",
+    "src/grasp_hexapod_control/scripts/utils/climb.py": "bc57241156a71df1e5bbee51d164ceb1c8962d47efc5fcf13c5181a92a37ba5a",
+    "src/grasp_hexapod_description/urdf/grasp_hexapod.urdf": "2a0bb25650d77cbd260642a154e45ea8e0dca1b523248e56ea35095c24f3d30c"
+  },
+  "rates_hz": {
+    "physics": 240,
+    "controller": 30,
+    "actuator_writes": 30
+  },
+  "preview_flags": {
+    "headless": false,
+    "climb_speed": 1.0,
+    "climb_joint_speed": 1.8
+  },
+  "final_state": "DONE",
+  "final_reason": "none",
+  "runtime_summary": {
+    "stage_count": 21,
+    "total_simulated_control_time_s": 29.100000000000016,
+    "max_kinematic_foot_target_error_m": 0.02877019461897708,
+    "max_root_position_error_m": 0.05375170248432436,
+    "max_world_foot_anchor_error_m": 0.05450732303529801,
+    "max_support_foot_world_drift_m": 0.031097839037048835,
+    "max_root_attitude_error_deg": 6.610939214009216,
+    "min_joint_limit_margin_rad": 0.011615381717681839,
+    "max_controller_target_joint_speed_rad_s": 5.134416896206923,
+    "velocity_limit_clip_count": 0,
+    "FINAL_HOLD_entry_root_error_m": 0.05374423055402071,
+    "FINAL_HOLD_entry_actual_world_foot_center_m": [
+      [
+        0.15837383225073165,
+        0.03472540677403939,
+        0.14152482377033088
+      ],
+      [
+        0.431206900051736,
+        0.029033930192623958,
+        0.19649906624969288
+      ],
+      [
+        0.19005916364392267,
+        0.13101478054148313,
+        0.15090213195146912
+      ],
+      [
+        0.1543421086004864,
+        -0.1590856305905834,
+        0.1409152144197352
+      ],
+      [
+        0.42804673939667864,
+        -0.1654321993765633,
+        0.19649911840320639
+      ],
+      [
+        0.1818770733383398,
+        -0.25679075039825827,
+        0.1491312741995793
+      ]
+    ],
+    "FINAL_HOLD_end_foot_target_error_m": 0.001402399002559628,
+    "FINAL_HOLD_end_root_position_error_m": 0.0537376447091869,
+    "FINAL_HOLD_support_drift_m": 6.362290960084348e-05
+  },
+  "preview_gates": [
+    {
+      "name": "hold_q_drift_lt_20mrad",
+      "value": "0.00104308",
+      "threshold": "20.0",
+      "result": "PASS"
+    },
+    {
+      "name": "end_foot_target_error_le_0.015m",
+      "value": "0.00140239",
+      "threshold": "0.015",
+      "result": "PASS"
+    },
+    {
+      "name": "end_root_position_error_le_0.05m",
+      "value": "0.0537376",
+      "threshold": "0.05",
+      "result": "FAIL"
+    },
+    {
+      "name": "global_max_root_position_error_le_0.20m",
+      "value": "0.0537517",
+      "threshold": "0.2",
+      "result": "PASS"
+    },
+    {
+      "name": "global_min_joint_limit_margin_ge_0rad",
+      "value": "0.0116154",
+      "threshold": "0.0",
+      "result": "PASS"
+    }
+  ],
+  "preview_verdict": "FAILED (simulation preview gates only; not contact, load, stability, or hardware proof)",
+  "terminal_patch_acceptance_pass": false,
+  "viewer_process_status": "run_sim exited after built-in terminal hold; no duplicate run",
+  "evidence_boundary": "One visible Isaac GPU simulation and one static STL sample at FINAL_HOLD entry; diagnostics only."
+}

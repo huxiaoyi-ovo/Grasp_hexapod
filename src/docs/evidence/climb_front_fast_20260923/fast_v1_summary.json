@@ -1,0 +1,24 @@
+{
+  "candidate_config_sha256": "32e0952124c27e504e5c59632fcbf27a4d8decba343fe595b0f811e05652a534",
+  "state": "DONE",
+  "ticks": 1274,
+  "audit_detail_available": false,
+  "max_raw_joint_speed_rad_s": 5.930773576906629,
+  "max_foot_error_m": 0.011915902781947913,
+  "min_joint_margin_rad": 0.009651876102905965,
+  "min_support_margin_m": 0.012677357511741634,
+  "min_active_sphere_gap_m": -0.00014204122327379168,
+  "velocity_clips": 0,
+  "soft_speed_margin_target_rad_s": 5.2,
+  "speed_margin_target_exceeded": true,
+  "capsule_proxy_warnings": [
+    {
+      "stage": "Q_MID_LOW",
+      "capsule_tick_samples": 48
+    }
+  ],
+  "max_raw_joint_speed_source": {
+    "stage": "AA_LB_055_SYNC",
+    "segment_index": 0
+  }
+}

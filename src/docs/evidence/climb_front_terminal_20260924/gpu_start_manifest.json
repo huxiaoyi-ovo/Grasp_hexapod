@@ -1,0 +1,20 @@
+{
+  "command": "/home/artrc/miniconda3/bin/conda run --no-capture-output -n grasp_hexapod python3 src/grasp_hexapod_control/scripts/run_sim.py --climb-start --climb-config src/grasp_hexapod_control/config/climb_front_fast.json --climb-speed 1 --climb-joint-speed 1.8 --headless --climb-metrics src/docs/evidence/climb_front_terminal_20260924/gpu_metrics.json",
+  "candidate_config_sha256": "847faeec51f258179090c59f736b773b02273e4662a0fc0bde200bd5e4ebf67c",
+  "candidate_evidence_snapshot_sha256": "847faeec51f258179090c59f736b773b02273e4662a0fc0bde200bd5e4ebf67c",
+  "runtime_source_sha256": {
+    "run_sim.py": "6b8ed32e642b58e35794caffbd89491ee9084bf9e225343aa6ead497fe848c8f",
+    "climb_mode.py": "7ee03f04516d795db1a5281b99bb08128908330d82e8b993a5a6f9cbd1fd0822",
+    "control.py": "66f3c5490d58aeb3ef3913f81676a26f0d3789e1632cb60597d07dcb6659901a",
+    "climb.py": "bc57241156a71df1e5bbee51d164ceb1c8962d47efc5fcf13c5181a92a37ba5a"
+  },
+  "rates_hz": {
+    "physics": 240,
+    "controller": 30,
+    "actuator_target": 30
+  },
+  "drive_settings": "climb-speed=1; climb-joint-speed=1.8 => simulated DOF cap 7.2 rad/s; front command cap 6 rad/s; gains and URDF effort unchanged",
+  "stage_count": 41,
+  "planned_simulated_duration_s": 43.6667,
+  "note": "GPU input manifest saved before this single authorized full headless run."
+}

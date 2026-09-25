@@ -1,0 +1,80 @@
+{
+  "candidate_config_sha256": "847faeec51f258179090c59f736b773b02273e4662a0fc0bde200bd5e4ebf67c",
+  "candidate_source_snapshot_sha256": "847faeec51f258179090c59f736b773b02273e4662a0fc0bde200bd5e4ebf67c",
+  "runtime_source_sha256": {
+    "run_sim.py": "6b8ed32e642b58e35794caffbd89491ee9084bf9e225343aa6ead497fe848c8f",
+    "climb_mode.py": "7ee03f04516d795db1a5281b99bb08128908330d82e8b993a5a6f9cbd1fd0822",
+    "control.py": "66f3c5490d58aeb3ef3913f81676a26f0d3789e1632cb60597d07dcb6659901a",
+    "climb.py": "bc57241156a71df1e5bbee51d164ceb1c8962d47efc5fcf13c5181a92a37ba5a"
+  },
+  "run_command": "/home/artrc/miniconda3/bin/conda run --no-capture-output -n grasp_hexapod python3 src/grasp_hexapod_control/scripts/run_sim.py --climb-start --climb-config src/grasp_hexapod_control/config/climb_front_fast.json --climb-speed 1 --climb-joint-speed 1.8 --headless --climb-metrics src/docs/evidence/climb_front_terminal_20260924/gpu_metrics.json",
+  "rates_hz": {
+    "physics": 240,
+    "controller": 30,
+    "actuator_target": 30
+  },
+  "stage_count": 41,
+  "simulated_duration_s": 43.66666666666668,
+  "final_state": "DONE",
+  "final_reason": "none",
+  "console_preview_gates": [
+    {
+      "name": "hold_q_drift_lt_20mrad",
+      "value_mrad": 0.0369288,
+      "threshold_mrad": 20,
+      "pass": true
+    },
+    {
+      "name": "end_foot_target_error_le_0.015m",
+      "value_m": 0.00232618,
+      "threshold_m": 0.015,
+      "pass": true
+    },
+    {
+      "name": "end_root_position_error_le_0.05m",
+      "value_m": 0.0169762,
+      "threshold_m": 0.05,
+      "pass": true
+    },
+    {
+      "name": "global_max_root_position_error_le_0.20m",
+      "value_m": 0.0212872,
+      "threshold_m": 0.2,
+      "pass": true
+    },
+    {
+      "name": "global_min_joint_limit_margin_ge_0rad",
+      "value_rad": 0.0116835,
+      "threshold_rad": 0,
+      "pass": true
+    }
+  ],
+  "requested_global_checks": {
+    "max_kinematic_foot_target_error_m": {
+      "value": 0.011732358037952537,
+      "stage": "MID_GROUND_SHIFT"
+    },
+    "max_kinematic_foot_target_error_le_0.020m": true,
+    "max_root_position_error_m": {
+      "value": 0.021287226614544685,
+      "stage": "AE_AF_BACK_PAIR"
+    },
+    "max_root_position_error_le_0.050m": true,
+    "max_support_foot_world_drift_m": {
+      "value": 0.009238683952141035,
+      "stage": "Q_MID_LOW"
+    },
+    "max_support_foot_drift_le_0.020m": true,
+    "velocity_limit_clips_total": 0,
+    "max_controller_target_joint_speed_rad_s": {
+      "value": 5.031179705194924,
+      "stage": "Z_FRONT_48_SYNC"
+    },
+    "front_command_cap_rad_s": 6.0
+  },
+  "additional_metric": "Global max world-foot-anchor error 22.035 mm at AD_RB_075_SYNC; this is distinct from max kinematic foot-target error and retained as a separate tracking diagnostic.",
+  "final_hold_entry_patch_receipt": "final_actual_foot_stl_audit.json",
+  "final_hold_entry_patch_checks_pass": true,
+  "final_hold_entry_source_field": "stage_start_actual_world_foot_xyz_m",
+  "evidence_boundary": "Simulation and selected visual-STL diagnostics only. Does not prove continuous self-collision freedom, triangle containment, physical contact/load/friction/stability, or hardware readiness."
+}

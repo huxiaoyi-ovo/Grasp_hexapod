@@ -84,7 +84,14 @@ class ClimbMode:
     def _world_from_base(base):
         """根据机身位姿生成世界坐标变换矩阵。"""
 
-        x, y, z, roll, pitch = np.asarray(base, dtype=np.float64)
+        base = np.asarray(base, dtype=np.float64)
+        if base.shape == (5,):
+            x, y, z, roll, pitch = base
+            yaw = 0.0
+        elif base.shape == (6,):
+            x, y, z, roll, pitch, yaw = base
+        else:
+            raise ValueError("base pose must contain 5 or 6 values")
         cosine_r, sine_r = np.cos(roll), np.sin(roll)
         cosine_p, sine_p = np.cos(pitch), np.sin(pitch)
         rotation_x = np.array(
@@ -102,7 +109,15 @@ class ClimbMode:
             )
         )
         output = np.eye(4, dtype=np.float64)
-        output[:3, :3] = rotation_y @ rotation_x
+        cosine_y, sine_y = np.cos(yaw), np.sin(yaw)
+        rotation_z = np.array(
+            (
+                (cosine_y, -sine_y, 0.0),
+                (sine_y, cosine_y, 0.0),
+                (0.0, 0.0, 1.0),
+            )
+        )
+        output[:3, :3] = rotation_z @ rotation_y @ rotation_x
         output[:3, 3] = (x, y, z)
         return output
 
@@ -156,7 +171,22 @@ class ClimbMode:
         self._array(config, ("terminal_q_rad",), (6, 3))
         if not np.array_equal(p0_q, Q_STAND):
             raise ValueError("compact P0 must be Q_STAND")
-        p0_base = self._array(config, ("p0", "base"), (4,))
+        is_front = config.get("climb_orientation") == "front"
+        simulation_velocity_cap = config.get("simulation_joint_velocity_limit_rad_s")
+        if simulation_velocity_cap is not None:
+            if (
+                not is_front
+                or isinstance(simulation_velocity_cap, bool)
+                or not isinstance(simulation_velocity_cap, (int, float))
+                or not np.isfinite(simulation_velocity_cap)
+                or not 0.0 < simulation_velocity_cap <= 8.0
+            ):
+                raise ValueError("invalid front simulation joint velocity cap")
+        p0_base = self._array(
+            config, ("p0", "base"), (4,) if not is_front else (6,)
+        )
+        if is_front and not np.isclose(p0_base[5], -np.pi / 2.0):
+            raise ValueError("front compact P0 must face Xiaolan along +x")
         self._array(config, ("p0", "anchors_world_m"), (6, 3))
         stages = config.get("stages")
         if (
@@ -165,7 +195,11 @@ class ClimbMode:
             or config.get("stage_count") != len(stages)
         ):
             raise ValueError("compact stage list is invalid")
-        previous_pose = np.array((*p0_base[:3], 0.0, p0_base[3]))
+        previous_pose = (
+            p0_base.copy()
+            if is_front
+            else np.array((*p0_base[:3], 0.0, p0_base[3]))
+        )
         previous_anchors = self._array(
             config, ("p0", "anchors_world_m"), (6, 3)
         )
@@ -174,12 +208,9 @@ class ClimbMode:
             if not isinstance(stage, dict) or not isinstance(stage.get("name"), str):
                 raise ValueError("compact stage is invalid")
             names.append(stage["name"])
-            pose_start = self._array(
-                config, ("stages", index, "pose_start"), (5,)
-            )
-            pose_end = self._array(
-                config, ("stages", index, "pose_end"), (5,)
-            )
+            pose_shape = (6,) if is_front else (5,)
+            pose_start = self._array(config, ("stages", index, "pose_start"), pose_shape)
+            pose_end = self._array(config, ("stages", index, "pose_end"), pose_shape)
             knots = np.asarray(stage.get("anchor_knots"), dtype=np.float64)
             durations = np.asarray(
                 stage.get("segment_durations_s"), dtype=np.float64
@@ -220,7 +251,13 @@ class ClimbMode:
             first_segment_pose_curve = bool(
                 stage.get("pose_curve") == "quintic_first_segment"
                 and base_piecewise_curve
-                and len(active) == 1
+                and (
+                    len(active) == 1
+                    or (
+                        is_front
+                        and active in ([0, 3], [1, 4], [2, 5])
+                    )
+                )
                 and len(durations) > 1
             )
             if (
@@ -393,6 +430,11 @@ class ClimbMode:
             )
             if entry_error > config["settle_gate"]["entry_max_joint_error_rad"]:
                 raise ValueError("compact entry joint error exceeds simulation gate")
+        # Reject before mutating session state: a failed attempt to use a
+        # front-only simulation config for hardware must leave a live side
+        # session untouched.
+        if hardware_execution and config.get("climb_orientation") == "front":
+            raise ValueError("front compact climbing is simulation-only")
         self.config = config
         self.hardware_execution = bool(hardware_execution)
         self.stage_index = start_stage_index
@@ -418,12 +460,18 @@ class ClimbMode:
             self.anchors_world = self._array(
                 config, ("p0", "anchors_world_m"), (6, 3)
             ).copy()
-            p0_base = self._array(config, ("p0", "base"), (4,))
-            self.base_pose = np.array((*p0_base[:3], 0.0, p0_base[3]))
+            p0_shape = (6,) if config.get("climb_orientation") == "front" else (4,)
+            p0_base = self._array(config, ("p0", "base"), p0_shape)
+            self.base_pose = (
+                p0_base.copy()
+                if p0_shape == (6,)
+                else np.array((*p0_base[:3], 0.0, p0_base[3]))
+            )
         else:
             stage = config["stages"][start_stage_index]
             self.base_pose = self._array(
-                config, ("stages", start_stage_index, "pose_start"), (5,)
+                config, ("stages", start_stage_index, "pose_start"),
+                (6,) if config.get("climb_orientation") == "front" else (5,),
             ).copy()
             self.anchors_world = np.asarray(
                 stage["anchor_knots"], dtype=np.float64

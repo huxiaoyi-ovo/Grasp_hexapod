@@ -1,0 +1,261 @@
+{
+  "scope": "front-facing simulation-only candidate, P0 through FINAL_HOLD",
+  "config_source": "src/grasp_hexapod_control/config/climb_front.json",
+  "config_snapshot": "config_snapshot.json",
+  "sha256": {
+    "config": "bac3f74e8e2904a04df9e2ddebdaf308831119033ddabc342fd2b02561c16aee",
+    "urdf": "2a0bb25650d77cbd260642a154e45ea8e0dca1b523248e56ea35095c24f3d30c",
+    "xiaolan_mesh": "e61d489ab5d2b9e0e02fc8b1671cbddcd2e7cc49ffd48d1d2fed7541b42580be"
+  },
+  "commands": {
+    "cpu": "python3 /tmp/front_full_cpu_replay_20260923.py",
+    "gpu": "conda run --no-capture-output -n grasp_hexapod python3 src/grasp_hexapod_control/scripts/run_sim.py --climb-start --climb-config src/grasp_hexapod_control/config/climb_front.json --headless --climb-metrics src/docs/evidence/climb_front_20260923/gpu_metrics.json",
+    "cpu_executed": "python3 /tmp/front_full_cpu_replay_20260923.py",
+    "cpu_archived_equivalent": "python3 src/docs/evidence/climb_front_20260923/replay_cpu.py"
+  },
+  "cpu_replay": {
+    "entry": "P0/Q_STAND",
+    "state": "DONE",
+    "ticks": 3104,
+    "first_failure": null,
+    "source": "replay_cpu.py; identical to the executed /tmp script except ROOT is resolved from the evidence directory"
+  },
+  "gpu_metrics": {
+    "final_state": "DONE",
+    "final_reason": "none",
+    "stages": [
+      "C1",
+      "C50"
+    ],
+    "sum_velocity_limit_clips": 0,
+    "max_tracking_error_rad": {
+      "value": 0.02962363041153282,
+      "stage": "C27",
+      "runtime_name": "LB_RESET_NEG03"
+    },
+    "max_kinematic_foot_target_error_m": {
+      "value": 0.009106124948225635,
+      "stage": "C3",
+      "runtime_name": "BODY_A"
+    },
+    "max_root_position_error_m": {
+      "value": 0.020627289025247453,
+      "stage": "C49",
+      "runtime_name": "AH_BACK_LOW_FIRST_SEGMENT"
+    },
+    "max_world_foot_anchor_error_m": {
+      "value": 0.02341521812264634,
+      "stage": "C27",
+      "runtime_name": "LB_RESET_NEG03"
+    },
+    "max_support_foot_drift_m": {
+      "value": 0.0069321112931504305,
+      "stage": "C5",
+      "runtime_name": "BODY_B"
+    },
+    "min_joint_limit_margin_rad": {
+      "value": 0.016480432033538772,
+      "stage": "C3",
+      "runtime_name": "BODY_A"
+    },
+    "max_controller_target_joint_speed_rad_s": {
+      "value": 3.6634915092895115,
+      "stage": "C6",
+      "runtime_name": "FRONT_INWARD"
+    },
+    "final_hold": {
+      "stage_index": 49,
+      "alias": "C50",
+      "runtime_name": "FINAL_HOLD",
+      "simulated_duration_s": 2.1333333333333355,
+      "max_joint_target_tracking_error_rad": 0.007038316562745561,
+      "max_kinematic_foot_target_error_m": 0.0018347661806190783,
+      "worst_joint_leg": "rm",
+      "worst_joint_name": "knee",
+      "worst_joint_time_s": 1.166666666666667,
+      "worst_joint_actual_rad": 0.43272829055786133,
+      "worst_joint_target_rad": 0.42568997399511577,
+      "worst_foot_leg": "rm",
+      "worst_foot_time_s": 0.26666666666666666,
+      "worst_foot_actual_base_xyz_m": [
+        0.1953541772722,
+        -0.05077016530707012,
+        -0.08375708666666926
+      ],
+      "worst_foot_target_base_xyz_m": [
+        0.19397057354351366,
+        -0.05000000000000007,
+        -0.08468382992091741
+      ],
+      "end_joint_target_tracking_error_rad": 0.007027035556868566,
+      "end_foot_target_error_m": 0.0018342506296361244,
+      "max_root_position_error_m": 0.020415049533068032,
+      "worst_root_time_s": 0.26666666666666666,
+      "worst_root_actual_xyz_m": [
+        0.26499491930007935,
+        -0.06815316528081894,
+        0.2409551739692688
+      ],
+      "worst_root_target_xyz_m": [
+        0.285,
+        -0.06769449763599998,
+        0.245
+      ],
+      "end_root_position_error_m": 0.020413867182313375,
+      "max_root_attitude_error_deg": 0.9370545456958593,
+      "end_root_attitude_error_deg": 0.936189458287077,
+      "max_world_foot_anchor_error_m": 0.020692176252781413,
+      "worst_world_foot_anchor_leg": "lm",
+      "worst_world_foot_anchor_time_s": 0.16666666666666666,
+      "worst_world_foot_actual_xyz_m": [
+        0.2147508481972238,
+        0.12707460631699183,
+        0.15613283615945256
+      ],
+      "worst_world_foot_anchor_xyz_m": [
+        0.235,
+        0.12627607590696494,
+        0.16031617914426252
+      ],
+      "end_world_foot_anchor_error_m": 0.020691482071102312,
+      "stage_start_anchor_world_xyz_m": [
+        [
+          0.19,
+          0.029290969374546658,
+          0.15075113102445192
+        ],
+        [
+          0.48,
+          0.029291533282554738,
+          0.19649999761581421
+        ],
+        [
+          0.235,
+          0.12627607590696494,
+          0.16031617914426252
+        ],
+        [
+          0.19,
+          -0.16467983526606975,
+          0.15075113102445192
+        ],
+        [
+          0.48,
+          -0.16467927135566987,
+          0.19649999761581421
+        ],
+        [
+          0.235,
+          -0.26166507117951365,
+          0.1603161700790826
+        ]
+      ],
+      "stage_start_actual_world_foot_xyz_m": [
+        [
+          0.17105140093276744,
+          0.02816437496125858,
+          0.1456520163072863
+        ],
+        [
+          0.46134580108027623,
+          0.030419681801611045,
+          0.19649812014809054
+        ],
+        [
+          0.21475217470494573,
+          0.12707434769047352,
+          0.15613401995778012
+        ],
+        [
+          0.172150555852412,
+          -0.16543090728501597,
+          0.146162904415304
+        ],
+        [
+          0.462568181321635,
+          -0.16457864486801305,
+          0.19650047353246627
+        ],
+        [
+          0.21654733722343647,
+          -0.2638117241190442,
+          0.15653686361154517
+        ]
+      ],
+      "max_support_foot_world_drift_m": 8.288759759352405e-06,
+      "worst_support_foot_drift_leg": "rb",
+      "worst_support_foot_drift_time_s": 1.4333333333333345,
+      "worst_support_foot_start_world_xyz_m": [
+        0.172150555852412,
+        -0.16543090728501597,
+        0.146162904415304
+      ],
+      "worst_support_foot_current_world_xyz_m": [
+        0.1721437820544704,
+        -0.16543407168583377,
+        0.14615932590063185
+      ],
+      "end_support_foot_world_drift_m": 4.317259328809649e-06,
+      "min_joint_limit_margin_rad": 0.26675124573707576,
+      "max_controller_target_joint_speed_rad_s": 0.0013469601926163755,
+      "velocity_limit_clip_count": 0,
+      "timing_diagnostics": {
+        "planned_motion_s": 2.0,
+        "effective_settle_required_s": 0.25,
+        "actual_stage_elapsed_s": 0.0,
+        "motion_progress_s": 0.0,
+        "internal_checkpoint_feedback_hold_s": 0.0,
+        "terminal_persistence_wait_s": 0.0,
+        "terminal_feedback_hold_s": 0.0,
+        "collision_guard_hold_s": 0.0,
+        "stage_transition_control_cycle_s": 0.0
+      }
+    }
+  },
+  "final_actual_foot_stl_audit": "final_actual_foot_stl_audit.json",
+  "console_capture": "The original headless console was not retained by the tool session. This receipt does not reconstruct or infer the hold-drift or PREVIEW VERDICT lines; gpu_metrics.json is the retained raw machine-readable output.",
+  "boundary": "CPU/DLS, controller perfect-follow, local STL sphere gaps, model support and Isaac Gym metrics are simulation diagnostics only. They do not establish real contact, load, friction, stability, sensor transition, or hardware authorization.",
+  "viewer_preview": {
+    "kind": "interactive viewer; separate from the headless metrics receipt",
+    "console_excerpt": "viewer_console_excerpt.log",
+    "command": "/home/artrc/miniconda3/bin/conda run --no-capture-output -n grasp_hexapod python3 src/grasp_hexapod_control/scripts/run_sim.py --climb-start --climb-config src/grasp_hexapod_control/config/climb_front.json",
+    "input_config_sha256": "bac3f74e8e2904a04df9e2ddebdaf308831119033ddabc342fd2b02561c16aee",
+    "rates": {
+      "physics_hz": 240,
+      "controller_hz": 30,
+      "actuator_hz": 30,
+      "joint_speed": 1.2,
+      "climb_speed": 1.0
+    },
+    "final_state": "DONE",
+    "final_reason": "none",
+    "five_preview_gates": {
+      "hold_q_drift_lt_20mrad": {
+        "value_mrad": 0.0886321,
+        "threshold_mrad": 20.0,
+        "passed": true
+      },
+      "end_foot_target_error_le_0.015m": {
+        "value_m": 0.00181841,
+        "threshold_m": 0.015,
+        "passed": true
+      },
+      "end_root_position_error_le_0.05m": {
+        "value_m": 0.0204656,
+        "threshold_m": 0.05,
+        "passed": true
+      },
+      "global_max_root_position_error_le_0.20m": {
+        "value_m": 0.0206704,
+        "threshold_m": 0.2,
+        "passed": true
+      },
+      "global_min_joint_limit_margin_ge_0rad": {
+        "value_rad": 0.0164804,
+        "threshold_rad": 0.0,
+        "passed": true
+      }
+    },
+    "boundary": "This visual preview console excerpt is simulation-only evidence. It does not establish real contact, load, friction, stability, sensor transition, or hardware authorization."
+  }
+}

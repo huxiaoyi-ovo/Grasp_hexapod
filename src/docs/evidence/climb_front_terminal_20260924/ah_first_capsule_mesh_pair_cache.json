@@ -1,0 +1,4333 @@
+{
+  "checks": {
+    "6da1eb3ed821b571619f1aaadac320686084166364c67f7d2cd9f6fcb163ae2c": {
+      "q_rad": [
+        [
+          1.0330606669120657,
+          -0.2781276084375702,
+          1.7847117868062776
+        ],
+        [
+          0.10170764797680486,
+          -0.9528939622792256,
+          1.665466539389965
+        ],
+        [
+          -0.4301844466641979,
+          -0.41914109866415195,
+          1.410424406062572
+        ],
+        [
+          -1.0330544211059907,
+          0.2781263169184342,
+          -1.7847118059530198
+        ],
+        [
+          -0.1017048497175355,
+          0.9528961571889975,
+          -1.665471483045326
+        ],
+        [
+          0.4301838363570366,
+          0.4191409692175108,
+          -1.410424305457064
+        ]
+      ],
+      "base_pose": [
+        0.285,
+        -0.067694497636,
+        0.245,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair": [
+        {
+          "leg": "lb",
+          "link": "knee"
+        },
+        {
+          "leg": "lm",
+          "link": "knee"
+        }
+      ],
+      "visual_mesh_sha256": {
+        "body_link.STL": "730623d24e4f0cfd0fe9341fc697a76de556061747d0f91c9904eb1e9c204eca",
+        "knee_link.STL": "957f159c5ec7e4d2cb48c7a0b0d17a5d397923a3886399aadef0de37978f9040",
+        "ankle_link.STL": "1f48a886fce0e2effc51b481d9bee94e637b5d7c7f29e59074a264575a0db5c9"
+      },
+      "result": {
+        "pair": [
+          {
+            "leg": "lb",
+            "link": "knee"
+          },
+          {
+            "leg": "lm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "triangle_candidates_checked",
+        "filtered_triangle_counts": {
+          "left": 3221,
+          "right": 101
+        },
+        "triangle_test_count": 61,
+        "broad_phase_candidates": 1,
+        "mesh_collision": true,
+        "triangle_hit": {
+          "left_link": "knee",
+          "left_leg": 0,
+          "left_component": 0,
+          "left_triangle": 20604,
+          "right_link": "knee",
+          "right_leg": 2,
+          "right_component": 0,
+          "right_triangle": 21758
+        }
+      }
+    },
+    "e8b6716f761bb3b397a0b89a9cf9dc3a08972a8908b6375a1f705207c8278052": {
+      "q_rad": [
+        [
+          1.0330634672622672,
+          -0.20015048170455083,
+          1.7185493835167842
+        ],
+        [
+          0.10170764797680486,
+          -0.9528939622792256,
+          1.665466539389965
+        ],
+        [
+          -0.4301844466641979,
+          -0.41914109866415195,
+          1.410424406062572
+        ],
+        [
+          -1.0330565456880996,
+          0.20014924825492303,
+          -1.7185494007132776
+        ],
+        [
+          -0.1017048497175355,
+          0.9528961571889975,
+          -1.665471483045326
+        ],
+        [
+          0.4301838363570366,
+          0.4191409692175108,
+          -1.410424305457064
+        ]
+      ],
+      "base_pose": [
+        0.285,
+        -0.067694497636,
+        0.245,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair": [
+        {
+          "leg": "lb",
+          "link": "knee"
+        },
+        {
+          "leg": "lm",
+          "link": "knee"
+        }
+      ],
+      "visual_mesh_sha256": {
+        "body_link.STL": "730623d24e4f0cfd0fe9341fc697a76de556061747d0f91c9904eb1e9c204eca",
+        "knee_link.STL": "957f159c5ec7e4d2cb48c7a0b0d17a5d397923a3886399aadef0de37978f9040",
+        "ankle_link.STL": "1f48a886fce0e2effc51b481d9bee94e637b5d7c7f29e59074a264575a0db5c9"
+      },
+      "result": {
+        "pair": [
+          {
+            "leg": "lb",
+            "link": "knee"
+          },
+          {
+            "leg": "lm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "triangle_candidates_checked",
+        "filtered_triangle_counts": {
+          "left": 3237,
+          "right": 89
+        },
+        "triangle_test_count": 72,
+        "broad_phase_candidates": 1,
+        "mesh_collision": true,
+        "triangle_hit": {
+          "left_link": "knee",
+          "left_leg": 0,
+          "left_component": 0,
+          "left_triangle": 20608,
+          "right_link": "knee",
+          "right_leg": 2,
+          "right_component": 0,
+          "right_triangle": 20499
+        }
+      }
+    },
+    "409160b17cec07e1bed2dfca75d56d4af14bd4661331cc81f11119d911eeda6a": {
+      "q_rad": [
+        [
+          1.0330634672622672,
+          -0.20015048170455083,
+          1.7185493835167842
+        ],
+        [
+          0.10170764797680486,
+          -0.9528939622792256,
+          1.665466539389965
+        ],
+        [
+          -0.4301844466641979,
+          -0.41914109866415195,
+          1.410424406062572
+        ],
+        [
+          -1.0330565456880996,
+          0.20014924825492303,
+          -1.7185494007132776
+        ],
+        [
+          -0.1017048497175355,
+          0.9528961571889975,
+          -1.665471483045326
+        ],
+        [
+          0.4301838363570366,
+          0.4191409692175108,
+          -1.410424305457064
+        ]
+      ],
+      "base_pose": [
+        0.285,
+        -0.067694497636,
+        0.245,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair": [
+        {
+          "leg": "rb",
+          "link": "knee"
+        },
+        {
+          "leg": "rm",
+          "link": "knee"
+        }
+      ],
+      "visual_mesh_sha256": {
+        "body_link.STL": "730623d24e4f0cfd0fe9341fc697a76de556061747d0f91c9904eb1e9c204eca",
+        "knee_link.STL": "957f159c5ec7e4d2cb48c7a0b0d17a5d397923a3886399aadef0de37978f9040",
+        "ankle_link.STL": "1f48a886fce0e2effc51b481d9bee94e637b5d7c7f29e59074a264575a0db5c9"
+      },
+      "result": {
+        "pair": [
+          {
+            "leg": "rb",
+            "link": "knee"
+          },
+          {
+            "leg": "rm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "triangle_candidates_checked",
+        "filtered_triangle_counts": {
+          "left": 2651,
+          "right": 95
+        },
+        "triangle_test_count": 45,
+        "broad_phase_candidates": 1,
+        "mesh_collision": true,
+        "triangle_hit": {
+          "left_link": "knee",
+          "left_leg": 3,
+          "left_component": 0,
+          "left_triangle": 20502,
+          "right_link": "knee",
+          "right_leg": 5,
+          "right_component": 0,
+          "right_triangle": 21759
+        }
+      }
+    },
+    "e7f4ec0fc9134c9e28efae89feed207db2801804370387cfad52818bd66fe1f3": {
+      "q_rad": [
+        [
+          0.9526349265634533,
+          -0.18719387449222674,
+          1.7045127579730603
+        ],
+        [
+          0.10170764802623494,
+          -0.9528939651594323,
+          1.6654665411067773
+        ],
+        [
+          -0.4301844465390975,
+          -0.4191411010777223,
+          1.410424408104147
+        ],
+        [
+          -0.9526277586772136,
+          0.18719268188911067,
+          -1.7045127861334055
+        ],
+        [
+          -0.10170484976697435,
+          0.9528961600692331,
+          -1.665471484762153
+        ],
+        [
+          0.43018383623192613,
+          0.41914097163108144,
+          -1.4104243074986393
+        ]
+      ],
+      "base_pose": [
+        0.285,
+        -0.067694497636,
+        0.245,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair": [
+        {
+          "leg": "lb",
+          "link": "knee"
+        },
+        {
+          "leg": "lm",
+          "link": "knee"
+        }
+      ],
+      "visual_mesh_sha256": {
+        "body_link.STL": "730623d24e4f0cfd0fe9341fc697a76de556061747d0f91c9904eb1e9c204eca",
+        "knee_link.STL": "957f159c5ec7e4d2cb48c7a0b0d17a5d397923a3886399aadef0de37978f9040",
+        "ankle_link.STL": "1f48a886fce0e2effc51b481d9bee94e637b5d7c7f29e59074a264575a0db5c9"
+      },
+      "result": {
+        "pair": [
+          {
+            "leg": "lb",
+            "link": "knee"
+          },
+          {
+            "leg": "lm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "triangle_candidates_checked",
+        "filtered_triangle_counts": {
+          "left": 3062,
+          "right": 64
+        },
+        "triangle_test_count": 136,
+        "broad_phase_candidates": 1,
+        "mesh_collision": true,
+        "triangle_hit": {
+          "left_link": "knee",
+          "left_leg": 0,
+          "left_component": 0,
+          "left_triangle": 20626,
+          "right_link": "knee",
+          "right_leg": 2,
+          "right_component": 0,
+          "right_triangle": 21138
+        }
+      }
+    },
+    "c40c6f1ceadf13822cf0a29de7b64eee93ea7d54ecf8a83a94400e4f78f29d9f": {
+      "q_rad": [
+        [
+          0.9526349265634533,
+          -0.18719387449222674,
+          1.7045127579730603
+        ],
+        [
+          0.10170764802623494,
+          -0.9528939651594323,
+          1.6654665411067773
+        ],
+        [
+          -0.4301844465390975,
+          -0.4191411010777223,
+          1.410424408104147
+        ],
+        [
+          -0.9526277586772136,
+          0.18719268188911067,
+          -1.7045127861334055
+        ],
+        [
+          -0.10170484976697435,
+          0.9528961600692331,
+          -1.665471484762153
+        ],
+        [
+          0.43018383623192613,
+          0.41914097163108144,
+          -1.4104243074986393
+        ]
+      ],
+      "base_pose": [
+        0.285,
+        -0.067694497636,
+        0.245,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair": [
+        {
+          "leg": "rb",
+          "link": "knee"
+        },
+        {
+          "leg": "rm",
+          "link": "knee"
+        }
+      ],
+      "visual_mesh_sha256": {
+        "body_link.STL": "730623d24e4f0cfd0fe9341fc697a76de556061747d0f91c9904eb1e9c204eca",
+        "knee_link.STL": "957f159c5ec7e4d2cb48c7a0b0d17a5d397923a3886399aadef0de37978f9040",
+        "ankle_link.STL": "1f48a886fce0e2effc51b481d9bee94e637b5d7c7f29e59074a264575a0db5c9"
+      },
+      "result": {
+        "pair": [
+          {
+            "leg": "rb",
+            "link": "knee"
+          },
+          {
+            "leg": "rm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "triangle_candidates_checked",
+        "filtered_triangle_counts": {
+          "left": 2470,
+          "right": 59
+        },
+        "triangle_test_count": 974,
+        "broad_phase_candidates": 1,
+        "mesh_collision": true,
+        "triangle_hit": {
+          "left_link": "knee",
+          "left_leg": 3,
+          "left_component": 0,
+          "left_triangle": 20559,
+          "right_link": "knee",
+          "right_leg": 5,
+          "right_component": 0,
+          "right_triangle": 21309
+        }
+      }
+    },
+    "8acd4d6886ffbaac5a62a8dc07aadc8fbc3dee5fe01c071b22cb5d62cb10438d": {
+      "q_rad": [
+        [
+          0.5311063070312529,
+          -0.2812974226043298,
+          1.7239445428468756
+        ],
+        [
+          0.10170764615443259,
+          -0.9528938678716726,
+          1.665466484897064
+        ],
+        [
+          -0.43018445125395705,
+          -0.4191410180879018,
+          1.4104243383720174
+        ],
+        [
+          -0.5311003301270077,
+          0.2812964846728625,
+          -1.7239446745562717
+        ],
+        [
+          -0.10170484789487155,
+          0.9528960627805834,
+          -1.6654714285519991
+        ],
+        [
+          0.43018384094712814,
+          0.4191408886412591,
+          -1.4104242377665064
+        ]
+      ],
+      "base_pose": [
+        0.285,
+        -0.067694497636,
+        0.245,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair": [
+        {
+          "leg": "lb",
+          "link": "knee"
+        },
+        {
+          "leg": "lm",
+          "link": "knee"
+        }
+      ],
+      "visual_mesh_sha256": {
+        "body_link.STL": "730623d24e4f0cfd0fe9341fc697a76de556061747d0f91c9904eb1e9c204eca",
+        "knee_link.STL": "957f159c5ec7e4d2cb48c7a0b0d17a5d397923a3886399aadef0de37978f9040",
+        "ankle_link.STL": "1f48a886fce0e2effc51b481d9bee94e637b5d7c7f29e59074a264575a0db5c9"
+      },
+      "result": {
+        "pair": [
+          {
+            "leg": "lb",
+            "link": "knee"
+          },
+          {
+            "leg": "lm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "conservative_triangle_AABB_prefilter_excluded_all_pairs",
+        "filtered_triangle_counts": {
+          "left": 0,
+          "right": 0
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null
+      }
+    },
+    "ca13087cbf6af9d0d3ec2c30a343c0be447af7b7f32fb112f3b903cfe5775700": {
+      "q_rad": [
+        [
+          0.5311063070312529,
+          -0.2812974226043298,
+          1.7239445428468756
+        ],
+        [
+          0.10170764615443259,
+          -0.9528938678716726,
+          1.665466484897064
+        ],
+        [
+          -0.43018445125395705,
+          -0.4191410180879018,
+          1.4104243383720174
+        ],
+        [
+          -0.5311003301270077,
+          0.2812964846728625,
+          -1.7239446745562717
+        ],
+        [
+          -0.10170484789487155,
+          0.9528960627805834,
+          -1.6654714285519991
+        ],
+        [
+          0.43018384094712814,
+          0.4191408886412591,
+          -1.4104242377665064
+        ]
+      ],
+      "base_pose": [
+        0.285,
+        -0.067694497636,
+        0.245,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair": [
+        {
+          "leg": "rb",
+          "link": "knee"
+        },
+        {
+          "leg": "rm",
+          "link": "knee"
+        }
+      ],
+      "visual_mesh_sha256": {
+        "body_link.STL": "730623d24e4f0cfd0fe9341fc697a76de556061747d0f91c9904eb1e9c204eca",
+        "knee_link.STL": "957f159c5ec7e4d2cb48c7a0b0d17a5d397923a3886399aadef0de37978f9040",
+        "ankle_link.STL": "1f48a886fce0e2effc51b481d9bee94e637b5d7c7f29e59074a264575a0db5c9"
+      },
+      "result": {
+        "pair": [
+          {
+            "leg": "rb",
+            "link": "knee"
+          },
+          {
+            "leg": "rm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "conservative_triangle_AABB_prefilter_excluded_all_pairs",
+        "filtered_triangle_counts": {
+          "left": 0,
+          "right": 0
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null
+      }
+    },
+    "abe7cc9ff312e40f64634c6af6543b1e741b0f0d68d72d038d4514ef073f7375": {
+      "q_rad": [
+        [
+          0.5839770433859355,
+          -0.26730310617408354,
+          1.7254557251817848
+        ],
+        [
+          0.10170764717033769,
+          -0.9528939192191285,
+          1.6654665143166447
+        ],
+        [
+          -0.4301844486978943,
+          -0.4191410620824465,
+          1.410424375274124
+        ],
+        [
+          -0.5839707896770026,
+          0.2673021102371348,
+          -1.7254558355411007
+        ],
+        [
+          -0.10170484891093592,
+          0.9528961141284973,
+          -1.665471457971805
+        ],
+        [
+          0.430183838390884,
+          0.4191409326358049,
+          -1.4104242746686149
+        ]
+      ],
+      "base_pose": [
+        0.285,
+        -0.067694497636,
+        0.245,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair": [
+        {
+          "leg": "lb",
+          "link": "knee"
+        },
+        {
+          "leg": "lm",
+          "link": "knee"
+        }
+      ],
+      "visual_mesh_sha256": {
+        "body_link.STL": "730623d24e4f0cfd0fe9341fc697a76de556061747d0f91c9904eb1e9c204eca",
+        "knee_link.STL": "957f159c5ec7e4d2cb48c7a0b0d17a5d397923a3886399aadef0de37978f9040",
+        "ankle_link.STL": "1f48a886fce0e2effc51b481d9bee94e637b5d7c7f29e59074a264575a0db5c9"
+      },
+      "result": {
+        "pair": [
+          {
+            "leg": "lb",
+            "link": "knee"
+          },
+          {
+            "leg": "lm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "conservative_triangle_AABB_prefilter_excluded_all_pairs",
+        "filtered_triangle_counts": {
+          "left": 0,
+          "right": 0
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null
+      }
+    },
+    "b0eb3ea1f5fb67071f4497637359e0cf425f6b9b7517f15044706e09e251af94": {
+      "q_rad": [
+        [
+          0.5839770433859355,
+          -0.26730310617408354,
+          1.7254557251817848
+        ],
+        [
+          0.10170764717033769,
+          -0.9528939192191285,
+          1.6654665143166447
+        ],
+        [
+          -0.4301844486978943,
+          -0.4191410620824465,
+          1.410424375274124
+        ],
+        [
+          -0.5839707896770026,
+          0.2673021102371348,
+          -1.7254558355411007
+        ],
+        [
+          -0.10170484891093592,
+          0.9528961141284973,
+          -1.665471457971805
+        ],
+        [
+          0.430183838390884,
+          0.4191409326358049,
+          -1.4104242746686149
+        ]
+      ],
+      "base_pose": [
+        0.285,
+        -0.067694497636,
+        0.245,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair": [
+        {
+          "leg": "rb",
+          "link": "knee"
+        },
+        {
+          "leg": "rm",
+          "link": "knee"
+        }
+      ],
+      "visual_mesh_sha256": {
+        "body_link.STL": "730623d24e4f0cfd0fe9341fc697a76de556061747d0f91c9904eb1e9c204eca",
+        "knee_link.STL": "957f159c5ec7e4d2cb48c7a0b0d17a5d397923a3886399aadef0de37978f9040",
+        "ankle_link.STL": "1f48a886fce0e2effc51b481d9bee94e637b5d7c7f29e59074a264575a0db5c9"
+      },
+      "result": {
+        "pair": [
+          {
+            "leg": "rb",
+            "link": "knee"
+          },
+          {
+            "leg": "rm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "conservative_triangle_AABB_prefilter_excluded_all_pairs",
+        "filtered_triangle_counts": {
+          "left": 0,
+          "right": 0
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null
+      }
+    },
+    "565ac8f0eb66d4387344059a6c873a9f92277db9cf6a8d50d048d22fa64d4966": {
+      "q_rad": [
+        [
+          0.6277331376962283,
+          -0.25723340889772905,
+          1.7262280383004482
+        ],
+        [
+          0.10170764764746873,
+          -0.9528939442036135,
+          1.6654665287836319
+        ],
+        [
+          -0.4301844474956481,
+          -0.419141083373368,
+          1.410424393172246
+        ],
+        [
+          -0.6277266948107133,
+          0.2572323724610128,
+          -1.7262281336677563
+        ],
+        [
+          -0.1017048493881438,
+          0.9528961391132119,
+          -1.665471472438906
+        ],
+        [
+          0.43018383718854997,
+          0.4191409539267268,
+          -1.4104242925667378
+        ]
+      ],
+      "base_pose": [
+        0.285,
+        -0.067694497636,
+        0.245,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair": [
+        {
+          "leg": "lb",
+          "link": "knee"
+        },
+        {
+          "leg": "lm",
+          "link": "knee"
+        }
+      ],
+      "visual_mesh_sha256": {
+        "body_link.STL": "730623d24e4f0cfd0fe9341fc697a76de556061747d0f91c9904eb1e9c204eca",
+        "knee_link.STL": "957f159c5ec7e4d2cb48c7a0b0d17a5d397923a3886399aadef0de37978f9040",
+        "ankle_link.STL": "1f48a886fce0e2effc51b481d9bee94e637b5d7c7f29e59074a264575a0db5c9"
+      },
+      "result": {
+        "pair": [
+          {
+            "leg": "lb",
+            "link": "knee"
+          },
+          {
+            "leg": "lm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "conservative_triangle_AABB_prefilter_excluded_all_pairs",
+        "filtered_triangle_counts": {
+          "left": 0,
+          "right": 0
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null
+      }
+    },
+    "9b6812b7b5aaef4f62ff881089c89c2051c0677ebad354a17119f35cf11d46f0": {
+      "q_rad": [
+        [
+          0.6277331376962283,
+          -0.25723340889772905,
+          1.7262280383004482
+        ],
+        [
+          0.10170764764746873,
+          -0.9528939442036135,
+          1.6654665287836319
+        ],
+        [
+          -0.4301844474956481,
+          -0.419141083373368,
+          1.410424393172246
+        ],
+        [
+          -0.6277266948107133,
+          0.2572323724610128,
+          -1.7262281336677563
+        ],
+        [
+          -0.1017048493881438,
+          0.9528961391132119,
+          -1.665471472438906
+        ],
+        [
+          0.43018383718854997,
+          0.4191409539267268,
+          -1.4104242925667378
+        ]
+      ],
+      "base_pose": [
+        0.285,
+        -0.067694497636,
+        0.245,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair": [
+        {
+          "leg": "rb",
+          "link": "knee"
+        },
+        {
+          "leg": "rm",
+          "link": "knee"
+        }
+      ],
+      "visual_mesh_sha256": {
+        "body_link.STL": "730623d24e4f0cfd0fe9341fc697a76de556061747d0f91c9904eb1e9c204eca",
+        "knee_link.STL": "957f159c5ec7e4d2cb48c7a0b0d17a5d397923a3886399aadef0de37978f9040",
+        "ankle_link.STL": "1f48a886fce0e2effc51b481d9bee94e637b5d7c7f29e59074a264575a0db5c9"
+      },
+      "result": {
+        "pair": [
+          {
+            "leg": "rb",
+            "link": "knee"
+          },
+          {
+            "leg": "rm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "conservative_triangle_AABB_prefilter_excluded_all_pairs",
+        "filtered_triangle_counts": {
+          "left": 0,
+          "right": 0
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null
+      }
+    },
+    "32c082f2ed4e2dec68ac9d2fa170584cc59358b9296bfbe067ef39af90497efb": {
+      "q_rad": [
+        [
+          0.6600799492830405,
+          -0.25069409262339837,
+          1.7265685666095862
+        ],
+        [
+          0.1017076478715586,
+          -0.9528939563619131,
+          1.6654665358952374
+        ],
+        [
+          -0.43018444693017066,
+          -0.4191410936773116,
+          1.4104244018527479
+        ],
+        [
+          -0.6600733912941965,
+          0.25069303245711766,
+          -1.72656865316477
+        ],
+        [
+          -0.10170484961227111,
+          0.9528961512716272,
+          -1.6654714795505694
+        ],
+        [
+          0.43018383662303,
+          0.41914096423067054,
+          -1.41042430124724
+        ]
+      ],
+      "base_pose": [
+        0.285,
+        -0.067694497636,
+        0.245,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair": [
+        {
+          "leg": "lb",
+          "link": "knee"
+        },
+        {
+          "leg": "lm",
+          "link": "knee"
+        }
+      ],
+      "visual_mesh_sha256": {
+        "body_link.STL": "730623d24e4f0cfd0fe9341fc697a76de556061747d0f91c9904eb1e9c204eca",
+        "knee_link.STL": "957f159c5ec7e4d2cb48c7a0b0d17a5d397923a3886399aadef0de37978f9040",
+        "ankle_link.STL": "1f48a886fce0e2effc51b481d9bee94e637b5d7c7f29e59074a264575a0db5c9"
+      },
+      "result": {
+        "pair": [
+          {
+            "leg": "lb",
+            "link": "knee"
+          },
+          {
+            "leg": "lm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "conservative_triangle_AABB_prefilter_excluded_all_pairs",
+        "filtered_triangle_counts": {
+          "left": 0,
+          "right": 0
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null
+      }
+    },
+    "a54cb45b1368a25efc709784366e89ba5ab18ac31227328fbbbfa498984b4277": {
+      "q_rad": [
+        [
+          0.6600799492830405,
+          -0.25069409262339837,
+          1.7265685666095862
+        ],
+        [
+          0.1017076478715586,
+          -0.9528939563619131,
+          1.6654665358952374
+        ],
+        [
+          -0.43018444693017066,
+          -0.4191410936773116,
+          1.4104244018527479
+        ],
+        [
+          -0.6600733912941965,
+          0.25069303245711766,
+          -1.72656865316477
+        ],
+        [
+          -0.10170484961227111,
+          0.9528961512716272,
+          -1.6654714795505694
+        ],
+        [
+          0.43018383662303,
+          0.41914096423067054,
+          -1.41042430124724
+        ]
+      ],
+      "base_pose": [
+        0.285,
+        -0.067694497636,
+        0.245,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair": [
+        {
+          "leg": "rb",
+          "link": "knee"
+        },
+        {
+          "leg": "rm",
+          "link": "knee"
+        }
+      ],
+      "visual_mesh_sha256": {
+        "body_link.STL": "730623d24e4f0cfd0fe9341fc697a76de556061747d0f91c9904eb1e9c204eca",
+        "knee_link.STL": "957f159c5ec7e4d2cb48c7a0b0d17a5d397923a3886399aadef0de37978f9040",
+        "ankle_link.STL": "1f48a886fce0e2effc51b481d9bee94e637b5d7c7f29e59074a264575a0db5c9"
+      },
+      "result": {
+        "pair": [
+          {
+            "leg": "rb",
+            "link": "knee"
+          },
+          {
+            "leg": "rm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "conservative_triangle_AABB_prefilter_excluded_all_pairs",
+        "filtered_triangle_counts": {
+          "left": 0,
+          "right": 0
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null
+      }
+    },
+    "bfafcd30b2246bbe0b7779293db3bc0179a44e292a3aeecb9367941c4a990a98": {
+      "q_rad": [
+        [
+          0.6801377659745497,
+          -0.24707466198919975,
+          1.7266639008551155
+        ],
+        [
+          0.10170764797680486,
+          -0.9528939622792256,
+          1.665466539389965
+        ],
+        [
+          -0.4301844466641979,
+          -0.41914109866415195,
+          1.410424406062572
+        ],
+        [
+          -0.6801311488902955,
+          0.24707359229746195,
+          -1.7266639838583557
+        ],
+        [
+          -0.1017048497175355,
+          0.9528961571889975,
+          -1.665471483045326
+        ],
+        [
+          0.4301838363570366,
+          0.4191409692175108,
+          -1.410424305457064
+        ]
+      ],
+      "base_pose": [
+        0.285,
+        -0.067694497636,
+        0.245,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair": [
+        {
+          "leg": "lb",
+          "link": "knee"
+        },
+        {
+          "leg": "lm",
+          "link": "knee"
+        }
+      ],
+      "visual_mesh_sha256": {
+        "body_link.STL": "730623d24e4f0cfd0fe9341fc697a76de556061747d0f91c9904eb1e9c204eca",
+        "knee_link.STL": "957f159c5ec7e4d2cb48c7a0b0d17a5d397923a3886399aadef0de37978f9040",
+        "ankle_link.STL": "1f48a886fce0e2effc51b481d9bee94e637b5d7c7f29e59074a264575a0db5c9"
+      },
+      "result": {
+        "pair": [
+          {
+            "leg": "lb",
+            "link": "knee"
+          },
+          {
+            "leg": "lm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "conservative_triangle_AABB_prefilter_excluded_all_pairs",
+        "filtered_triangle_counts": {
+          "left": 0,
+          "right": 4
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null
+      }
+    },
+    "2d2bf7c0ea2e3eb225a75fb691bf3039bf6c6eb654111b9a8140be4929219949": {
+      "q_rad": [
+        [
+          0.6801377659745497,
+          -0.24707466198919975,
+          1.7266639008551155
+        ],
+        [
+          0.10170764797680486,
+          -0.9528939622792256,
+          1.665466539389965
+        ],
+        [
+          -0.4301844466641979,
+          -0.41914109866415195,
+          1.410424406062572
+        ],
+        [
+          -0.6801311488902955,
+          0.24707359229746195,
+          -1.7266639838583557
+        ],
+        [
+          -0.1017048497175355,
+          0.9528961571889975,
+          -1.665471483045326
+        ],
+        [
+          0.4301838363570366,
+          0.4191409692175108,
+          -1.410424305457064
+        ]
+      ],
+      "base_pose": [
+        0.285,
+        -0.067694497636,
+        0.245,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair": [
+        {
+          "leg": "rb",
+          "link": "knee"
+        },
+        {
+          "leg": "rm",
+          "link": "knee"
+        }
+      ],
+      "visual_mesh_sha256": {
+        "body_link.STL": "730623d24e4f0cfd0fe9341fc697a76de556061747d0f91c9904eb1e9c204eca",
+        "knee_link.STL": "957f159c5ec7e4d2cb48c7a0b0d17a5d397923a3886399aadef0de37978f9040",
+        "ankle_link.STL": "1f48a886fce0e2effc51b481d9bee94e637b5d7c7f29e59074a264575a0db5c9"
+      },
+      "result": {
+        "pair": [
+          {
+            "leg": "rb",
+            "link": "knee"
+          },
+          {
+            "leg": "rm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "conservative_triangle_AABB_prefilter_excluded_all_pairs",
+        "filtered_triangle_counts": {
+          "left": 0,
+          "right": 4
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null
+      }
+    },
+    "044b37817400f28d94a0fc9d2ee705b7f620438ac08eb1fee046910a1c1e68f2": {
+      "q_rad": [
+        [
+          0.6886719097709068,
+          -0.2457217085892476,
+          1.7266160621183568
+        ],
+        [
+          0.10170764802623494,
+          -0.9528939651594323,
+          1.6654665411067773
+        ],
+        [
+          -0.4301844465390975,
+          -0.4191411010777223,
+          1.410424408104147
+        ],
+        [
+          -0.6886652729638353,
+          0.2457206400204394,
+          -1.7266161455177165
+        ],
+        [
+          -0.10170484976697435,
+          0.9528961600692331,
+          -1.665471484762153
+        ],
+        [
+          0.43018383623192613,
+          0.41914097163108144,
+          -1.4104243074986393
+        ]
+      ],
+      "base_pose": [
+        0.285,
+        -0.067694497636,
+        0.245,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair": [
+        {
+          "leg": "lb",
+          "link": "knee"
+        },
+        {
+          "leg": "lm",
+          "link": "knee"
+        }
+      ],
+      "visual_mesh_sha256": {
+        "body_link.STL": "730623d24e4f0cfd0fe9341fc697a76de556061747d0f91c9904eb1e9c204eca",
+        "knee_link.STL": "957f159c5ec7e4d2cb48c7a0b0d17a5d397923a3886399aadef0de37978f9040",
+        "ankle_link.STL": "1f48a886fce0e2effc51b481d9bee94e637b5d7c7f29e59074a264575a0db5c9"
+      },
+      "result": {
+        "pair": [
+          {
+            "leg": "lb",
+            "link": "knee"
+          },
+          {
+            "leg": "lm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "conservative_triangle_AABB_prefilter_excluded_all_pairs",
+        "filtered_triangle_counts": {
+          "left": 0,
+          "right": 4
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null
+      }
+    },
+    "0d58dfc79c479bd7386e4a2dcabc08cb5fcdce83522a0003489caa32fc7886a5": {
+      "q_rad": [
+        [
+          0.6886719097709068,
+          -0.2457217085892476,
+          1.7266160621183568
+        ],
+        [
+          0.10170764802623494,
+          -0.9528939651594323,
+          1.6654665411067773
+        ],
+        [
+          -0.4301844465390975,
+          -0.4191411010777223,
+          1.410424408104147
+        ],
+        [
+          -0.6886652729638353,
+          0.2457206400204394,
+          -1.7266161455177165
+        ],
+        [
+          -0.10170484976697435,
+          0.9528961600692331,
+          -1.665471484762153
+        ],
+        [
+          0.43018383623192613,
+          0.41914097163108144,
+          -1.4104243074986393
+        ]
+      ],
+      "base_pose": [
+        0.285,
+        -0.067694497636,
+        0.245,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair": [
+        {
+          "leg": "rb",
+          "link": "knee"
+        },
+        {
+          "leg": "rm",
+          "link": "knee"
+        }
+      ],
+      "visual_mesh_sha256": {
+        "body_link.STL": "730623d24e4f0cfd0fe9341fc697a76de556061747d0f91c9904eb1e9c204eca",
+        "knee_link.STL": "957f159c5ec7e4d2cb48c7a0b0d17a5d397923a3886399aadef0de37978f9040",
+        "ankle_link.STL": "1f48a886fce0e2effc51b481d9bee94e637b5d7c7f29e59074a264575a0db5c9"
+      },
+      "result": {
+        "pair": [
+          {
+            "leg": "rb",
+            "link": "knee"
+          },
+          {
+            "leg": "rm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "conservative_triangle_AABB_prefilter_excluded_all_pairs",
+        "filtered_triangle_counts": {
+          "left": 0,
+          "right": 4
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null
+      }
+    },
+    "9752fe8a518877f3e37815509788b5eb22a8942c8c770390f0dec50bcdee9630": {
+      "q_rad": [
+        [
+          0.6881499274554594,
+          -0.24597889216596244,
+          1.7264836160795476
+        ],
+        [
+          0.10170764804945029,
+          -0.9528939665614992,
+          1.665466541949924
+        ],
+        [
+          -0.4301844464802564,
+          -0.41914110224589396,
+          1.4104244090941804
+        ],
+        [
+          -0.6881432969487798,
+          0.24597783132576523,
+          -1.7264837023275255
+        ],
+        [
+          -0.10170484979019397,
+          0.9528961614713145,
+          -1.6654714856053072
+        ],
+        [
+          0.43018383617308015,
+          0.4191409727992532,
+          -1.410424308488673
+        ]
+      ],
+      "base_pose": [
+        0.285,
+        -0.067694497636,
+        0.245,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair": [
+        {
+          "leg": "lb",
+          "link": "knee"
+        },
+        {
+          "leg": "lm",
+          "link": "knee"
+        }
+      ],
+      "visual_mesh_sha256": {
+        "body_link.STL": "730623d24e4f0cfd0fe9341fc697a76de556061747d0f91c9904eb1e9c204eca",
+        "knee_link.STL": "957f159c5ec7e4d2cb48c7a0b0d17a5d397923a3886399aadef0de37978f9040",
+        "ankle_link.STL": "1f48a886fce0e2effc51b481d9bee94e637b5d7c7f29e59074a264575a0db5c9"
+      },
+      "result": {
+        "pair": [
+          {
+            "leg": "lb",
+            "link": "knee"
+          },
+          {
+            "leg": "lm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "conservative_triangle_AABB_prefilter_excluded_all_pairs",
+        "filtered_triangle_counts": {
+          "left": 0,
+          "right": 4
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null
+      }
+    },
+    "1cb465af0d855fb737bfa8066f36d030b340c8f905b4580d1d7c05b98937c747": {
+      "q_rad": [
+        [
+          0.6881499274554594,
+          -0.24597889216596244,
+          1.7264836160795476
+        ],
+        [
+          0.10170764804945029,
+          -0.9528939665614992,
+          1.665466541949924
+        ],
+        [
+          -0.4301844464802564,
+          -0.41914110224589396,
+          1.4104244090941804
+        ],
+        [
+          -0.6881432969487798,
+          0.24597783132576523,
+          -1.7264837023275255
+        ],
+        [
+          -0.10170484979019397,
+          0.9528961614713145,
+          -1.6654714856053072
+        ],
+        [
+          0.43018383617308015,
+          0.4191409727992532,
+          -1.410424308488673
+        ]
+      ],
+      "base_pose": [
+        0.285,
+        -0.067694497636,
+        0.245,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair": [
+        {
+          "leg": "rb",
+          "link": "knee"
+        },
+        {
+          "leg": "rm",
+          "link": "knee"
+        }
+      ],
+      "visual_mesh_sha256": {
+        "body_link.STL": "730623d24e4f0cfd0fe9341fc697a76de556061747d0f91c9904eb1e9c204eca",
+        "knee_link.STL": "957f159c5ec7e4d2cb48c7a0b0d17a5d397923a3886399aadef0de37978f9040",
+        "ankle_link.STL": "1f48a886fce0e2effc51b481d9bee94e637b5d7c7f29e59074a264575a0db5c9"
+      },
+      "result": {
+        "pair": [
+          {
+            "leg": "rb",
+            "link": "knee"
+          },
+          {
+            "leg": "rm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "conservative_triangle_AABB_prefilter_excluded_all_pairs",
+        "filtered_triangle_counts": {
+          "left": 0,
+          "right": 4
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null
+      }
+    },
+    "3857788f70fd69c1da26a76f9f015dacfbe047d8422b2c6b68405972bc1910ab": {
+      "q_rad": [
+        [
+          0.682704359729725,
+          -0.24708920828000958,
+          1.7263201350331798
+        ],
+        [
+          0.10170764806035364,
+          -0.9528939672440857,
+          1.6654665423638861
+        ],
+        [
+          -0.43018444645258047,
+          -0.419141102811306,
+          1.410424409574265
+        ],
+        [
+          -0.6826977489317709,
+          0.24708815716908702,
+          -1.7263202248854577
+        ],
+        [
+          -0.10170484980109938,
+          0.9528961621539084,
+          -1.6654714860192732
+        ],
+        [
+          0.4301838361454019,
+          0.41914097336466544,
+          -1.4104243089687578
+        ]
+      ],
+      "base_pose": [
+        0.285,
+        -0.067694497636,
+        0.245,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair": [
+        {
+          "leg": "lb",
+          "link": "knee"
+        },
+        {
+          "leg": "lm",
+          "link": "knee"
+        }
+      ],
+      "visual_mesh_sha256": {
+        "body_link.STL": "730623d24e4f0cfd0fe9341fc697a76de556061747d0f91c9904eb1e9c204eca",
+        "knee_link.STL": "957f159c5ec7e4d2cb48c7a0b0d17a5d397923a3886399aadef0de37978f9040",
+        "ankle_link.STL": "1f48a886fce0e2effc51b481d9bee94e637b5d7c7f29e59074a264575a0db5c9"
+      },
+      "result": {
+        "pair": [
+          {
+            "leg": "lb",
+            "link": "knee"
+          },
+          {
+            "leg": "lm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "conservative_triangle_AABB_prefilter_excluded_all_pairs",
+        "filtered_triangle_counts": {
+          "left": 0,
+          "right": 4
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null
+      }
+    },
+    "7da4f32b89a27fbeae869e07d1b6373234591602e07f9bd1f7682b8f2f085e09": {
+      "q_rad": [
+        [
+          0.682704359729725,
+          -0.24708920828000958,
+          1.7263201350331798
+        ],
+        [
+          0.10170764806035364,
+          -0.9528939672440857,
+          1.6654665423638861
+        ],
+        [
+          -0.43018444645258047,
+          -0.419141102811306,
+          1.410424409574265
+        ],
+        [
+          -0.6826977489317709,
+          0.24708815716908702,
+          -1.7263202248854577
+        ],
+        [
+          -0.10170484980109938,
+          0.9528961621539084,
+          -1.6654714860192732
+        ],
+        [
+          0.4301838361454019,
+          0.41914097336466544,
+          -1.4104243089687578
+        ]
+      ],
+      "base_pose": [
+        0.285,
+        -0.067694497636,
+        0.245,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair": [
+        {
+          "leg": "rb",
+          "link": "knee"
+        },
+        {
+          "leg": "rm",
+          "link": "knee"
+        }
+      ],
+      "visual_mesh_sha256": {
+        "body_link.STL": "730623d24e4f0cfd0fe9341fc697a76de556061747d0f91c9904eb1e9c204eca",
+        "knee_link.STL": "957f159c5ec7e4d2cb48c7a0b0d17a5d397923a3886399aadef0de37978f9040",
+        "ankle_link.STL": "1f48a886fce0e2effc51b481d9bee94e637b5d7c7f29e59074a264575a0db5c9"
+      },
+      "result": {
+        "pair": [
+          {
+            "leg": "rb",
+            "link": "knee"
+          },
+          {
+            "leg": "rm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "conservative_triangle_AABB_prefilter_excluded_all_pairs",
+        "filtered_triangle_counts": {
+          "left": 0,
+          "right": 4
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null
+      }
+    },
+    "5c4c22a4cf5009fd841a0af7cc18ffb21544ddddcfe39a9fbdf687761c67c776": {
+      "q_rad": [
+        [
+          0.6780773863394888,
+          -0.24780337972847744,
+          1.7260216755207753
+        ],
+        [
+          0.10170764806547451,
+          -0.9528939675764315,
+          1.6654665425670765
+        ],
+        [
+          -0.43018444643956305,
+          -0.41914110308498087,
+          1.4104244098070582
+        ],
+        [
+          -0.6780707901861404,
+          0.24780233483739,
+          -1.7260217676604206
+        ],
+        [
+          -0.1017048498062216,
+          0.9528961624862579,
+          -1.6654714862224658
+        ],
+        [
+          0.4301838361323834,
+          0.41914097363834024,
+          -1.410424309201551
+        ]
+      ],
+      "base_pose": [
+        0.285,
+        -0.067694497636,
+        0.245,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair": [
+        {
+          "leg": "lb",
+          "link": "knee"
+        },
+        {
+          "leg": "lm",
+          "link": "knee"
+        }
+      ],
+      "visual_mesh_sha256": {
+        "body_link.STL": "730623d24e4f0cfd0fe9341fc697a76de556061747d0f91c9904eb1e9c204eca",
+        "knee_link.STL": "957f159c5ec7e4d2cb48c7a0b0d17a5d397923a3886399aadef0de37978f9040",
+        "ankle_link.STL": "1f48a886fce0e2effc51b481d9bee94e637b5d7c7f29e59074a264575a0db5c9"
+      },
+      "result": {
+        "pair": [
+          {
+            "leg": "lb",
+            "link": "knee"
+          },
+          {
+            "leg": "lm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "conservative_triangle_AABB_prefilter_excluded_all_pairs",
+        "filtered_triangle_counts": {
+          "left": 0,
+          "right": 4
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null
+      }
+    },
+    "d38835504f20626d98e3b0026acdab16a1635ced265f35b1281201bbab50d25c": {
+      "q_rad": [
+        [
+          0.6780773863394888,
+          -0.24780337972847744,
+          1.7260216755207753
+        ],
+        [
+          0.10170764806547451,
+          -0.9528939675764315,
+          1.6654665425670765
+        ],
+        [
+          -0.43018444643956305,
+          -0.41914110308498087,
+          1.4104244098070582
+        ],
+        [
+          -0.6780707901861404,
+          0.24780233483739,
+          -1.7260217676604206
+        ],
+        [
+          -0.1017048498062216,
+          0.9528961624862579,
+          -1.6654714862224658
+        ],
+        [
+          0.4301838361323834,
+          0.41914097363834024,
+          -1.410424309201551
+        ]
+      ],
+      "base_pose": [
+        0.285,
+        -0.067694497636,
+        0.245,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair": [
+        {
+          "leg": "rb",
+          "link": "knee"
+        },
+        {
+          "leg": "rm",
+          "link": "knee"
+        }
+      ],
+      "visual_mesh_sha256": {
+        "body_link.STL": "730623d24e4f0cfd0fe9341fc697a76de556061747d0f91c9904eb1e9c204eca",
+        "knee_link.STL": "957f159c5ec7e4d2cb48c7a0b0d17a5d397923a3886399aadef0de37978f9040",
+        "ankle_link.STL": "1f48a886fce0e2effc51b481d9bee94e637b5d7c7f29e59074a264575a0db5c9"
+      },
+      "result": {
+        "pair": [
+          {
+            "leg": "rb",
+            "link": "knee"
+          },
+          {
+            "leg": "rm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "conservative_triangle_AABB_prefilter_excluded_all_pairs",
+        "filtered_triangle_counts": {
+          "left": 0,
+          "right": 4
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null
+      }
+    },
+    "7d0e69869f6bc6ffeb3d827bc5933b3d956887b0334312f3415702ac2bda6275": {
+      "q_rad": [
+        [
+          0.6806822567973629,
+          -0.24353093398567704,
+          1.72285243054524
+        ],
+        [
+          0.10170764806787959,
+          -0.952893967738263,
+          1.6654665426667854
+        ],
+        [
+          -0.4301844464334403,
+          -0.4191411032174501,
+          1.4104244099199357
+        ],
+        [
+          -0.6806756229659557,
+          0.24352988798233446,
+          -1.7228525214564019
+        ],
+        [
+          -0.10170484980862675,
+          0.9528961626480911,
+          -1.6654714863221753
+        ],
+        [
+          0.43018383612626016,
+          0.41914097377080983,
+          -1.4104243093144284
+        ]
+      ],
+      "base_pose": [
+        0.285,
+        -0.067694497636,
+        0.245,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair": [
+        {
+          "leg": "lb",
+          "link": "knee"
+        },
+        {
+          "leg": "lm",
+          "link": "knee"
+        }
+      ],
+      "visual_mesh_sha256": {
+        "body_link.STL": "730623d24e4f0cfd0fe9341fc697a76de556061747d0f91c9904eb1e9c204eca",
+        "knee_link.STL": "957f159c5ec7e4d2cb48c7a0b0d17a5d397923a3886399aadef0de37978f9040",
+        "ankle_link.STL": "1f48a886fce0e2effc51b481d9bee94e637b5d7c7f29e59074a264575a0db5c9"
+      },
+      "result": {
+        "pair": [
+          {
+            "leg": "lb",
+            "link": "knee"
+          },
+          {
+            "leg": "lm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "conservative_triangle_AABB_prefilter_excluded_all_pairs",
+        "filtered_triangle_counts": {
+          "left": 0,
+          "right": 4
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null
+      }
+    },
+    "58056805e1bfdc36a72daeafdabe7cb81a01e054405b820e0f46675fb0a75ecf": {
+      "q_rad": [
+        [
+          0.6806822567973629,
+          -0.24353093398567704,
+          1.72285243054524
+        ],
+        [
+          0.10170764806787959,
+          -0.952893967738263,
+          1.6654665426667854
+        ],
+        [
+          -0.4301844464334403,
+          -0.4191411032174501,
+          1.4104244099199357
+        ],
+        [
+          -0.6806756229659557,
+          0.24352988798233446,
+          -1.7228525214564019
+        ],
+        [
+          -0.10170484980862675,
+          0.9528961626480911,
+          -1.6654714863221753
+        ],
+        [
+          0.43018383612626016,
+          0.41914097377080983,
+          -1.4104243093144284
+        ]
+      ],
+      "base_pose": [
+        0.285,
+        -0.067694497636,
+        0.245,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair": [
+        {
+          "leg": "rb",
+          "link": "knee"
+        },
+        {
+          "leg": "rm",
+          "link": "knee"
+        }
+      ],
+      "visual_mesh_sha256": {
+        "body_link.STL": "730623d24e4f0cfd0fe9341fc697a76de556061747d0f91c9904eb1e9c204eca",
+        "knee_link.STL": "957f159c5ec7e4d2cb48c7a0b0d17a5d397923a3886399aadef0de37978f9040",
+        "ankle_link.STL": "1f48a886fce0e2effc51b481d9bee94e637b5d7c7f29e59074a264575a0db5c9"
+      },
+      "result": {
+        "pair": [
+          {
+            "leg": "rb",
+            "link": "knee"
+          },
+          {
+            "leg": "rm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "conservative_triangle_AABB_prefilter_excluded_all_pairs",
+        "filtered_triangle_counts": {
+          "left": 0,
+          "right": 4
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null
+      }
+    },
+    "b11ff9e7d4ba1310bc801b9e6282a7b3c61b86c216e22054f67a75f4ed285663": {
+      "q_rad": [
+        [
+          0.6939328389781614,
+          -0.2301625964308379,
+          1.7138898209171074
+        ],
+        [
+          0.10170764806900891,
+          -0.9528939678170721,
+          1.6654665427157032
+        ],
+        [
+          -0.4301844464305604,
+          -0.4191411032815728,
+          1.4104244099746666
+        ],
+        [
+          -0.6939260762095574,
+          0.23016154230878583,
+          -1.713889906358043
+        ],
+        [
+          -0.1017048498097563,
+          0.9528961627269009,
+          -1.6654714863710933
+        ],
+        [
+          0.43018383612338,
+          0.41914097383493215,
+          -1.410424309369159
+        ]
+      ],
+      "base_pose": [
+        0.285,
+        -0.067694497636,
+        0.245,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair": [
+        {
+          "leg": "lb",
+          "link": "knee"
+        },
+        {
+          "leg": "lm",
+          "link": "knee"
+        }
+      ],
+      "visual_mesh_sha256": {
+        "body_link.STL": "730623d24e4f0cfd0fe9341fc697a76de556061747d0f91c9904eb1e9c204eca",
+        "knee_link.STL": "957f159c5ec7e4d2cb48c7a0b0d17a5d397923a3886399aadef0de37978f9040",
+        "ankle_link.STL": "1f48a886fce0e2effc51b481d9bee94e637b5d7c7f29e59074a264575a0db5c9"
+      },
+      "result": {
+        "pair": [
+          {
+            "leg": "lb",
+            "link": "knee"
+          },
+          {
+            "leg": "lm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "conservative_triangle_AABB_prefilter_excluded_all_pairs",
+        "filtered_triangle_counts": {
+          "left": 0,
+          "right": 4
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null
+      }
+    },
+    "ef3fc9ff80aab54cd4ed5ee71ce46cbd9318928a58832526eddef979d5316e80": {
+      "q_rad": [
+        [
+          0.6939328389781614,
+          -0.2301625964308379,
+          1.7138898209171074
+        ],
+        [
+          0.10170764806900891,
+          -0.9528939678170721,
+          1.6654665427157032
+        ],
+        [
+          -0.4301844464305604,
+          -0.4191411032815728,
+          1.4104244099746666
+        ],
+        [
+          -0.6939260762095574,
+          0.23016154230878583,
+          -1.713889906358043
+        ],
+        [
+          -0.1017048498097563,
+          0.9528961627269009,
+          -1.6654714863710933
+        ],
+        [
+          0.43018383612338,
+          0.41914097383493215,
+          -1.410424309369159
+        ]
+      ],
+      "base_pose": [
+        0.285,
+        -0.067694497636,
+        0.245,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair": [
+        {
+          "leg": "rb",
+          "link": "knee"
+        },
+        {
+          "leg": "rm",
+          "link": "knee"
+        }
+      ],
+      "visual_mesh_sha256": {
+        "body_link.STL": "730623d24e4f0cfd0fe9341fc697a76de556061747d0f91c9904eb1e9c204eca",
+        "knee_link.STL": "957f159c5ec7e4d2cb48c7a0b0d17a5d397923a3886399aadef0de37978f9040",
+        "ankle_link.STL": "1f48a886fce0e2effc51b481d9bee94e637b5d7c7f29e59074a264575a0db5c9"
+      },
+      "result": {
+        "pair": [
+          {
+            "leg": "rb",
+            "link": "knee"
+          },
+          {
+            "leg": "rm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "conservative_triangle_AABB_prefilter_excluded_all_pairs",
+        "filtered_triangle_counts": {
+          "left": 0,
+          "right": 5
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null
+      }
+    },
+    "7ceaebe59704aa9a0b9b320a7e845fc5e9a1a2c15c9debc53d9f5f1f6bac84c9": {
+      "q_rad": [
+        [
+          0.7181352470098469,
+          -0.20750979874809763,
+          1.6986231713968005
+        ],
+        [
+          0.10170764806953973,
+          -0.9528939678554537,
+          1.6654665427396957
+        ],
+        [
+          -0.43018444642920595,
+          -0.4191411033126118,
+          1.4104244100012027
+        ],
+        [
+          -0.7181282621489016,
+          0.20750873217587246,
+          -1.69862324794366
+        ],
+        [
+          -0.10170484981028728,
+          0.9528961627652833,
+          -1.6654714863950866
+        ],
+        [
+          0.4301838361220253,
+          0.41914097386597116,
+          -1.4104243093956952
+        ]
+      ],
+      "base_pose": [
+        0.285,
+        -0.067694497636,
+        0.245,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair": [
+        {
+          "leg": "lb",
+          "link": "knee"
+        },
+        {
+          "leg": "lm",
+          "link": "knee"
+        }
+      ],
+      "visual_mesh_sha256": {
+        "body_link.STL": "730623d24e4f0cfd0fe9341fc697a76de556061747d0f91c9904eb1e9c204eca",
+        "knee_link.STL": "957f159c5ec7e4d2cb48c7a0b0d17a5d397923a3886399aadef0de37978f9040",
+        "ankle_link.STL": "1f48a886fce0e2effc51b481d9bee94e637b5d7c7f29e59074a264575a0db5c9"
+      },
+      "result": {
+        "pair": [
+          {
+            "leg": "lb",
+            "link": "knee"
+          },
+          {
+            "leg": "lm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "broadphase_excluded_all_triangle_pairs; collision result is clear",
+        "filtered_triangle_counts": {
+          "left": 5,
+          "right": 11
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null
+      }
+    },
+    "dc0dd20631d577f08b85c1b050e272cf0d5d68d6d08806ded34d3512d39d2674": {
+      "q_rad": [
+        [
+          0.7181352470098469,
+          -0.20750979874809763,
+          1.6986231713968005
+        ],
+        [
+          0.10170764806953973,
+          -0.9528939678554537,
+          1.6654665427396957
+        ],
+        [
+          -0.43018444642920595,
+          -0.4191411033126118,
+          1.4104244100012027
+        ],
+        [
+          -0.7181282621489016,
+          0.20750873217587246,
+          -1.69862324794366
+        ],
+        [
+          -0.10170484981028728,
+          0.9528961627652833,
+          -1.6654714863950866
+        ],
+        [
+          0.4301838361220253,
+          0.41914097386597116,
+          -1.4104243093956952
+        ]
+      ],
+      "base_pose": [
+        0.285,
+        -0.067694497636,
+        0.245,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair": [
+        {
+          "leg": "rb",
+          "link": "knee"
+        },
+        {
+          "leg": "rm",
+          "link": "knee"
+        }
+      ],
+      "visual_mesh_sha256": {
+        "body_link.STL": "730623d24e4f0cfd0fe9341fc697a76de556061747d0f91c9904eb1e9c204eca",
+        "knee_link.STL": "957f159c5ec7e4d2cb48c7a0b0d17a5d397923a3886399aadef0de37978f9040",
+        "ankle_link.STL": "1f48a886fce0e2effc51b481d9bee94e637b5d7c7f29e59074a264575a0db5c9"
+      },
+      "result": {
+        "pair": [
+          {
+            "leg": "rb",
+            "link": "knee"
+          },
+          {
+            "leg": "rm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "broadphase_excluded_all_triangle_pairs; collision result is clear",
+        "filtered_triangle_counts": {
+          "left": 9,
+          "right": 14
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null
+      }
+    },
+    "cffecdd962e131219edd5be35a235c7152eb69a5e494f39d8e5d2b09939787fe": {
+      "q_rad": [
+        [
+          0.7516561105138074,
+          -0.17797955999241788,
+          1.6780951051464024
+        ],
+        [
+          0.10170764806978887,
+          -0.9528939678741484,
+          1.6654665427514617
+        ],
+        [
+          -0.43018444642856885,
+          -0.41914110332763693,
+          1.4104244100140684
+        ],
+        [
+          -0.7516488341948133,
+          0.17797848046751244,
+          -1.6780951710961167
+        ],
+        [
+          -0.10170484981053649,
+          0.9528961627839782,
+          -1.6654714864068525
+        ],
+        [
+          0.4301838361213881,
+          0.4191409738809963,
+          -1.410424309408561
+        ]
+      ],
+      "base_pose": [
+        0.285,
+        -0.067694497636,
+        0.245,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair": [
+        {
+          "leg": "lb",
+          "link": "knee"
+        },
+        {
+          "leg": "lm",
+          "link": "knee"
+        }
+      ],
+      "visual_mesh_sha256": {
+        "body_link.STL": "730623d24e4f0cfd0fe9341fc697a76de556061747d0f91c9904eb1e9c204eca",
+        "knee_link.STL": "957f159c5ec7e4d2cb48c7a0b0d17a5d397923a3886399aadef0de37978f9040",
+        "ankle_link.STL": "1f48a886fce0e2effc51b481d9bee94e637b5d7c7f29e59074a264575a0db5c9"
+      },
+      "result": {
+        "pair": [
+          {
+            "leg": "lb",
+            "link": "knee"
+          },
+          {
+            "leg": "lm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "broadphase_excluded_all_triangle_pairs; collision result is clear",
+        "filtered_triangle_counts": {
+          "left": 34,
+          "right": 18
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null
+      }
+    },
+    "390021c20b8ef02d5264f0ad8a6449ff954d99ff2ce19bc5247a2e17d5f45406": {
+      "q_rad": [
+        [
+          0.7516561105138074,
+          -0.17797955999241788,
+          1.6780951051464024
+        ],
+        [
+          0.10170764806978887,
+          -0.9528939678741484,
+          1.6654665427514617
+        ],
+        [
+          -0.43018444642856885,
+          -0.41914110332763693,
+          1.4104244100140684
+        ],
+        [
+          -0.7516488341948133,
+          0.17797848046751244,
+          -1.6780951710961167
+        ],
+        [
+          -0.10170484981053649,
+          0.9528961627839782,
+          -1.6654714864068525
+        ],
+        [
+          0.4301838361213881,
+          0.4191409738809963,
+          -1.410424309408561
+        ]
+      ],
+      "base_pose": [
+        0.285,
+        -0.067694497636,
+        0.245,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair": [
+        {
+          "leg": "rb",
+          "link": "knee"
+        },
+        {
+          "leg": "rm",
+          "link": "knee"
+        }
+      ],
+      "visual_mesh_sha256": {
+        "body_link.STL": "730623d24e4f0cfd0fe9341fc697a76de556061747d0f91c9904eb1e9c204eca",
+        "knee_link.STL": "957f159c5ec7e4d2cb48c7a0b0d17a5d397923a3886399aadef0de37978f9040",
+        "ankle_link.STL": "1f48a886fce0e2effc51b481d9bee94e637b5d7c7f29e59074a264575a0db5c9"
+      },
+      "result": {
+        "pair": [
+          {
+            "leg": "rb",
+            "link": "knee"
+          },
+          {
+            "leg": "rm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "broadphase_excluded_all_triangle_pairs; collision result is clear",
+        "filtered_triangle_counts": {
+          "left": 24,
+          "right": 20
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null
+      }
+    },
+    "5e32ef9a9bf9b6b5c6914c4cba22f4e3ba494e096ba6a01936b03993e3fb49e5": {
+      "q_rad": [
+        [
+          0.7914740972024862,
+          -0.14525919603670462,
+          1.6542941677500325
+        ],
+        [
+          0.10170764806990588,
+          -0.9528939678832546,
+          1.6654665427572304
+        ],
+        [
+          -0.43018444642826914,
+          -0.4191411033349105,
+          1.4104244100203058
+        ],
+        [
+          -0.7914664984844594,
+          0.14525810678529316,
+          -1.6542942234432025
+        ],
+        [
+          -0.10170484981065321,
+          0.9528961627930844,
+          -1.665471486412621
+        ],
+        [
+          0.4301838361210884,
+          0.4191409738882699,
+          -1.4104243094147983
+        ]
+      ],
+      "base_pose": [
+        0.285,
+        -0.067694497636,
+        0.245,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair": [
+        {
+          "leg": "lb",
+          "link": "knee"
+        },
+        {
+          "leg": "lm",
+          "link": "knee"
+        }
+      ],
+      "visual_mesh_sha256": {
+        "body_link.STL": "730623d24e4f0cfd0fe9341fc697a76de556061747d0f91c9904eb1e9c204eca",
+        "knee_link.STL": "957f159c5ec7e4d2cb48c7a0b0d17a5d397923a3886399aadef0de37978f9040",
+        "ankle_link.STL": "1f48a886fce0e2effc51b481d9bee94e637b5d7c7f29e59074a264575a0db5c9"
+      },
+      "result": {
+        "pair": [
+          {
+            "leg": "lb",
+            "link": "knee"
+          },
+          {
+            "leg": "lm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "broadphase_excluded_all_triangle_pairs; collision result is clear",
+        "filtered_triangle_counts": {
+          "left": 70,
+          "right": 30
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null
+      }
+    },
+    "e9e98dee2c4aeba7a997dd45dc4081f17ae0421f4a12d3d52320c7ff03bb6c2e": {
+      "q_rad": [
+        [
+          0.7914740972024862,
+          -0.14525919603670462,
+          1.6542941677500325
+        ],
+        [
+          0.10170764806990588,
+          -0.9528939678832546,
+          1.6654665427572304
+        ],
+        [
+          -0.43018444642826914,
+          -0.4191411033349105,
+          1.4104244100203058
+        ],
+        [
+          -0.7914664984844594,
+          0.14525810678529316,
+          -1.6542942234432025
+        ],
+        [
+          -0.10170484981065321,
+          0.9528961627930844,
+          -1.665471486412621
+        ],
+        [
+          0.4301838361210884,
+          0.4191409738882699,
+          -1.4104243094147983
+        ]
+      ],
+      "base_pose": [
+        0.285,
+        -0.067694497636,
+        0.245,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair": [
+        {
+          "leg": "rb",
+          "link": "knee"
+        },
+        {
+          "leg": "rm",
+          "link": "knee"
+        }
+      ],
+      "visual_mesh_sha256": {
+        "body_link.STL": "730623d24e4f0cfd0fe9341fc697a76de556061747d0f91c9904eb1e9c204eca",
+        "knee_link.STL": "957f159c5ec7e4d2cb48c7a0b0d17a5d397923a3886399aadef0de37978f9040",
+        "ankle_link.STL": "1f48a886fce0e2effc51b481d9bee94e637b5d7c7f29e59074a264575a0db5c9"
+      },
+      "result": {
+        "pair": [
+          {
+            "leg": "rb",
+            "link": "knee"
+          },
+          {
+            "leg": "rm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "broadphase_excluded_all_triangle_pairs; collision result is clear",
+        "filtered_triangle_counts": {
+          "left": 30,
+          "right": 28
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null
+      }
+    },
+    "3c9c1091523faaa63eb855774ec64e3efcdacd5a9aa4be1d53f4994f1855c4a6": {
+      "q_rad": [
+        [
+          0.8335515122750429,
+          -0.11320191899827967,
+          1.629697696686965
+        ],
+        [
+          0.10170764806996084,
+          -0.9528939678876908,
+          1.6654665427600581
+        ],
+        [
+          -0.43018444642812825,
+          -0.4191411033384314,
+          1.4104244100233296
+        ],
+        [
+          -0.8335436022052879,
+          0.11320082571833912,
+          -1.629697744250114
+        ],
+        [
+          -0.10170484981070857,
+          0.9528961627975205,
+          -1.6654714864154487
+        ],
+        [
+          0.4301838361209474,
+          0.4191409738917909,
+          -1.4104243094178224
+        ]
+      ],
+      "base_pose": [
+        0.285,
+        -0.067694497636,
+        0.245,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair": [
+        {
+          "leg": "lb",
+          "link": "knee"
+        },
+        {
+          "leg": "lm",
+          "link": "knee"
+        }
+      ],
+      "visual_mesh_sha256": {
+        "body_link.STL": "730623d24e4f0cfd0fe9341fc697a76de556061747d0f91c9904eb1e9c204eca",
+        "knee_link.STL": "957f159c5ec7e4d2cb48c7a0b0d17a5d397923a3886399aadef0de37978f9040",
+        "ankle_link.STL": "1f48a886fce0e2effc51b481d9bee94e637b5d7c7f29e59074a264575a0db5c9"
+      },
+      "result": {
+        "pair": [
+          {
+            "leg": "lb",
+            "link": "knee"
+          },
+          {
+            "leg": "lm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "triangle_candidates_checked",
+        "filtered_triangle_counts": {
+          "left": 191,
+          "right": 21
+        },
+        "triangle_test_count": 12,
+        "broad_phase_candidates": 1,
+        "mesh_collision": false,
+        "triangle_hit": null
+      }
+    },
+    "fdeb643dde18469fa970b4c9cddaeb81a179da8b3989b21d071360aca4c39413": {
+      "q_rad": [
+        [
+          0.8335515122750429,
+          -0.11320191899827967,
+          1.629697696686965
+        ],
+        [
+          0.10170764806996084,
+          -0.9528939678876908,
+          1.6654665427600581
+        ],
+        [
+          -0.43018444642812825,
+          -0.4191411033384314,
+          1.4104244100233296
+        ],
+        [
+          -0.8335436022052879,
+          0.11320082571833912,
+          -1.629697744250114
+        ],
+        [
+          -0.10170484981070857,
+          0.9528961627975205,
+          -1.6654714864154487
+        ],
+        [
+          0.4301838361209474,
+          0.4191409738917909,
+          -1.4104243094178224
+        ]
+      ],
+      "base_pose": [
+        0.285,
+        -0.067694497636,
+        0.245,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair": [
+        {
+          "leg": "rb",
+          "link": "knee"
+        },
+        {
+          "leg": "rm",
+          "link": "knee"
+        }
+      ],
+      "visual_mesh_sha256": {
+        "body_link.STL": "730623d24e4f0cfd0fe9341fc697a76de556061747d0f91c9904eb1e9c204eca",
+        "knee_link.STL": "957f159c5ec7e4d2cb48c7a0b0d17a5d397923a3886399aadef0de37978f9040",
+        "ankle_link.STL": "1f48a886fce0e2effc51b481d9bee94e637b5d7c7f29e59074a264575a0db5c9"
+      },
+      "result": {
+        "pair": [
+          {
+            "leg": "rb",
+            "link": "knee"
+          },
+          {
+            "leg": "rm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "triangle_candidates_checked",
+        "filtered_triangle_counts": {
+          "left": 143,
+          "right": 20
+        },
+        "triangle_test_count": 8,
+        "broad_phase_candidates": 1,
+        "mesh_collision": false,
+        "triangle_hit": null
+      }
+    },
+    "29941682797317291f2e2a5200609e69f751a0a63adcc593986837cc420bcad2": {
+      "q_rad": [
+        [
+          0.8733433952418006,
+          -0.0850494284556544,
+          1.6068680400856232
+        ],
+        [
+          0.10170764806998664,
+          -0.9528939678898519,
+          1.665466542761444
+        ],
+        [
+          -0.4301844464280619,
+          -0.419141103340136,
+          1.4104244100247956
+        ],
+        [
+          -0.8733352197736326,
+          0.08504833740838415,
+          -1.606868082700037
+        ],
+        [
+          -0.10170484981073435,
+          0.9528961627996818,
+          -1.6654714864168347
+        ],
+        [
+          0.4301838361208811,
+          0.41914097389349547,
+          -1.4104243094192883
+        ]
+      ],
+      "base_pose": [
+        0.285,
+        -0.067694497636,
+        0.245,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair": [
+        {
+          "leg": "lb",
+          "link": "knee"
+        },
+        {
+          "leg": "lm",
+          "link": "knee"
+        }
+      ],
+      "visual_mesh_sha256": {
+        "body_link.STL": "730623d24e4f0cfd0fe9341fc697a76de556061747d0f91c9904eb1e9c204eca",
+        "knee_link.STL": "957f159c5ec7e4d2cb48c7a0b0d17a5d397923a3886399aadef0de37978f9040",
+        "ankle_link.STL": "1f48a886fce0e2effc51b481d9bee94e637b5d7c7f29e59074a264575a0db5c9"
+      },
+      "result": {
+        "pair": [
+          {
+            "leg": "lb",
+            "link": "knee"
+          },
+          {
+            "leg": "lm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "triangle_candidates_checked",
+        "filtered_triangle_counts": {
+          "left": 999,
+          "right": 17
+        },
+        "triangle_test_count": 50,
+        "broad_phase_candidates": 1,
+        "mesh_collision": false,
+        "triangle_hit": null
+      }
+    },
+    "0b9cdafb230d43bd6b0a0659e070a2fccf60b6f90ea1e8c190de5bb135a33fc0": {
+      "q_rad": [
+        [
+          0.8733433952418006,
+          -0.0850494284556544,
+          1.6068680400856232
+        ],
+        [
+          0.10170764806998664,
+          -0.9528939678898519,
+          1.665466542761444
+        ],
+        [
+          -0.4301844464280619,
+          -0.419141103340136,
+          1.4104244100247956
+        ],
+        [
+          -0.8733352197736326,
+          0.08504833740838415,
+          -1.606868082700037
+        ],
+        [
+          -0.10170484981073435,
+          0.9528961627996818,
+          -1.6654714864168347
+        ],
+        [
+          0.4301838361208811,
+          0.41914097389349547,
+          -1.4104243094192883
+        ]
+      ],
+      "base_pose": [
+        0.285,
+        -0.067694497636,
+        0.245,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair": [
+        {
+          "leg": "rb",
+          "link": "knee"
+        },
+        {
+          "leg": "rm",
+          "link": "knee"
+        }
+      ],
+      "visual_mesh_sha256": {
+        "body_link.STL": "730623d24e4f0cfd0fe9341fc697a76de556061747d0f91c9904eb1e9c204eca",
+        "knee_link.STL": "957f159c5ec7e4d2cb48c7a0b0d17a5d397923a3886399aadef0de37978f9040",
+        "ankle_link.STL": "1f48a886fce0e2effc51b481d9bee94e637b5d7c7f29e59074a264575a0db5c9"
+      },
+      "result": {
+        "pair": [
+          {
+            "leg": "rb",
+            "link": "knee"
+          },
+          {
+            "leg": "rm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "triangle_candidates_checked",
+        "filtered_triangle_counts": {
+          "left": 1227,
+          "right": 17
+        },
+        "triangle_test_count": 36,
+        "broad_phase_candidates": 1,
+        "mesh_collision": false,
+        "triangle_hit": null
+      }
+    },
+    "3cc8498dc6b5cf15b95d89bea60558f6d272275d57ab88c6b884e75034799667": {
+      "q_rad": [
+        [
+          0.9065327147242948,
+          -0.06304404646281014,
+          1.5880788005597628
+        ],
+        [
+          0.10170764806999875,
+          -0.9528939678909051,
+          1.665466542762123
+        ],
+        [
+          -0.4301844464280307,
+          -0.41914110334096044,
+          1.410424410025506
+        ],
+        [
+          -0.9065243403866149,
+          0.06304296263348816,
+          -1.5880788415315656
+        ],
+        [
+          -0.10170484981074646,
+          0.9528961628007347,
+          -1.6654714864175137
+        ],
+        [
+          0.43018383612085,
+          0.4191409738943207,
+          -1.410424309419999
+        ]
+      ],
+      "base_pose": [
+        0.285,
+        -0.067694497636,
+        0.245,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair": [
+        {
+          "leg": "lb",
+          "link": "knee"
+        },
+        {
+          "leg": "lm",
+          "link": "knee"
+        }
+      ],
+      "visual_mesh_sha256": {
+        "body_link.STL": "730623d24e4f0cfd0fe9341fc697a76de556061747d0f91c9904eb1e9c204eca",
+        "knee_link.STL": "957f159c5ec7e4d2cb48c7a0b0d17a5d397923a3886399aadef0de37978f9040",
+        "ankle_link.STL": "1f48a886fce0e2effc51b481d9bee94e637b5d7c7f29e59074a264575a0db5c9"
+      },
+      "result": {
+        "pair": [
+          {
+            "leg": "lb",
+            "link": "knee"
+          },
+          {
+            "leg": "lm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "triangle_candidates_checked",
+        "filtered_triangle_counts": {
+          "left": 2011,
+          "right": 23
+        },
+        "triangle_test_count": 387,
+        "broad_phase_candidates": 1,
+        "mesh_collision": false,
+        "triangle_hit": null
+      }
+    },
+    "93b3b6e8b2d018f055c909711fed366e74091c0e2942103af067b1537b32fd6f": {
+      "q_rad": [
+        [
+          0.9065327147242948,
+          -0.06304404646281014,
+          1.5880788005597628
+        ],
+        [
+          0.10170764806999875,
+          -0.9528939678909051,
+          1.665466542762123
+        ],
+        [
+          -0.4301844464280307,
+          -0.41914110334096044,
+          1.410424410025506
+        ],
+        [
+          -0.9065243403866149,
+          0.06304296263348816,
+          -1.5880788415315656
+        ],
+        [
+          -0.10170484981074646,
+          0.9528961628007347,
+          -1.6654714864175137
+        ],
+        [
+          0.43018383612085,
+          0.4191409738943207,
+          -1.410424309419999
+        ]
+      ],
+      "base_pose": [
+        0.285,
+        -0.067694497636,
+        0.245,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair": [
+        {
+          "leg": "rb",
+          "link": "knee"
+        },
+        {
+          "leg": "rm",
+          "link": "knee"
+        }
+      ],
+      "visual_mesh_sha256": {
+        "body_link.STL": "730623d24e4f0cfd0fe9341fc697a76de556061747d0f91c9904eb1e9c204eca",
+        "knee_link.STL": "957f159c5ec7e4d2cb48c7a0b0d17a5d397923a3886399aadef0de37978f9040",
+        "ankle_link.STL": "1f48a886fce0e2effc51b481d9bee94e637b5d7c7f29e59074a264575a0db5c9"
+      },
+      "result": {
+        "pair": [
+          {
+            "leg": "rb",
+            "link": "knee"
+          },
+          {
+            "leg": "rm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "triangle_candidates_checked",
+        "filtered_triangle_counts": {
+          "left": 2010,
+          "right": 25
+        },
+        "triangle_test_count": 289,
+        "broad_phase_candidates": 1,
+        "mesh_collision": false,
+        "triangle_hit": null
+      }
+    },
+    "c30700981c34b272bf27ce29505a5b07343faab2bbffd0ce8619da9a08b9f476": {
+      "q_rad": [
+        [
+          0.9298679864110536,
+          -0.04834195656059319,
+          1.5749688664954116
+        ],
+        [
+          0.10170764807000444,
+          -0.9528939678914181,
+          1.6654665427624555
+        ],
+        [
+          -0.43018444642801607,
+          -0.4191411033413608,
+          1.410424410025851
+        ],
+        [
+          -0.9298594849048191,
+          0.04834088251885396,
+          -1.5749689084786307
+        ],
+        [
+          -0.10170484981075213,
+          0.9528961628012477,
+          -1.6654714864178464
+        ],
+        [
+          0.43018383612083533,
+          0.4191409738947204,
+          -1.4104243094203437
+        ]
+      ],
+      "base_pose": [
+        0.285,
+        -0.067694497636,
+        0.245,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair": [
+        {
+          "leg": "lb",
+          "link": "knee"
+        },
+        {
+          "leg": "lm",
+          "link": "knee"
+        }
+      ],
+      "visual_mesh_sha256": {
+        "body_link.STL": "730623d24e4f0cfd0fe9341fc697a76de556061747d0f91c9904eb1e9c204eca",
+        "knee_link.STL": "957f159c5ec7e4d2cb48c7a0b0d17a5d397923a3886399aadef0de37978f9040",
+        "ankle_link.STL": "1f48a886fce0e2effc51b481d9bee94e637b5d7c7f29e59074a264575a0db5c9"
+      },
+      "result": {
+        "pair": [
+          {
+            "leg": "lb",
+            "link": "knee"
+          },
+          {
+            "leg": "lm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "triangle_candidates_checked",
+        "filtered_triangle_counts": {
+          "left": 2484,
+          "right": 26
+        },
+        "triangle_test_count": 775,
+        "broad_phase_candidates": 1,
+        "mesh_collision": false,
+        "triangle_hit": null
+      }
+    },
+    "1893cd535ba292b0c1401321a9ffd41e0da2b0392586dc03fe93c22a24f0aac4": {
+      "q_rad": [
+        [
+          0.9298679864110536,
+          -0.04834195656059319,
+          1.5749688664954116
+        ],
+        [
+          0.10170764807000444,
+          -0.9528939678914181,
+          1.6654665427624555
+        ],
+        [
+          -0.43018444642801607,
+          -0.4191411033413608,
+          1.410424410025851
+        ],
+        [
+          -0.9298594849048191,
+          0.04834088251885396,
+          -1.5749689084786307
+        ],
+        [
+          -0.10170484981075213,
+          0.9528961628012477,
+          -1.6654714864178464
+        ],
+        [
+          0.43018383612083533,
+          0.4191409738947204,
+          -1.4104243094203437
+        ]
+      ],
+      "base_pose": [
+        0.285,
+        -0.067694497636,
+        0.245,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair": [
+        {
+          "leg": "rb",
+          "link": "knee"
+        },
+        {
+          "leg": "rm",
+          "link": "knee"
+        }
+      ],
+      "visual_mesh_sha256": {
+        "body_link.STL": "730623d24e4f0cfd0fe9341fc697a76de556061747d0f91c9904eb1e9c204eca",
+        "knee_link.STL": "957f159c5ec7e4d2cb48c7a0b0d17a5d397923a3886399aadef0de37978f9040",
+        "ankle_link.STL": "1f48a886fce0e2effc51b481d9bee94e637b5d7c7f29e59074a264575a0db5c9"
+      },
+      "result": {
+        "pair": [
+          {
+            "leg": "rb",
+            "link": "knee"
+          },
+          {
+            "leg": "rm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "triangle_candidates_checked",
+        "filtered_triangle_counts": {
+          "left": 2395,
+          "right": 33
+        },
+        "triangle_test_count": 654,
+        "broad_phase_candidates": 1,
+        "mesh_collision": false,
+        "triangle_hit": null
+      }
+    },
+    "035785c7b6c239beedcf4db7af9b5e3a6544e17932975782b279379da087a613": {
+      "q_rad": [
+        [
+          0.9419183288463907,
+          -0.041035540571096984,
+          1.568215690030034
+        ],
+        [
+          0.10170764807000712,
+          -0.9528939678916681,
+          1.6654665427626185
+        ],
+        [
+          -0.4301844464280092,
+          -0.41914110334155413,
+          1.410424410026018
+        ],
+        [
+          -0.9419097657179673,
+          0.04103447631683427,
+          -1.5682157346396155
+        ],
+        [
+          -0.10170484981075481,
+          0.9528961628014978,
+          -1.6654714864180094
+        ],
+        [
+          0.4301838361208284,
+          0.41914097389491384,
+          -1.4104243094205107
+        ]
+      ],
+      "base_pose": [
+        0.285,
+        -0.067694497636,
+        0.245,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair": [
+        {
+          "leg": "lb",
+          "link": "knee"
+        },
+        {
+          "leg": "lm",
+          "link": "knee"
+        }
+      ],
+      "visual_mesh_sha256": {
+        "body_link.STL": "730623d24e4f0cfd0fe9341fc697a76de556061747d0f91c9904eb1e9c204eca",
+        "knee_link.STL": "957f159c5ec7e4d2cb48c7a0b0d17a5d397923a3886399aadef0de37978f9040",
+        "ankle_link.STL": "1f48a886fce0e2effc51b481d9bee94e637b5d7c7f29e59074a264575a0db5c9"
+      },
+      "result": {
+        "pair": [
+          {
+            "leg": "lb",
+            "link": "knee"
+          },
+          {
+            "leg": "lm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "triangle_candidates_checked",
+        "filtered_triangle_counts": {
+          "left": 2725,
+          "right": 33
+        },
+        "triangle_test_count": 955,
+        "broad_phase_candidates": 1,
+        "mesh_collision": false,
+        "triangle_hit": null
+      }
+    },
+    "5e2f6e445dc4ce2aecb8b1a3d3a4d82eadf243acea474171fa866f70e9f3d870": {
+      "q_rad": [
+        [
+          0.9419183288463907,
+          -0.041035540571096984,
+          1.568215690030034
+        ],
+        [
+          0.10170764807000712,
+          -0.9528939678916681,
+          1.6654665427626185
+        ],
+        [
+          -0.4301844464280092,
+          -0.41914110334155413,
+          1.410424410026018
+        ],
+        [
+          -0.9419097657179673,
+          0.04103447631683427,
+          -1.5682157346396155
+        ],
+        [
+          -0.10170484981075481,
+          0.9528961628014978,
+          -1.6654714864180094
+        ],
+        [
+          0.4301838361208284,
+          0.41914097389491384,
+          -1.4104243094205107
+        ]
+      ],
+      "base_pose": [
+        0.285,
+        -0.067694497636,
+        0.245,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair": [
+        {
+          "leg": "rb",
+          "link": "knee"
+        },
+        {
+          "leg": "rm",
+          "link": "knee"
+        }
+      ],
+      "visual_mesh_sha256": {
+        "body_link.STL": "730623d24e4f0cfd0fe9341fc697a76de556061747d0f91c9904eb1e9c204eca",
+        "knee_link.STL": "957f159c5ec7e4d2cb48c7a0b0d17a5d397923a3886399aadef0de37978f9040",
+        "ankle_link.STL": "1f48a886fce0e2effc51b481d9bee94e637b5d7c7f29e59074a264575a0db5c9"
+      },
+      "result": {
+        "pair": [
+          {
+            "leg": "rb",
+            "link": "knee"
+          },
+          {
+            "leg": "rm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "triangle_candidates_checked",
+        "filtered_triangle_counts": {
+          "left": 2490,
+          "right": 40
+        },
+        "triangle_test_count": 781,
+        "broad_phase_candidates": 1,
+        "mesh_collision": false,
+        "triangle_hit": null
+      }
+    },
+    "b9d1350849d554fe646e00b9dd64ef858e12919eebe48df28c6ff899fca76f48": {
+      "q_rad": [
+        [
+          0.9436740428382384,
+          -0.040081051042910876,
+          1.5672174557554757
+        ],
+        [
+          0.10170764807000837,
+          -0.9528939678917899,
+          1.6654665427626982
+        ],
+        [
+          -0.43018444642800596,
+          -0.41914110334164767,
+          1.4104244100260988
+        ],
+        [
+          -0.9436654704574419,
+          0.04007999466594515,
+          -1.56721750354799
+        ],
+        [
+          -0.10170484981075607,
+          0.9528961628016196,
+          -1.665471486418089
+        ],
+        [
+          0.43018383612082517,
+          0.4191409738950073,
+          -1.4104243094205915
+        ]
+      ],
+      "base_pose": [
+        0.285,
+        -0.067694497636,
+        0.245,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair": [
+        {
+          "leg": "lb",
+          "link": "knee"
+        },
+        {
+          "leg": "lm",
+          "link": "knee"
+        }
+      ],
+      "visual_mesh_sha256": {
+        "body_link.STL": "730623d24e4f0cfd0fe9341fc697a76de556061747d0f91c9904eb1e9c204eca",
+        "knee_link.STL": "957f159c5ec7e4d2cb48c7a0b0d17a5d397923a3886399aadef0de37978f9040",
+        "ankle_link.STL": "1f48a886fce0e2effc51b481d9bee94e637b5d7c7f29e59074a264575a0db5c9"
+      },
+      "result": {
+        "pair": [
+          {
+            "leg": "lb",
+            "link": "knee"
+          },
+          {
+            "leg": "lm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "triangle_candidates_checked",
+        "filtered_triangle_counts": {
+          "left": 2767,
+          "right": 37
+        },
+        "triangle_test_count": 969,
+        "broad_phase_candidates": 1,
+        "mesh_collision": false,
+        "triangle_hit": null
+      }
+    },
+    "fab79c6ae81c82655b0234272e6b43da78d9d08112741413048ed4c19c9614e7": {
+      "q_rad": [
+        [
+          0.9436740428382384,
+          -0.040081051042910876,
+          1.5672174557554757
+        ],
+        [
+          0.10170764807000837,
+          -0.9528939678917899,
+          1.6654665427626982
+        ],
+        [
+          -0.43018444642800596,
+          -0.41914110334164767,
+          1.4104244100260988
+        ],
+        [
+          -0.9436654704574419,
+          0.04007999466594515,
+          -1.56721750354799
+        ],
+        [
+          -0.10170484981075607,
+          0.9528961628016196,
+          -1.665471486418089
+        ],
+        [
+          0.43018383612082517,
+          0.4191409738950073,
+          -1.4104243094205915
+        ]
+      ],
+      "base_pose": [
+        0.285,
+        -0.067694497636,
+        0.245,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair": [
+        {
+          "leg": "rb",
+          "link": "knee"
+        },
+        {
+          "leg": "rm",
+          "link": "knee"
+        }
+      ],
+      "visual_mesh_sha256": {
+        "body_link.STL": "730623d24e4f0cfd0fe9341fc697a76de556061747d0f91c9904eb1e9c204eca",
+        "knee_link.STL": "957f159c5ec7e4d2cb48c7a0b0d17a5d397923a3886399aadef0de37978f9040",
+        "ankle_link.STL": "1f48a886fce0e2effc51b481d9bee94e637b5d7c7f29e59074a264575a0db5c9"
+      },
+      "result": {
+        "pair": [
+          {
+            "leg": "rb",
+            "link": "knee"
+          },
+          {
+            "leg": "rm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "triangle_candidates_checked",
+        "filtered_triangle_counts": {
+          "left": 2504,
+          "right": 42
+        },
+        "triangle_test_count": 799,
+        "broad_phase_candidates": 1,
+        "mesh_collision": false,
+        "triangle_hit": null
+      }
+    },
+    "05caa8ff372e39f5bb807715402917dab37b89befaf886b3e61f99f689c5a1d0": {
+      "q_rad": [
+        [
+          0.9390534940479902,
+          -0.04299667310163761,
+          1.5697821330156463
+        ],
+        [
+          0.10170764807000897,
+          -0.9528939678918492,
+          1.6654665427627373
+        ],
+        [
+          -0.43018444642800446,
+          -0.4191411033416931,
+          1.410424410026138
+        ],
+        [
+          -0.9390449440041829,
+          0.042995621714326734,
+          -1.5697821835791097
+        ],
+        [
+          -0.10170484981075666,
+          0.9528961628016788,
+          -1.665471486418128
+        ],
+        [
+          0.4301838361208236,
+          0.4191409738950525,
+          -1.4104243094206308
+        ]
+      ],
+      "base_pose": [
+        0.285,
+        -0.067694497636,
+        0.245,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair": [
+        {
+          "leg": "lb",
+          "link": "knee"
+        },
+        {
+          "leg": "lm",
+          "link": "knee"
+        }
+      ],
+      "visual_mesh_sha256": {
+        "body_link.STL": "730623d24e4f0cfd0fe9341fc697a76de556061747d0f91c9904eb1e9c204eca",
+        "knee_link.STL": "957f159c5ec7e4d2cb48c7a0b0d17a5d397923a3886399aadef0de37978f9040",
+        "ankle_link.STL": "1f48a886fce0e2effc51b481d9bee94e637b5d7c7f29e59074a264575a0db5c9"
+      },
+      "result": {
+        "pair": [
+          {
+            "leg": "lb",
+            "link": "knee"
+          },
+          {
+            "leg": "lm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "triangle_candidates_checked",
+        "filtered_triangle_counts": {
+          "left": 2665,
+          "right": 30
+        },
+        "triangle_test_count": 960,
+        "broad_phase_candidates": 1,
+        "mesh_collision": false,
+        "triangle_hit": null
+      }
+    },
+    "bf2b8a8588956f7441d692dcd226ea23eff98ccaeb963735e14cfbdb12affc74": {
+      "q_rad": [
+        [
+          0.9390534940479902,
+          -0.04299667310163761,
+          1.5697821330156463
+        ],
+        [
+          0.10170764807000897,
+          -0.9528939678918492,
+          1.6654665427627373
+        ],
+        [
+          -0.43018444642800446,
+          -0.4191411033416931,
+          1.410424410026138
+        ],
+        [
+          -0.9390449440041829,
+          0.042995621714326734,
+          -1.5697821835791097
+        ],
+        [
+          -0.10170484981075666,
+          0.9528961628016788,
+          -1.665471486418128
+        ],
+        [
+          0.4301838361208236,
+          0.4191409738950525,
+          -1.4104243094206308
+        ]
+      ],
+      "base_pose": [
+        0.285,
+        -0.067694497636,
+        0.245,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair": [
+        {
+          "leg": "rb",
+          "link": "knee"
+        },
+        {
+          "leg": "rm",
+          "link": "knee"
+        }
+      ],
+      "visual_mesh_sha256": {
+        "body_link.STL": "730623d24e4f0cfd0fe9341fc697a76de556061747d0f91c9904eb1e9c204eca",
+        "knee_link.STL": "957f159c5ec7e4d2cb48c7a0b0d17a5d397923a3886399aadef0de37978f9040",
+        "ankle_link.STL": "1f48a886fce0e2effc51b481d9bee94e637b5d7c7f29e59074a264575a0db5c9"
+      },
+      "result": {
+        "pair": [
+          {
+            "leg": "rb",
+            "link": "knee"
+          },
+          {
+            "leg": "rm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "triangle_candidates_checked",
+        "filtered_triangle_counts": {
+          "left": 2485,
+          "right": 37
+        },
+        "triangle_test_count": 862,
+        "broad_phase_candidates": 1,
+        "mesh_collision": false,
+        "triangle_hit": null
+      }
+    },
+    "e7d55cdbb8393cc7921f6b424e193ac25b47d5ad7e129891d2170718050473b3": {
+      "q_rad": [
+        [
+          0.9346382291307457,
+          -0.04578542803867954,
+          1.5722433791752348
+        ],
+        [
+          0.10170764807000923,
+          -0.9528939678918781,
+          1.6654665427627564
+        ],
+        [
+          -0.43018444642800374,
+          -0.41914110334171517,
+          1.4104244100261571
+        ],
+        [
+          -0.9346297015571011,
+          0.045784378512543626,
+          -1.5722434311612459
+        ],
+        [
+          -0.10170484981075693,
+          0.952896162801708,
+          -1.6654714864181472
+        ],
+        [
+          0.4301838361208229,
+          0.41914097389507426,
+          -1.4104243094206497
+        ]
+      ],
+      "base_pose": [
+        0.285,
+        -0.067694497636,
+        0.245,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair": [
+        {
+          "leg": "lb",
+          "link": "knee"
+        },
+        {
+          "leg": "lm",
+          "link": "knee"
+        }
+      ],
+      "visual_mesh_sha256": {
+        "body_link.STL": "730623d24e4f0cfd0fe9341fc697a76de556061747d0f91c9904eb1e9c204eca",
+        "knee_link.STL": "957f159c5ec7e4d2cb48c7a0b0d17a5d397923a3886399aadef0de37978f9040",
+        "ankle_link.STL": "1f48a886fce0e2effc51b481d9bee94e637b5d7c7f29e59074a264575a0db5c9"
+      },
+      "result": {
+        "pair": [
+          {
+            "leg": "lb",
+            "link": "knee"
+          },
+          {
+            "leg": "lm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "triangle_candidates_checked",
+        "filtered_triangle_counts": {
+          "left": 2571,
+          "right": 30
+        },
+        "triangle_test_count": 920,
+        "broad_phase_candidates": 1,
+        "mesh_collision": false,
+        "triangle_hit": null
+      }
+    },
+    "5e15f3d2d264cbc7c871c66c1d940581a894a16bfa298aa46003ab25b7c99adf": {
+      "q_rad": [
+        [
+          0.9346382291307457,
+          -0.04578542803867954,
+          1.5722433791752348
+        ],
+        [
+          0.10170764807000923,
+          -0.9528939678918781,
+          1.6654665427627564
+        ],
+        [
+          -0.43018444642800374,
+          -0.41914110334171517,
+          1.4104244100261571
+        ],
+        [
+          -0.9346297015571011,
+          0.045784378512543626,
+          -1.5722434311612459
+        ],
+        [
+          -0.10170484981075693,
+          0.952896162801708,
+          -1.6654714864181472
+        ],
+        [
+          0.4301838361208229,
+          0.41914097389507426,
+          -1.4104243094206497
+        ]
+      ],
+      "base_pose": [
+        0.285,
+        -0.067694497636,
+        0.245,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair": [
+        {
+          "leg": "rb",
+          "link": "knee"
+        },
+        {
+          "leg": "rm",
+          "link": "knee"
+        }
+      ],
+      "visual_mesh_sha256": {
+        "body_link.STL": "730623d24e4f0cfd0fe9341fc697a76de556061747d0f91c9904eb1e9c204eca",
+        "knee_link.STL": "957f159c5ec7e4d2cb48c7a0b0d17a5d397923a3886399aadef0de37978f9040",
+        "ankle_link.STL": "1f48a886fce0e2effc51b481d9bee94e637b5d7c7f29e59074a264575a0db5c9"
+      },
+      "result": {
+        "pair": [
+          {
+            "leg": "rb",
+            "link": "knee"
+          },
+          {
+            "leg": "rm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "triangle_candidates_checked",
+        "filtered_triangle_counts": {
+          "left": 2483,
+          "right": 37
+        },
+        "triangle_test_count": 816,
+        "broad_phase_candidates": 1,
+        "mesh_collision": false,
+        "triangle_hit": null
+      }
+    },
+    "2b6d1e25eca123c40f55ffe455f1c0744e4052111c94b947421e1d04299398b8": {
+      "q_rad": [
+        [
+          0.9324775884756161,
+          -0.047171182356890815,
+          1.5734524650020385
+        ],
+        [
+          0.10170764807000937,
+          -0.9528939678918921,
+          1.6654665427627657
+        ],
+        [
+          -0.43018444642800335,
+          -0.4191411033417258,
+          1.4104244100261665
+        ],
+        [
+          -0.9324690725782538,
+          0.04717013285755018,
+          -1.5734525173410443
+        ],
+        [
+          -0.10170484981075706,
+          0.9528961628017222,
+          -1.6654714864181568
+        ],
+        [
+          0.43018383612082256,
+          0.41914097389508503,
+          -1.410424309420659
+        ]
+      ],
+      "base_pose": [
+        0.285,
+        -0.067694497636,
+        0.245,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair": [
+        {
+          "leg": "lb",
+          "link": "knee"
+        },
+        {
+          "leg": "lm",
+          "link": "knee"
+        }
+      ],
+      "visual_mesh_sha256": {
+        "body_link.STL": "730623d24e4f0cfd0fe9341fc697a76de556061747d0f91c9904eb1e9c204eca",
+        "knee_link.STL": "957f159c5ec7e4d2cb48c7a0b0d17a5d397923a3886399aadef0de37978f9040",
+        "ankle_link.STL": "1f48a886fce0e2effc51b481d9bee94e637b5d7c7f29e59074a264575a0db5c9"
+      },
+      "result": {
+        "pair": [
+          {
+            "leg": "lb",
+            "link": "knee"
+          },
+          {
+            "leg": "lm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "triangle_candidates_checked",
+        "filtered_triangle_counts": {
+          "left": 2539,
+          "right": 30
+        },
+        "triangle_test_count": 838,
+        "broad_phase_candidates": 1,
+        "mesh_collision": false,
+        "triangle_hit": null
+      }
+    },
+    "eaedd717ccb2c7d1391bf57135aed1f9daea384ddae4961c3a312783c0a1ab50": {
+      "q_rad": [
+        [
+          0.9324775884756161,
+          -0.047171182356890815,
+          1.5734524650020385
+        ],
+        [
+          0.10170764807000937,
+          -0.9528939678918921,
+          1.6654665427627657
+        ],
+        [
+          -0.43018444642800335,
+          -0.4191411033417258,
+          1.4104244100261665
+        ],
+        [
+          -0.9324690725782538,
+          0.04717013285755018,
+          -1.5734525173410443
+        ],
+        [
+          -0.10170484981075706,
+          0.9528961628017222,
+          -1.6654714864181568
+        ],
+        [
+          0.43018383612082256,
+          0.41914097389508503,
+          -1.410424309420659
+        ]
+      ],
+      "base_pose": [
+        0.285,
+        -0.067694497636,
+        0.245,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair": [
+        {
+          "leg": "rb",
+          "link": "knee"
+        },
+        {
+          "leg": "rm",
+          "link": "knee"
+        }
+      ],
+      "visual_mesh_sha256": {
+        "body_link.STL": "730623d24e4f0cfd0fe9341fc697a76de556061747d0f91c9904eb1e9c204eca",
+        "knee_link.STL": "957f159c5ec7e4d2cb48c7a0b0d17a5d397923a3886399aadef0de37978f9040",
+        "ankle_link.STL": "1f48a886fce0e2effc51b481d9bee94e637b5d7c7f29e59074a264575a0db5c9"
+      },
+      "result": {
+        "pair": [
+          {
+            "leg": "rb",
+            "link": "knee"
+          },
+          {
+            "leg": "rm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "triangle_candidates_checked",
+        "filtered_triangle_counts": {
+          "left": 2483,
+          "right": 33
+        },
+        "triangle_test_count": 724,
+        "broad_phase_candidates": 1,
+        "mesh_collision": false,
+        "triangle_hit": null
+      }
+    }
+  }
+}

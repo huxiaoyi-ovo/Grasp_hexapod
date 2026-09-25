@@ -1,0 +1,258 @@
+{
+  "review_type": "read_only_full_flow_review",
+  "date": "2026-09-24",
+  "candidate": {
+    "path": "src/grasp_hexapod_control/config/climb_front_fast.json",
+    "sha256": "d15bf4d9f9a8feca09ebb1290502176e539f5b56c8b751ce9f9d0161f6601898",
+    "simulation_only": true,
+    "simulation_candidate_only": true,
+    "climb_orientation": "front",
+    "stage_count": 41,
+    "prefix_preview_only": false,
+    "simulation_joint_velocity_limit_rad_s": 6.0,
+    "stage_coverage": {
+      "first": "PREP",
+      "last": "FINAL_HOLD",
+      "metrics_rows": 41,
+      "metrics_stage_names_match_config": true,
+      "nine_merges": [
+        "IJ_MID_DIRECT",
+        "LM_MID_RELAND",
+        "OP_MID_BODY_LIFT",
+        "R_FRONT_BODY_LIFT",
+        "BODY_B_FRONT_INWARD",
+        "RB_RESET_BODY_LIFT",
+        "AE_AF_BACK_PAIR",
+        "AGAB_BACK_PAIR",
+        "AGCD_BACK_PAIR"
+      ]
+    },
+    "geometry_adjustments": {
+      "K_BACK_POS03_SYNC_end_x_m": 0.0,
+      "K_change_from_m": 0.03,
+      "N_BACK_POS05_SYNC_end_x_m": 0.01,
+      "N_change_from_m": 0.05,
+      "reset_entry_x_m": 0.01
+    },
+    "boundary_math_check": {
+      "method": "ClimbMode._stage_reference at every stage end and next stage start; also checked non-active world anchors at every knot",
+      "boundaries_checked": 40,
+      "max_pose_discontinuity": 0.0,
+      "max_anchor_discontinuity_m": 5.551115123125783e-17,
+      "non_active_anchor_issues": 0
+    }
+  },
+  "terminal_plan": {
+    "last_motion_stage": "AH_BACK_LOW_FIRST_SEGMENT",
+    "terminal_stage": "FINAL_HOLD",
+    "body_pose_xyz_rpy": [
+      0.285,
+      -0.067694497636,
+      0.245,
+      0.0,
+      0.0,
+      -1.5707963267948966
+    ],
+    "planned_foot_anchors_world_xyz_m": {
+      "LB": [
+        0.19,
+        0.029290969374546658,
+        0.15075113102445192
+      ],
+      "LF": [
+        0.48,
+        0.029291533282554738,
+        0.19649999761581421
+      ],
+      "LM": [
+        0.235,
+        0.12627607590696494,
+        0.16031617914426252
+      ],
+      "RB": [
+        0.19,
+        -0.16467983526606975,
+        0.15075113102445192
+      ],
+      "RF": [
+        0.48,
+        -0.16467927135566987,
+        0.19649999761581421
+      ],
+      "RM": [
+        0.235,
+        -0.26166507117951365,
+        0.1603161700790826
+      ]
+    },
+    "all_six_planned_foot_z_above_initial_floor_z_0_0065m": true,
+    "actual_foot_sample_timing": "C41 FINAL_HOLD entry; stage_start_actual_world_foot_xyz_m, not last simulation frame",
+    "actual_foot_centers_world_xyz_m": {
+      "LB": [
+        0.17529160880449876,
+        0.02776709946051352,
+        0.14762854350184074
+      ],
+      "LF": [
+        0.46532538793425293,
+        0.029483139771113012,
+        0.1964978895343087
+      ],
+      "LM": [
+        0.21966158200386654,
+        0.12488206037037544,
+        0.15718141590190565
+      ],
+      "RB": [
+        0.17611999502985157,
+        -0.1658876991778757,
+        0.14792741734726156
+      ],
+      "RF": [
+        0.4662270668720799,
+        -0.1650648402554702,
+        0.19649849883394357
+      ],
+      "RM": [
+        0.22133770240584016,
+        -0.2626926891781799,
+        0.15755537783817786
+      ]
+    }
+  },
+  "runtime_binding": {
+    "entry": "run_sim.py --climb-start; front passes hardware_execution=false",
+    "front_full_mission_or_ros": "rejected",
+    "front_hardware_execution": "rejected by ClimbMode.enter",
+    "front_simulation_cap_rad_s": 6.0,
+    "isaac_dof_multiplier": 1.8,
+    "isaac_dof_limit_rad_s": 7.2,
+    "physics_hz": 240,
+    "control_hz": 30,
+    "target_write_hz": 30,
+    "step_clip_count": 0,
+    "stage_advance_semantics": "preview_time_only_stage_advance=true; simulation advances by planned phase time and settle time, not contact/load proof",
+    "self_collision": "gym.create_actor filter argument is 1; actor self-collision is not covered by this preview"
+  },
+  "gpu_evidence": {
+    "config_sha256": "d15bf4d9f9a8feca09ebb1290502176e539f5b56c8b751ce9f9d0161f6601898",
+    "config_sha_matches_gpu_invocation": true,
+    "runtime_source_sha_matches_gpu_invocation": true,
+    "command": "headless full P0..FINAL_HOLD, climb-speed=1, climb-joint-speed=1.8",
+    "state": "DONE",
+    "reason": "none",
+    "simulated_duration_s": 43.66666666666668,
+    "all_five_console_preview_gates_pass": true,
+    "metrics_rows": 41,
+    "max_controller_target_speed_rad_s": 5.031179705194924,
+    "max_foot_target_error_m": 0.011732358037952537,
+    "max_root_position_error_m": 0.021287226614544685,
+    "max_support_foot_drift_m": 0.009238683952141035,
+    "minimum_joint_limit_margin_rad": 0.011683450222015335,
+    "clips": 0,
+    "extra_thresholds_foot_le_20mm_root_le_50mm_support_le_20mm_clips_zero": true,
+    "runtime_source_sha256": {
+      "run_sim.py": "6b8ed32e642b58e35794caffbd89491ee9084bf9e225343aa6ead497fe848c8f",
+      "climb_mode.py": "7ee03f04516d795db1a5281b99bb08128908330d82e8b993a5a6f9cbd1fd0822",
+      "control.py": "66f3c5490d58aeb3ef3913f81676a26f0d3789e1632cb60597d07dcb6659901a",
+      "utils/climb.py": "bc57241156a71df1e5bbee51d164ceb1c8962d47efc5fcf13c5181a92a37ba5a"
+    },
+    "preview_gates": {
+      "hold_q_drift_mrad": {
+        "value": 0.00089407,
+        "threshold": 20.0,
+        "pass": true
+      },
+      "end_foot_target_error_m": {
+        "value": 0.00107997,
+        "threshold": 0.015,
+        "pass": true
+      },
+      "end_root_position_error_m": {
+        "value": 0.0156794,
+        "threshold": 0.05,
+        "pass": true
+      },
+      "global_max_root_position_error_m": {
+        "value": 0.0212872,
+        "threshold": 0.2,
+        "pass": true
+      },
+      "global_min_joint_limit_margin_rad": {
+        "value": 0.0116835,
+        "threshold": 0.0,
+        "pass": true
+      }
+    }
+  },
+  "findings": [
+    {
+      "severity": "P1",
+      "title": "Terminal rear feet lie on the broad-slope/bevel boundary rather than inside the intended broad support patch",
+      "evidence": {
+        "planned_rear_x_m": 0.19,
+        "actual_LB_world_xyz_m": [
+          0.17529160880449876,
+          0.02776709946051352,
+          0.14762854350184074
+        ],
+        "actual_RB_world_xyz_m": [
+          0.17611999502985157,
+          -0.1658876991778757,
+          0.14792741734726156
+        ],
+        "nearest_point_world_x_m": 0.177920889854,
+        "nearest_point_world_z_m": 0.141683638096,
+        "nearest_visual_triangles": [
+          16198,
+          17143
+        ],
+        "nearest_point_is_shared_edge": "25 degree outer bevel and 12 degree broad slope meet here; distance from broad patch edge is zero",
+        "center_to_nearest_point_unit_LB": [
+          -0.40448075,
+          0.0,
+          0.91454651
+        ],
+        "center_to_nearest_point_unit_RB": [
+          -0.2771329,
+          0.0,
+          0.9608316
+        ]
+      },
+      "interpretation": "The near-zero signed sphere gaps establish proximity to STL, not landing inside the intended load-bearing patch. Do not claim the full route is physically correct until the terminal rear targets are addressed.",
+      "provisional_minimal_candidate_not_validated": {
+        "move_AH_rear_world_x_m": "+0.02 m (target x about 0.21 m)",
+        "recompute": [
+          "STL surface height",
+          "active base knots",
+          "terminal_q",
+          "AH-to-FINAL_HOLD continuity"
+        ],
+        "parent_endpoint_DLS_probe": "x=.205/.21 reachable; at .21 B z=.15500226 m, residual 8.31e-7 m, minimum joint margin .267816 rad, terminal capsule_clear=true",
+        "status": "endpoint probe only; no config, full-route CPU, local sweep, or GPU validation"
+      }
+    },
+    {
+      "severity": "INFO",
+      "title": "The one full simulation preview completed as configured",
+      "evidence": "41 matching stage rows, DONE/reason none, 43.6667 simulated seconds, zero clips, and all five console gates PASS"
+    }
+  ],
+  "remaining_limitations": [
+    "This is simulation-only; there is no hardware front execution path.",
+    "Actor self-collision is filtered, so whole-robot continuous self-collision clearance is unverified.",
+    "Specified discrete STL mesh checks and terminal nearest-point geometry do not prove point-in-solid containment or continuous swept clearance.",
+    "Simulation completion does not prove real contact, load path, friction, slip resistance, stability, actuator capacity, or complete climbability on hardware.",
+    "The proposed rear-foot +20 mm correction is an unvalidated candidate for the main thread to decide and contract separately."
+  ],
+  "source_evidence": [
+    "src/docs/evidence/climb_front_fast_20260923/gpu_console.log",
+    "src/docs/evidence/climb_front_fast_20260923/gpu_metrics.json",
+    "src/docs/evidence/climb_front_fast_20260923/gpu_summary.json",
+    "src/docs/evidence/climb_front_fast_20260923/gpu_invocation.txt",
+    "src/docs/evidence/climb_front_fast_20260923/final_actual_foot_stl_audit.json",
+    "src/docs/evidence/climb_front_fast_20260923/cpu_fast_41_audit.json",
+    "src/docs/evidence/climb_front_fast_20260923/cpu_fast_q_local_mesh_1310.json",
+    "src/docs/evidence/climb_front_fast_20260923/back_knee_spacing_visual_mesh_audit.json"
+  ]
+}

@@ -465,23 +465,37 @@ def parse_arguments():
 
 
 def _compact_root_quaternion(base):
-    """返回与 ClimbMode._world_from_base 的 Ry(pitch) @ Rx(roll) 一致的四元数。"""
+    """返回与 ClimbMode._world_from_base 一致的四元数。"""
 
-    _, _, _, roll, pitch = np.asarray(base, dtype=np.float64)
+    base = np.asarray(base, dtype=np.float64)
+    _, _, _, roll, pitch = base[:5]
+    yaw = 0.0 if base.shape == (5,) else base[5]
     half_roll, half_pitch = roll / 2.0, pitch / 2.0
     sx, cx = np.sin(half_roll), np.cos(half_roll)
     sy, cy = np.sin(half_pitch), np.cos(half_pitch)
+    sz, cz = np.sin(yaw / 2.0), np.cos(yaw / 2.0)
     return gymapi.Quat(
-        float(cy * sx), float(sy * cx), float(-sy * sx), float(cy * cx)
+        float(cz * cy * sx - sz * sy * cx),
+        float(cz * sy * cx + sz * cy * sx),
+        float(sz * cy * cx - cz * sy * sx),
+        float(cz * cy * cx + sz * sy * sx),
     )
 
 
 def _base_pose_quaternion_xyzw(base):
     """Numeric counterpart used only by simulation attitude diagnostics."""
-    _, _, _, roll, pitch = np.asarray(base, dtype=np.float64)
+    base = np.asarray(base, dtype=np.float64)
+    _, _, _, roll, pitch = base[:5]
+    yaw = 0.0 if base.shape == (5,) else base[5]
     sx, cx = np.sin(roll / 2.0), np.cos(roll / 2.0)
     sy, cy = np.sin(pitch / 2.0), np.cos(pitch / 2.0)
-    return np.array((cy * sx, sy * cx, -sy * sx, cy * cx), dtype=np.float64)
+    sz, cz = np.sin(yaw / 2.0), np.cos(yaw / 2.0)
+    return np.array((
+        cz * cy * sx - sz * sy * cx,
+        cz * sy * cx + sz * cy * sx,
+        sz * cy * cx - cz * sy * sx,
+        cz * cy * cx + sz * sy * sx,
+    ), dtype=np.float64)
 
 
 def _quaternion_error_deg(actual_xyzw, target_xyzw):
@@ -503,11 +517,11 @@ def prepare_compact_stage_entry(compact, start_stage_index, end_stage_index, dt)
     """CPU 理想回放到区间入口，保留共同 DLS/碰撞保护产生的连续 IK 分支。"""
 
     if start_stage_index == 0:
+        p0_base = np.asarray(compact["p0"]["base"], dtype=np.float64)
         return (
             np.asarray(compact["p0"]["q_rad"], dtype=np.float64).copy(),
-            np.array(
-                (*compact["p0"]["base"][:3], 0.0, compact["p0"]["base"][3]),
-                dtype=np.float64,
+            p0_base.copy() if p0_base.shape == (6,) else np.array(
+                (*p0_base[:3], 0.0, p0_base[3]), dtype=np.float64
             ),
         )
 
@@ -1101,6 +1115,11 @@ def main() -> None:
         )
         with compact_path.open() as compact_file:
             compact = json.load(compact_file)
+        if compact.get("climb_orientation") == "front":
+            if args.climb_side != "left":
+                raise ValueError("front compact climbing has no right-side mirror")
+            if args.full_mission or args.ros:
+                raise ValueError("front compact climbing is unavailable with --full-mission or --ros")
         compact = select_compact_climb_side(compact, args.climb_side)
         if (
             compact.get("schema") != "SIMULATION_ONLY_CLIMB_COMPACT_V2"
@@ -1110,6 +1129,17 @@ def main() -> None:
         ):
             raise ValueError("invalid compact climb scene config")
         ClimbMode(None)._validate_config(compact)
+        requested_cap = compact.get("simulation_joint_velocity_limit_rad_s")
+        if requested_cap is not None:
+            available_cap = 4.0 * args.climb_joint_speed
+            if requested_cap > available_cap + 1e-12:
+                raise ValueError(
+                    "front simulation joint velocity cap {:.3g} rad/s exceeds "
+                    "the selected Isaac DOF limit {:.3g} rad/s; increase "
+                    "--climb-joint-speed (fast candidate recommends 1.8)".format(
+                        requested_cap, available_cap
+                    )
+                )
         print(
             "Compact climb config selected: {} (side={})".format(
                 compact_path, args.climb_side
@@ -1462,9 +1492,14 @@ def main() -> None:
             compact,
             climb_start_index,
             climb_end_index,
-            hardware_execution=True,
+            hardware_execution=compact.get("climb_orientation") != "front",
         )
-        print("Compact climb started (--climb-start, real feedback gates)")
+        start_mode = (
+            "front simulation playback"
+            if compact.get("climb_orientation") == "front"
+            else "feedback-gated simulation"
+        )
+        print(f"Compact climb started (--climb-start, {start_mode})")
     button_a_was_down = False
     button_b_was_down = False
     button_x_was_down = False
@@ -1617,10 +1652,15 @@ def main() -> None:
                             compact,
                             climb_start_index,
                             climb_end_index,
-                            hardware_execution=True,
+                            hardware_execution=compact.get("climb_orientation") != "front",
                         )
                         motion_state = "RUNNING"
-                        print("Compact climb started (X, real feedback gates)")
+                        start_mode = (
+                            "front simulation playback"
+                            if compact.get("climb_orientation") == "front"
+                            else "feedback-gated simulation"
+                        )
+                        print(f"Compact climb started (X, {start_mode})")
                     elif compact is None:
                         print("X rejected: start with --climb-scene")
                     else:

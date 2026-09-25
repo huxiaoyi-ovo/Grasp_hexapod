@@ -1,0 +1,35 @@
+{
+  "candidate_sha256": "d15bf4d9f9a8feca09ebb1290502176e539f5b56c8b751ce9f9d0161f6601898",
+  "state": "DONE",
+  "reason": "none",
+  "stage_count": 41,
+  "simulated_duration_s": 43.66666666666668,
+  "max_controller_target_joint_speed_rad_s": 5.031179705194924,
+  "max_target_speed_stage": "Z_FRONT_48_SYNC",
+  "clips": 0,
+  "max_foot_target_error_m": 0.011732358037952537,
+  "max_foot_error_stage": "MID_GROUND_SHIFT",
+  "max_root_position_error_m": 0.021287226614544685,
+  "max_root_stage": "AE_AF_BACK_PAIR",
+  "max_support_drift_m": 0.009238683952141035,
+  "max_support_drift_stage": "Q_MID_LOW",
+  "min_joint_limit_margin_rad": 0.011683450222015335,
+  "min_joint_margin_stage": "Q_MID_LOW",
+  "max_root_attitude_error_deg": 1.4702861762439345,
+  "max_root_attitude_stage": "Z_FRONT_48_SYNC",
+  "final_hold": {
+    "runtime_name": "FINAL_HOLD",
+    "end_root_position_error_m": 0.015679398533291117,
+    "end_root_attitude_error_deg": 0.6333542076882174,
+    "end_foot_target_error_m": 0.0010799433867759813,
+    "end_world_foot_anchor_error_m": 0.01571789302880942,
+    "end_support_foot_world_drift_m": 7.752877212590062e-07
+  },
+  "extra_diagnostic_thresholds": {
+    "max_foot_le_0.020m": true,
+    "max_root_le_0.050m": true,
+    "max_support_drift_le_0.020m": true,
+    "clips_zero": true
+  },
+  "boundary": "Isaac headless simulation diagnostics. Actor self-collision filter remains enabled; this does not establish whole-route self-collision freedom, contact/load/stability, or hardware readiness."
+}

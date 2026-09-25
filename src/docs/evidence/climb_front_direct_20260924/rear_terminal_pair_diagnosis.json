@@ -1,0 +1,454 @@
+{
+  "method": "Exactly two terminal IK poses per candidate and four terminal B-M knee pair exact visual-STL queries; no trajectory scan.",
+  "results": [
+    {
+      "candidate": "rear_inset_candidate.json",
+      "config_sha256": "18a85c4a502f6df7bf482a5c07c58647523b36a8762607bc04beab53c485b9c7",
+      "pose": "FINAL_HOLD entry",
+      "base_pose": [
+        0.285,
+        -0.067694497636,
+        0.245,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "terminal_anchors_m": [
+        [
+          0.225,
+          0.029290969374546658,
+          0.15701442195016274
+        ],
+        [
+          0.48,
+          0.029291533282554738,
+          0.19649999761581421
+        ],
+        [
+          0.235,
+          0.12627607590696494,
+          0.16031617914426252
+        ],
+        [
+          0.225,
+          -0.16467983526606975,
+          0.1583358226638817
+        ],
+        [
+          0.48,
+          -0.16467927135566987,
+          0.19649999761581421
+        ],
+        [
+          0.235,
+          -0.26166507117951365,
+          0.1603161700790826
+        ]
+      ],
+      "q_seed_rad": [
+        [
+          1.2919674151312226,
+          -0.10107175364326412,
+          1.6138603802468952
+        ],
+        [
+          0.10170764807000951,
+          -0.9528939678919058,
+          1.6654665427627748
+        ],
+        [
+          -0.4301844464280031,
+          -0.41914110334173565,
+          1.410424410026175
+        ],
+        [
+          -1.2919605970946955,
+          0.1194670840329234,
+          -1.6309621262674094
+        ],
+        [
+          -0.1017048498107572,
+          0.9528961628017356,
+          -1.665471486418166
+        ],
+        [
+          0.4301838361208222,
+          0.41914097389509486,
+          -1.4104243094206674
+        ]
+      ],
+      "solved_q_rad": [
+        [
+          1.2919674151312226,
+          -0.10107175364326412,
+          1.6138603802468952
+        ],
+        [
+          0.10170764807000951,
+          -0.9528939678919058,
+          1.6654665427627748
+        ],
+        [
+          -0.4301844464280031,
+          -0.41914110334173565,
+          1.410424410026175
+        ],
+        [
+          -1.2919605970946955,
+          0.1194670840329234,
+          -1.6309621262674094
+        ],
+        [
+          -0.1017048498107572,
+          0.9528961628017356,
+          -1.665471486418166
+        ],
+        [
+          0.4301838361208222,
+          0.41914097389509486,
+          -1.4104243094206674
+        ]
+      ],
+      "ik_max_residual_m": 9.15915327477616e-07,
+      "min_joint_margin_rad": 0.2678155535719969,
+      "pairs": [
+        {
+          "legs": [
+            "lb",
+            "lm"
+          ],
+          "capsule_proxy_gap_m": -0.02402896851657944,
+          "exact_mesh_clear": false,
+          "triangle_hit": {
+            "left_link": "knee",
+            "left_leg": 0,
+            "left_component": 0,
+            "left_triangle": 20502,
+            "right_link": "knee",
+            "right_leg": 2,
+            "right_component": 0,
+            "right_triangle": 21036
+          },
+          "pair_check": {
+            "pair": [
+              {
+                "leg": "lb",
+                "link": "knee"
+              },
+              {
+                "leg": "lm",
+                "link": "knee"
+              }
+            ],
+            "mesh_checked": true,
+            "pair_query_count": 1,
+            "components_nonempty": {
+              "left": 1,
+              "right": 1
+            },
+            "pair_status": "triangle_candidates_checked",
+            "filtered_triangle_counts": {
+              "left": 5337,
+              "right": 13519
+            },
+            "triangle_test_count": 6403,
+            "broad_phase_candidates": 1,
+            "mesh_collision": true,
+            "triangle_hit": {
+              "left_link": "knee",
+              "left_leg": 0,
+              "left_component": 0,
+              "left_triangle": 20502,
+              "right_link": "knee",
+              "right_leg": 2,
+              "right_component": 0,
+              "right_triangle": 21036
+            },
+            "cache_reused": false
+          }
+        },
+        {
+          "legs": [
+            "rb",
+            "rm"
+          ],
+          "capsule_proxy_gap_m": -0.025053080678787826,
+          "exact_mesh_clear": false,
+          "triangle_hit": {
+            "left_link": "knee",
+            "left_leg": 3,
+            "left_component": 0,
+            "left_triangle": 20498,
+            "right_link": "knee",
+            "right_leg": 5,
+            "right_component": 0,
+            "right_triangle": 707
+          },
+          "pair_check": {
+            "pair": [
+              {
+                "leg": "rb",
+                "link": "knee"
+              },
+              {
+                "leg": "rm",
+                "link": "knee"
+              }
+            ],
+            "mesh_checked": true,
+            "pair_query_count": 1,
+            "components_nonempty": {
+              "left": 1,
+              "right": 1
+            },
+            "pair_status": "triangle_candidates_checked",
+            "filtered_triangle_counts": {
+              "left": 5227,
+              "right": 16570
+            },
+            "triangle_test_count": 2947,
+            "broad_phase_candidates": 1,
+            "mesh_collision": true,
+            "triangle_hit": {
+              "left_link": "knee",
+              "left_leg": 3,
+              "left_component": 0,
+              "left_triangle": 20498,
+              "right_link": "knee",
+              "right_leg": 5,
+              "right_component": 0,
+              "right_triangle": 707
+            },
+            "cache_reused": false
+          }
+        }
+      ],
+      "minimum_pair_capsule_proxy_gap_m": -0.025053080678787826
+    },
+    {
+      "candidate": "rear_narrow_candidate.json",
+      "config_sha256": "ae47e530a107d96b8a387d1b8c50abb44a9da4c0525652ed9ff701307d3618d1",
+      "pose": "FINAL_HOLD entry",
+      "base_pose": [
+        0.285,
+        -0.067694497636,
+        0.245,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "terminal_anchors_m": [
+        [
+          0.225,
+          0.014290969374546658,
+          0.15701442195016274
+        ],
+        [
+          0.48,
+          0.029291533282554738,
+          0.19649999761581421
+        ],
+        [
+          0.235,
+          0.12627607590696494,
+          0.16031617914426252
+        ],
+        [
+          0.225,
+          -0.14967983526606976,
+          0.15833582293869514
+        ],
+        [
+          0.48,
+          -0.16467927135566987,
+          0.19649999761581421
+        ],
+        [
+          0.235,
+          -0.26166507117951365,
+          0.1603161700790826
+        ]
+      ],
+      "q_seed_rad": [
+        [
+          1.3790828843094534,
+          0.03156243258348168,
+          1.6083015918459176
+        ],
+        [
+          0.10170764807000951,
+          -0.9528939678919058,
+          1.6654665427627748
+        ],
+        [
+          -0.4301844464280031,
+          -0.41914110334173565,
+          1.410424410026175
+        ],
+        [
+          -1.3790708268129912,
+          -0.014804908652566045,
+          -1.6253314420949827
+        ],
+        [
+          -0.1017048498107572,
+          0.9528961628017356,
+          -1.665471486418166
+        ],
+        [
+          0.4301838361208222,
+          0.41914097389509486,
+          -1.4104243094206674
+        ]
+      ],
+      "solved_q_rad": [
+        [
+          1.3790828843094534,
+          0.03156243258348168,
+          1.6083015918459176
+        ],
+        [
+          0.10170764807000951,
+          -0.9528939678919058,
+          1.6654665427627748
+        ],
+        [
+          -0.4301844464280031,
+          -0.41914110334173565,
+          1.410424410026175
+        ],
+        [
+          -1.3790708268129912,
+          -0.014804908652566045,
+          -1.6253314420949827
+        ],
+        [
+          -0.1017048498107572,
+          0.9528961628017356,
+          -1.665471486418166
+        ],
+        [
+          0.4301838361208222,
+          0.41914097389509486,
+          -1.4104243094206674
+        ]
+      ],
+      "ik_max_residual_m": 2.3747330178168978e-06,
+      "min_joint_margin_rad": 0.1919171156905466,
+      "pairs": [
+        {
+          "legs": [
+            "lb",
+            "lm"
+          ],
+          "capsule_proxy_gap_m": -0.021904244895819613,
+          "exact_mesh_clear": false,
+          "triangle_hit": {
+            "left_link": "knee",
+            "left_leg": 0,
+            "left_component": 0,
+            "left_triangle": 799,
+            "right_link": "knee",
+            "right_leg": 2,
+            "right_component": 0,
+            "right_triangle": 20038
+          },
+          "pair_check": {
+            "pair": [
+              {
+                "leg": "lb",
+                "link": "knee"
+              },
+              {
+                "leg": "lm",
+                "link": "knee"
+              }
+            ],
+            "mesh_checked": true,
+            "pair_query_count": 1,
+            "components_nonempty": {
+              "left": 1,
+              "right": 1
+            },
+            "pair_status": "triangle_candidates_checked",
+            "filtered_triangle_counts": {
+              "left": 4400,
+              "right": 19732
+            },
+            "triangle_test_count": 850,
+            "broad_phase_candidates": 1,
+            "mesh_collision": true,
+            "triangle_hit": {
+              "left_link": "knee",
+              "left_leg": 0,
+              "left_component": 0,
+              "left_triangle": 799,
+              "right_link": "knee",
+              "right_leg": 2,
+              "right_component": 0,
+              "right_triangle": 20038
+            },
+            "cache_reused": false
+          }
+        },
+        {
+          "legs": [
+            "rb",
+            "rm"
+          ],
+          "capsule_proxy_gap_m": -0.022610533824002844,
+          "exact_mesh_clear": false,
+          "triangle_hit": {
+            "left_link": "knee",
+            "left_leg": 3,
+            "left_component": 0,
+            "left_triangle": 257,
+            "right_link": "knee",
+            "right_leg": 5,
+            "right_component": 0,
+            "right_triangle": 19182
+          },
+          "pair_check": {
+            "pair": [
+              {
+                "leg": "rb",
+                "link": "knee"
+              },
+              {
+                "leg": "rm",
+                "link": "knee"
+              }
+            ],
+            "mesh_checked": true,
+            "pair_query_count": 1,
+            "components_nonempty": {
+              "left": 1,
+              "right": 1
+            },
+            "pair_status": "triangle_candidates_checked",
+            "filtered_triangle_counts": {
+              "left": 4839,
+              "right": 19501
+            },
+            "triangle_test_count": 46,
+            "broad_phase_candidates": 1,
+            "mesh_collision": true,
+            "triangle_hit": {
+              "left_link": "knee",
+              "left_leg": 3,
+              "left_component": 0,
+              "left_triangle": 257,
+              "right_link": "knee",
+              "right_leg": 5,
+              "right_component": 0,
+              "right_triangle": 19182
+            },
+            "cache_reused": false
+          }
+        }
+      ],
+      "minimum_pair_capsule_proxy_gap_m": -0.022610533824002844
+    }
+  ],
+  "boundary": "Terminal clearances distinguish terminal geometry from the prior path witness only; they do not prove the route is clear."
+}

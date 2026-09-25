@@ -1,0 +1,3137 @@
+{
+  "schema": "SIMULATION_ONLY_CLIMB_PREVIEW_METRICS_V2",
+  "simulation_only": true,
+  "diagnostics_only_not_contact_or_stability_proof": true,
+  "timing_totals_use_simulation_control_time_not_real_wall_time": true,
+  "resolved_range": {
+    "from": {
+      "alias": "C1",
+      "runtime_name": "PREP"
+    },
+    "to": {
+      "alias": "C21",
+      "runtime_name": "FINAL_HOLD"
+    }
+  },
+  "climb_speed": 1.0,
+  "climb_joint_speed": 1.8,
+  "final_state": "DONE",
+  "final_reason": "none",
+  "per_stage": [
+    {
+      "stage_index": 0,
+      "alias": "C1",
+      "runtime_name": "PREP",
+      "simulated_duration_s": 0.7999999999999999,
+      "max_joint_target_tracking_error_rad": 0.00851781669653251,
+      "max_kinematic_foot_target_error_m": 0.008120513191351049,
+      "worst_joint_leg": "rb",
+      "worst_joint_name": "ankle",
+      "worst_joint_time_s": 0.6333333333333333,
+      "worst_joint_actual_rad": -1.066748023033142,
+      "worst_joint_target_rad": -1.0582302063366096,
+      "worst_foot_leg": "lf",
+      "worst_foot_time_s": 0.4666666666666666,
+      "worst_foot_actual_base_xyz_m": [
+        -0.09632196235743462,
+        0.1675099359424701,
+        -0.1385673004831815
+      ],
+      "worst_foot_target_base_xyz_m": [
+        -0.09698603091855473,
+        0.1690163031085095,
+        -0.1306154072873371
+      ],
+      "end_joint_target_tracking_error_rad": 0.007612408767379897,
+      "end_foot_target_error_m": 0.0015568674474770493,
+      "max_root_position_error_m": 0.007753905920688195,
+      "worst_root_time_s": 0.4333333333333333,
+      "worst_root_actual_xyz_m": [
+        -0.1113026887178421,
+        -0.06824764609336853,
+        0.12123672664165497
+      ],
+      "worst_root_target_xyz_m": [
+        -0.11089150831480415,
+        -0.067694497636,
+        0.113513513936624
+      ],
+      "end_root_position_error_m": 0.0020552206097268987,
+      "max_root_attitude_error_deg": 0.8636474573936896,
+      "end_root_attitude_error_deg": 0.14774341894871826,
+      "max_world_foot_anchor_error_m": 0.002848841970999569,
+      "worst_world_foot_anchor_leg": "lm",
+      "worst_world_foot_anchor_time_s": 0.4333333333333333,
+      "worst_world_foot_actual_xyz_m": [
+        -0.09820273327400189,
+        0.12488428866316223,
+        0.008217663595276883
+      ],
+      "worst_world_foot_anchor_xyz_m": [
+        -0.09999952503082715,
+        0.12627607590696494,
+        0.006500000000063441
+      ],
+      "end_world_foot_anchor_error_m": 0.0022916072748920277,
+      "stage_start_anchor_world_xyz_m": [
+        [
+          -0.26798118089306155,
+          0.029290969374546658,
+          0.006500000000063441
+        ],
+        [
+          0.0679808553169389,
+          0.029291533282554738,
+          0.006500000000063441
+        ],
+        [
+          -0.09999952503082715,
+          0.12627607590696494,
+          0.006500000000063441
+        ],
+        [
+          -0.26798125559112596,
+          -0.16467983526606975,
+          0.006500000000063441
+        ],
+        [
+          0.0679815811631059,
+          -0.16467927135566987,
+          0.006500000000063441
+        ],
+        [
+          -0.09999967442663914,
+          -0.26166507117951365,
+          0.006500000000063441
+        ]
+      ],
+      "stage_start_actual_world_foot_xyz_m": [
+        [
+          -0.2679811940052833,
+          0.02929094769095919,
+          0.006499990303078768
+        ],
+        [
+          0.06798085120631053,
+          0.029291539918441717,
+          0.006499995889537105
+        ],
+        [
+          -0.09999954181742121,
+          0.12627607098170365,
+          0.006499992761007142
+        ],
+        [
+          -0.26798125235285497,
+          -0.1646798621467891,
+          0.006499990973704295
+        ],
+        [
+          0.06798159340300847,
+          -0.16467926991684725,
+          0.006499996560175955
+        ],
+        [
+          -0.09999965851228673,
+          -0.26166508649901654,
+          0.006499994102256629
+        ]
+      ],
+      "max_support_foot_world_drift_m": 0.0028488545169611783,
+      "worst_support_foot_drift_leg": "lm",
+      "worst_support_foot_drift_time_s": 0.4333333333333333,
+      "worst_support_foot_start_world_xyz_m": [
+        -0.09999954181742121,
+        0.12627607098170365,
+        0.006499992761007142
+      ],
+      "worst_support_foot_current_world_xyz_m": [
+        -0.09820273327400189,
+        0.12488428866316223,
+        0.008217663595276883
+      ],
+      "end_support_foot_world_drift_m": 0.002291607484753088,
+      "min_joint_limit_margin_rad": 0.37181581878662096,
+      "max_controller_target_joint_speed_rad_s": 4.007410818215751,
+      "velocity_limit_clip_count": 0,
+      "timing_diagnostics": {
+        "planned_motion_s": 0.7,
+        "effective_settle_required_s": 0.25,
+        "actual_stage_elapsed_s": 0.0,
+        "motion_progress_s": 0.0,
+        "internal_checkpoint_feedback_hold_s": 0.0,
+        "terminal_persistence_wait_s": 0.0,
+        "terminal_feedback_hold_s": 0.0,
+        "collision_guard_hold_s": 0.0,
+        "stage_transition_control_cycle_s": 0.0
+      }
+    },
+    {
+      "stage_index": 1,
+      "alias": "C2",
+      "runtime_name": "FRONT_LOW",
+      "simulated_duration_s": 2.1666666666666687,
+      "max_joint_target_tracking_error_rad": 0.013932893301722205,
+      "max_kinematic_foot_target_error_m": 0.008911903313853439,
+      "worst_joint_leg": "rm",
+      "worst_joint_name": "ankle",
+      "worst_joint_time_s": 1.6666666666666685,
+      "worst_joint_actual_rad": -0.7123472690582275,
+      "worst_joint_target_rad": -0.6984143757565053,
+      "worst_foot_leg": "rf",
+      "worst_foot_time_s": 1.6000000000000016,
+      "worst_foot_actual_base_xyz_m": [
+        0.09615496703075618,
+        0.27002370803515996,
+        -0.020607326865327312
+      ],
+      "worst_foot_target_base_xyz_m": [
+        0.09698477371966985,
+        0.2613995534435233,
+        -0.018519888455683087
+      ],
+      "end_joint_target_tracking_error_rad": 0.007799956207693581,
+      "end_foot_target_error_m": 0.0011310825527120429,
+      "max_root_position_error_m": 0.0029477059450564182,
+      "worst_root_time_s": 2.1000000000000023,
+      "worst_root_actual_xyz_m": [
+        -0.12271803617477417,
+        -0.06862152367830276,
+        0.14933526515960693
+      ],
+      "worst_root_target_xyz_m": [
+        -0.12,
+        -0.067694497636,
+        0.15
+      ],
+      "end_root_position_error_m": 0.0027171922381677292,
+      "max_root_attitude_error_deg": 0.5076658455551224,
+      "end_root_attitude_error_deg": 0.06550778516112847,
+      "max_world_foot_anchor_error_m": 0.009747128238272153,
+      "worst_world_foot_anchor_leg": "lf",
+      "worst_world_foot_anchor_time_s": 1.6000000000000016,
+      "worst_world_foot_actual_xyz_m": [
+        0.1496440461963744,
+        0.02746952744360316,
+        0.1661775494952283
+      ],
+      "worst_world_foot_anchor_xyz_m": [
+        0.14123160566988663,
+        0.029291533282554738,
+        0.17075113102445189
+      ],
+      "end_world_foot_anchor_error_m": 0.002652970951169874,
+      "stage_start_anchor_world_xyz_m": [
+        [
+          -0.26798118089306155,
+          0.029290969374546658,
+          0.006500000000063441
+        ],
+        [
+          0.0679808553169389,
+          0.029291533282554738,
+          0.006500000000063441
+        ],
+        [
+          -0.09999952503082715,
+          0.12627607590696494,
+          0.006500000000063441
+        ],
+        [
+          -0.26798125559112596,
+          -0.16467983526606975,
+          0.006500000000063441
+        ],
+        [
+          0.0679815811631059,
+          -0.16467927135566987,
+          0.006500000000063441
+        ],
+        [
+          -0.09999967442663914,
+          -0.26166507117951365,
+          0.006500000000063441
+        ]
+      ],
+      "stage_start_actual_world_foot_xyz_m": [
+        [
+          -0.26804868764824114,
+          0.028140146901857066,
+          0.006497773153637532
+        ],
+        [
+          0.06607511861130141,
+          0.028035771900800435,
+          0.0064984344640759695
+        ],
+        [
+          -0.10126239986491563,
+          0.12487423024406097,
+          0.006498153642858218
+        ],
+        [
+          -0.2679952116114769,
+          -0.16538271890744938,
+          0.006497830183139985
+        ],
+        [
+          0.06601211508868837,
+          -0.1655355548948659,
+          0.006498355728511651
+        ],
+        [
+          -0.10135856724908386,
+          -0.26225903987746124,
+          0.006498282835660951
+        ]
+      ],
+      "max_support_foot_world_drift_m": 0.0025832218688535314,
+      "worst_support_foot_drift_leg": "rb",
+      "worst_support_foot_drift_time_s": 0.6333333333333333,
+      "worst_support_foot_start_world_xyz_m": [
+        -0.2679952116114769,
+        -0.16538271890744938,
+        0.006497830183139985
+      ],
+      "worst_support_foot_current_world_xyz_m": [
+        -0.2705767925399517,
+        -0.16547477559802384,
+        0.006498666352183324
+      ],
+      "end_support_foot_world_drift_m": 0.002519651231689311,
+      "min_joint_limit_margin_rad": 0.04657878303527818,
+      "max_controller_target_joint_speed_rad_s": 4.290600039383974,
+      "velocity_limit_clip_count": 0,
+      "timing_diagnostics": {
+        "planned_motion_s": 2.0526315789473686,
+        "effective_settle_required_s": 0.25,
+        "actual_stage_elapsed_s": 0.0,
+        "motion_progress_s": 0.0,
+        "internal_checkpoint_feedback_hold_s": 0.0,
+        "terminal_persistence_wait_s": 0.0,
+        "terminal_feedback_hold_s": 0.0,
+        "collision_guard_hold_s": 0.0,
+        "stage_transition_control_cycle_s": 0.0
+      }
+    },
+    {
+      "stage_index": 2,
+      "alias": "C3",
+      "runtime_name": "BODY_A",
+      "simulated_duration_s": 0.7999999999999999,
+      "max_joint_target_tracking_error_rad": 0.01717718064889273,
+      "max_kinematic_foot_target_error_m": 0.009230457161490723,
+      "worst_joint_leg": "lb",
+      "worst_joint_name": "ankle",
+      "worst_joint_time_s": 0.7666666666666666,
+      "worst_joint_actual_rad": 0.42696696519851685,
+      "worst_joint_target_rad": 0.4097897845496241,
+      "worst_foot_leg": "rf",
+      "worst_foot_time_s": 0.4666666666666666,
+      "worst_foot_actual_base_xyz_m": [
+        0.0979070176630733,
+        0.24201031473493523,
+        -0.03063650094698244
+      ],
+      "worst_foot_target_base_xyz_m": [
+        0.09698477371966988,
+        0.2510376554905822,
+        -0.03232704062424707
+      ],
+      "end_joint_target_tracking_error_rad": 0.016754527105292794,
+      "end_foot_target_error_m": 0.003913850590813826,
+      "max_root_position_error_m": 0.00426088204387111,
+      "worst_root_time_s": 0.39999999999999997,
+      "worst_root_actual_xyz_m": [
+        -0.07498760521411896,
+        -0.0686994269490242,
+        0.14902471005916595
+      ],
+      "worst_root_target_xyz_m": [
+        -0.07901178741661873,
+        -0.067694497636,
+        0.15
+      ],
+      "end_root_position_error_m": 0.003979304056380687,
+      "max_root_attitude_error_deg": 0.3218235981510157,
+      "end_root_attitude_error_deg": 0.3038683958565189,
+      "max_world_foot_anchor_error_m": 0.006283166781392317,
+      "worst_world_foot_anchor_leg": "rf",
+      "worst_world_foot_anchor_time_s": 0.4666666666666666,
+      "worst_world_foot_actual_xyz_m": [
+        0.18413253369782992,
+        -0.16662522198998128,
+        0.1496267200121822
+      ],
+      "worst_world_foot_anchor_xyz_m": [
+        0.19,
+        -0.16467927135566987,
+        0.15075113102445192
+      ],
+      "end_world_foot_anchor_error_m": 0.005390126701852795,
+      "stage_start_anchor_world_xyz_m": [
+        [
+          -0.26798118089306155,
+          0.029290969374546658,
+          0.006500000000063441
+        ],
+        [
+          0.19,
+          0.029291533282554738,
+          0.15075113102445192
+        ],
+        [
+          -0.09999952503082715,
+          0.12627607590696494,
+          0.006500000000063441
+        ],
+        [
+          -0.26798125559112596,
+          -0.16467983526606975,
+          0.006500000000063441
+        ],
+        [
+          0.19,
+          -0.16467927135566987,
+          0.15075113102445192
+        ],
+        [
+          -0.09999967442663914,
+          -0.26166507117951365,
+          0.006500000000063441
+        ]
+      ],
+      "stage_start_actual_world_foot_xyz_m": [
+        [
+          -0.2703106271262151,
+          0.028338253495171203,
+          0.006497584900562153
+        ],
+        [
+          0.18808034405269397,
+          0.028133824505442037,
+          0.1504863136136358
+        ],
+        [
+          -0.10182969704654854,
+          0.12492639916180293,
+          0.006496329660429984
+        ],
+        [
+          -0.27051007914497616,
+          -0.16547159913737797,
+          0.006497330044591243
+        ],
+        [
+          0.1880019416593936,
+          -0.16557453543512674,
+          0.15046951459000174
+        ],
+        [
+          -0.102007003539694,
+          -0.26231363748375214,
+          0.006496455381905991
+        ]
+      ],
+      "max_support_foot_world_drift_m": 0.004112857176371736,
+      "worst_support_foot_drift_leg": "lm",
+      "worst_support_foot_drift_time_s": 0.4666666666666666,
+      "worst_support_foot_start_world_xyz_m": [
+        -0.10182969704654854,
+        0.12492639916180293,
+        0.006496329660429984
+      ],
+      "worst_support_foot_current_world_xyz_m": [
+        -0.10587948469802948,
+        0.12564390185262495,
+        0.006498334606354961
+      ],
+      "end_support_foot_world_drift_m": 0.0032432843495917092,
+      "min_joint_limit_margin_rad": 0.01641671466827388,
+      "max_controller_target_joint_speed_rad_s": 3.659088827522261,
+      "velocity_limit_clip_count": 0,
+      "timing_diagnostics": {
+        "planned_motion_s": 0.7,
+        "effective_settle_required_s": 0.25,
+        "actual_stage_elapsed_s": 0.0,
+        "motion_progress_s": 0.0,
+        "internal_checkpoint_feedback_hold_s": 0.0,
+        "terminal_persistence_wait_s": 0.0,
+        "terminal_feedback_hold_s": 0.0,
+        "collision_guard_hold_s": 0.0,
+        "stage_transition_control_cycle_s": 0.0
+      }
+    },
+    {
+      "stage_index": 3,
+      "alias": "C4",
+      "runtime_name": "M_GROUND_FIRST_MINUS02",
+      "simulated_duration_s": 1.0666666666666667,
+      "max_joint_target_tracking_error_rad": 0.017027590034839335,
+      "max_kinematic_foot_target_error_m": 0.010133620157797266,
+      "worst_joint_leg": "rm",
+      "worst_joint_name": "ankle",
+      "worst_joint_time_s": 0.9333333333333332,
+      "worst_joint_actual_rad": -0.6874706745147705,
+      "worst_joint_target_rad": -0.6704430844799312,
+      "worst_foot_leg": "lm",
+      "worst_foot_time_s": 0.5666666666666667,
+      "worst_foot_actual_base_xyz_m": [
+        -0.1925750446589902,
+        -0.01529169676825036,
+        -0.12263942459433474
+      ],
+      "worst_foot_target_base_xyz_m": [
+        -0.19397057354296493,
+        -0.025245657389201072,
+        -0.12135046199089358
+      ],
+      "end_joint_target_tracking_error_rad": 0.0066591646369230095,
+      "end_foot_target_error_m": 0.0010634757797532324,
+      "max_root_position_error_m": 0.005404299643279944,
+      "worst_root_time_s": 0.9333333333333332,
+      "worst_root_actual_xyz_m": [
+        -0.035196322947740555,
+        -0.06862393021583557,
+        0.151157945394516
+      ],
+      "worst_root_target_xyz_m": [
+        -0.03,
+        -0.067694497636,
+        0.15
+      ],
+      "end_root_position_error_m": 0.004855089028802311,
+      "max_root_attitude_error_deg": 0.2910992343555063,
+      "end_root_attitude_error_deg": 0.15672374114152474,
+      "max_world_foot_anchor_error_m": 0.006792454395364707,
+      "worst_world_foot_anchor_leg": "lm",
+      "worst_world_foot_anchor_time_s": 0.8666666666666666,
+      "worst_world_foot_actual_xyz_m": [
+        -0.024809350868443106,
+        0.12449509997528177,
+        0.007180544824939933
+      ],
+      "worst_world_foot_anchor_xyz_m": [
+        -0.020000000000000004,
+        0.12627607590696494,
+        0.01163427423612784
+      ],
+      "end_world_foot_anchor_error_m": 0.005158581283298655,
+      "stage_start_anchor_world_xyz_m": [
+        [
+          -0.26798118089306155,
+          0.029290969374546658,
+          0.006500000000063441
+        ],
+        [
+          0.19,
+          0.029291533282554738,
+          0.15075113102445192
+        ],
+        [
+          -0.09999952503082715,
+          0.12627607590696494,
+          0.006500000000063441
+        ],
+        [
+          -0.26798125559112596,
+          -0.16467983526606975,
+          0.006500000000063441
+        ],
+        [
+          0.19,
+          -0.16467927135566987,
+          0.15075113102445192
+        ],
+        [
+          -0.09999967442663914,
+          -0.26166507117951365,
+          0.006500000000063441
+        ]
+      ],
+      "stage_start_actual_world_foot_xyz_m": [
+        [
+          -0.26899154644911016,
+          0.027461872580658436,
+          0.006489026979670548
+        ],
+        [
+          0.18503252524700756,
+          0.02885168313688763,
+          0.1498296530411832
+        ],
+        [
+          -0.10472679364678456,
+          0.12513241113111376,
+          0.0065004394838933666
+        ],
+        [
+          -0.26903423188884745,
+          -0.16469583559373638,
+          0.006489608672669761
+        ],
+        [
+          0.1848544248753304,
+          -0.16596847420403305,
+          0.1497901616197286
+        ],
+        [
+          -0.10480056540528501,
+          -0.26233198788444967,
+          0.0065827023062365875
+        ]
+      ],
+      "max_support_foot_world_drift_m": 0.0031523591310377596,
+      "worst_support_foot_drift_leg": "lb",
+      "worst_support_foot_drift_time_s": 0.9999999999999999,
+      "worst_support_foot_start_world_xyz_m": [
+        -0.26899154644911016,
+        0.027461872580658436,
+        0.006489026979670548
+      ],
+      "worst_support_foot_current_world_xyz_m": [
+        -0.2720524324685198,
+        0.028215735612192844,
+        0.006494976509533457
+      ],
+      "end_support_foot_world_drift_m": 0.003150475779648275,
+      "min_joint_limit_margin_rad": 0.02473108577728267,
+      "max_controller_target_joint_speed_rad_s": 3.078179210646863,
+      "velocity_limit_clip_count": 0,
+      "timing_diagnostics": {
+        "planned_motion_s": 0.8800000000000001,
+        "effective_settle_required_s": 0.25,
+        "actual_stage_elapsed_s": 0.0,
+        "motion_progress_s": 0.0,
+        "internal_checkpoint_feedback_hold_s": 0.0,
+        "terminal_persistence_wait_s": 0.0,
+        "terminal_feedback_hold_s": 0.0,
+        "collision_guard_hold_s": 0.0,
+        "stage_transition_control_cycle_s": 0.0
+      }
+    },
+    {
+      "stage_index": 4,
+      "alias": "C5",
+      "runtime_name": "FRONT_TO_029",
+      "simulated_duration_s": 1.6000000000000016,
+      "max_joint_target_tracking_error_rad": 0.015123701162574332,
+      "max_kinematic_foot_target_error_m": 0.009061556288767529,
+      "worst_joint_leg": "rm",
+      "worst_joint_name": "ankle",
+      "worst_joint_time_s": 0.16666666666666666,
+      "worst_joint_actual_rad": -0.7291894555091858,
+      "worst_joint_target_rad": -0.7140657543466115,
+      "worst_foot_leg": "lf",
+      "worst_foot_time_s": 0.8666666666666666,
+      "worst_foot_actual_base_xyz_m": [
+        -0.09626765500050004,
+        0.2905970980577821,
+        -0.0057560028276698455
+      ],
+      "worst_foot_target_base_xyz_m": [
+        -0.09698603091855472,
+        0.28337007190161084,
+        -0.00033697788282249785
+      ],
+      "end_joint_target_tracking_error_rad": 0.009786348623715191,
+      "end_foot_target_error_m": 0.0017609702924050153,
+      "max_root_position_error_m": 0.006027852856293993,
+      "worst_root_time_s": 1.466666666666668,
+      "worst_root_actual_xyz_m": [
+        -0.03586186096072197,
+        -0.0687069445848465,
+        0.1490260660648346
+      ],
+      "worst_root_target_xyz_m": [
+        -0.03,
+        -0.067694497636,
+        0.15
+      ],
+      "end_root_position_error_m": 0.005905554454228081,
+      "max_root_attitude_error_deg": 0.4239067155359298,
+      "end_root_attitude_error_deg": 0.18697838126934677,
+      "max_world_foot_anchor_error_m": 0.012664749253777256,
+      "worst_world_foot_anchor_leg": "lf",
+      "worst_world_foot_anchor_time_s": 1.3333333333333341,
+      "worst_world_foot_actual_xyz_m": [
+        0.2841533068738048,
+        0.02825035851999054,
+        0.1762207925902704
+      ],
+      "worst_world_foot_anchor_xyz_m": [
+        0.289794207929546,
+        0.029291533282554752,
+        0.1875120309658512
+      ],
+      "end_world_foot_anchor_error_m": 0.006069193938358985,
+      "stage_start_anchor_world_xyz_m": [
+        [
+          -0.26798118089306155,
+          0.029290969374546658,
+          0.006500000000063441
+        ],
+        [
+          0.19,
+          0.029291533282554738,
+          0.15075113102445192
+        ],
+        [
+          -0.02,
+          0.12627607590696494,
+          0.0065
+        ],
+        [
+          -0.26798125559112596,
+          -0.16467983526606975,
+          0.006500000000063441
+        ],
+        [
+          0.19,
+          -0.16467927135566987,
+          0.15075113102445192
+        ],
+        [
+          -0.02,
+          -0.26166507117951365,
+          0.0065
+        ]
+      ],
+      "stage_start_actual_world_foot_xyz_m": [
+        [
+          -0.27205152849238307,
+          0.028211672561444842,
+          0.006495078875069005
+        ],
+        [
+          0.1851024259827568,
+          0.028357163095102486,
+          0.14985046553085163
+        ],
+        [
+          -0.024948359104650028,
+          0.12499278000777356,
+          0.006497228821972095
+        ],
+        [
+          -0.2720670217967458,
+          -0.16542415456580523,
+          0.00649503242016472
+        ],
+        [
+          0.1850131672737371,
+          -0.16562986871727436,
+          0.14983047228506088
+        ],
+        [
+          -0.024979179654465954,
+          -0.26222903715347445,
+          0.006497442975343964
+        ]
+      ],
+      "max_support_foot_world_drift_m": 0.001934112525339599,
+      "worst_support_foot_drift_leg": "rb",
+      "worst_support_foot_drift_time_s": 1.4333333333333345,
+      "worst_support_foot_start_world_xyz_m": [
+        -0.2720670217967458,
+        -0.16542415456580523,
+        0.00649503242016472
+      ],
+      "worst_support_foot_current_world_xyz_m": [
+        -0.2739969987653046,
+        -0.16555056720750783,
+        0.006495106756694402
+      ],
+      "end_support_foot_world_drift_m": 0.0019261358832553786,
+      "min_joint_limit_margin_rad": 0.38179649734497056,
+      "max_controller_target_joint_speed_rad_s": 4.815960266023151,
+      "velocity_limit_clip_count": 0,
+      "timing_diagnostics": {
+        "planned_motion_s": 1.4086521424934624,
+        "effective_settle_required_s": 0.25,
+        "actual_stage_elapsed_s": 0.0,
+        "motion_progress_s": 0.0,
+        "internal_checkpoint_feedback_hold_s": 0.0,
+        "terminal_persistence_wait_s": 0.0,
+        "terminal_feedback_hold_s": 0.0,
+        "collision_guard_hold_s": 0.0,
+        "stage_transition_control_cycle_s": 0.0
+      }
+    },
+    {
+      "stage_index": 5,
+      "alias": "C6",
+      "runtime_name": "SIX_SUPPORT_BODY_ADVANCE",
+      "simulated_duration_s": 0.4666666666666666,
+      "max_joint_target_tracking_error_rad": 0.015581390924375937,
+      "max_kinematic_foot_target_error_m": 0.009167477403288143,
+      "worst_joint_leg": "rm",
+      "worst_joint_name": "ankle",
+      "worst_joint_time_s": 0.36666666666666664,
+      "worst_joint_actual_rad": -0.7651660442352295,
+      "worst_joint_target_rad": -0.7495846533108536,
+      "worst_foot_leg": "rf",
+      "worst_foot_time_s": 0.26666666666666666,
+      "worst_foot_actual_base_xyz_m": [
+        0.09787102172536818,
+        0.2988234530356424,
+        -0.009003551044391427
+      ],
+      "worst_foot_target_base_xyz_m": [
+        0.0969847737196699,
+        0.3023107719730786,
+        -0.01743538435873021
+      ],
+      "end_joint_target_tracking_error_rad": 0.01300587500766337,
+      "end_foot_target_error_m": 0.0028387561500176077,
+      "max_root_position_error_m": 0.009609840351244413,
+      "worst_root_time_s": 0.4666666666666666,
+      "worst_root_actual_xyz_m": [
+        -0.009458152577280998,
+        -0.0688600242137909,
+        0.14876148104667664
+      ],
+      "worst_root_target_xyz_m": [
+        0.0,
+        -0.067694497636,
+        0.15
+      ],
+      "end_root_position_error_m": 0.009609840351244413,
+      "max_root_attitude_error_deg": 1.3446380980136985,
+      "end_root_attitude_error_deg": 0.4734645271967812,
+      "max_world_foot_anchor_error_m": 0.011085752892624529,
+      "worst_world_foot_anchor_leg": "lm",
+      "worst_world_foot_anchor_time_s": 0.26666666666666666,
+      "worst_world_foot_actual_xyz_m": [
+        -0.030796567363637874,
+        0.12376051792952447,
+        0.006495708042602716
+      ],
+      "worst_world_foot_anchor_xyz_m": [
+        -0.02,
+        0.12627607590696494,
+        0.006500000000000001
+      ],
+      "end_world_foot_anchor_error_m": 0.010962784134444792,
+      "stage_start_anchor_world_xyz_m": [
+        [
+          -0.26798118089306155,
+          0.029290969374546658,
+          0.006500000000063441
+        ],
+        [
+          0.29,
+          0.029291533282554738,
+          0.17200679245771322
+        ],
+        [
+          -0.02,
+          0.12627607590696494,
+          0.0065
+        ],
+        [
+          -0.26798125559112596,
+          -0.16467983526606975,
+          0.006500000000063441
+        ],
+        [
+          0.29,
+          -0.16467927135566987,
+          0.18834634819538565
+        ],
+        [
+          -0.02,
+          -0.26166507117951365,
+          0.0065
+        ]
+      ],
+      "stage_start_actual_world_foot_xyz_m": [
+        [
+          -0.2739672361075253,
+          0.028412648117632444,
+          0.006497351431625387
+        ],
+        [
+          0.284597618745471,
+          0.028362990769161905,
+          0.17100042986268416
+        ],
+        [
+          -0.02577346536555804,
+          0.12510702001995583,
+          0.006495272167873906
+        ],
+        [
+          -0.2739877584543309,
+          -0.1655475403076876,
+          0.00649727668674005
+        ],
+        [
+          0.284624297824248,
+          -0.16555978834954718,
+          0.18787144813081091
+        ],
+        [
+          -0.025808054595188725,
+          -0.26233843478685903,
+          0.006495380893478703
+        ]
+      ],
+      "max_support_foot_world_drift_m": 0.0052004443803040905,
+      "worst_support_foot_drift_leg": "lm",
+      "worst_support_foot_drift_time_s": 0.26666666666666666,
+      "worst_support_foot_start_world_xyz_m": [
+        -0.02577346536555804,
+        0.12510702001995583,
+        0.006495272167873906
+      ],
+      "worst_support_foot_current_world_xyz_m": [
+        -0.030796567363637874,
+        0.12376051792952447,
+        0.006495708042602716
+      ],
+      "end_support_foot_world_drift_m": 0.005079238700163362,
+      "min_joint_limit_margin_rad": 0.32211746382713313,
+      "max_controller_target_joint_speed_rad_s": 5.134416896206923,
+      "velocity_limit_clip_count": 0,
+      "timing_diagnostics": {
+        "planned_motion_s": 0.3426004757268652,
+        "effective_settle_required_s": 0.25,
+        "actual_stage_elapsed_s": 0.0,
+        "motion_progress_s": 0.0,
+        "internal_checkpoint_feedback_hold_s": 0.0,
+        "terminal_persistence_wait_s": 0.0,
+        "terminal_feedback_hold_s": 0.0,
+        "collision_guard_hold_s": 0.0,
+        "stage_transition_control_cycle_s": 0.0
+      }
+    },
+    {
+      "stage_index": 6,
+      "alias": "C7",
+      "runtime_name": "BACK_TO_MINUS09",
+      "simulated_duration_s": 1.7666666666666688,
+      "max_joint_target_tracking_error_rad": 0.01665106823264695,
+      "max_kinematic_foot_target_error_m": 0.011627056182540254,
+      "worst_joint_leg": "lm",
+      "worst_joint_name": "ankle",
+      "worst_joint_time_s": 1.466666666666668,
+      "worst_joint_actual_rad": 0.7493067383766174,
+      "worst_joint_target_rad": 0.7326556701439705,
+      "worst_foot_leg": "lb",
+      "worst_foot_time_s": 0.8999999999999999,
+      "worst_foot_actual_base_xyz_m": [
+        -0.0962409767801665,
+        -0.1863159593040057,
+        -0.096202922842689
+      ],
+      "worst_foot_target_base_xyz_m": [
+        -0.09698546701054667,
+        -0.19785657285941896,
+        -0.09499942438675811
+      ],
+      "end_joint_target_tracking_error_rad": 0.012830637668481804,
+      "end_foot_target_error_m": 0.0025267597406949767,
+      "max_root_position_error_m": 0.011059813886589744,
+      "worst_root_time_s": 1.5333333333333348,
+      "worst_root_actual_xyz_m": [
+        0.017927009612321854,
+        -0.06860314309597015,
+        0.14854106307029724
+      ],
+      "worst_root_target_xyz_m": [
+        0.028852454668209897,
+        -0.067694497636,
+        0.15
+      ],
+      "end_root_position_error_m": 0.011047848284329151,
+      "max_root_attitude_error_deg": 0.4365263590496937,
+      "end_root_attitude_error_deg": 0.33162715360818634,
+      "max_world_foot_anchor_error_m": 0.012415282231327325,
+      "worst_world_foot_anchor_leg": "lb",
+      "worst_world_foot_anchor_time_s": 1.5333333333333348,
+      "worst_world_foot_actual_xyz_m": [
+        -0.10132946832481782,
+        0.027995738553828642,
+        0.007100427722704139
+      ],
+      "worst_world_foot_anchor_xyz_m": [
+        -0.08951750578703702,
+        0.029290969374546658,
+        0.010697530864210797
+      ],
+      "end_world_foot_anchor_error_m": 0.011563953353134634,
+      "stage_start_anchor_world_xyz_m": [
+        [
+          -0.26798118089306155,
+          0.029290969374546658,
+          0.006500000000063441
+        ],
+        [
+          0.29,
+          0.029291533282554738,
+          0.17200679245771322
+        ],
+        [
+          -0.02,
+          0.12627607590696494,
+          0.0065
+        ],
+        [
+          -0.26798125559112596,
+          -0.16467983526606975,
+          0.006500000000063441
+        ],
+        [
+          0.29,
+          -0.16467927135566987,
+          0.18834634819538565
+        ],
+        [
+          -0.02,
+          -0.26166507117951365,
+          0.0065
+        ]
+      ],
+      "stage_start_actual_world_foot_xyz_m": [
+        [
+          -0.2780441079345236,
+          0.02758053436094403,
+          0.0064960230659207585
+        ],
+        [
+          0.28038618770884893,
+          0.02887958286105033,
+          0.17010623656224488
+        ],
+        [
+          -0.030671079022136737,
+          0.12374285045991837,
+          0.006495662983383083
+        ],
+        [
+          -0.2777384226956122,
+          -0.16616762222798123,
+          0.006496005975921676
+        ],
+        [
+          0.2810249723108862,
+          -0.1657274240700489,
+          0.18755337984101322
+        ],
+        [
+          -0.030004334381452894,
+          -0.261257364420033,
+          0.006496093362197586
+        ]
+      ],
+      "max_support_foot_world_drift_m": 0.0019159578783671774,
+      "worst_support_foot_drift_leg": "rf",
+      "worst_support_foot_drift_time_s": 0.39999999999999997,
+      "worst_support_foot_start_world_xyz_m": [
+        0.2810249723108862,
+        -0.1657274240700489,
+        0.18755337984101322
+      ],
+      "worst_support_foot_current_world_xyz_m": [
+        0.27917015747740404,
+        -0.16527061293921802,
+        0.18740546055247775
+      ],
+      "end_support_foot_world_drift_m": 0.0015807535049248969,
+      "min_joint_limit_margin_rad": 0.13069222974777217,
+      "max_controller_target_joint_speed_rad_s": 3.230620122317047,
+      "velocity_limit_clip_count": 0,
+      "timing_diagnostics": {
+        "planned_motion_s": 1.6,
+        "effective_settle_required_s": 0.25,
+        "actual_stage_elapsed_s": 0.0,
+        "motion_progress_s": 0.0,
+        "internal_checkpoint_feedback_hold_s": 0.0,
+        "terminal_persistence_wait_s": 0.0,
+        "terminal_feedback_hold_s": 0.0,
+        "collision_guard_hold_s": 0.0,
+        "stage_transition_control_cycle_s": 0.0
+      }
+    },
+    {
+      "stage_index": 7,
+      "alias": "C8",
+      "runtime_name": "MID_TO_040",
+      "simulated_duration_s": 1.0666666666666667,
+      "max_joint_target_tracking_error_rad": 0.017233814315441243,
+      "max_kinematic_foot_target_error_m": 0.007689033045579346,
+      "worst_joint_leg": "rm",
+      "worst_joint_name": "ankle",
+      "worst_joint_time_s": 0.9333333333333332,
+      "worst_joint_actual_rad": -0.6920884251594543,
+      "worst_joint_target_rad": -0.6748546108440131,
+      "worst_foot_leg": "rm",
+      "worst_foot_time_s": 0.5666666666666667,
+      "worst_foot_actual_base_xyz_m": [
+        0.19309312639658266,
+        -0.015265576533731881,
+        -0.12265868283895509
+      ],
+      "worst_foot_target_base_xyz_m": [
+        0.19397057354351366,
+        -0.02280899311577083,
+        -0.12145527852195533
+      ],
+      "end_joint_target_tracking_error_rad": 0.010468356195269424,
+      "end_foot_target_error_m": 0.0013295634553515,
+      "max_root_position_error_m": 0.014143878694388766,
+      "worst_root_time_s": 0.9666666666666666,
+      "worst_root_actual_xyz_m": [
+        0.014893971383571625,
+        -0.06872591376304626,
+        0.14992623031139374
+      ],
+      "worst_root_target_xyz_m": [
+        0.029,
+        -0.067694497636,
+        0.15
+      ],
+      "end_root_position_error_m": 0.012663765929919309,
+      "max_root_attitude_error_deg": 0.4526743203594185,
+      "end_root_attitude_error_deg": 0.24973352824871714,
+      "max_world_foot_anchor_error_m": 0.014545068426995836,
+      "worst_world_foot_anchor_leg": "lm",
+      "worst_world_foot_anchor_time_s": 0.8333333333333333,
+      "worst_world_foot_actual_xyz_m": [
+        0.026909878178881658,
+        0.12452720274180842,
+        0.010972822277799527
+      ],
+      "worst_world_foot_anchor_xyz_m": [
+        0.04,
+        0.12627607590696494,
+        0.01706783408307669
+      ],
+      "end_world_foot_anchor_error_m": 0.013262766432864193,
+      "stage_start_anchor_world_xyz_m": [
+        [
+          -0.09,
+          0.029290969374546658,
+          0.0065
+        ],
+        [
+          0.29,
+          0.029291533282554738,
+          0.17200679245771322
+        ],
+        [
+          -0.02,
+          0.12627607590696494,
+          0.0065
+        ],
+        [
+          -0.09,
+          -0.16467983526606975,
+          0.0065
+        ],
+        [
+          0.29,
+          -0.16467927135566987,
+          0.18834634819538565
+        ],
+        [
+          -0.02,
+          -0.26166507117951365,
+          0.0065
+        ]
+      ],
+      "stage_start_actual_world_foot_xyz_m": [
+        [
+          -0.101499878543471,
+          0.028071841118329652,
+          0.006498532359273196
+        ],
+        [
+          0.2788409753405034,
+          0.028938640138275087,
+          0.1697772990370082
+        ],
+        [
+          -0.030450635866938677,
+          0.12351362631294016,
+          0.006496408296545658
+        ],
+        [
+          -0.10121821249119906,
+          -0.165751852175245,
+          0.006498368829336604
+        ],
+        [
+          0.2795825698730889,
+          -0.16531827432411728,
+          0.18743714097347752
+        ],
+        [
+          -0.029774708041221738,
+          -0.2610127822987649,
+          0.006496746434545536
+        ]
+      ],
+      "max_support_foot_world_drift_m": 0.004642836331543252,
+      "worst_support_foot_drift_leg": "lf",
+      "worst_support_foot_drift_time_s": 0.9666666666666666,
+      "worst_support_foot_start_world_xyz_m": [
+        0.2788409753405034,
+        0.028938640138275087,
+        0.1697772990370082
+      ],
+      "worst_support_foot_current_world_xyz_m": [
+        0.2755345167696953,
+        0.028747227184424642,
+        0.17303100799789053
+      ],
+      "end_support_foot_world_drift_m": 0.0018155352815393472,
+      "min_joint_limit_margin_rad": 0.13143979120254512,
+      "max_controller_target_joint_speed_rad_s": 2.8723416929979395,
+      "velocity_limit_clip_count": 0,
+      "timing_diagnostics": {
+        "planned_motion_s": 0.8800000000000001,
+        "effective_settle_required_s": 0.25,
+        "actual_stage_elapsed_s": 0.0,
+        "motion_progress_s": 0.0,
+        "internal_checkpoint_feedback_hold_s": 0.0,
+        "terminal_persistence_wait_s": 0.0,
+        "terminal_feedback_hold_s": 0.0,
+        "collision_guard_hold_s": 0.0,
+        "stage_transition_control_cycle_s": 0.0
+      }
+    },
+    {
+      "stage_index": 8,
+      "alias": "C9",
+      "runtime_name": "FRONT_TO_034",
+      "simulated_duration_s": 1.0666666666666667,
+      "max_joint_target_tracking_error_rad": 0.015240243714584545,
+      "max_kinematic_foot_target_error_m": 0.007856588719158031,
+      "worst_joint_leg": "rm",
+      "worst_joint_name": "ankle",
+      "worst_joint_time_s": 0.6,
+      "worst_joint_actual_rad": -0.7333805561065674,
+      "worst_joint_target_rad": -0.7181403123919828,
+      "worst_foot_leg": "lf",
+      "worst_foot_time_s": 0.2333333333333333,
+      "worst_foot_actual_base_xyz_m": [
+        -0.09681298016768301,
+        0.26632835185049275,
+        0.01933057525897485
+      ],
+      "worst_foot_target_base_xyz_m": [
+        -0.0969860309185547,
+        0.26570222078202876,
+        0.011500888188297753
+      ],
+      "end_joint_target_tracking_error_rad": 0.009989957334403665,
+      "end_foot_target_error_m": 0.0018941591891129496,
+      "max_root_position_error_m": 0.013181740761616283,
+      "worst_root_time_s": 0.9333333333333332,
+      "worst_root_actual_xyz_m": [
+        0.015873827040195465,
+        -0.06863958388566971,
+        0.14924588799476624
+      ],
+      "worst_root_target_xyz_m": [
+        0.029,
+        -0.067694497636,
+        0.15
+      ],
+      "end_root_position_error_m": 0.013029526755606893,
+      "max_root_attitude_error_deg": 0.6763040919884679,
+      "end_root_attitude_error_deg": 0.20109789728087998,
+      "max_world_foot_anchor_error_m": 0.015120494028280935,
+      "worst_world_foot_anchor_leg": "rf",
+      "worst_world_foot_anchor_time_s": 0.8666666666666666,
+      "worst_world_foot_actual_xyz_m": [
+        0.3284421215496079,
+        -0.16503329636393418,
+        0.191726075514783
+      ],
+      "worst_world_foot_anchor_xyz_m": [
+        0.3400000000000001,
+        -0.1646792713556699,
+        0.2014687369416603
+      ],
+      "end_world_foot_anchor_error_m": 0.01341979100223957,
+      "stage_start_anchor_world_xyz_m": [
+        [
+          -0.09,
+          0.029290969374546658,
+          0.0065
+        ],
+        [
+          0.29,
+          0.029291533282554738,
+          0.17200679245771322
+        ],
+        [
+          0.04,
+          0.12627607590696494,
+          0.0065
+        ],
+        [
+          -0.09,
+          -0.16467983526606975,
+          0.0065
+        ],
+        [
+          0.29,
+          -0.16467927135566987,
+          0.18834634819538565
+        ],
+        [
+          0.04,
+          -0.26166507117951365,
+          0.0065
+        ]
+      ],
+      "stage_start_actual_world_foot_xyz_m": [
+        [
+          -0.10293163726644053,
+          0.028017332249544502,
+          0.00649740517049785
+        ],
+        [
+          0.2772247392239985,
+          0.028739837845318486,
+          0.16966488165325383
+        ],
+        [
+          0.026846905460378948,
+          0.12457912885802283,
+          0.006495352034749102
+        ],
+        [
+          -0.10261981309773907,
+          -0.1658836830773173,
+          0.006497404025538583
+        ],
+        [
+          0.2777750084094968,
+          -0.16541180769774783,
+          0.1872777725226484
+        ],
+        [
+          0.027521787123995257,
+          -0.2618647727110377,
+          0.00649602057076179
+        ]
+      ],
+      "max_support_foot_world_drift_m": 0.0006066128978728754,
+      "worst_support_foot_drift_leg": "rb",
+      "worst_support_foot_drift_time_s": 0.9333333333333332,
+      "worst_support_foot_start_world_xyz_m": [
+        -0.10261981309773907,
+        -0.1658836830773173,
+        0.006497404025538583
+      ],
+      "worst_support_foot_current_world_xyz_m": [
+        -0.10321929649381775,
+        -0.16579098429241876,
+        0.0064949955052391595
+      ],
+      "end_support_foot_world_drift_m": 0.000596900714239066,
+      "min_joint_limit_margin_rad": 0.6044297825098037,
+      "max_controller_target_joint_speed_rad_s": 4.095796464590552,
+      "velocity_limit_clip_count": 0,
+      "timing_diagnostics": {
+        "planned_motion_s": 0.8857142857142857,
+        "effective_settle_required_s": 0.25,
+        "actual_stage_elapsed_s": 0.0,
+        "motion_progress_s": 0.0,
+        "internal_checkpoint_feedback_hold_s": 0.0,
+        "terminal_persistence_wait_s": 0.0,
+        "terminal_feedback_hold_s": 0.0,
+        "collision_guard_hold_s": 0.0,
+        "stage_transition_control_cycle_s": 0.0
+      }
+    },
+    {
+      "stage_index": 9,
+      "alias": "C10",
+      "runtime_name": "SIX_SUPPORT_ADVANCE_059",
+      "simulated_duration_s": 0.4333333333333333,
+      "max_joint_target_tracking_error_rad": 0.011877593292960675,
+      "max_kinematic_foot_target_error_m": 0.005907334404840278,
+      "worst_joint_leg": "rm",
+      "worst_joint_name": "ankle",
+      "worst_joint_time_s": 0.36666666666666664,
+      "worst_joint_actual_rad": -0.7589585185050964,
+      "worst_joint_target_rad": -0.7470809252121358,
+      "worst_foot_leg": "rm",
+      "worst_foot_time_s": 0.26666666666666666,
+      "worst_foot_actual_base_xyz_m": [
+        0.19333182949249272,
+        -0.03668062662014164,
+        -0.13852563022867864
+      ],
+      "worst_foot_target_base_xyz_m": [
+        0.19397057354351366,
+        -0.031123813764030422,
+        -0.1404257451436383
+      ],
+      "end_joint_target_tracking_error_rad": 0.010949857307885336,
+      "end_foot_target_error_m": 0.0029052982165063057,
+      "max_root_position_error_m": 0.013022941523987716,
+      "worst_root_time_s": 0.03333333333333333,
+      "worst_root_actual_xyz_m": [
+        0.01604923978447914,
+        -0.0686681941151619,
+        0.14903733134269714
+      ],
+      "worst_root_target_xyz_m": [
+        0.029,
+        -0.067694497636,
+        0.15
+      ],
+      "end_root_position_error_m": 0.011723940078819266,
+      "max_root_attitude_error_deg": 0.43039213891569755,
+      "end_root_attitude_error_deg": 0.36341472983819656,
+      "max_world_foot_anchor_error_m": 0.013465301071276744,
+      "worst_world_foot_anchor_leg": "lm",
+      "worst_world_foot_anchor_time_s": 0.4333333333333333,
+      "worst_world_foot_actual_xyz_m": [
+        0.02663810688711414,
+        0.12461050490598666,
+        0.006495684836011706
+      ],
+      "worst_world_foot_anchor_xyz_m": [
+        0.04,
+        0.12627607590696494,
+        0.0065
+      ],
+      "end_world_foot_anchor_error_m": 0.013465301071276744,
+      "stage_start_anchor_world_xyz_m": [
+        [
+          -0.09,
+          0.029290969374546658,
+          0.0065
+        ],
+        [
+          0.34,
+          0.029291533282554738,
+          0.19649999761581421
+        ],
+        [
+          0.04,
+          0.12627607590696494,
+          0.0065
+        ],
+        [
+          -0.09,
+          -0.16467983526606975,
+          0.0065
+        ],
+        [
+          0.34,
+          -0.16467927135566987,
+          0.19272078092243083
+        ],
+        [
+          0.04,
+          -0.26166507117951365,
+          0.0065
+        ]
+      ],
+      "stage_start_actual_world_foot_xyz_m": [
+        [
+          -0.10335867142302026,
+          0.028016560885955027,
+          0.006497183234852544
+        ],
+        [
+          0.32724350001578134,
+          0.028714581223185917,
+          0.19649933461596794
+        ],
+        [
+          0.02684065759027272,
+          0.12457649933882448,
+          0.0064960142857465875
+        ],
+        [
+          -0.10320945652841441,
+          -0.16579373853997548,
+          0.006496500658372706
+        ],
+        [
+          0.3274916983877751,
+          -0.16497349598440045,
+          0.19164522292993247
+        ],
+        [
+          0.027515611445511436,
+          -0.2618630053628273,
+          0.006496055952875085
+        ]
+      ],
+      "max_support_foot_world_drift_m": 0.0022439319739826187,
+      "worst_support_foot_drift_leg": "lf",
+      "worst_support_foot_drift_time_s": 0.3,
+      "worst_support_foot_start_world_xyz_m": [
+        0.32724350001578134,
+        0.028714581223185917,
+        0.19649933461596794
+      ],
+      "worst_support_foot_current_world_xyz_m": [
+        0.3293612989757394,
+        0.029456256617609172,
+        0.1964906237968794
+      ],
+      "end_support_foot_world_drift_m": 0.0014212565712466904,
+      "min_joint_limit_margin_rad": 0.32072810935974116,
+      "max_controller_target_joint_speed_rad_s": 3.32556454793998,
+      "velocity_limit_clip_count": 0,
+      "timing_diagnostics": {
+        "planned_motion_s": 0.33,
+        "effective_settle_required_s": 0.25,
+        "actual_stage_elapsed_s": 0.0,
+        "motion_progress_s": 0.0,
+        "internal_checkpoint_feedback_hold_s": 0.0,
+        "terminal_persistence_wait_s": 0.0,
+        "terminal_feedback_hold_s": 0.0,
+        "collision_guard_hold_s": 0.0,
+        "stage_transition_control_cycle_s": 0.0
+      }
+    },
+    {
+      "stage_index": 10,
+      "alias": "C11",
+      "runtime_name": "BACK_TO_000",
+      "simulated_duration_s": 1.0666666666666667,
+      "max_joint_target_tracking_error_rad": 0.01579389980162993,
+      "max_kinematic_foot_target_error_m": 0.009010524382584782,
+      "worst_joint_leg": "rm",
+      "worst_joint_name": "ankle",
+      "worst_joint_time_s": 0.8333333333333333,
+      "worst_joint_actual_rad": -0.7573427557945251,
+      "worst_joint_target_rad": -0.7415488559928952,
+      "worst_foot_leg": "lb",
+      "worst_foot_time_s": 0.5333333333333333,
+      "worst_foot_actual_base_xyz_m": [
+        -0.09520266897299476,
+        -0.11529971466096114,
+        -0.10699378236699342
+      ],
+      "worst_foot_target_base_xyz_m": [
+        -0.09698546701054665,
+        -0.12409151212297423,
+        -0.10614792292630823
+      ],
+      "end_joint_target_tracking_error_rad": 0.008678381342904995,
+      "end_foot_target_error_m": 0.0034016110225650576,
+      "max_root_position_error_m": 0.013394368329667696,
+      "worst_root_time_s": 0.26666666666666666,
+      "worst_root_actual_xyz_m": [
+        0.04750695824623108,
+        -0.06864067912101746,
+        0.14848977327346802
+      ],
+      "worst_root_target_xyz_m": [
+        0.060782238235093225,
+        -0.067694497636,
+        0.14999999999999997
+      ],
+      "end_root_position_error_m": 0.011909142290274956,
+      "max_root_attitude_error_deg": 0.6457304293392133,
+      "end_root_attitude_error_deg": 0.48663175891878596,
+      "max_world_foot_anchor_error_m": 0.014699297173703822,
+      "worst_world_foot_anchor_leg": "lb",
+      "worst_world_foot_anchor_time_s": 0.8666666666666666,
+      "worst_world_foot_actual_xyz_m": [
+        -0.013258641343358885,
+        0.0278706974514812,
+        0.006499056670850767
+      ],
+      "worst_world_foot_anchor_xyz_m": [
+        0.00044105593880197635,
+        0.029290969374546658,
+        0.011634274236111602
+      ],
+      "end_world_foot_anchor_error_m": 0.0132597599105564,
+      "stage_start_anchor_world_xyz_m": [
+        [
+          -0.09,
+          0.029290969374546658,
+          0.0065
+        ],
+        [
+          0.34,
+          0.029291533282554738,
+          0.19649999761581421
+        ],
+        [
+          0.04,
+          0.12627607590696494,
+          0.0065
+        ],
+        [
+          -0.09,
+          -0.16467983526606975,
+          0.0065
+        ],
+        [
+          0.34,
+          -0.16467927135566987,
+          0.19272078092243083
+        ],
+        [
+          0.04,
+          -0.26166507117951365,
+          0.0065
+        ]
+      ],
+      "stage_start_actual_world_foot_xyz_m": [
+        [
+          -0.10219385802719541,
+          0.027909817436255896,
+          0.006500173510078838
+        ],
+        [
+          0.3284105600465271,
+          0.02918028001144468,
+          0.19650098096532476
+        ],
+        [
+          0.02663484545727012,
+          0.12461292100168656,
+          0.006495654480756452
+        ],
+        [
+          -0.10180050677741379,
+          -0.1656925479392459,
+          0.006499935725228306
+        ],
+        [
+          0.3285966084508543,
+          -0.16531242991954587,
+          0.1917303650712426
+        ],
+        [
+          0.027417999714886794,
+          -0.2619066623910774,
+          0.006495665399248618
+        ]
+      ],
+      "max_support_foot_world_drift_m": 0.0024274726422636233,
+      "worst_support_foot_drift_leg": "lf",
+      "worst_support_foot_drift_time_s": 0.3,
+      "worst_support_foot_start_world_xyz_m": [
+        0.3284105600465271,
+        0.02918028001144468,
+        0.19650098096532476
+      ],
+      "worst_support_foot_current_world_xyz_m": [
+        0.32599543013370796,
+        0.028935829358462603,
+        0.19649713240698274
+      ],
+      "end_support_foot_world_drift_m": 0.0007557528226538083,
+      "min_joint_limit_margin_rad": 0.1799046854972839,
+      "max_controller_target_joint_speed_rad_s": 3.5395854626697143,
+      "velocity_limit_clip_count": 0,
+      "timing_diagnostics": {
+        "planned_motion_s": 0.8800000000000001,
+        "effective_settle_required_s": 0.25,
+        "actual_stage_elapsed_s": 0.0,
+        "motion_progress_s": 0.0,
+        "internal_checkpoint_feedback_hold_s": 0.0,
+        "terminal_persistence_wait_s": 0.0,
+        "terminal_feedback_hold_s": 0.0,
+        "collision_guard_hold_s": 0.0,
+        "stage_transition_control_cycle_s": 0.0
+      }
+    },
+    {
+      "stage_index": 11,
+      "alias": "C12",
+      "runtime_name": "MID_DIRECT_PLATFORM",
+      "simulated_duration_s": 1.7333333333333354,
+      "max_joint_target_tracking_error_rad": 0.01831102737611201,
+      "max_kinematic_foot_target_error_m": 0.010313203648609754,
+      "worst_joint_leg": "rb",
+      "worst_joint_name": "ankle",
+      "worst_joint_time_s": 1.6000000000000016,
+      "worst_joint_actual_rad": -0.824238657951355,
+      "worst_joint_target_rad": -0.805927630575243,
+      "worst_foot_leg": "rm",
+      "worst_foot_time_s": 0.8666666666666666,
+      "worst_foot_actual_base_xyz_m": [
+        0.1924513418962781,
+        0.025693334413465677,
+        -0.049231867477430725
+      ],
+      "worst_foot_target_base_xyz_m": [
+        0.19397057354351366,
+        0.016345528147806432,
+        -0.053315079781418515
+      ],
+      "end_joint_target_tracking_error_rad": 0.015684678370760707,
+      "end_foot_target_error_m": 0.003221895804899803,
+      "max_root_position_error_m": 0.013580437173283257,
+      "worst_root_time_s": 1.6000000000000016,
+      "worst_root_actual_xyz_m": [
+        0.10322313755750656,
+        -0.06837012618780136,
+        0.16846834123134613
+      ],
+      "worst_root_target_xyz_m": [
+        0.1167,
+        -0.067694497636,
+        0.17
+      ],
+      "end_root_position_error_m": 0.012442773331065691,
+      "max_root_attitude_error_deg": 0.48338486310931394,
+      "end_root_attitude_error_deg": 0.11217325757772455,
+      "max_world_foot_anchor_error_m": 0.01362821972104433,
+      "worst_world_foot_anchor_leg": "rf",
+      "worst_world_foot_anchor_time_s": 1.6000000000000016,
+      "worst_world_foot_actual_xyz_m": [
+        0.3264222170548139,
+        -0.16555542193855496,
+        0.19194325715135738
+      ],
+      "worst_world_foot_anchor_xyz_m": [
+        0.34,
+        -0.16467927135566987,
+        0.19272078092243083
+      ],
+      "end_world_foot_anchor_error_m": 0.012608609016400752,
+      "stage_start_anchor_world_xyz_m": [
+        [
+          0.0,
+          0.029290969374546658,
+          0.0065
+        ],
+        [
+          0.34,
+          0.029291533282554738,
+          0.19649999761581421
+        ],
+        [
+          0.04,
+          0.12627607590696494,
+          0.0065
+        ],
+        [
+          0.0,
+          -0.16467983526606975,
+          0.0065
+        ],
+        [
+          0.34,
+          -0.16467927135566987,
+          0.19272078092243083
+        ],
+        [
+          0.04,
+          -0.26166507117951365,
+          0.0065
+        ]
+      ],
+      "stage_start_actual_world_foot_xyz_m": [
+        [
+          -0.013019961144978054,
+          0.027917828586910415,
+          0.006497145750174016
+        ],
+        [
+          0.3291048208842011,
+          0.029245529375812818,
+          0.19650046458353831
+        ],
+        [
+          0.026797595100008224,
+          0.12503901168320994,
+          0.006496418668741316
+        ],
+        [
+          -0.012646259811028654,
+          -0.1653213310297545,
+          0.00649692758493528
+        ],
+        [
+          0.32934865454643736,
+          -0.1653180486584161,
+          0.19179631584664225
+        ],
+        [
+          0.02761003660194293,
+          -0.2623339278425694,
+          0.006496283564037281
+        ]
+      ],
+      "max_support_foot_world_drift_m": 0.003782393445605538,
+      "worst_support_foot_drift_leg": "rf",
+      "worst_support_foot_drift_time_s": 1.5666666666666682,
+      "worst_support_foot_start_world_xyz_m": [
+        0.32934865454643736,
+        -0.1653180486584161,
+        0.19179631584664225
+      ],
+      "worst_support_foot_current_world_xyz_m": [
+        0.3266139224042567,
+        -0.16565086404981683,
+        0.1943880284470535
+      ],
+      "end_support_foot_world_drift_m": 0.0035247950453852887,
+      "min_joint_limit_margin_rad": 0.022876964092254592,
+      "max_controller_target_joint_speed_rad_s": 3.628409706185285,
+      "velocity_limit_clip_count": 0,
+      "timing_diagnostics": {
+        "planned_motion_s": 1.54,
+        "effective_settle_required_s": 0.25,
+        "actual_stage_elapsed_s": 0.0,
+        "motion_progress_s": 0.0,
+        "internal_checkpoint_feedback_hold_s": 0.0,
+        "terminal_persistence_wait_s": 0.0,
+        "terminal_feedback_hold_s": 0.0,
+        "collision_guard_hold_s": 0.0,
+        "stage_transition_control_cycle_s": 0.0
+      }
+    },
+    {
+      "stage_index": 12,
+      "alias": "C13",
+      "runtime_name": "FRONT_TO_040",
+      "simulated_duration_s": 1.0666666666666667,
+      "max_joint_target_tracking_error_rad": 0.01610577206536412,
+      "max_kinematic_foot_target_error_m": 0.0061689992366083,
+      "worst_joint_leg": "rb",
+      "worst_joint_name": "ankle",
+      "worst_joint_time_s": 0.1,
+      "worst_joint_actual_rad": -0.8245007395744324,
+      "worst_joint_target_rad": -0.8083949675090683,
+      "worst_foot_leg": "rf",
+      "worst_foot_time_s": 0.6,
+      "worst_foot_actual_base_xyz_m": [
+        0.0966455325280419,
+        0.265600846145794,
+        0.011176212027941064
+      ],
+      "worst_foot_target_base_xyz_m": [
+        0.09698477371966989,
+        0.259512186536076,
+        0.012108784358736552
+      ],
+      "end_joint_target_tracking_error_rad": 0.014185990332674425,
+      "end_foot_target_error_m": 0.0031126113523747357,
+      "max_root_position_error_m": 0.012441967290389919,
+      "worst_root_time_s": 0.03333333333333333,
+      "worst_root_actual_xyz_m": [
+        0.10439103096723557,
+        -0.06852801889181137,
+        0.1683884561061859
+      ],
+      "worst_root_target_xyz_m": [
+        0.1167,
+        -0.067694497636,
+        0.17
+      ],
+      "end_root_position_error_m": 0.010863268633133036,
+      "max_root_attitude_error_deg": 0.7118519959707776,
+      "end_root_attitude_error_deg": 0.24743685629423717,
+      "max_world_foot_anchor_error_m": 0.012683494258792744,
+      "worst_world_foot_anchor_leg": "lm",
+      "worst_world_foot_anchor_time_s": 0.06666666666666667,
+      "worst_world_foot_actual_xyz_m": [
+        0.19243315922855986,
+        0.12539625547085517,
+        0.15246589371056113
+      ],
+      "worst_world_foot_anchor_xyz_m": [
+        0.205,
+        0.12627607590696494,
+        0.1539394796898315
+      ],
+      "end_world_foot_anchor_error_m": 0.011240653678150048,
+      "stage_start_anchor_world_xyz_m": [
+        [
+          0.0,
+          0.029290969374546658,
+          0.0065
+        ],
+        [
+          0.34,
+          0.029291533282554738,
+          0.19649999761581421
+        ],
+        [
+          0.205,
+          0.12627607590696494,
+          0.1539394796898315
+        ],
+        [
+          0.0,
+          -0.16467983526606975,
+          0.0065
+        ],
+        [
+          0.34,
+          -0.16467927135566987,
+          0.19272078092243083
+        ],
+        [
+          0.205,
+          -0.26166507117951365,
+          0.15393948386956088
+        ]
+      ],
+      "stage_start_actual_world_foot_xyz_m": [
+        [
+          -0.00949781056557053,
+          0.027787497918777854,
+          0.006493442370993807
+        ],
+        [
+          0.3275480296397716,
+          0.02909188746077833,
+          0.19648910660542077
+        ],
+        [
+          0.19245857836823305,
+          0.1253945541163288,
+          0.15244983381617871
+        ],
+        [
+          -0.00965522635745475,
+          -0.16462873824243204,
+          0.00649098849894264
+        ],
+        [
+          0.3275166334017728,
+          -0.16564088589564363,
+          0.19161714043629124
+        ],
+        [
+          0.19273993563958008,
+          -0.2623597646779128,
+          0.1519573440267634
+        ]
+      ],
+      "max_support_foot_world_drift_m": 0.0017637269236759968,
+      "worst_support_foot_drift_leg": "lm",
+      "worst_support_foot_drift_time_s": 1.0666666666666667,
+      "worst_support_foot_start_world_xyz_m": [
+        0.19245857836823305,
+        0.1253945541163288,
+        0.15244983381617871
+      ],
+      "worst_support_foot_current_world_xyz_m": [
+        0.19408440334739177,
+        0.12537498650412712,
+        0.15176642844087365
+      ],
+      "end_support_foot_world_drift_m": 0.0017637269236759968,
+      "min_joint_limit_margin_rad": 0.03621463584899898,
+      "max_controller_target_joint_speed_rad_s": 3.1767249636500217,
+      "velocity_limit_clip_count": 0,
+      "timing_diagnostics": {
+        "planned_motion_s": 0.8857142857142857,
+        "effective_settle_required_s": 0.25,
+        "actual_stage_elapsed_s": 0.0,
+        "motion_progress_s": 0.0,
+        "internal_checkpoint_feedback_hold_s": 0.0,
+        "terminal_persistence_wait_s": 0.0,
+        "terminal_feedback_hold_s": 0.0,
+        "collision_guard_hold_s": 0.0,
+        "stage_transition_control_cycle_s": 0.0
+      }
+    },
+    {
+      "stage_index": 13,
+      "alias": "C14",
+      "runtime_name": "BODY_LB_0055_SYNC",
+      "simulated_duration_s": 1.1,
+      "max_joint_target_tracking_error_rad": 0.024290043287128,
+      "max_kinematic_foot_target_error_m": 0.007075706758402817,
+      "worst_joint_leg": "lb",
+      "worst_joint_name": "ankle",
+      "worst_joint_time_s": 0.9333333333333332,
+      "worst_joint_actual_rad": 0.004141641780734062,
+      "worst_joint_target_rad": -0.020148401506393937,
+      "worst_foot_leg": "rb",
+      "worst_foot_time_s": 0.8999999999999999,
+      "worst_foot_actual_base_xyz_m": [
+        0.09323844844850207,
+        -0.15396581232668824,
+        -0.18401984850835387
+      ],
+      "worst_foot_target_base_xyz_m": [
+        0.09698533763006971,
+        -0.15993386109808017,
+        -0.18338044139684664
+      ],
+      "end_joint_target_tracking_error_rad": 0.013839723950014926,
+      "end_foot_target_error_m": 0.004257753506263772,
+      "max_root_position_error_m": 0.014096761443823158,
+      "worst_root_time_s": 1.1,
+      "worst_root_actual_xyz_m": [
+        0.14595341682434082,
+        -0.067270927131176,
+        0.18888969719409943
+      ],
+      "worst_root_target_xyz_m": [
+        0.16,
+        -0.067694497636,
+        0.19
+      ],
+      "end_root_position_error_m": 0.014096761443823158,
+      "max_root_attitude_error_deg": 0.7185111464436525,
+      "end_root_attitude_error_deg": 0.4927963428562548,
+      "max_world_foot_anchor_error_m": 0.01501747667326754,
+      "worst_world_foot_anchor_leg": "rm",
+      "worst_world_foot_anchor_time_s": 1.1,
+      "worst_world_foot_actual_xyz_m": [
+        0.19005309932107067,
+        -0.2612893971364915,
+        0.1525346227590747
+      ],
+      "worst_world_foot_anchor_xyz_m": [
+        0.205,
+        -0.26166507117951365,
+        0.15393948386956088
+      ],
+      "end_world_foot_anchor_error_m": 0.01501747667326754,
+      "stage_start_anchor_world_xyz_m": [
+        [
+          0.0,
+          0.029290969374546658,
+          0.0065
+        ],
+        [
+          0.4,
+          0.029291533282554738,
+          0.19649999761581421
+        ],
+        [
+          0.205,
+          0.12627607590696494,
+          0.1539394796898315
+        ],
+        [
+          0.0,
+          -0.16467983526606975,
+          0.0065
+        ],
+        [
+          0.4,
+          -0.16467927135566987,
+          0.19649999761581421
+        ],
+        [
+          0.205,
+          -0.26166507117951365,
+          0.15393948386956088
+        ]
+      ],
+      "stage_start_actual_world_foot_xyz_m": [
+        [
+          -0.008771058986585034,
+          0.027422257775087833,
+          0.006495400927037737
+        ],
+        [
+          0.3901085519049684,
+          0.02849413547822935,
+          0.19649348496849744
+        ],
+        [
+          0.19408465506562148,
+          0.12537461187206025,
+          0.15176627156141723
+        ],
+        [
+          -0.008939829029207397,
+          -0.1642341627074332,
+          0.006495155526994756
+        ],
+        [
+          0.39006713241823415,
+          -0.16552655773269576,
+          0.19649365865131363
+        ],
+        [
+          0.19399608909570665,
+          -0.26233997106901563,
+          0.15174709979769824
+        ]
+      ],
+      "max_support_foot_world_drift_m": 0.004528856043579523,
+      "worst_support_foot_drift_leg": "lm",
+      "worst_support_foot_drift_time_s": 0.9333333333333332,
+      "worst_support_foot_start_world_xyz_m": [
+        0.19408465506562148,
+        0.12537461187206025,
+        0.15176627156141723
+      ],
+      "worst_support_foot_current_world_xyz_m": [
+        0.1907119308375031,
+        0.12676419143062534,
+        0.15445036116404753
+      ],
+      "end_support_foot_world_drift_m": 0.004214755534037979,
+      "min_joint_limit_margin_rad": 0.11131225633621211,
+      "max_controller_target_joint_speed_rad_s": 4.678969384693607,
+      "velocity_limit_clip_count": 0,
+      "timing_diagnostics": {
+        "planned_motion_s": 0.9080265458375525,
+        "effective_settle_required_s": 0.25,
+        "actual_stage_elapsed_s": 0.0,
+        "motion_progress_s": 0.0,
+        "internal_checkpoint_feedback_hold_s": 0.0,
+        "terminal_persistence_wait_s": 0.0,
+        "terminal_feedback_hold_s": 0.0,
+        "collision_guard_hold_s": 0.0,
+        "stage_transition_control_cycle_s": 0.0
+      }
+    },
+    {
+      "stage_index": 14,
+      "alias": "C15",
+      "runtime_name": "FRONT_TO_048",
+      "simulated_duration_s": 1.1,
+      "max_joint_target_tracking_error_rad": 0.027301377766121737,
+      "max_kinematic_foot_target_error_m": 0.00826564504653948,
+      "worst_joint_leg": "rf",
+      "worst_joint_name": "knee",
+      "worst_joint_time_s": 0.9333333333333332,
+      "worst_joint_actual_rad": 0.6346275806427002,
+      "worst_joint_target_rad": 0.6073262028765785,
+      "worst_foot_leg": "lf",
+      "worst_foot_time_s": 0.6,
+      "worst_foot_actual_base_xyz_m": [
+        -0.09616189428763577,
+        0.29102066350767347,
+        0.024950844572858878
+      ],
+      "worst_foot_target_base_xyz_m": [
+        -0.09698603091855472,
+        0.28294342315601484,
+        0.026499997615814203
+      ],
+      "end_joint_target_tracking_error_rad": 0.014834540101531901,
+      "end_foot_target_error_m": 0.007037870339858723,
+      "max_root_position_error_m": 0.01439023997788253,
+      "worst_root_time_s": 0.9999999999999999,
+      "worst_root_actual_xyz_m": [
+        0.15582644939422607,
+        -0.06675119698047638,
+        0.1876979023218155
+      ],
+      "worst_root_target_xyz_m": [
+        0.17,
+        -0.067694497636,
+        0.19
+      ],
+      "end_root_position_error_m": 0.014381048074164786,
+      "max_root_attitude_error_deg": 1.2217600264402215,
+      "end_root_attitude_error_deg": 0.8164367842040627,
+      "max_world_foot_anchor_error_m": 0.018369811991897956,
+      "worst_world_foot_anchor_leg": "rf",
+      "worst_world_foot_anchor_time_s": 0.8666666666666666,
+      "worst_world_foot_actual_xyz_m": [
+        0.46713825496616196,
+        -0.16419301816207804,
+        0.19726288679025317
+      ],
+      "worst_world_foot_anchor_xyz_m": [
+        0.4803411910874974,
+        -0.16467927135566987,
+        0.2100259596265781
+      ],
+      "end_world_foot_anchor_error_m": 0.016799355590390565,
+      "stage_start_anchor_world_xyz_m": [
+        [
+          0.055,
+          0.029290969374546658,
+          0.0065
+        ],
+        [
+          0.4,
+          0.029291533282554738,
+          0.19649999761581421
+        ],
+        [
+          0.205,
+          0.12627607590696494,
+          0.1539394796898315
+        ],
+        [
+          0.0,
+          -0.16467983526606975,
+          0.0065
+        ],
+        [
+          0.4,
+          -0.16467927135566987,
+          0.19649999761581421
+        ],
+        [
+          0.205,
+          -0.26166507117951365,
+          0.15393948386956088
+        ]
+      ],
+      "stage_start_actual_world_foot_xyz_m": [
+        [
+          0.041609953482289325,
+          0.026742513101524173,
+          0.006499386835570692
+        ],
+        [
+          0.3869895189259473,
+          0.02911823081864645,
+          0.19648339274930826
+        ],
+        [
+          0.19117914302967118,
+          0.12639159086851978,
+          0.15212989565120946
+        ],
+        [
+          -0.012246312189971104,
+          -0.16161725858741538,
+          0.006493074942365951
+        ],
+        [
+          0.387262482297356,
+          -0.1651685123790241,
+          0.19650267920548697
+        ],
+        [
+          0.1900405980031906,
+          -0.26130715122970816,
+          0.15257237470291996
+        ]
+      ],
+      "max_support_foot_world_drift_m": 0.005167497842808397,
+      "worst_support_foot_drift_leg": "rb",
+      "worst_support_foot_drift_time_s": 0.8666666666666666,
+      "worst_support_foot_start_world_xyz_m": [
+        -0.012246312189971104,
+        -0.16161725858741538,
+        0.006493074942365951
+      ],
+      "worst_support_foot_current_world_xyz_m": [
+        -0.017250998965342434,
+        -0.16280566920500555,
+        0.0069868607662326165
+      ],
+      "end_support_foot_world_drift_m": 0.004682918040562573,
+      "min_joint_limit_margin_rad": 0.12043942832946763,
+      "max_controller_target_joint_speed_rad_s": 5.034228117026241,
+      "velocity_limit_clip_count": 0,
+      "timing_diagnostics": {
+        "planned_motion_s": 0.9245006821553464,
+        "effective_settle_required_s": 0.25,
+        "actual_stage_elapsed_s": 0.0,
+        "motion_progress_s": 0.0,
+        "internal_checkpoint_feedback_hold_s": 0.0,
+        "terminal_persistence_wait_s": 0.0,
+        "terminal_feedback_hold_s": 0.0,
+        "collision_guard_hold_s": 0.0,
+        "stage_transition_control_cycle_s": 0.0
+      }
+    },
+    {
+      "stage_index": 15,
+      "alias": "C16",
+      "runtime_name": "RB_TO_0055",
+      "simulated_duration_s": 1.3000000000000007,
+      "max_joint_target_tracking_error_rad": 0.018078701136557886,
+      "max_kinematic_foot_target_error_m": 0.0070554580806479125,
+      "worst_joint_leg": "lb",
+      "worst_joint_name": "ankle",
+      "worst_joint_time_s": 0.13333333333333333,
+      "worst_joint_actual_rad": 0.056436941027641296,
+      "worst_joint_target_rad": 0.03835823989108341,
+      "worst_foot_leg": "rf",
+      "worst_foot_time_s": 0.06666666666666667,
+      "worst_foot_actual_base_xyz_m": [
+        0.0971179633719609,
+        0.311272191830509,
+        0.013438533281982433
+      ],
+      "worst_foot_target_base_xyz_m": [
+        0.09698477371966989,
+        0.30999999999999994,
+        0.0064999976158142125
+      ],
+      "end_joint_target_tracking_error_rad": 0.011122397483214197,
+      "end_foot_target_error_m": 0.005349133830141839,
+      "max_root_position_error_m": 0.015123820384792097,
+      "worst_root_time_s": 1.3000000000000007,
+      "worst_root_actual_xyz_m": [
+        0.16495943069458008,
+        -0.06770589202642441,
+        0.19341535866260529
+      ],
+      "worst_root_target_xyz_m": [
+        0.18,
+        -0.067694497636,
+        0.195
+      ],
+      "end_root_position_error_m": 0.015123820384792097,
+      "max_root_attitude_error_deg": 0.8189831462044371,
+      "end_root_attitude_error_deg": 0.6826650433270233,
+      "max_world_foot_anchor_error_m": 0.016799170224470597,
+      "worst_world_foot_anchor_leg": "rb",
+      "worst_world_foot_anchor_time_s": 0.03333333333333333,
+      "worst_world_foot_actual_xyz_m": [
+        -0.01671623479278217,
+        -0.16301262116365234,
+        0.006496576548691124
+      ],
+      "worst_world_foot_anchor_xyz_m": [
+        0.0,
+        -0.16467983526606975,
+        0.0065
+      ],
+      "end_world_foot_anchor_error_m": 0.015859972043656904,
+      "stage_start_anchor_world_xyz_m": [
+        [
+          0.055,
+          0.029290969374546658,
+          0.0065
+        ],
+        [
+          0.48,
+          0.029291533282554738,
+          0.19649999761581421
+        ],
+        [
+          0.205,
+          0.12627607590696494,
+          0.1539394796898315
+        ],
+        [
+          0.0,
+          -0.16467983526606975,
+          0.0065
+        ],
+        [
+          0.48,
+          -0.16467927135566987,
+          0.19649999761581421
+        ],
+        [
+          0.205,
+          -0.26166507117951365,
+          0.15393948386956088
+        ]
+      ],
+      "stage_start_actual_world_foot_xyz_m": [
+        [
+          0.0410944239159482,
+          0.026954739360289873,
+          0.006495754491307154
+        ],
+        [
+          0.4675030924072752,
+          0.02973380028396204,
+          0.19649795974839043
+        ],
+        [
+          0.19056969032785662,
+          0.12717141577658553,
+          0.15112071731831342
+        ],
+        [
+          -0.01671623479278217,
+          -0.16301262116365234,
+          0.006496576548691124
+        ],
+        [
+          0.46717061541317795,
+          -0.16419447064094717,
+          0.1964971448220326
+        ],
+        [
+          0.19007742514183054,
+          -0.2606394756383721,
+          0.15091263958450993
+        ]
+      ],
+      "max_support_foot_world_drift_m": 0.0026543751376062455,
+      "worst_support_foot_drift_leg": "rm",
+      "worst_support_foot_drift_time_s": 1.166666666666667,
+      "worst_support_foot_start_world_xyz_m": [
+        0.19007742514183054,
+        -0.2606394756383721,
+        0.15091263958450993
+      ],
+      "worst_support_foot_current_world_xyz_m": [
+        0.1895186889682719,
+        -0.26097666714289547,
+        0.15348554128274414
+      ],
+      "end_support_foot_world_drift_m": 0.0018002798690439522,
+      "min_joint_limit_margin_rad": 0.1249956073760985,
+      "max_controller_target_joint_speed_rad_s": 4.8093640683082075,
+      "velocity_limit_clip_count": 0,
+      "timing_diagnostics": {
+        "planned_motion_s": 1.1268577383187155,
+        "effective_settle_required_s": 0.25,
+        "actual_stage_elapsed_s": 0.0,
+        "motion_progress_s": 0.0,
+        "internal_checkpoint_feedback_hold_s": 0.0,
+        "terminal_persistence_wait_s": 0.0,
+        "terminal_feedback_hold_s": 0.0,
+        "collision_guard_hold_s": 0.0,
+        "stage_transition_control_cycle_s": 0.0
+      }
+    },
+    {
+      "stage_index": 16,
+      "alias": "C17",
+      "runtime_name": "BODY_LB_013_SYNC",
+      "simulated_duration_s": 1.2333333333333338,
+      "max_joint_target_tracking_error_rad": 0.020751809725895742,
+      "max_kinematic_foot_target_error_m": 0.008263501706669856,
+      "worst_joint_leg": "lb",
+      "worst_joint_name": "ankle",
+      "worst_joint_time_s": 1.0333333333333332,
+      "worst_joint_actual_rad": -0.10634496062994003,
+      "worst_joint_target_rad": -0.12709677035583578,
+      "worst_foot_leg": "rb",
+      "worst_foot_time_s": 0.9999999999999999,
+      "worst_foot_actual_base_xyz_m": [
+        0.09235715133152325,
+        -0.15291013185488872,
+        -0.18930971604860403
+      ],
+      "worst_foot_target_base_xyz_m": [
+        0.09698533763006974,
+        -0.15970790442851276,
+        -0.1885
+      ],
+      "end_joint_target_tracking_error_rad": 0.011356491520642609,
+      "end_foot_target_error_m": 0.004731051673040133,
+      "max_root_position_error_m": 0.022655074118403253,
+      "worst_root_time_s": 1.2333333333333338,
+      "worst_root_actual_xyz_m": [
+        0.19252760708332062,
+        -0.06494361162185669,
+        0.19417746365070343
+      ],
+      "worst_root_target_xyz_m": [
+        0.215,
+        -0.067694497636,
+        0.195
+      ],
+      "end_root_position_error_m": 0.022655074118403253,
+      "max_root_attitude_error_deg": 1.1730296618914484,
+      "end_root_attitude_error_deg": 0.38223472792154334,
+      "max_world_foot_anchor_error_m": 0.025081547997785232,
+      "worst_world_foot_anchor_leg": "lm",
+      "worst_world_foot_anchor_time_s": 0.7666666666666666,
+      "worst_world_foot_actual_xyz_m": [
+        0.18046388625917223,
+        0.12743804830957906,
+        0.14886868166605546
+      ],
+      "worst_world_foot_anchor_xyz_m": [
+        0.205,
+        0.12627607590696494,
+        0.1539394796898315
+      ],
+      "end_world_foot_anchor_error_m": 0.023360008627967256,
+      "stage_start_anchor_world_xyz_m": [
+        [
+          0.055,
+          0.029290969374546658,
+          0.0065
+        ],
+        [
+          0.48,
+          0.029291533282554738,
+          0.19649999761581421
+        ],
+        [
+          0.205,
+          0.12627607590696494,
+          0.1539394796898315
+        ],
+        [
+          0.055,
+          -0.16467983526606975,
+          0.0065
+        ],
+        [
+          0.48,
+          -0.16467927135566987,
+          0.19649999761581421
+        ],
+        [
+          0.205,
+          -0.26166507117951365,
+          0.15393948386956088
+        ]
+      ],
+      "stage_start_actual_world_foot_xyz_m": [
+        [
+          0.040457532261142765,
+          0.0263385929892838,
+          0.00649638985567666
+        ],
+        [
+          0.46613717852503667,
+          0.02958887697723961,
+          0.19649584905543832
+        ],
+        [
+          0.18927668863302258,
+          0.12610806681707698,
+          0.1518816151885777
+        ],
+        [
+          0.03918263681390946,
+          -0.16347143947765255,
+          0.006495909234870784
+        ],
+        [
+          0.46634384474258417,
+          -0.16423115096123486,
+          0.19649474656393734
+        ],
+        [
+          0.18958156623394987,
+          -0.2615694304765068,
+          0.15199871745123406
+        ]
+      ],
+      "max_support_foot_world_drift_m": 0.009408087205276036,
+      "worst_support_foot_drift_leg": "lm",
+      "worst_support_foot_drift_time_s": 0.7666666666666666,
+      "worst_support_foot_start_world_xyz_m": [
+        0.18927668863302258,
+        0.12610806681707698,
+        0.1518816151885777
+      ],
+      "worst_support_foot_current_world_xyz_m": [
+        0.18046388625917223,
+        0.12743804830957906,
+        0.14886868166605546
+      ],
+      "end_support_foot_world_drift_m": 0.008743598412952906,
+      "min_joint_limit_margin_rad": 0.1270930948257445,
+      "max_controller_target_joint_speed_rad_s": 4.712365668250648,
+      "velocity_limit_clip_count": 0,
+      "timing_diagnostics": {
+        "planned_motion_s": 1.0360132573385523,
+        "effective_settle_required_s": 0.25,
+        "actual_stage_elapsed_s": 0.0,
+        "motion_progress_s": 0.0,
+        "internal_checkpoint_feedback_hold_s": 0.0,
+        "terminal_persistence_wait_s": 0.0,
+        "terminal_feedback_hold_s": 0.0,
+        "collision_guard_hold_s": 0.0,
+        "stage_transition_control_cycle_s": 0.0
+      }
+    },
+    {
+      "stage_index": 17,
+      "alias": "C18",
+      "runtime_name": "RB_TO_013",
+      "simulated_duration_s": 2.8999999999999995,
+      "max_joint_target_tracking_error_rad": 0.021137191870592376,
+      "max_kinematic_foot_target_error_m": 0.00708606615561706,
+      "worst_joint_leg": "lb",
+      "worst_joint_name": "ankle",
+      "worst_joint_time_s": 0.3,
+      "worst_joint_actual_rad": -0.10672637075185776,
+      "worst_joint_target_rad": -0.12786356262245013,
+      "worst_foot_leg": "lb",
+      "worst_foot_time_s": 0.39999999999999997,
+      "worst_foot_actual_base_xyz_m": [
+        -0.09013323154225096,
+        -0.08380921314039493,
+        -0.18738340486135346
+      ],
+      "worst_foot_target_base_xyz_m": [
+        -0.09698546701054667,
+        -0.08522781031548121,
+        -0.1885
+      ],
+      "end_joint_target_tracking_error_rad": 0.011923864541627138,
+      "end_foot_target_error_m": 0.004922709626804697,
+      "max_root_position_error_m": 0.02424042260085976,
+      "worst_root_time_s": 2.533333333333334,
+      "worst_root_actual_xyz_m": [
+        0.205836683511734,
+        -0.06590571999549866,
+        0.19263559579849243
+      ],
+      "worst_root_target_xyz_m": [
+        0.2298951114569055,
+        -0.067694497636,
+        0.195
+      ],
+      "end_root_position_error_m": 0.023950181050455172,
+      "max_root_attitude_error_deg": 0.8543192873869624,
+      "end_root_attitude_error_deg": 0.33588274999679946,
+      "max_world_foot_anchor_error_m": 0.02581649472361285,
+      "worst_world_foot_anchor_leg": "lm",
+      "worst_world_foot_anchor_time_s": 2.533333333333334,
+      "worst_world_foot_actual_xyz_m": [
+        0.17925425883719626,
+        0.12818572817182047,
+        0.15390153209999538
+      ],
+      "worst_world_foot_anchor_xyz_m": [
+        0.20500000000000002,
+        0.12627607590696494,
+        0.1539394796898315
+      ],
+      "end_world_foot_anchor_error_m": 0.024677552777610978,
+      "stage_start_anchor_world_xyz_m": [
+        [
+          0.13,
+          0.029290969374546658,
+          0.0065
+        ],
+        [
+          0.48,
+          0.029291533282554738,
+          0.19649999761581421
+        ],
+        [
+          0.205,
+          0.12627607590696494,
+          0.1539394796898315
+        ],
+        [
+          0.055,
+          -0.16467983526606975,
+          0.0065
+        ],
+        [
+          0.48,
+          -0.16467927135566987,
+          0.19649999761581421
+        ],
+        [
+          0.205,
+          -0.26166507117951365,
+          0.15393948386956088
+        ]
+      ],
+      "stage_start_actual_world_foot_xyz_m": [
+        [
+          0.10722381659858157,
+          0.026879839536869843,
+          0.00649786516246606
+        ],
+        [
+          0.4578343222262373,
+          0.03233613635374599,
+          0.19648721377179007
+        ],
+        [
+          0.18182914882949872,
+          0.1287801270172879,
+          0.1526322269879948
+        ],
+        [
+          0.035347430479163444,
+          -0.1605793334557663,
+          0.0064897627719650575
+        ],
+        [
+          0.45848521464236897,
+          -0.16137281533749737,
+          0.19649686157638366
+        ],
+        [
+          0.18274727074199265,
+          -0.2588942691105474,
+          0.15352342696973675
+        ]
+      ],
+      "max_support_foot_world_drift_m": 0.0042535471342710985,
+      "worst_support_foot_drift_leg": "rm",
+      "worst_support_foot_drift_time_s": 2.500000000000001,
+      "worst_support_foot_start_world_xyz_m": [
+        0.18274727074199265,
+        -0.2588942691105474,
+        0.15352342696973675
+      ],
+      "worst_support_foot_current_world_xyz_m": [
+        0.18248077425640277,
+        -0.25853545519597315,
+        0.14929342751094932
+      ],
+      "end_support_foot_world_drift_m": 0.0016029850316105249,
+      "min_joint_limit_margin_rad": 0.12809683704376207,
+      "max_controller_target_joint_speed_rad_s": 3.804182196178248,
+      "velocity_limit_clip_count": 0,
+      "timing_diagnostics": {
+        "planned_motion_s": 2.72,
+        "effective_settle_required_s": 0.25,
+        "actual_stage_elapsed_s": 0.0,
+        "motion_progress_s": 0.0,
+        "internal_checkpoint_feedback_hold_s": 0.0,
+        "terminal_persistence_wait_s": 0.0,
+        "terminal_feedback_hold_s": 0.0,
+        "collision_guard_hold_s": 0.0,
+        "stage_transition_control_cycle_s": 0.0
+      }
+    },
+    {
+      "stage_index": 18,
+      "alias": "C19",
+      "runtime_name": "BODY_MID_0235_SYNC",
+      "simulated_duration_s": 1.9666666666666694,
+      "max_joint_target_tracking_error_rad": 0.013924075418116355,
+      "max_kinematic_foot_target_error_m": 0.007244567447454371,
+      "worst_joint_leg": "lb",
+      "worst_joint_name": "ankle",
+      "worst_joint_time_s": 0.7666666666666666,
+      "worst_joint_actual_rad": -0.3020889163017273,
+      "worst_joint_target_rad": -0.31601299171984365,
+      "worst_foot_leg": "lb",
+      "worst_foot_time_s": 1.6666666666666685,
+      "worst_foot_actual_base_xyz_m": [
+        -0.09311604112234637,
+        -0.1409034944877845,
+        -0.18908644806757854
+      ],
+      "worst_foot_target_base_xyz_m": [
+        -0.09698546701054667,
+        -0.14700000000000002,
+        -0.1885
+      ],
+      "end_joint_target_tracking_error_rad": 0.013526292691807718,
+      "end_foot_target_error_m": 0.007230065246251371,
+      "max_root_position_error_m": 0.027567150306070636,
+      "worst_root_time_s": 1.6666666666666685,
+      "worst_root_actual_xyz_m": [
+        0.2494407594203949,
+        -0.06703511625528336,
+        0.19496463239192963
+      ],
+      "worst_root_target_xyz_m": [
+        0.277,
+        -0.067694497636,
+        0.195
+      ],
+      "end_root_position_error_m": 0.027555594646745205,
+      "max_root_attitude_error_deg": 0.3369143966876863,
+      "end_root_attitude_error_deg": 0.24263288529995014,
+      "max_world_foot_anchor_error_m": 0.028267136269274643,
+      "worst_world_foot_anchor_leg": "rf",
+      "worst_world_foot_anchor_time_s": 0.7333333333333333,
+      "worst_world_foot_actual_xyz_m": [
+        0.4517540585313087,
+        -0.1642911702676035,
+        0.19547668878733251
+      ],
+      "worst_world_foot_anchor_xyz_m": [
+        0.48,
+        -0.16467927135566987,
+        0.19649999761581421
+      ],
+      "end_world_foot_anchor_error_m": 0.028259127634497845,
+      "stage_start_anchor_world_xyz_m": [
+        [
+          0.13,
+          0.029290969374546658,
+          0.0065
+        ],
+        [
+          0.48,
+          0.029291533282554738,
+          0.19649999761581421
+        ],
+        [
+          0.205,
+          0.12627607590696494,
+          0.1539394796898315
+        ],
+        [
+          0.13,
+          -0.16467983526606975,
+          0.0065
+        ],
+        [
+          0.48,
+          -0.16467927135566987,
+          0.19649999761581421
+        ],
+        [
+          0.205,
+          -0.26166507117951365,
+          0.15393948386956088
+        ]
+      ],
+      "stage_start_actual_world_foot_xyz_m": [
+        [
+          0.10727966114740646,
+          0.026732425670359578,
+          0.00649747064449549
+        ],
+        [
+          0.4562435324673796,
+          0.032533391271264034,
+          0.19648889814485695
+        ],
+        [
+          0.18040688201081367,
+          0.12809647103664942,
+          0.15292136515080018
+        ],
+        [
+          0.10632115684460984,
+          -0.16114990261343387,
+          0.006493420604107791
+        ],
+        [
+          0.4577377754507126,
+          -0.16160287681969143,
+          0.1965013750784392
+        ],
+        [
+          0.18154006157297475,
+          -0.2595719528643875,
+          0.15299025505730007
+        ]
+      ],
+      "max_support_foot_world_drift_m": 0.006639544523906739,
+      "worst_support_foot_drift_leg": "rf",
+      "worst_support_foot_drift_time_s": 0.7666666666666666,
+      "worst_support_foot_start_world_xyz_m": [
+        0.4577377754507126,
+        -0.16160287681969143,
+        0.1965013750784392
+      ],
+      "worst_support_foot_current_world_xyz_m": [
+        0.4517551935466946,
+        -0.16429434395709602,
+        0.19547752455471648
+      ],
+      "end_support_foot_world_drift_m": 0.006635451807697418,
+      "min_joint_limit_margin_rad": 0.08731402778625474,
+      "max_controller_target_joint_speed_rad_s": 1.6579003275474258,
+      "velocity_limit_clip_count": 0,
+      "timing_diagnostics": {
+        "planned_motion_s": 1.7999999999999998,
+        "effective_settle_required_s": 0.25,
+        "actual_stage_elapsed_s": 0.0,
+        "motion_progress_s": 0.0,
+        "internal_checkpoint_feedback_hold_s": 0.0,
+        "terminal_persistence_wait_s": 0.0,
+        "terminal_feedback_hold_s": 0.0,
+        "collision_guard_hold_s": 0.0,
+        "stage_transition_control_cycle_s": 0.0
+      }
+    },
+    {
+      "stage_index": 19,
+      "alias": "C20",
+      "runtime_name": "AH_BACK_LOW_FIRST_SEGMENT",
+      "simulated_duration_s": 2.2666666666666684,
+      "max_joint_target_tracking_error_rad": 0.014540253988913787,
+      "max_kinematic_foot_target_error_m": 0.0072306804910329476,
+      "worst_joint_leg": "rb",
+      "worst_joint_name": "ankle",
+      "worst_joint_time_s": 0.16666666666666666,
+      "worst_joint_actual_rad": 0.24779362976551056,
+      "worst_joint_target_rad": 0.26233388375442435,
+      "worst_foot_leg": "lb",
+      "worst_foot_time_s": 0.06666666666666667,
+      "worst_foot_actual_base_xyz_m": [
+        -0.09311633501879935,
+        -0.14091979755692946,
+        -0.1890862561258705
+      ],
+      "worst_foot_target_base_xyz_m": [
+        -0.09698546701054667,
+        -0.14700000000000002,
+        -0.1885
+      ],
+      "end_joint_target_tracking_error_rad": 0.00852635061376783,
+      "end_foot_target_error_m": 0.0019931030541794708,
+      "max_root_position_error_m": 0.034016423366821626,
+      "worst_root_time_s": 2.1666666666666687,
+      "worst_root_actual_xyz_m": [
+        0.2843931019306183,
+        -0.06708153337240219,
+        0.23977336287498474
+      ],
+      "worst_root_target_xyz_m": [
+        0.318,
+        -0.067694497636,
+        0.245
+      ],
+      "end_root_position_error_m": 0.03309296127427313,
+      "max_root_attitude_error_deg": 1.261384888288303,
+      "end_root_attitude_error_deg": 0.8643812459488037,
+      "max_world_foot_anchor_error_m": 0.03385982742943303,
+      "worst_world_foot_anchor_leg": "lm",
+      "worst_world_foot_anchor_time_s": 2.1666666666666687,
+      "worst_world_foot_actual_xyz_m": [
+        0.2016785515535145,
+        0.12643826703339278,
+        0.15430430081734148
+      ],
+      "worst_world_foot_anchor_xyz_m": [
+        0.235,
+        0.12627607590696494,
+        0.16031617914426252
+      ],
+      "end_world_foot_anchor_error_m": 0.032548653810680055,
+      "stage_start_anchor_world_xyz_m": [
+        [
+          0.13,
+          0.029290969374546658,
+          0.0065
+        ],
+        [
+          0.48,
+          0.029291533282554738,
+          0.19649999761581421
+        ],
+        [
+          0.235,
+          0.12627607590696494,
+          0.16031617914426252
+        ],
+        [
+          0.13,
+          -0.16467983526606975,
+          0.0065
+        ],
+        [
+          0.48,
+          -0.16467927135566987,
+          0.19649999761581421
+        ],
+        [
+          0.235,
+          -0.26166507117951365,
+          0.1603161700790826
+        ]
+      ],
+      "stage_start_actual_world_foot_xyz_m": [
+        [
+          0.10785811419487207,
+          0.026302024305889404,
+          0.006495991747594215
+        ],
+        [
+          0.4518725205024945,
+          0.029898278447112223,
+          0.19554915024339728
+        ],
+        [
+          0.2075442241607995,
+          0.12683194575711249,
+          0.16039587273501488
+        ],
+        [
+          0.10713089434044826,
+          -0.1603453635350865,
+          0.006495297859005406
+        ],
+        [
+          0.45176189051750093,
+          -0.16430021375233328,
+          0.19548108300265665
+        ],
+        [
+          0.2071512417836902,
+          -0.2608322966448012,
+          0.1602792221765848
+        ]
+      ],
+      "max_support_foot_world_drift_m": 0.008465715947369754,
+      "worst_support_foot_drift_leg": "lm",
+      "worst_support_foot_drift_time_s": 2.1666666666666687,
+      "worst_support_foot_start_world_xyz_m": [
+        0.2075442241607995,
+        0.12683194575711249,
+        0.16039587273501488
+      ],
+      "worst_support_foot_current_world_xyz_m": [
+        0.2016785515535145,
+        0.12643826703339278,
+        0.15430430081734148
+      ],
+      "end_support_foot_world_drift_m": 0.007960895670713876,
+      "min_joint_limit_margin_rad": 0.04604916381835933,
+      "max_controller_target_joint_speed_rad_s": 3.39149137589317,
+      "velocity_limit_clip_count": 0,
+      "timing_diagnostics": {
+        "planned_motion_s": 2.142857142857143,
+        "effective_settle_required_s": 0.25,
+        "actual_stage_elapsed_s": 0.0,
+        "motion_progress_s": 0.0,
+        "internal_checkpoint_feedback_hold_s": 0.0,
+        "terminal_persistence_wait_s": 0.0,
+        "terminal_feedback_hold_s": 0.0,
+        "collision_guard_hold_s": 0.0,
+        "stage_transition_control_cycle_s": 0.0
+      }
+    },
+    {
+      "stage_index": 20,
+      "alias": "C21",
+      "runtime_name": "FINAL_HOLD",
+      "simulated_duration_s": 2.1333333333333355,
+      "max_joint_target_tracking_error_rad": 0.008558104394004173,
+      "max_kinematic_foot_target_error_m": 0.0018985612025480363,
+      "worst_joint_leg": "lb",
+      "worst_joint_name": "ankle",
+      "worst_joint_time_s": 0.5666666666666667,
+      "worst_joint_actual_rad": 1.6295347213745117,
+      "worst_joint_target_rad": 1.6209766169805075,
+      "worst_foot_leg": "lf",
+      "worst_foot_time_s": 0.03333333333333333,
+      "worst_foot_actual_base_xyz_m": [
+        -0.09688401954827848,
+        0.16379292251589386,
+        -0.04788392026940257
+      ],
+      "worst_foot_target_base_xyz_m": [
+        -0.09698603091855472,
+        0.16199999999999998,
+        -0.04850000238418578
+      ],
+      "end_joint_target_tracking_error_rad": 0.00854232980276537,
+      "end_foot_target_error_m": 0.0018228672938095586,
+      "max_root_position_error_m": 0.03302133848753154,
+      "worst_root_time_s": 0.03333333333333333,
+      "worst_root_actual_xyz_m": [
+        0.28543421626091003,
+        -0.06684274971485138,
+        0.23960064351558685
+      ],
+      "worst_root_target_xyz_m": [
+        0.318,
+        -0.067694497636,
+        0.245
+      ],
+      "end_root_position_error_m": 0.032971370119638514,
+      "max_root_attitude_error_deg": 0.8925330319447544,
+      "end_root_attitude_error_deg": 0.891755536029346,
+      "max_world_foot_anchor_error_m": 0.03245906039818335,
+      "worst_world_foot_anchor_leg": "lm",
+      "worst_world_foot_anchor_time_s": 0.03333333333333333,
+      "worst_world_foot_actual_xyz_m": [
+        0.20322016482543045,
+        0.12676606431998116,
+        0.15372887396192753
+      ],
+      "worst_world_foot_anchor_xyz_m": [
+        0.235,
+        0.12627607590696494,
+        0.16031617914426252
+      ],
+      "end_world_foot_anchor_error_m": 0.03241525910998249,
+      "stage_start_anchor_world_xyz_m": [
+        [
+          0.225,
+          0.029290969374546658,
+          0.15701442195016274
+        ],
+        [
+          0.48,
+          0.029291533282554738,
+          0.19649999761581421
+        ],
+        [
+          0.235,
+          0.12627607590696494,
+          0.16031617914426252
+        ],
+        [
+          0.225,
+          -0.16467983526606975,
+          0.1583358226638817
+        ],
+        [
+          0.48,
+          -0.16467927135566987,
+          0.19649999761581421
+        ],
+        [
+          0.235,
+          -0.26166507117951365,
+          0.1603161700790826
+        ]
+      ],
+      "stage_start_actual_world_foot_xyz_m": [
+        [
+          0.1933527541068626,
+          0.02950978008110358,
+          0.15159674778129106
+        ],
+        [
+          0.44960796409746495,
+          0.030640052958681163,
+          0.19430618210243247
+        ],
+        [
+          0.20322016482543045,
+          0.12676606431998116,
+          0.15372887396192753
+        ],
+        [
+          0.19443136918426826,
+          -0.16361878512305264,
+          0.15183768984077994
+        ],
+        [
+          0.44981745327615563,
+          -0.16364463578202704,
+          0.19405828887490814
+        ],
+        [
+          0.2040575110441732,
+          -0.26096041315721114,
+          0.1538820155031984
+        ]
+      ],
+      "max_support_foot_world_drift_m": 4.969403278812489e-05,
+      "worst_support_foot_drift_leg": "lm",
+      "worst_support_foot_drift_time_s": 2.1000000000000023,
+      "worst_support_foot_start_world_xyz_m": [
+        0.20322016482543045,
+        0.12676606431998116,
+        0.15372887396192753
+      ],
+      "worst_support_foot_current_world_xyz_m": [
+        0.2032673564939943,
+        0.12675595214193386,
+        0.1537170338957095
+      ],
+      "end_support_foot_world_drift_m": 4.959413351724062e-05,
+      "min_joint_limit_margin_rad": 0.04508023071289058,
+      "max_controller_target_joint_speed_rad_s": 0.024980805706682485,
+      "velocity_limit_clip_count": 0,
+      "timing_diagnostics": {
+        "planned_motion_s": 2.0,
+        "effective_settle_required_s": 0.25,
+        "actual_stage_elapsed_s": 0.0,
+        "motion_progress_s": 0.0,
+        "internal_checkpoint_feedback_hold_s": 0.0,
+        "terminal_persistence_wait_s": 0.0,
+        "terminal_feedback_hold_s": 0.0,
+        "collision_guard_hold_s": 0.0,
+        "stage_transition_control_cycle_s": 0.0
+      }
+    }
+  ],
+  "stress_diagnostic": {
+    "friction_scale": 1.0,
+    "rm_delay_s": 0.0,
+    "rm_delay_frames": 0,
+    "control_dt_s": 0.03333333333333333,
+    "rm_delay_activation_count": 0
+  }
+}

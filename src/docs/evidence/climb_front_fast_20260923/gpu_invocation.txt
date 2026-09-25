@@ -1,0 +1,15 @@
+Authorized single GPU preview
+Command:
+/home/artrc/miniconda3/bin/conda run --no-capture-output -n grasp_hexapod python3 src/grasp_hexapod_control/scripts/run_sim.py --climb-start --climb-config src/grasp_hexapod_control/config/climb_front_fast.json --climb-speed 1 --climb-joint-speed 1.8 --headless --climb-metrics src/docs/evidence/climb_front_fast_20260923/gpu_metrics.json
+
+Pre-start SHA-256:
+config/climb_front_fast.json d15bf4d9f9a8feca09ebb1290502176e539f5b56c8b751ce9f9d0161f6601898
+scripts/run_sim.py 6b8ed32e642b58e35794caffbd89491ee9084bf9e225343aa6ead497fe848c8f
+scripts/climb_mode.py 7ee03f04516d795db1a5281b99bb08128908330d82e8b993a5a6f9cbd1fd0822
+scripts/control.py 66f3c5490d58aeb3ef3913f81676a26f0d3789e1632cb60597d07dcb6659901a
+scripts/utils/climb.py bc57241156a71df1e5bbee51d164ceb1c8962d47efc5fcf13c5181a92a37ba5a
+
+Runtime contract:
+physics=240 Hz; command/control=30 Hz; DOF target writes=30 Hz.
+climb-speed=1.0; simulated climb joint-speed multiplier=1.8; candidate per-joint cap=6 rad/s.
+Shared PD Kp=100, Kd=0.8; URDF effort unchanged. Actor self-collision filter remains enabled; self-collision is not proven by this run.

@@ -1,0 +1,402 @@
+{
+  "runtime_stage": "C21 FINAL_HOLD entry",
+  "source_field": "stage_start_actual_world_foot_xyz_m",
+  "sample_timing": "actual simulator foot centers at FINAL_HOLD entry; not the last frame",
+  "candidate_config_sha256": "cd0fc1b37898d1bcda0c0809ed7a5bb77699d9154f40585e930ba6db10b75f5b",
+  "gpu_start_manifest_sha256": "870f8b89c6ccd0a006fd8acb889f93eb78522155462f8ac1098423276c852bc1",
+  "gpu_metrics_sha256": "1f3c2ecd37f6ec1d062d633e96e381c06f6f215165e94d718043e4c99d21fb29",
+  "mesh": "src/grasp_hexapod_description/meshes/xiaolan/base_link_xiaolan.STL",
+  "mesh_sha256": "e61d489ab5d2b9e0e02fc8b1671cbddcd2e7cc49ffd48d1d2fed7541b42580be",
+  "broad_patch_definition": {
+    "normal_world": [
+      -0.20791169975230958,
+      0.0,
+      0.9781475988347083
+    ],
+    "plane_normal_dot_position_equals_m": 0.1016,
+    "outer_edge_world_x_m": 0.177920889854,
+    "required_inward_edge_clearance_m": 0.01,
+    "normal_dot_minimum": 0.995,
+    "plane_residual_tolerance_m": 0.001
+  },
+  "feet": [
+    {
+      "leg": "LB",
+      "actual_world_foot_center_m": [
+        0.173853461512366,
+        0.029850280577629743,
+        0.1469550067318523
+      ],
+      "nearest_triangle_points": [
+        {
+          "triangle_index": 16198,
+          "closest_point_world_xyz_m": [
+            0.17659898928303097,
+            0.029850280577629756,
+            0.1410672236218461
+          ],
+          "distance_m": 0.006496453854986344,
+          "signed_sphere_gap_m": -3.546145013655702e-06,
+          "face_normal_world": [
+            -0.422619452389037,
+            0.0,
+            0.9063072318272598
+          ],
+          "normal_dot_expected_12deg": 0.9743697713129603,
+          "plane_residual_m": -0.0003324299763872718,
+          "clearance_inward_from_broad_patch_edge_m": -0.0013219005709690368,
+          "inside_broad_patch_with_10mm_margin": false,
+          "normal_dot_expected_surface": 0.9743697713129603
+        }
+      ],
+      "nearest_distance_m": 0.006496453854986344,
+      "signed_sphere_gap_m": -3.546145013655702e-06,
+      "nearest_surface_normal_expected": [
+        -0.20791169975230958,
+        0.0,
+        0.9781475988347083
+      ],
+      "nearest_surface_normal_pass_dot_0_995": false,
+      "signed_sphere_gap_pass_minus_0_5_to_plus_2_mm": true,
+      "broad_patch_inside_10mm_margin": false
+    },
+    {
+      "leg": "LF",
+      "actual_world_foot_center_m": [
+        0.44999788928612333,
+        0.029978623884011207,
+        0.19382867627358155
+      ],
+      "nearest_triangle_points": [
+        {
+          "triangle_index": 15535,
+          "closest_point_world_xyz_m": [
+            0.4447500000707805,
+            0.029978623884011204,
+            0.1899999976158142
+          ],
+          "distance_m": 0.0064960850888019055,
+          "signed_sphere_gap_m": -3.9149111980942355e-06,
+          "face_normal_world": [
+            0.0,
+            0.0,
+            1.0
+          ],
+          "normal_dot_expected_12deg": 0.9781475988347083,
+          "plane_residual_m": -0.00822068703304682,
+          "clearance_inward_from_broad_patch_edge_m": 0.2668291102167805,
+          "inside_broad_patch_with_10mm_margin": false,
+          "normal_dot_expected_surface": 1.0
+        },
+        {
+          "triangle_index": 19049,
+          "closest_point_world_xyz_m": [
+            0.4447500000707805,
+            0.029978623884011204,
+            0.1899999976158142
+          ],
+          "distance_m": 0.0064960850888019055,
+          "signed_sphere_gap_m": -3.9149111980942355e-06,
+          "face_normal_world": [
+            1.0,
+            0.0,
+            0.0
+          ],
+          "normal_dot_expected_12deg": -0.20791169975230958,
+          "plane_residual_m": -0.00822068703304682,
+          "clearance_inward_from_broad_patch_edge_m": 0.2668291102167805,
+          "inside_broad_patch_with_10mm_margin": false,
+          "normal_dot_expected_surface": 0.0
+        }
+      ],
+      "nearest_distance_m": 0.0064960850888019055,
+      "signed_sphere_gap_m": -3.9149111980942355e-06,
+      "nearest_surface_normal_expected": [
+        0.0,
+        0.0,
+        1.0
+      ],
+      "nearest_surface_normal_pass_dot_0_995": true,
+      "signed_sphere_gap_pass_minus_0_5_to_plus_2_mm": true,
+      "broad_patch_inside_10mm_margin": null
+    },
+    {
+      "leg": "LM",
+      "actual_world_foot_center_m": [
+        0.20350599133047298,
+        0.1268859955659212,
+        0.15376417397968142
+      ],
+      "nearest_triangle_points": [
+        {
+          "triangle_index": 17151,
+          "closest_point_world_xyz_m": [
+            0.20485681835012653,
+            0.1268859968565239,
+            0.1474090455520474
+          ],
+          "distance_m": 0.006497106353504606,
+          "signed_sphere_gap_m": -2.893646495394017e-06,
+          "face_normal_world": [
+            -0.20791209904158808,
+            -1.9864269247483816e-07,
+            0.9781475139630429
+          ],
+          "normal_dot_expected_12deg": 0.9999999999998967,
+          "plane_residual_m": -4.3253557736322445e-06,
+          "clearance_inward_from_broad_patch_edge_m": 0.026935928496126527,
+          "inside_broad_patch_with_10mm_margin": true,
+          "normal_dot_expected_surface": 0.9999999999998967
+        }
+      ],
+      "nearest_distance_m": 0.006497106353504606,
+      "signed_sphere_gap_m": -2.893646495394017e-06,
+      "nearest_surface_normal_expected": [
+        -0.20791169975230958,
+        0.0,
+        0.9781475988347083
+      ],
+      "nearest_surface_normal_pass_dot_0_995": true,
+      "signed_sphere_gap_pass_minus_0_5_to_plus_2_mm": true,
+      "broad_patch_inside_10mm_margin": true
+    },
+    {
+      "leg": "RB",
+      "actual_world_foot_center_m": [
+        0.17374454079402707,
+        -0.16390238806670604,
+        0.14690426308288623
+      ],
+      "nearest_triangle_points": [
+        {
+          "triangle_index": 16197,
+          "closest_point_world_xyz_m": [
+            0.17649008660137694,
+            -0.16390238806669982,
+            0.1410164412932184
+          ],
+          "distance_m": 0.006496496533297307,
+          "signed_sphere_gap_m": -3.503466702692304e-06,
+          "face_normal_world": [
+            -0.422619452389037,
+            0.0,
+            0.9063072318272598
+          ],
+          "normal_dot_expected_12deg": 0.9743697713129603,
+          "plane_residual_m": -0.00035946044754743556,
+          "clearance_inward_from_broad_patch_edge_m": -0.0014308032526230696,
+          "inside_broad_patch_with_10mm_margin": false,
+          "normal_dot_expected_surface": 0.9743697713129603
+        }
+      ],
+      "nearest_distance_m": 0.006496496533297307,
+      "signed_sphere_gap_m": -3.503466702692304e-06,
+      "nearest_surface_normal_expected": [
+        -0.20791169975230958,
+        0.0,
+        0.9781475988347083
+      ],
+      "nearest_surface_normal_pass_dot_0_995": false,
+      "signed_sphere_gap_pass_minus_0_5_to_plus_2_mm": true,
+      "broad_patch_inside_10mm_margin": false
+    },
+    {
+      "leg": "RF",
+      "actual_world_foot_center_m": [
+        0.44999778388160694,
+        -0.16427668078812138,
+        0.19382986436095004
+      ],
+      "nearest_triangle_points": [
+        {
+          "triangle_index": 15508,
+          "closest_point_world_xyz_m": [
+            0.4447500000707805,
+            -0.16427668078812138,
+            0.1899999976158142
+          ],
+          "distance_m": 0.006496700255565827,
+          "signed_sphere_gap_m": -3.2997444341723026e-06,
+          "face_normal_world": [
+            -0.0,
+            0.0,
+            1.0
+          ],
+          "normal_dot_expected_12deg": 0.9781475988347083,
+          "plane_residual_m": -0.00822068703304682,
+          "clearance_inward_from_broad_patch_edge_m": 0.2668291102167805,
+          "inside_broad_patch_with_10mm_margin": false,
+          "normal_dot_expected_surface": 1.0
+        },
+        {
+          "triangle_index": 19051,
+          "closest_point_world_xyz_m": [
+            0.4447500000707805,
+            -0.16427668078812138,
+            0.1899999976158142
+          ],
+          "distance_m": 0.006496700255565827,
+          "signed_sphere_gap_m": -3.2997444341723026e-06,
+          "face_normal_world": [
+            1.0,
+            0.0,
+            0.0
+          ],
+          "normal_dot_expected_12deg": -0.20791169975230958,
+          "plane_residual_m": -0.00822068703304682,
+          "clearance_inward_from_broad_patch_edge_m": 0.2668291102167805,
+          "inside_broad_patch_with_10mm_margin": false,
+          "normal_dot_expected_surface": 0.0
+        }
+      ],
+      "nearest_distance_m": 0.006496700255565827,
+      "signed_sphere_gap_m": -3.2997444341723026e-06,
+      "nearest_surface_normal_expected": [
+        0.0,
+        0.0,
+        1.0
+      ],
+      "nearest_surface_normal_pass_dot_0_995": true,
+      "signed_sphere_gap_pass_minus_0_5_to_plus_2_mm": true,
+      "broad_patch_inside_10mm_margin": null
+    },
+    {
+      "leg": "RM",
+      "actual_world_foot_center_m": [
+        0.20331169790427592,
+        -0.26100181192716554,
+        0.15372283679682044
+      ],
+      "nearest_triangle_points": [
+        {
+          "triangle_index": 17179,
+          "closest_point_world_xyz_m": [
+            0.20466251120176895,
+            -0.2610018118107346,
+            0.14736774855109566
+          ],
+          "distance_m": 0.006497064196668625,
+          "signed_sphere_gap_m": -2.9358033313744286e-06,
+          "face_normal_world": [
+            -0.20791133604400178,
+            -1.792054156268421e-08,
+            0.9781476761432283
+          ],
+          "normal_dot_expected_12deg": 0.9999999999999306,
+          "plane_residual_m": -4.321188604577975e-06,
+          "clearance_inward_from_broad_patch_edge_m": 0.026741621347768946,
+          "inside_broad_patch_with_10mm_margin": true,
+          "normal_dot_expected_surface": 0.9999999999999306
+        }
+      ],
+      "nearest_distance_m": 0.006497064196668625,
+      "signed_sphere_gap_m": -2.9358033313744286e-06,
+      "nearest_surface_normal_expected": [
+        -0.20791169975230958,
+        0.0,
+        0.9781475988347083
+      ],
+      "nearest_surface_normal_pass_dot_0_995": true,
+      "signed_sphere_gap_pass_minus_0_5_to_plus_2_mm": true,
+      "broad_patch_inside_10mm_margin": true
+    }
+  ],
+  "all_six_signed_gaps_pass": true,
+  "all_six_expected_normals_pass": false,
+  "LB_RB_rear_broad_patch_pass_10mm": false,
+  "LB_RB_LM_RM_broad_patch_pass_10mm": false,
+  "all_six_above_initial_floor_z_0_0065m": true,
+  "acceptance_pass": false,
+  "boundary": "Exact nearest-triangle foot geometry at one simulator hold-entry sample only; not contact/load/stability or continuous route clearance.",
+  "first_mid_contact_entry": {
+    "runtime_stage": "FRONT_TO_040",
+    "source_field": "stage_start_actual_world_foot_xyz_m",
+    "sample_timing": "actual simulator LM/RM feet at FRONT_TO_040 entry",
+    "entry_root_position_error_m": 0.012441967290389919,
+    "entry_max_support_foot_drift_m": 0.0017637269236759968,
+    "feet": [
+      {
+        "leg": "LM",
+        "actual_world_foot_center_m": [
+          0.19245857836823305,
+          0.1253945541163288,
+          0.15244983381617871
+        ],
+        "nearest_triangle_points": [
+          {
+            "triangle_index": 17148,
+            "closest_point_world_xyz_m": [
+              0.19401965884634334,
+              0.12539455476002354,
+              0.14510553312028454
+            ],
+            "distance_m": 0.007508376986463128,
+            "signed_sphere_gap_m": 0.0010083769864631283,
+            "face_normal_world": [
+              -0.207911840458298,
+              -8.573021167114996e-08,
+              0.9781475689267116
+            ],
+            "normal_dot_expected_12deg": 0.999999999999986,
+            "plane_residual_m": -4.328256869925995e-06,
+            "clearance_inward_from_broad_patch_edge_m": 0.016098768992343332,
+            "inside_broad_patch_with_10mm_margin": true,
+            "normal_dot_expected_surface": 0.999999999999986
+          }
+        ],
+        "signed_sphere_gap_m": 0.0010083769864631283,
+        "signed_sphere_gap_pass_minus_0_5_to_plus_2_mm": true,
+        "nearest_surface_normal_expected": [
+          -0.20791169975230958,
+          0.0,
+          0.9781475988347083
+        ],
+        "nearest_surface_normal_pass_dot_0_995": true,
+        "broad_patch_inside_10mm_margin": true
+      },
+      {
+        "leg": "RM",
+        "actual_world_foot_center_m": [
+          0.19273993563958008,
+          -0.2623597646779128,
+          0.1519573440267634
+        ],
+        "nearest_triangle_points": [
+          {
+            "triangle_index": 17160,
+            "closest_point_world_xyz_m": [
+              0.194188698261014,
+              -0.262359765199217,
+              0.1451414673517433
+            ],
+            "distance_m": 0.006968148102785082,
+            "signed_sphere_gap_m": 0.00046814810278508236,
+            "face_normal_world": [
+              -0.20791214538836414,
+              7.481245132240553e-08,
+              0.9781475041117276
+            ],
+            "normal_dot_expected_12deg": 0.9999999999998933,
+            "plane_residual_m": -4.324546681866437e-06,
+            "clearance_inward_from_broad_patch_edge_m": 0.016267808407014,
+            "inside_broad_patch_with_10mm_margin": true,
+            "normal_dot_expected_surface": 0.9999999999998933
+          }
+        ],
+        "signed_sphere_gap_m": 0.00046814810278508236,
+        "signed_sphere_gap_pass_minus_0_5_to_plus_2_mm": true,
+        "nearest_surface_normal_expected": [
+          -0.20791169975230958,
+          0.0,
+          0.9781475988347083
+        ],
+        "nearest_surface_normal_pass_dot_0_995": true,
+        "broad_patch_inside_10mm_margin": true
+      }
+    ],
+    "all_checked_gaps_pass": true,
+    "all_checked_normals_pass": true,
+    "LM_RM_broad_patch_pass_10mm": true,
+    "acceptance_pass": true
+  }
+}

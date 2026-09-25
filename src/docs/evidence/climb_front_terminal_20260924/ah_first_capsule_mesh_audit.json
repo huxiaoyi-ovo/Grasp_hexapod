@@ -1,0 +1,208 @@
+{
+  "candidate_config_sha256": "2c4cf473ae6332dea073bff39545d26ce14815dfb55195b6f2d15d252357f98e",
+  "source_cpu_audit_sha256": "dd196591dd0ad61c20dfe0b673dca4c5444268f91a10bdcb045b43c3dcc33f92",
+  "stage": "AH_BACK_LOW_FIRST_SEGMENT",
+  "first_warning": null,
+  "capsule_violations": [],
+  "visual_mesh_queries": [
+    {
+      "kind": "interleg_capsule",
+      "left": {
+        "leg": "lb",
+        "link": "knee"
+      },
+      "right": {
+        "leg": "lm",
+        "link": "knee"
+      },
+      "segment_distance_m": 0.04385110393521307,
+      "proxy_gap_m": 0.009738405563004978,
+      "minimum_gap_witness": {
+        "proxy_gap_m": 0.009738405563004982,
+        "segment_distance_m": 0.04385110393521307,
+        "tick": 50,
+        "phase_time_s": 1.6666666666666685,
+        "q_rad": [
+          [
+            0.9526349265634533,
+            -0.18719387449222674,
+            1.7045127579730603
+          ],
+          [
+            0.10170764802623494,
+            -0.9528939651594323,
+            1.6654665411067773
+          ],
+          [
+            -0.4301844465390975,
+            -0.4191411010777223,
+            1.410424408104147
+          ],
+          [
+            -0.9526277586772136,
+            0.18719268188911067,
+            -1.7045127861334055
+          ],
+          [
+            -0.10170484976697435,
+            0.9528961600692331,
+            -1.665471484762153
+          ],
+          [
+            0.43018383623192613,
+            0.41914097163108144,
+            -1.4104243074986393
+          ]
+        ],
+        "pose": [
+          0.285,
+          -0.067694497636,
+          0.245,
+          0.0,
+          0.0,
+          -1.5707963267948966
+        ]
+      },
+      "visual_mesh_query": {
+        "pair": [
+          {
+            "leg": "lb",
+            "link": "knee"
+          },
+          {
+            "leg": "lm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "triangle_candidates_checked",
+        "filtered_triangle_counts": {
+          "left": 3062,
+          "right": 64
+        },
+        "triangle_test_count": 136,
+        "broad_phase_candidates": 1,
+        "mesh_collision": true,
+        "triangle_hit": {
+          "left_link": "knee",
+          "left_leg": 0,
+          "left_component": 0,
+          "left_triangle": 20626,
+          "right_link": "knee",
+          "right_leg": 2,
+          "right_component": 0,
+          "right_triangle": 21138
+        },
+        "cache_reused": false
+      }
+    },
+    {
+      "kind": "interleg_capsule",
+      "left": {
+        "leg": "rb",
+        "link": "knee"
+      },
+      "right": {
+        "leg": "rm",
+        "link": "knee"
+      },
+      "segment_distance_m": 0.04394174408328303,
+      "proxy_gap_m": 0.00982904571107494,
+      "minimum_gap_witness": {
+        "proxy_gap_m": 0.009829045711074944,
+        "segment_distance_m": 0.04394174408328303,
+        "tick": 50,
+        "phase_time_s": 1.6666666666666685,
+        "q_rad": [
+          [
+            0.9526349265634533,
+            -0.18719387449222674,
+            1.7045127579730603
+          ],
+          [
+            0.10170764802623494,
+            -0.9528939651594323,
+            1.6654665411067773
+          ],
+          [
+            -0.4301844465390975,
+            -0.4191411010777223,
+            1.410424408104147
+          ],
+          [
+            -0.9526277586772136,
+            0.18719268188911067,
+            -1.7045127861334055
+          ],
+          [
+            -0.10170484976697435,
+            0.9528961600692331,
+            -1.665471484762153
+          ],
+          [
+            0.43018383623192613,
+            0.41914097163108144,
+            -1.4104243074986393
+          ]
+        ],
+        "pose": [
+          0.285,
+          -0.067694497636,
+          0.245,
+          0.0,
+          0.0,
+          -1.5707963267948966
+        ]
+      },
+      "visual_mesh_query": {
+        "pair": [
+          {
+            "leg": "rb",
+            "link": "knee"
+          },
+          {
+            "leg": "rm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "triangle_candidates_checked",
+        "filtered_triangle_counts": {
+          "left": 2470,
+          "right": 59
+        },
+        "triangle_test_count": 974,
+        "broad_phase_candidates": 1,
+        "mesh_collision": true,
+        "triangle_hit": {
+          "left_link": "knee",
+          "left_leg": 3,
+          "left_component": 0,
+          "left_triangle": 20559,
+          "right_link": "knee",
+          "right_leg": 5,
+          "right_component": 0,
+          "right_triangle": 21309
+        },
+        "cache_reused": false
+      }
+    }
+  ],
+  "visual_mesh_sha256": {
+    "body_link.STL": "730623d24e4f0cfd0fe9341fc697a76de556061747d0f91c9904eb1e9c204eca",
+    "knee_link.STL": "957f159c5ec7e4d2cb48c7a0b0d17a5d397923a3886399aadef0de37978f9040",
+    "ankle_link.STL": "1f48a886fce0e2effc51b481d9bee94e637b5d7c7f29e59074a264575a0db5c9"
+  },
+  "conclusion": "visual triangle intersection confirmed in a requested knee pair",
+  "evidence_boundary": "Selected exact triangle checks at one AH witness only; broadphase and conservative per-triangle AABB filtering retain source triangle indices; no containment, continuous path, physical contact, load, stability or hardware proof."
+}

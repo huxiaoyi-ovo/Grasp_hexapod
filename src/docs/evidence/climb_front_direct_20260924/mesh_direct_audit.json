@@ -1,0 +1,7031 @@
+{
+  "method": "Selected exact visual STL triangle intersection queries at recorded 30 Hz CPU witnesses; conservative pair AABB filter; no whole-robot scan.",
+  "candidate": {
+    "config_sha256": "a7bcb4d00ff5afb5ec6b74d1270a2e151af2a9a59ba9c3e7c890e82251fac442",
+    "cpu_audit_sha256": "ba9cccf8e4c76b38b9cd56128a432da24568ed745eee3877affc22aa10731ed9",
+    "cpu_audit_state": "DONE",
+    "cpu_ticks": 873
+  },
+  "visual_meshes": {
+    "body": {
+      "sha256": "730623d24e4f0cfd0fe9341fc697a76de556061747d0f91c9904eb1e9c204eca",
+      "triangle_count": 236391,
+      "component_count": 1,
+      "path": "/home/artrc/Grasp_hexapod/src/grasp_hexapod_description/meshes/body_link.STL"
+    },
+    "thigh": {
+      "sha256": "de6817931c0f582fc57952b6f36d0a8e6f3c286e2fe11e909ee27a3ca03eba40",
+      "triangle_count": 25458,
+      "component_count": 1,
+      "path": "/home/artrc/Grasp_hexapod/src/grasp_hexapod_description/meshes/thigh_link.STL"
+    },
+    "knee": {
+      "sha256": "957f159c5ec7e4d2cb48c7a0b0d17a5d397923a3886399aadef0de37978f9040",
+      "triangle_count": 24664,
+      "component_count": 1,
+      "path": "/home/artrc/Grasp_hexapod/src/grasp_hexapod_description/meshes/knee_link.STL"
+    },
+    "ankle": {
+      "sha256": "1f48a886fce0e2effc51b481d9bee94e637b5d7c7f29e59074a264575a0db5c9",
+      "triangle_count": 18766,
+      "component_count": 13,
+      "path": "/home/artrc/Grasp_hexapod/src/grasp_hexapod_description/meshes/ankle_link.STL"
+    },
+    "xiaolan": {
+      "sha256": "e61d489ab5d2b9e0e02fc8b1671cbddcd2e7cc49ffd48d1d2fed7541b42580be",
+      "triangle_count": 22664,
+      "component_count": 1,
+      "path": "/home/artrc/Grasp_hexapod/src/grasp_hexapod_description/meshes/xiaolan/base_link_xiaolan.STL"
+    }
+  },
+  "cache_path": "/home/artrc/Grasp_hexapod/src/docs/evidence/climb_front_direct_20260924/mesh_pair_cache.json",
+  "records": [
+    {
+      "label": "A_body_proxy_first_warning_lm_knee",
+      "stage": "MID_TO_019_DIRECT",
+      "tick": 407,
+      "phase_before_s": 1.2333333333333338,
+      "q_rad": [
+        [
+          0.31334539079044904,
+          0.3336242862195274,
+          1.0125717760122033
+        ],
+        [
+          0.21036245066068227,
+          -1.3172775218168424,
+          1.4492984429141789
+        ],
+        [
+          0.5706175737942014,
+          -1.8290758745252338,
+          2.0454658012204643
+        ],
+        [
+          -0.3133358479150748,
+          -0.33362474404429826,
+          -1.0125719604067267
+        ],
+        [
+          -0.20937377879016966,
+          1.2859629117742397,
+          -1.4478263941599863
+        ],
+        [
+          -0.5706233079523064,
+          1.8290758684472033,
+          -2.0454657994871437
+        ]
+      ],
+      "base_pose": [
+        0.1017,
+        -0.067694497636,
+        0.155,
+        0.15,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair_proxy_gap_m": -0.0018717583778868757,
+      "pair_check": {
+        "pair": [
+          {
+            "leg": null,
+            "link": "body"
+          },
+          {
+            "leg": "lm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "broadphase_excluded_all_triangle_pairs; collision result is clear",
+        "filtered_triangle_counts": {
+          "left": 34,
+          "right": 108
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": false
+      }
+    },
+    {
+      "label": "A_body_proxy_first_warning_lm_ankle",
+      "stage": "MID_TO_019_DIRECT",
+      "tick": 407,
+      "phase_before_s": 1.2333333333333338,
+      "q_rad": [
+        [
+          0.31334539079044904,
+          0.3336242862195274,
+          1.0125717760122033
+        ],
+        [
+          0.21036245066068227,
+          -1.3172775218168424,
+          1.4492984429141789
+        ],
+        [
+          0.5706175737942014,
+          -1.8290758745252338,
+          2.0454658012204643
+        ],
+        [
+          -0.3133358479150748,
+          -0.33362474404429826,
+          -1.0125719604067267
+        ],
+        [
+          -0.20937377879016966,
+          1.2859629117742397,
+          -1.4478263941599863
+        ],
+        [
+          -0.5706233079523064,
+          1.8290758684472033,
+          -2.0454657994871437
+        ]
+      ],
+      "base_pose": [
+        0.1017,
+        -0.067694497636,
+        0.155,
+        0.15,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair_proxy_gap_m": -0.0018717583778868757,
+      "pair_check": {
+        "pair": [
+          {
+            "leg": null,
+            "link": "body"
+          },
+          {
+            "leg": "lm",
+            "link": "ankle"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 13
+        },
+        "pair_status": "conservative_triangle_AABB_prefilter_excluded_all_pairs",
+        "filtered_triangle_counts": {
+          "left": 0,
+          "right": 218
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": false
+      }
+    },
+    {
+      "label": "A_body_proxy_first_warning_rm_knee",
+      "stage": "MID_TO_019_DIRECT",
+      "tick": 407,
+      "phase_before_s": 1.2333333333333338,
+      "q_rad": [
+        [
+          0.31334539079044904,
+          0.3336242862195274,
+          1.0125717760122033
+        ],
+        [
+          0.21036245066068227,
+          -1.3172775218168424,
+          1.4492984429141789
+        ],
+        [
+          0.5706175737942014,
+          -1.8290758745252338,
+          2.0454658012204643
+        ],
+        [
+          -0.3133358479150748,
+          -0.33362474404429826,
+          -1.0125719604067267
+        ],
+        [
+          -0.20937377879016966,
+          1.2859629117742397,
+          -1.4478263941599863
+        ],
+        [
+          -0.5706233079523064,
+          1.8290758684472033,
+          -2.0454657994871437
+        ]
+      ],
+      "base_pose": [
+        0.1017,
+        -0.067694497636,
+        0.155,
+        0.15,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair_proxy_gap_m": -0.0016697608737859942,
+      "pair_check": {
+        "pair": [
+          {
+            "leg": null,
+            "link": "body"
+          },
+          {
+            "leg": "rm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "broadphase_excluded_all_triangle_pairs; collision result is clear",
+        "filtered_triangle_counts": {
+          "left": 33,
+          "right": 113
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": false
+      }
+    },
+    {
+      "label": "A_body_proxy_first_warning_rm_ankle",
+      "stage": "MID_TO_019_DIRECT",
+      "tick": 407,
+      "phase_before_s": 1.2333333333333338,
+      "q_rad": [
+        [
+          0.31334539079044904,
+          0.3336242862195274,
+          1.0125717760122033
+        ],
+        [
+          0.21036245066068227,
+          -1.3172775218168424,
+          1.4492984429141789
+        ],
+        [
+          0.5706175737942014,
+          -1.8290758745252338,
+          2.0454658012204643
+        ],
+        [
+          -0.3133358479150748,
+          -0.33362474404429826,
+          -1.0125719604067267
+        ],
+        [
+          -0.20937377879016966,
+          1.2859629117742397,
+          -1.4478263941599863
+        ],
+        [
+          -0.5706233079523064,
+          1.8290758684472033,
+          -2.0454657994871437
+        ]
+      ],
+      "base_pose": [
+        0.1017,
+        -0.067694497636,
+        0.155,
+        0.15,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair_proxy_gap_m": -0.0016697608737859942,
+      "pair_check": {
+        "pair": [
+          {
+            "leg": null,
+            "link": "body"
+          },
+          {
+            "leg": "rm",
+            "link": "ankle"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 13
+        },
+        "pair_status": "conservative_triangle_AABB_prefilter_excluded_all_pairs",
+        "filtered_triangle_counts": {
+          "left": 0,
+          "right": 250
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": false
+      }
+    },
+    {
+      "label": "A_worst_capsule_body_gap_lm_knee",
+      "stage": "MID_TO_019_DIRECT",
+      "tick": 408,
+      "phase_before_s": 1.2666666666666673,
+      "q_rad": [
+        [
+          0.3133453912030312,
+          0.3336242862714867,
+          1.0125717760923387
+        ],
+        [
+          0.21036245071039658,
+          -1.3172775212335286,
+          1.449298442296303
+        ],
+        [
+          0.5759713682651841,
+          -1.8367650087816463,
+          2.0419522971199724
+        ],
+        [
+          -0.31333584832765193,
+          -0.3336247440962558,
+          -1.012571960486863
+        ],
+        [
+          -0.20937377884020783,
+          1.2859629112067126,
+          -1.4478263935505238
+        ],
+        [
+          -0.5759771601495628,
+          1.836765005290699,
+          -2.0419522961469703
+        ]
+      ],
+      "base_pose": [
+        0.1017,
+        -0.067694497636,
+        0.155,
+        0.15,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair_proxy_gap_m": -0.0024689405314351487,
+      "pair_check": {
+        "pair": [
+          {
+            "leg": null,
+            "link": "body"
+          },
+          {
+            "leg": "lm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "broadphase_excluded_all_triangle_pairs; collision result is clear",
+        "filtered_triangle_counts": {
+          "left": 34,
+          "right": 129
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": false
+      }
+    },
+    {
+      "label": "A_worst_capsule_body_gap_lm_ankle",
+      "stage": "MID_TO_019_DIRECT",
+      "tick": 408,
+      "phase_before_s": 1.2666666666666673,
+      "q_rad": [
+        [
+          0.3133453912030312,
+          0.3336242862714867,
+          1.0125717760923387
+        ],
+        [
+          0.21036245071039658,
+          -1.3172775212335286,
+          1.449298442296303
+        ],
+        [
+          0.5759713682651841,
+          -1.8367650087816463,
+          2.0419522971199724
+        ],
+        [
+          -0.31333584832765193,
+          -0.3336247440962558,
+          -1.012571960486863
+        ],
+        [
+          -0.20937377884020783,
+          1.2859629112067126,
+          -1.4478263935505238
+        ],
+        [
+          -0.5759771601495628,
+          1.836765005290699,
+          -2.0419522961469703
+        ]
+      ],
+      "base_pose": [
+        0.1017,
+        -0.067694497636,
+        0.155,
+        0.15,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair_proxy_gap_m": -0.0024689405314351487,
+      "pair_check": {
+        "pair": [
+          {
+            "leg": null,
+            "link": "body"
+          },
+          {
+            "leg": "lm",
+            "link": "ankle"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 13
+        },
+        "pair_status": "conservative_triangle_AABB_prefilter_excluded_all_pairs",
+        "filtered_triangle_counts": {
+          "left": 0,
+          "right": 331
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": false
+      }
+    },
+    {
+      "label": "A_worst_capsule_body_gap_rm_knee",
+      "stage": "MID_TO_019_DIRECT",
+      "tick": 408,
+      "phase_before_s": 1.2666666666666673,
+      "q_rad": [
+        [
+          0.3133453912030312,
+          0.3336242862714867,
+          1.0125717760923387
+        ],
+        [
+          0.21036245071039658,
+          -1.3172775212335286,
+          1.449298442296303
+        ],
+        [
+          0.5759713682651841,
+          -1.8367650087816463,
+          2.0419522971199724
+        ],
+        [
+          -0.31333584832765193,
+          -0.3336247440962558,
+          -1.012571960486863
+        ],
+        [
+          -0.20937377884020783,
+          1.2859629112067126,
+          -1.4478263935505238
+        ],
+        [
+          -0.5759771601495628,
+          1.836765005290699,
+          -2.0419522961469703
+        ]
+      ],
+      "base_pose": [
+        0.1017,
+        -0.067694497636,
+        0.155,
+        0.15,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair_proxy_gap_m": -0.0022641906784349464,
+      "pair_check": {
+        "pair": [
+          {
+            "leg": null,
+            "link": "body"
+          },
+          {
+            "leg": "rm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "broadphase_excluded_all_triangle_pairs; collision result is clear",
+        "filtered_triangle_counts": {
+          "left": 33,
+          "right": 128
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": false
+      }
+    },
+    {
+      "label": "A_worst_capsule_body_gap_rm_ankle",
+      "stage": "MID_TO_019_DIRECT",
+      "tick": 408,
+      "phase_before_s": 1.2666666666666673,
+      "q_rad": [
+        [
+          0.3133453912030312,
+          0.3336242862714867,
+          1.0125717760923387
+        ],
+        [
+          0.21036245071039658,
+          -1.3172775212335286,
+          1.449298442296303
+        ],
+        [
+          0.5759713682651841,
+          -1.8367650087816463,
+          2.0419522971199724
+        ],
+        [
+          -0.31333584832765193,
+          -0.3336247440962558,
+          -1.012571960486863
+        ],
+        [
+          -0.20937377884020783,
+          1.2859629112067126,
+          -1.4478263935505238
+        ],
+        [
+          -0.5759771601495628,
+          1.836765005290699,
+          -2.0419522961469703
+        ]
+      ],
+      "base_pose": [
+        0.1017,
+        -0.067694497636,
+        0.155,
+        0.15,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair_proxy_gap_m": -0.0022641906784349464,
+      "pair_check": {
+        "pair": [
+          {
+            "leg": null,
+            "link": "body"
+          },
+          {
+            "leg": "rm",
+            "link": "ankle"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 13
+        },
+        "pair_status": "conservative_triangle_AABB_prefilter_excluded_all_pairs",
+        "filtered_triangle_counts": {
+          "left": 0,
+          "right": 335
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": false
+      }
+    },
+    {
+      "label": "B_BACK_TO_MINUS09_lb_lm_neighbor_tick242",
+      "stage": "BACK_TO_MINUS09",
+      "tick": 242,
+      "phase_before_s": 1.1333333333333335,
+      "q_rad": [
+        [
+          0.2343378461040674,
+          -0.02344243578656726,
+          1.3581047606949328
+        ],
+        [
+          0.24610147089591916,
+          -0.8806397271620132,
+          1.091466102950196
+        ],
+        [
+          -0.5470568513390554,
+          0.24595507029919303,
+          0.7218550724524558
+        ],
+        [
+          -0.2343319325853658,
+          0.02344198341956985,
+          -1.3581049952502242
+        ],
+        [
+          -0.24942280060270822,
+          1.0037707846372157,
+          -1.1114948363183534
+        ],
+        [
+          0.5470587378629407,
+          -0.2459550695199077,
+          -0.7218550728076012
+        ]
+      ],
+      "base_pose": [
+        0.02458528721185379,
+        -0.067694497636,
+        0.15,
+        0.15,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair_proxy_gap_m": 0.06461646361158414,
+      "pair_check": {
+        "pair": [
+          {
+            "leg": "lb",
+            "link": "knee"
+          },
+          {
+            "leg": "lm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "conservative_triangle_AABB_prefilter_excluded_all_pairs",
+        "filtered_triangle_counts": {
+          "left": 0,
+          "right": 0
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": false
+      }
+    },
+    {
+      "label": "B_BACK_TO_MINUS09_lb_lm_min_tick243",
+      "stage": "BACK_TO_MINUS09",
+      "tick": 243,
+      "phase_before_s": 1.166666666666667,
+      "q_rad": [
+        [
+          0.23062184227787752,
+          -0.02595615725974544,
+          1.3577228048493817
+        ],
+        [
+          0.24517103786195682,
+          -0.8874234126194113,
+          1.1006109381213065
+        ],
+        [
+          -0.5515438855759282,
+          0.244610307452402,
+          0.7208937871177156
+        ],
+        [
+          -0.23061598206056558,
+          0.02595571322399122,
+          -1.3577230421400113
+        ],
+        [
+          -0.24851403123927798,
+          1.0110845665115273,
+          -1.1206628890204477
+        ],
+        [
+          0.5515457408824397,
+          -0.24461030674525122,
+          -0.720893787440097
+        ]
+      ],
+      "base_pose": [
+        0.0253258075243161,
+        -0.067694497636,
+        0.15,
+        0.15,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair_proxy_gap_m": 0.06456887469179474,
+      "pair_check": {
+        "pair": [
+          {
+            "leg": "lb",
+            "link": "knee"
+          },
+          {
+            "leg": "lm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "conservative_triangle_AABB_prefilter_excluded_all_pairs",
+        "filtered_triangle_counts": {
+          "left": 0,
+          "right": 0
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": false
+      }
+    },
+    {
+      "label": "B_BACK_TO_MINUS09_lb_lm_neighbor_tick244",
+      "stage": "BACK_TO_MINUS09",
+      "tick": 244,
+      "phase_before_s": 1.2000000000000004,
+      "q_rad": [
+        [
+          0.22450726934075527,
+          -0.029973493850116835,
+          1.3575004002085258
+        ],
+        [
+          0.24433421491301868,
+          -0.8934881417232868,
+          1.1087645197058427
+        ],
+        [
+          -0.5555333344999172,
+          0.24341785042338915,
+          0.7200076411699817
+        ],
+        [
+          -0.2245014956300499,
+          0.029973060885817707,
+          -1.357500641060396
+        ],
+        [
+          -0.24769674900977848,
+          1.0176284171578895,
+          -1.1288388141154329
+        ],
+        [
+          0.5555351618923068,
+          -0.2434178497892577,
+          -0.7200076414592039
+        ]
+      ],
+      "base_pose": [
+        0.025998046875000003,
+        -0.067694497636,
+        0.15,
+        0.15,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair_proxy_gap_m": 0.0646671821936771,
+      "pair_check": {
+        "pair": [
+          {
+            "leg": "lb",
+            "link": "knee"
+          },
+          {
+            "leg": "lm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "conservative_triangle_AABB_prefilter_excluded_all_pairs",
+        "filtered_triangle_counts": {
+          "left": 0,
+          "right": 0
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": false
+      }
+    },
+    {
+      "label": "B_BACK_TO_MINUS09_rb_rm_neighbor_tick242",
+      "stage": "BACK_TO_MINUS09",
+      "tick": 242,
+      "phase_before_s": 1.1333333333333335,
+      "q_rad": [
+        [
+          0.2343378461040674,
+          -0.02344243578656726,
+          1.3581047606949328
+        ],
+        [
+          0.24610147089591916,
+          -0.8806397271620132,
+          1.091466102950196
+        ],
+        [
+          -0.5470568513390554,
+          0.24595507029919303,
+          0.7218550724524558
+        ],
+        [
+          -0.2343319325853658,
+          0.02344198341956985,
+          -1.3581049952502242
+        ],
+        [
+          -0.24942280060270822,
+          1.0037707846372157,
+          -1.1114948363183534
+        ],
+        [
+          0.5470587378629407,
+          -0.2459550695199077,
+          -0.7218550728076012
+        ]
+      ],
+      "base_pose": [
+        0.02458528721185379,
+        -0.067694497636,
+        0.15,
+        0.15,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair_proxy_gap_m": 0.06461554113343076,
+      "pair_check": {
+        "pair": [
+          {
+            "leg": "rb",
+            "link": "knee"
+          },
+          {
+            "leg": "rm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "conservative_triangle_AABB_prefilter_excluded_all_pairs",
+        "filtered_triangle_counts": {
+          "left": 0,
+          "right": 0
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": false
+      }
+    },
+    {
+      "label": "B_BACK_TO_MINUS09_rb_rm_min_tick243",
+      "stage": "BACK_TO_MINUS09",
+      "tick": 243,
+      "phase_before_s": 1.166666666666667,
+      "q_rad": [
+        [
+          0.23062184227787752,
+          -0.02595615725974544,
+          1.3577228048493817
+        ],
+        [
+          0.24517103786195682,
+          -0.8874234126194113,
+          1.1006109381213065
+        ],
+        [
+          -0.5515438855759282,
+          0.244610307452402,
+          0.7208937871177156
+        ],
+        [
+          -0.23061598206056558,
+          0.02595571322399122,
+          -1.3577230421400113
+        ],
+        [
+          -0.24851403123927798,
+          1.0110845665115273,
+          -1.1206628890204477
+        ],
+        [
+          0.5515457408824397,
+          -0.24461030674525122,
+          -0.720893787440097
+        ]
+      ],
+      "base_pose": [
+        0.0253258075243161,
+        -0.067694497636,
+        0.15,
+        0.15,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair_proxy_gap_m": 0.06456564021472262,
+      "pair_check": {
+        "pair": [
+          {
+            "leg": "rb",
+            "link": "knee"
+          },
+          {
+            "leg": "rm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "conservative_triangle_AABB_prefilter_excluded_all_pairs",
+        "filtered_triangle_counts": {
+          "left": 0,
+          "right": 0
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": false
+      }
+    },
+    {
+      "label": "B_BACK_TO_MINUS09_rb_rm_neighbor_tick244",
+      "stage": "BACK_TO_MINUS09",
+      "tick": 244,
+      "phase_before_s": 1.2000000000000004,
+      "q_rad": [
+        [
+          0.22450726934075527,
+          -0.029973493850116835,
+          1.3575004002085258
+        ],
+        [
+          0.24433421491301868,
+          -0.8934881417232868,
+          1.1087645197058427
+        ],
+        [
+          -0.5555333344999172,
+          0.24341785042338915,
+          0.7200076411699817
+        ],
+        [
+          -0.2245014956300499,
+          0.029973060885817707,
+          -1.357500641060396
+        ],
+        [
+          -0.24769674900977848,
+          1.0176284171578895,
+          -1.1288388141154329
+        ],
+        [
+          0.5555351618923068,
+          -0.2434178497892577,
+          -0.7200076414592039
+        ]
+      ],
+      "base_pose": [
+        0.025998046875000003,
+        -0.067694497636,
+        0.15,
+        0.15,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair_proxy_gap_m": 0.06466200095858533,
+      "pair_check": {
+        "pair": [
+          {
+            "leg": "rb",
+            "link": "knee"
+          },
+          {
+            "leg": "rm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "conservative_triangle_AABB_prefilter_excluded_all_pairs",
+        "filtered_triangle_counts": {
+          "left": 0,
+          "right": 0
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": false
+      }
+    },
+    {
+      "label": "B_BACK_TO_000_lb_lm_neighbor_tick355",
+      "stage": "BACK_TO_000",
+      "tick": 355,
+      "phase_before_s": 0.5666666666666667,
+      "q_rad": [
+        [
+          0.675962618412087,
+          0.17392746372161388,
+          1.3209767997071455
+        ],
+        [
+          0.24894373594508726,
+          -1.0755813146278408,
+          1.1334190083643192
+        ],
+        [
+          -0.4896372168531328,
+          0.26335404036569715,
+          0.7311896536156243
+        ],
+        [
+          -0.6759519471710815,
+          -0.17392833250735712,
+          -1.3209768430698219
+        ],
+        [
+          -0.24817722120930372,
+          1.0506790141987434,
+          -1.1338191156162245
+        ],
+        [
+          0.48963948634472515,
+          -0.26335403881334263,
+          -0.7311896543261412
+        ]
+      ],
+      "base_pose": [
+        0.07561761221276017,
+        -0.067694497636,
+        0.15,
+        0.15,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair_proxy_gap_m": 0.03588031602571376,
+      "pair_check": {
+        "pair": [
+          {
+            "leg": "lb",
+            "link": "knee"
+          },
+          {
+            "leg": "lm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "broadphase_excluded_all_triangle_pairs; collision result is clear",
+        "filtered_triangle_counts": {
+          "left": 71,
+          "right": 38
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": false
+      }
+    },
+    {
+      "label": "B_BACK_TO_000_lb_lm_min_tick356",
+      "stage": "BACK_TO_000",
+      "tick": 356,
+      "phase_before_s": 0.6,
+      "q_rad": [
+        [
+          0.7045249454355604,
+          0.17875420564485014,
+          1.3170368325756066
+        ],
+        [
+          0.24739545917518543,
+          -1.0883805599853729,
+          1.1488049100539863
+        ],
+        [
+          -0.4977257922835193,
+          0.26089113071080394,
+          0.7301764007686886
+        ],
+        [
+          -0.704514178129534,
+          -0.17875507391539905,
+          -1.317036879267718
+        ],
+        [
+          -0.24662053480669893,
+          1.0632930186634837,
+          -1.1492067348546777
+        ],
+        [
+          0.4977280096187994,
+          -0.260891129327291,
+          -0.7301764014027562
+        ]
+      ],
+      "base_pose": [
+        0.07686507069189263,
+        -0.067694497636,
+        0.15,
+        0.15,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair_proxy_gap_m": 0.031212763451808696,
+      "pair_check": {
+        "pair": [
+          {
+            "leg": "lb",
+            "link": "knee"
+          },
+          {
+            "leg": "lm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "broadphase_excluded_all_triangle_pairs; collision result is clear",
+        "filtered_triangle_counts": {
+          "left": 113,
+          "right": 57
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 1,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": false
+      }
+    },
+    {
+      "label": "B_BACK_TO_000_lb_lm_neighbor_tick357",
+      "stage": "BACK_TO_000",
+      "tick": 357,
+      "phase_before_s": 0.6333333333333333,
+      "q_rad": [
+        [
+          0.6967624271924898,
+          0.17537913706082775,
+          1.317464531965826
+        ],
+        [
+          0.24607003034598646,
+          -1.0992608062702576,
+          1.1618005885334317
+        ],
+        [
+          -0.5045185457609846,
+          0.25882341184438334,
+          0.7292485373927459
+        ],
+        [
+          -0.6967517437933125,
+          -0.17537998285603457,
+          -1.3174645909010612
+        ],
+        [
+          -0.24528787004427346,
+          1.074014035941549,
+          -1.1622037656441893
+        ],
+        [
+          0.504520718774606,
+          -0.25882341064831454,
+          -0.7292485379420413
+        ]
+      ],
+      "base_pose": [
+        0.07796361405568435,
+        -0.067694497636,
+        0.15,
+        0.15,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair_proxy_gap_m": 0.031365198464199384,
+      "pair_check": {
+        "pair": [
+          {
+            "leg": "lb",
+            "link": "knee"
+          },
+          {
+            "leg": "lm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "broadphase_excluded_all_triangle_pairs; collision result is clear",
+        "filtered_triangle_counts": {
+          "left": 115,
+          "right": 62
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 1,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": false
+      }
+    },
+    {
+      "label": "B_BACK_TO_000_rb_rm_neighbor_tick355",
+      "stage": "BACK_TO_000",
+      "tick": 355,
+      "phase_before_s": 0.5666666666666667,
+      "q_rad": [
+        [
+          0.675962618412087,
+          0.17392746372161388,
+          1.3209767997071455
+        ],
+        [
+          0.24894373594508726,
+          -1.0755813146278408,
+          1.1334190083643192
+        ],
+        [
+          -0.4896372168531328,
+          0.26335404036569715,
+          0.7311896536156243
+        ],
+        [
+          -0.6759519471710815,
+          -0.17392833250735712,
+          -1.3209768430698219
+        ],
+        [
+          -0.24817722120930372,
+          1.0506790141987434,
+          -1.1338191156162245
+        ],
+        [
+          0.48963948634472515,
+          -0.26335403881334263,
+          -0.7311896543261412
+        ]
+      ],
+      "base_pose": [
+        0.07561761221276017,
+        -0.067694497636,
+        0.15,
+        0.15,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair_proxy_gap_m": 0.035904803668081645,
+      "pair_check": {
+        "pair": [
+          {
+            "leg": "rb",
+            "link": "knee"
+          },
+          {
+            "leg": "rm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "broadphase_excluded_all_triangle_pairs; collision result is clear",
+        "filtered_triangle_counts": {
+          "left": 35,
+          "right": 34
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": false
+      }
+    },
+    {
+      "label": "B_BACK_TO_000_rb_rm_min_tick356",
+      "stage": "BACK_TO_000",
+      "tick": 356,
+      "phase_before_s": 0.6,
+      "q_rad": [
+        [
+          0.7045249454355604,
+          0.17875420564485014,
+          1.3170368325756066
+        ],
+        [
+          0.24739545917518543,
+          -1.0883805599853729,
+          1.1488049100539863
+        ],
+        [
+          -0.4977257922835193,
+          0.26089113071080394,
+          0.7301764007686886
+        ],
+        [
+          -0.704514178129534,
+          -0.17875507391539905,
+          -1.317036879267718
+        ],
+        [
+          -0.24662053480669893,
+          1.0632930186634837,
+          -1.1492067348546777
+        ],
+        [
+          0.4977280096187994,
+          -0.260891129327291,
+          -0.7301764014027562
+        ]
+      ],
+      "base_pose": [
+        0.07686507069189263,
+        -0.067694497636,
+        0.15,
+        0.15,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair_proxy_gap_m": 0.031234532181359426,
+      "pair_check": {
+        "pair": [
+          {
+            "leg": "rb",
+            "link": "knee"
+          },
+          {
+            "leg": "rm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "broadphase_excluded_all_triangle_pairs; collision result is clear",
+        "filtered_triangle_counts": {
+          "left": 61,
+          "right": 54
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 1,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": false
+      }
+    },
+    {
+      "label": "B_BACK_TO_000_rb_rm_neighbor_tick357",
+      "stage": "BACK_TO_000",
+      "tick": 357,
+      "phase_before_s": 0.6333333333333333,
+      "q_rad": [
+        [
+          0.6967624271924898,
+          0.17537913706082775,
+          1.317464531965826
+        ],
+        [
+          0.24607003034598646,
+          -1.0992608062702576,
+          1.1618005885334317
+        ],
+        [
+          -0.5045185457609846,
+          0.25882341184438334,
+          0.7292485373927459
+        ],
+        [
+          -0.6967517437933125,
+          -0.17537998285603457,
+          -1.3174645909010612
+        ],
+        [
+          -0.24528787004427346,
+          1.074014035941549,
+          -1.1622037656441893
+        ],
+        [
+          0.504520718774606,
+          -0.25882341064831454,
+          -0.7292485379420413
+        ]
+      ],
+      "base_pose": [
+        0.07796361405568435,
+        -0.067694497636,
+        0.15,
+        0.15,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair_proxy_gap_m": 0.031383440863787845,
+      "pair_check": {
+        "pair": [
+          {
+            "leg": "rb",
+            "link": "knee"
+          },
+          {
+            "leg": "rm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "broadphase_excluded_all_triangle_pairs; collision result is clear",
+        "filtered_triangle_counts": {
+          "left": 65,
+          "right": 60
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 1,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": false
+      }
+    },
+    {
+      "label": "B_BODY_LB_0055_SYNC_lb_lm_neighbor_tick474",
+      "stage": "BODY_LB_0055_SYNC",
+      "tick": 474,
+      "phase_before_s": 0.6666666666666666,
+      "q_rad": [
+        [
+          0.5878421147066789,
+          0.7590208791539513,
+          0.5541249851929141
+        ],
+        [
+          0.21346066975122305,
+          -1.307060355158005,
+          1.4286966419324252
+        ],
+        [
+          0.2966515158034733,
+          -1.246516741765537,
+          1.951741853833677
+        ],
+        [
+          -0.05147022594063385,
+          -0.9796296616569447,
+          0.04296776276008575
+        ],
+        [
+          -0.2134592528751378,
+          1.3070644874256874,
+          -1.428701567635636
+        ],
+        [
+          -0.2966547866896473,
+          1.2465167728134676,
+          -1.9517418674201037
+        ]
+      ],
+      "base_pose": [
+        0.15395577548736256,
+        -0.067694497636,
+        0.18758231019494503,
+        0.010879604122747395,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair_proxy_gap_m": 0.08695084740130006,
+      "pair_check": {
+        "pair": [
+          {
+            "leg": "lb",
+            "link": "knee"
+          },
+          {
+            "leg": "lm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "conservative_triangle_AABB_prefilter_excluded_all_pairs",
+        "filtered_triangle_counts": {
+          "left": 0,
+          "right": 0
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": false
+      }
+    },
+    {
+      "label": "B_BODY_LB_0055_SYNC_lb_lm_min_tick475",
+      "stage": "BODY_LB_0055_SYNC",
+      "tick": 475,
+      "phase_before_s": 0.7,
+      "q_rad": [
+        [
+          0.5816952188997611,
+          0.7555046042637534,
+          0.5575152518238374
+        ],
+        [
+          0.21067645699306198,
+          -1.3244154869067528,
+          1.448538563937588
+        ],
+        [
+          0.28418257919267,
+          -1.2366257830474505,
+          1.9501225727289628
+        ],
+        [
+          -0.04580534693967261,
+          -1.008384524132463,
+          0.09125611808600553
+        ],
+        [
+          -0.2106750880572406,
+          1.3244196896747575,
+          -1.448543522489539
+        ],
+        [
+          -0.28418579968144403,
+          1.2366258134752277,
+          -1.9501225862328817
+        ]
+      ],
+      "base_pose": [
+        0.1558645633033111,
+        -0.067694497636,
+        0.18834582532132443,
+        0.007443786054040048,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair_proxy_gap_m": 0.08676365642986841,
+      "pair_check": {
+        "pair": [
+          {
+            "leg": "lb",
+            "link": "knee"
+          },
+          {
+            "leg": "lm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "conservative_triangle_AABB_prefilter_excluded_all_pairs",
+        "filtered_triangle_counts": {
+          "left": 0,
+          "right": 0
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": false
+      }
+    },
+    {
+      "label": "B_BODY_LB_0055_SYNC_lb_lm_neighbor_tick476",
+      "stage": "BODY_LB_0055_SYNC",
+      "tick": 476,
+      "phase_before_s": 0.7333333333333333,
+      "q_rad": [
+        [
+          0.5725873191222038,
+          0.7862852055954406,
+          0.5121801619304863
+        ],
+        [
+          0.2085894956174335,
+          -1.337310540660468,
+          1.4631839641767264
+        ],
+        [
+          0.27493738558086017,
+          -1.2289348029859697,
+          1.9486089307093328
+        ],
+        [
+          -0.04171374803670267,
+          -1.0326943143881435,
+          0.13163903451195308
+        ],
+        [
+          -0.20858816220909737,
+          1.3373147987576015,
+          -1.463188948762013
+        ],
+        [
+          -0.2749405683812087,
+          1.2289348327083633,
+          -1.9486089440802583
+        ]
+      ],
+      "base_pose": [
+        0.1573879753333053,
+        -0.067694497636,
+        0.18895519013332213,
+        0.004701644400050442,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair_proxy_gap_m": 0.08685997723101888,
+      "pair_check": {
+        "pair": [
+          {
+            "leg": "lb",
+            "link": "knee"
+          },
+          {
+            "leg": "lm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "conservative_triangle_AABB_prefilter_excluded_all_pairs",
+        "filtered_triangle_counts": {
+          "left": 0,
+          "right": 0
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": false
+      }
+    },
+    {
+      "label": "B_BODY_LB_0055_SYNC_rb_rm_neighbor_tick478",
+      "stage": "BODY_LB_0055_SYNC",
+      "tick": 478,
+      "phase_before_s": 0.7999999999999999,
+      "q_rad": [
+        [
+          0.5384996090060988,
+          0.9753451598249293,
+          0.23353636386778273
+        ],
+        [
+          0.20645142623691382,
+          -1.3505768657053883,
+          1.4781225481885556
+        ],
+        [
+          0.26555906530020407,
+          -1.2205596726929293,
+          1.9466349395179434
+        ],
+        [
+          -0.03766923218447277,
+          -1.0640288990563143,
+          0.18280699476331777
+        ],
+        [
+          -0.20645012889103348,
+          1.3505811843736084,
+          -1.4781275614729568
+        ],
+        [
+          -0.26556220894425336,
+          1.2205597009641518,
+          -1.946634952547659
+        ]
+      ],
+      "base_pose": [
+        0.15930118128240883,
+        -0.067694497636,
+        0.18972047251296353,
+        0.0012578736916641076,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair_proxy_gap_m": 0.11280429480982715,
+      "pair_check": {
+        "pair": [
+          {
+            "leg": "rb",
+            "link": "knee"
+          },
+          {
+            "leg": "rm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "conservative_triangle_AABB_prefilter_excluded_all_pairs",
+        "filtered_triangle_counts": {
+          "left": 0,
+          "right": 0
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": false
+      }
+    },
+    {
+      "label": "B_BODY_LB_0055_SYNC_rb_rm_min_tick479",
+      "stage": "BODY_LB_0055_SYNC",
+      "tick": 479,
+      "phase_before_s": 0.8333333333333333,
+      "q_rad": [
+        [
+          0.5239606403589697,
+          1.0830895046475801,
+          0.07057448879020845
+        ],
+        [
+          0.20624142337116314,
+          -1.3520146948081346,
+          1.4796978696226963
+        ],
+        [
+          0.2646451057697489,
+          -1.2194784405122814,
+          1.9462707892267896
+        ],
+        [
+          -0.037294861539899,
+          -1.0705113396566788,
+          0.1930099068038271
+        ],
+        [
+          -0.2062401295722775,
+          1.3520190210443375,
+          -1.4797028864985178
+        ],
+        [
+          -0.26464824499637446,
+          1.2194784681439117,
+          -1.9462708020860673
+        ]
+      ],
+      "base_pose": [
+        0.15975490649703178,
+        -0.067694497636,
+        0.1899019625988127,
+        0.00044116830534284387,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair_proxy_gap_m": 0.11278517702010463,
+      "pair_check": {
+        "pair": [
+          {
+            "leg": "rb",
+            "link": "knee"
+          },
+          {
+            "leg": "rm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "conservative_triangle_AABB_prefilter_excluded_all_pairs",
+        "filtered_triangle_counts": {
+          "left": 0,
+          "right": 0
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": false
+      }
+    },
+    {
+      "label": "B_BODY_LB_0055_SYNC_rb_rm_neighbor_tick480",
+      "stage": "BODY_LB_0055_SYNC",
+      "tick": 480,
+      "phase_before_s": 0.8666666666666666,
+      "q_rad": [
+        [
+          0.517598388005242,
+          1.149128721056652,
+          -0.030818795321638698
+        ],
+        [
+          0.2064052619151679,
+          -1.35118116242534,
+          1.478711550027306
+        ],
+        [
+          0.26536363886267145,
+          -1.2198087926486987,
+          1.9462271211322304
+        ],
+        [
+          -0.03762199501161195,
+          -1.0719727133070407,
+          0.19494975027941588
+        ],
+        [
+          -0.20640396539666955,
+          1.3511854858389083,
+          -1.4787165655504457
+        ],
+        [
+          -0.2653667803503652,
+          1.2198088197673393,
+          -1.9462271338455905
+        ]
+      ],
+      "base_pose": [
+        0.15995591843117918,
+        -0.067694497636,
+        0.18998236737247168,
+        7.934682387749525e-05,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair_proxy_gap_m": 0.11279874404165913,
+      "pair_check": {
+        "pair": [
+          {
+            "leg": "rb",
+            "link": "knee"
+          },
+          {
+            "leg": "rm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "conservative_triangle_AABB_prefilter_excluded_all_pairs",
+        "filtered_triangle_counts": {
+          "left": 0,
+          "right": 0
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": false
+      }
+    },
+    {
+      "label": "B_RB_TO_0055_lb_lm_min_tick520",
+      "stage": "RB_TO_0055",
+      "tick": 520,
+      "phase_before_s": 0.0,
+      "q_rad": [
+        [
+          0.39754486807459066,
+          1.089475550742289,
+          0.019444418295452112
+        ],
+        [
+          0.29706707674667254,
+          -0.6082367656260491,
+          0.46785452515352965
+        ],
+        [
+          0.18150404410571477,
+          -1.23469949431094,
+          1.9687018627640203
+        ],
+        [
+          0.009123430216517861,
+          -1.1066784316627472,
+          0.30635415031605356
+        ],
+        [
+          -0.29706421136379507,
+          0.6082404863802535,
+          -0.46786011293140645
+        ],
+        [
+          -0.18150711366249436,
+          1.2346995220708121,
+          -1.9687018757719479
+        ]
+      ],
+      "base_pose": [
+        0.17,
+        -0.067694497636,
+        0.19,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair_proxy_gap_m": 0.09198227747075896,
+      "pair_check": {
+        "pair": [
+          {
+            "leg": "lb",
+            "link": "knee"
+          },
+          {
+            "leg": "lm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "conservative_triangle_AABB_prefilter_excluded_all_pairs",
+        "filtered_triangle_counts": {
+          "left": 0,
+          "right": 0
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": false
+      }
+    },
+    {
+      "label": "B_RB_TO_0055_lb_lm_neighbor_tick521",
+      "stage": "RB_TO_0055",
+      "tick": 521,
+      "phase_before_s": 0.03333333333333333,
+      "q_rad": [
+        [
+          0.39750637924944954,
+          1.0895050998791371,
+          0.019385631005578007
+        ],
+        [
+          0.29706418319923933,
+          -0.6084034783742518,
+          0.4679520991996269
+        ],
+        [
+          0.18147400497248806,
+          -1.234661137869468,
+          1.9686885909836271
+        ],
+        [
+          0.009218034849820285,
+          -1.0957718706897759,
+          0.2904335053799228
+        ],
+        [
+          -0.2970613184574398,
+          0.6084071990787715,
+          -0.4679576866166202
+        ],
+        [
+          -0.181477074385901,
+          1.2346611656355257,
+          -1.9686886039932863
+        ]
+      ],
+      "base_pose": [
+        0.17000247489475506,
+        -0.067694497636,
+        0.1900012374473775,
+        0.0,
+        0.0,
+        -1.5707963267948963
+      ],
+      "pair_proxy_gap_m": 0.09198295345316526,
+      "pair_check": {
+        "pair": [
+          {
+            "leg": "lb",
+            "link": "knee"
+          },
+          {
+            "leg": "lm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "conservative_triangle_AABB_prefilter_excluded_all_pairs",
+        "filtered_triangle_counts": {
+          "left": 0,
+          "right": 0
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": false
+      }
+    },
+    {
+      "label": "B_RB_TO_0055_rb_rm_neighbor_tick543",
+      "stage": "RB_TO_0055",
+      "tick": 543,
+      "phase_before_s": 0.7666666666666666,
+      "q_rad": [
+        [
+          0.30526866987934276,
+          1.1808658555269542,
+          -0.15649859895298646
+        ],
+        [
+          0.2888583183664691,
+          -0.6830677972490734,
+          0.6141055787124701
+        ],
+        [
+          0.10460735761131407,
+          -1.1435338741618117,
+          1.9337373895599297
+        ],
+        [
+          -0.31371471185247757,
+          -0.8028510624423616,
+          -0.4005856447005917
+        ],
+        [
+          -0.2888554692052047,
+          0.6830712664756048,
+          -0.6141107581506637
+        ],
+        [
+          -0.10461009384939125,
+          1.1435339018431379,
+          -1.9337374030061825
+        ]
+      ],
+      "base_pose": [
+        0.17809981962716118,
+        -0.067694497636,
+        0.1940499098135806,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair_proxy_gap_m": 0.09287487767906344,
+      "pair_check": {
+        "pair": [
+          {
+            "leg": "rb",
+            "link": "knee"
+          },
+          {
+            "leg": "rm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "conservative_triangle_AABB_prefilter_excluded_all_pairs",
+        "filtered_triangle_counts": {
+          "left": 0,
+          "right": 0
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": false
+      }
+    },
+    {
+      "label": "B_RB_TO_0055_rb_rm_min_tick544",
+      "stage": "RB_TO_0055",
+      "tick": 544,
+      "phase_before_s": 0.7999999999999999,
+      "q_rad": [
+        [
+          0.30165726370334495,
+          1.1861141388775314,
+          -0.16614997718964108
+        ],
+        [
+          0.28849759557100263,
+          -0.6860075093438026,
+          0.6199765323651157
+        ],
+        [
+          0.1013110461696304,
+          -1.1395894507673037,
+          1.932046320049057
+        ],
+        [
+          -0.3139609291923619,
+          -0.8028702329484682,
+          -0.40025334653572436
+        ],
+        [
+          -0.28849474705809114,
+          0.6860109700555816,
+          -0.6199816979827092
+        ],
+        [
+          -0.10131376855092696,
+          1.1395894782994074,
+          -1.9320463334723732
+        ]
+      ],
+      "base_pose": [
+        0.1784981757956523,
+        -0.067694497636,
+        0.1942490878978262,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair_proxy_gap_m": 0.09271599495425525,
+      "pair_check": {
+        "pair": [
+          {
+            "leg": "rb",
+            "link": "knee"
+          },
+          {
+            "leg": "rm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "conservative_triangle_AABB_prefilter_excluded_all_pairs",
+        "filtered_triangle_counts": {
+          "left": 0,
+          "right": 0
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": false
+      }
+    },
+    {
+      "label": "B_RB_TO_0055_rb_rm_neighbor_tick545",
+      "stage": "RB_TO_0055",
+      "tick": 545,
+      "phase_before_s": 0.8333333333333333,
+      "q_rad": [
+        [
+          0.298563286756111,
+          1.1908478331553671,
+          -0.1747955440907726
+        ],
+        [
+          0.28818594504193107,
+          -0.6885320132000537,
+          0.6250220453289754
+        ],
+        [
+          0.09846856093420714,
+          -1.1361804113288652,
+          1.9305720204310728
+        ],
+        [
+          -0.3092460948911418,
+          -0.8011611060154576,
+          -0.4001552538588058
+        ],
+        [
+          -0.28818309709007317,
+          0.6885354666569724,
+          -0.625027199172549
+        ],
+        [
+          -0.09847127137823067,
+          1.136180438708624,
+          -1.9305720338278733
+        ]
+      ],
+      "base_pose": [
+        0.1788512338526119,
+        -0.067694497636,
+        0.19442561692630597,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair_proxy_gap_m": 0.09282672862058594,
+      "pair_check": {
+        "pair": [
+          {
+            "leg": "rb",
+            "link": "knee"
+          },
+          {
+            "leg": "rm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "conservative_triangle_AABB_prefilter_excluded_all_pairs",
+        "filtered_triangle_counts": {
+          "left": 0,
+          "right": 0
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": false
+      }
+    },
+    {
+      "label": "B_BODY_LB_013_SYNC_lb_lm_neighbor_tick580",
+      "stage": "BODY_LB_013_SYNC",
+      "tick": 580,
+      "phase_before_s": 0.7,
+      "q_rad": [
+        [
+          0.9322198975175111,
+          0.8884603950191844,
+          0.4149307347236927
+        ],
+        [
+          0.25312450437100603,
+          -1.0026281917524265,
+          1.0814318259002023
+        ],
+        [
+          -0.18064196573214086,
+          -1.122738779455685,
+          1.914895044899627
+        ],
+        [
+          -0.06668736205186752,
+          -1.2402430099311885,
+          0.41551377066715695
+        ],
+        [
+          -0.25312224263924227,
+          1.0026315824428456,
+          -1.0814365033667466
+        ],
+        [
+          0.18063922904708424,
+          1.122738809167856,
+          -1.9148950588522557
+        ]
+      ],
+      "base_pose": [
+        0.20811462205511683,
+        -0.067694497636,
+        0.195,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair_proxy_gap_m": 0.044830674719400124,
+      "pair_check": {
+        "pair": [
+          {
+            "leg": "lb",
+            "link": "knee"
+          },
+          {
+            "leg": "lm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "conservative_triangle_AABB_prefilter_excluded_all_pairs",
+        "filtered_triangle_counts": {
+          "left": 0,
+          "right": 0
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": false
+      }
+    },
+    {
+      "label": "B_BODY_LB_013_SYNC_lb_lm_min_tick581",
+      "stage": "BODY_LB_013_SYNC",
+      "tick": 581,
+      "phase_before_s": 0.7333333333333333,
+      "q_rad": [
+        [
+          0.9332636176914415,
+          0.8881799637556842,
+          0.4148331978600576
+        ],
+        [
+          0.25128158932534866,
+          -1.016268728817827,
+          1.1001466835599951
+        ],
+        [
+          -0.1929882683538502,
+          -1.1217116902004491,
+          1.9124901995615817
+        ],
+        [
+          -0.05889282934013708,
+          -1.2490126899701712,
+          0.4370839829734101
+        ],
+        [
+          -0.2512793583770036,
+          1.0162721357193523,
+          -1.1001513607908233
+        ],
+        [
+          0.19298552073687725,
+          1.1217117194152726,
+          -1.9124902133645378
+        ]
+      ],
+      "base_pose": [
+        0.20964984096867997,
+        -0.067694497636,
+        0.195,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair_proxy_gap_m": 0.04414377735998015,
+      "pair_check": {
+        "pair": [
+          {
+            "leg": "lb",
+            "link": "knee"
+          },
+          {
+            "leg": "lm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "conservative_triangle_AABB_prefilter_excluded_all_pairs",
+        "filtered_triangle_counts": {
+          "left": 0,
+          "right": 0
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": false
+      }
+    },
+    {
+      "label": "B_BODY_LB_013_SYNC_lb_lm_neighbor_tick582",
+      "stage": "BODY_LB_013_SYNC",
+      "tick": 582,
+      "phase_before_s": 0.7666666666666666,
+      "q_rad": [
+        [
+          0.9231893399275621,
+          0.8877128632126066,
+          0.41476283284146703
+        ],
+        [
+          0.24969519326908626,
+          -1.027865338445923,
+          1.1159734219563895
+        ],
+        [
+          -0.20343331373419032,
+          -1.1207718777291975,
+          1.910312304979443
+        ],
+        [
+          -0.05241492962127519,
+          -1.2579940869279036,
+          0.45779850295321717
+        ],
+        [
+          -0.24969298877564564,
+          1.0278687604019716,
+          -1.115978100106031
+        ],
+        [
+          0.20343055631555482,
+          1.1207719064239314,
+          -1.9103123186288384
+        ]
+      ],
+      "base_pose": [
+        0.21099864748250452,
+        -0.067694497636,
+        0.195,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair_proxy_gap_m": 0.044240145951737975,
+      "pair_check": {
+        "pair": [
+          {
+            "leg": "lb",
+            "link": "knee"
+          },
+          {
+            "leg": "lm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "conservative_triangle_AABB_prefilter_excluded_all_pairs",
+        "filtered_triangle_counts": {
+          "left": 0,
+          "right": 0
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": false
+      }
+    },
+    {
+      "label": "B_BODY_LB_013_SYNC_rb_rm_neighbor_tick587",
+      "stage": "BODY_LB_013_SYNC",
+      "tick": 587,
+      "phase_before_s": 0.9333333333333332,
+      "q_rad": [
+        [
+          0.8492905932540187,
+          1.1655273330051295,
+          -0.0015323968014072237
+        ],
+        [
+          0.24594726435732917,
+          -1.0550160319635657,
+          1.1526306139094002
+        ],
+        [
+          -0.2274626521900684,
+          -1.1182740551465709,
+          1.9047376037073718
+        ],
+        [
+          -0.0379064920650977,
+          -1.2963067359830662,
+          0.5328805229753989
+        ],
+        [
+          -0.24594512240953287,
+          1.0550194937979984,
+          -1.1526352977670158
+        ],
+        [
+          0.22745987040231624,
+          1.118274081442225,
+          -1.904737616681993
+        ]
+      ],
+      "base_pose": [
+        0.21470790442851276,
+        -0.067694497636,
+        0.195,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair_proxy_gap_m": 0.09066564746574808,
+      "pair_check": {
+        "pair": [
+          {
+            "leg": "rb",
+            "link": "knee"
+          },
+          {
+            "leg": "rm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "conservative_triangle_AABB_prefilter_excluded_all_pairs",
+        "filtered_triangle_counts": {
+          "left": 0,
+          "right": 0
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": false
+      }
+    },
+    {
+      "label": "B_BODY_LB_013_SYNC_rb_rm_min_tick588",
+      "stage": "BODY_LB_013_SYNC",
+      "tick": 588,
+      "phase_before_s": 0.9666666666666666,
+      "q_rad": [
+        [
+          0.8374492692452591,
+          1.2503474161868353,
+          -0.13162074000393498
+        ],
+        [
+          0.24590940219502982,
+          -1.0553766772059423,
+          1.1530836028644749
+        ],
+        [
+          -0.22770561142695903,
+          -1.1182193511011125,
+          1.9046582430849908
+        ],
+        [
+          -0.03776635158349734,
+          -1.3016984094779158,
+          0.5413634310475294
+        ],
+        [
+          -0.24590726095184934,
+          1.0553801395927223,
+          -1.1530882866782666
+        ],
+        [
+          0.2277028294061999,
+          1.118219377061245,
+          -1.904658255969123
+        ]
+      ],
+      "base_pose": [
+        0.214905291093121,
+        -0.067694497636,
+        0.195,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair_proxy_gap_m": 0.09066018720844646,
+      "pair_check": {
+        "pair": [
+          {
+            "leg": "rb",
+            "link": "knee"
+          },
+          {
+            "leg": "rm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "conservative_triangle_AABB_prefilter_excluded_all_pairs",
+        "filtered_triangle_counts": {
+          "left": 0,
+          "right": 0
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": false
+      }
+    },
+    {
+      "label": "B_BODY_LB_013_SYNC_rb_rm_neighbor_tick589",
+      "stage": "BODY_LB_013_SYNC",
+      "tick": 589,
+      "phase_before_s": 0.9999999999999999,
+      "q_rad": [
+        [
+          0.833794666107074,
+          1.2940541518719313,
+          -0.19915034604088006
+        ],
+        [
+          0.24599285947967173,
+          -1.054867498988554,
+          1.152369313761352
+        ],
+        [
+          -0.22718451602992953,
+          -1.1182502395611145,
+          1.9047671843408125
+        ],
+        [
+          -0.03807985803391387,
+          -1.3063706779502207,
+          0.5482271026180462
+        ],
+        [
+          -0.2459907169189166,
+          1.0548709605433653,
+          -1.1523739972603826
+        ],
+        [
+          0.2271817345882106,
+          1.118250265270458,
+          -1.9047671971575022
+        ]
+      ],
+      "base_pose": [
+        0.2149860544828201,
+        -0.067694497636,
+        0.195,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair_proxy_gap_m": 0.09067128875160345,
+      "pair_check": {
+        "pair": [
+          {
+            "leg": "rb",
+            "link": "knee"
+          },
+          {
+            "leg": "rm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "conservative_triangle_AABB_prefilter_excluded_all_pairs",
+        "filtered_triangle_counts": {
+          "left": 0,
+          "right": 0
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": false
+      }
+    },
+    {
+      "label": "B_RB_TO_013_lb_lm_neighbor_tick597",
+      "stage": "RB_TO_013",
+      "tick": 597,
+      "phase_before_s": 0.03333333333333333,
+      "q_rad": [
+        [
+          0.841090749806569,
+          1.260575007517286,
+          -0.14773612226655225
+        ],
+        [
+          0.24625423137512623,
+          -1.0530664343925413,
+          1.1499190491845406
+        ],
+        [
+          -0.22553050488407902,
+          -1.1184054533881553,
+          1.905147622992265
+        ],
+        [
+          -0.039060498171193274,
+          -1.3271791429604403,
+          0.5793617118411863
+        ],
+        [
+          -0.24625208452173153,
+          1.0530698931206892,
+          -1.1499237320251177
+        ],
+        [
+          0.22552772519262584,
+          1.118405478979861,
+          -1.9051476357705068
+        ]
+      ],
+      "base_pose": [
+        0.2150002710210386,
+        -0.067694497636,
+        0.19500000000000003,
+        0.0,
+        0.0,
+        -1.5707963267948968
+      ],
+      "pair_proxy_gap_m": 0.049500525842614176,
+      "pair_check": {
+        "pair": [
+          {
+            "leg": "lb",
+            "link": "knee"
+          },
+          {
+            "leg": "lm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "conservative_triangle_AABB_prefilter_excluded_all_pairs",
+        "filtered_triangle_counts": {
+          "left": 0,
+          "right": 0
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": false
+      }
+    },
+    {
+      "label": "B_RB_TO_013_lb_lm_min_tick598",
+      "stage": "RB_TO_013",
+      "tick": 598,
+      "phase_before_s": 0.06666666666666667,
+      "q_rad": [
+        [
+          0.8410589712322032,
+          1.26028247070536,
+          -0.1472948950865862
+        ],
+        [
+          0.24625079910800596,
+          -1.053088958654858,
+          1.1499500069382844
+        ],
+        [
+          -0.22555202574059072,
+          -1.1184036801374209,
+          1.905142779633263
+        ],
+        [
+          -0.03897812769782586,
+          -1.3273578081690482,
+          0.5800599358876095
+        ],
+        [
+          -0.24624865231010562,
+          1.053092417419279,
+          -1.1499546897894664
+        ],
+        [
+          0.22554924602575752,
+          1.11840370573393,
+          -1.9051427924127524
+        ]
+      ],
+      "base_pose": [
+        0.21500212816667216,
+        -0.067694497636,
+        0.19500000000000003,
+        0.0,
+        0.0,
+        -1.5707963267948968
+      ],
+      "pair_proxy_gap_m": 0.04950037024662844,
+      "pair_check": {
+        "pair": [
+          {
+            "leg": "lb",
+            "link": "knee"
+          },
+          {
+            "leg": "lm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "conservative_triangle_AABB_prefilter_excluded_all_pairs",
+        "filtered_triangle_counts": {
+          "left": 0,
+          "right": 0
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": false
+      }
+    },
+    {
+      "label": "B_RB_TO_013_lb_lm_neighbor_tick599",
+      "stage": "RB_TO_013",
+      "tick": 599,
+      "phase_before_s": 0.1,
+      "q_rad": [
+        [
+          0.8409467174465958,
+          1.2601072208243622,
+          -0.14703844338455604
+        ],
+        [
+          0.24624138581144037,
+          -1.0531528517958593,
+          1.1500371648650074
+        ],
+        [
+          -0.2256113529759845,
+          -1.118398247064244,
+          1.9051291460601008
+        ],
+        [
+          -0.03878479564826864,
+          -1.3254185981689837,
+          0.5780405800725467
+        ],
+        [
+          -0.24623923916742066,
+          1.053156310661466,
+          -1.1500418477415486
+        ],
+        [
+          0.22560857319785485,
+          1.1183982726672002,
+          -1.9051291588411698
+        ]
+      ],
+      "base_pose": [
+        0.2150070489003336,
+        -0.067694497636,
+        0.195,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair_proxy_gap_m": 0.04950282544976255,
+      "pair_check": {
+        "pair": [
+          {
+            "leg": "lb",
+            "link": "knee"
+          },
+          {
+            "leg": "lm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "conservative_triangle_AABB_prefilter_excluded_all_pairs",
+        "filtered_triangle_counts": {
+          "left": 0,
+          "right": 0
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": false
+      }
+    },
+    {
+      "label": "B_RB_TO_013_rb_rm_neighbor_tick660",
+      "stage": "RB_TO_013",
+      "tick": 660,
+      "phase_before_s": 2.1333333333333355,
+      "q_rad": [
+        [
+          0.6095146675355414,
+          1.2422727817192663,
+          -0.1518992191512474
+        ],
+        [
+          0.22541635445619024,
+          -1.1893404862503403,
+          1.3293448353322919
+        ],
+        [
+          -0.3446163891642891,
+          -1.1023048481384308,
+          1.8684682978549358
+        ],
+        [
+          -0.6189464561777057,
+          -0.8720010431245486,
+          -0.4000865574865057
+        ],
+        [
+          -0.2254145468453086,
+          1.1893442422758824,
+          -1.3293496300883372
+        ],
+        [
+          0.3446134525824991,
+          1.1023048727236127,
+          -1.8684683101105877
+        ]
+      ],
+      "base_pose": [
+        0.2289398492894655,
+        -0.067694497636,
+        0.195,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair_proxy_gap_m": 0.05509530889815814,
+      "pair_check": {
+        "pair": [
+          {
+            "leg": "rb",
+            "link": "knee"
+          },
+          {
+            "leg": "rm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "conservative_triangle_AABB_prefilter_excluded_all_pairs",
+        "filtered_triangle_counts": {
+          "left": 0,
+          "right": 0
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": false
+      }
+    },
+    {
+      "label": "B_RB_TO_013_rb_rm_min_tick661",
+      "stage": "RB_TO_013",
+      "tick": 661,
+      "phase_before_s": 2.1666666666666687,
+      "q_rad": [
+        [
+          0.6074229373535712,
+          1.2420595675805046,
+          -0.15199401604013335
+        ],
+        [
+          0.2251967560096347,
+          -1.1906954816905462,
+          1.3310709451130955
+        ],
+        [
+          -0.3457425071757454,
+          -1.1021058516248525,
+          1.8680297725017978
+        ],
+        [
+          -0.6180141874957373,
+          -0.882144308900449,
+          -0.3852787282890681
+        ],
+        [
+          -0.225194951925749,
+          1.1906992415945301,
+          -1.3310757416461922
+        ],
+        [
+          0.3457395688134903,
+          1.1021058761721496,
+          -1.8680297847446676
+        ]
+      ],
+      "base_pose": [
+        0.2290911617139767,
+        -0.067694497636,
+        0.195,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair_proxy_gap_m": 0.05509174303624287,
+      "pair_check": {
+        "pair": [
+          {
+            "leg": "rb",
+            "link": "knee"
+          },
+          {
+            "leg": "rm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "conservative_triangle_AABB_prefilter_excluded_all_pairs",
+        "filtered_triangle_counts": {
+          "left": 0,
+          "right": 0
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": false
+      }
+    },
+    {
+      "label": "B_RB_TO_013_rb_rm_neighbor_tick662",
+      "stage": "RB_TO_013",
+      "tick": 662,
+      "phase_before_s": 2.200000000000002,
+      "q_rad": [
+        [
+          0.6055308140491196,
+          1.2418659779936927,
+          -0.15208081129580914
+        ],
+        [
+          0.22499755221302198,
+          -1.1919240445585892,
+          1.33263474075982
+        ],
+        [
+          -0.3467619354615325,
+          -1.1019246247052314,
+          1.8676310582863058
+        ],
+        [
+          -0.6167567609759642,
+          -0.8969642492974418,
+          -0.3636184154859833
+        ],
+        [
+          -0.22499575132827865,
+          1.1919278079970186,
+          -1.3326395389154029
+        ],
+        [
+          0.3467589954832757,
+          1.1019246492161383,
+          -1.8676310705170496
+        ]
+      ],
+      "base_pose": [
+        0.2292294886818378,
+        -0.067694497636,
+        0.195,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair_proxy_gap_m": 0.05511287770740016,
+      "pair_check": {
+        "pair": [
+          {
+            "leg": "rb",
+            "link": "knee"
+          },
+          {
+            "leg": "rm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "conservative_triangle_AABB_prefilter_excluded_all_pairs",
+        "filtered_triangle_counts": {
+          "left": 0,
+          "right": 0
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": false
+      }
+    },
+    {
+      "label": "B_MID_TO_019_DIRECT_lb_lm_min_tick370",
+      "stage": "MID_TO_019_DIRECT",
+      "tick": 370,
+      "phase_before_s": 0.0,
+      "q_rad": [
+        [
+          0.5734684782558003,
+          0.376245314437059,
+          1.055114395556419
+        ],
+        [
+          0.24353169710182393,
+          -1.1203713931624053,
+          1.1866966250836462
+        ],
+        [
+          -0.5171850484559224,
+          0.254970518339137,
+          0.7273198701210044
+        ],
+        [
+          -0.5734562543650431,
+          -0.3762459807240687,
+          -1.0551144890177886
+        ],
+        [
+          -0.24273555372268618,
+          1.0948145891534222,
+          -1.1870986847519323
+        ],
+        [
+          0.5171871372261234,
+          -0.2549705183442388,
+          -0.7273198701151815
+        ]
+      ],
+      "base_pose": [
+        0.081,
+        -0.067694497636,
+        0.15,
+        0.15,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair_proxy_gap_m": 0.0460457174849903,
+      "pair_check": {
+        "pair": [
+          {
+            "leg": "lb",
+            "link": "knee"
+          },
+          {
+            "leg": "lm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "broadphase_excluded_all_triangle_pairs; collision result is clear",
+        "filtered_triangle_counts": {
+          "left": 40,
+          "right": 11
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": false
+      }
+    },
+    {
+      "label": "B_MID_TO_019_DIRECT_lb_lm_neighbor_tick371",
+      "stage": "MID_TO_019_DIRECT",
+      "tick": 371,
+      "phase_before_s": 0.03333333333333333,
+      "q_rad": [
+        [
+          0.5725971372121808,
+          0.3759548145682449,
+          1.0552392251789298
+        ],
+        [
+          0.24344038412661623,
+          -1.1209498554447406,
+          1.1875095543991536
+        ],
+        [
+          -0.5165308487034364,
+          0.252153132445141,
+          0.7308413029552276
+        ],
+        [
+          -0.5725849221845971,
+          -0.37595548000100776,
+          -1.055239319033588
+        ],
+        [
+          -0.2426437385674309,
+          1.0953781769787583,
+          -1.1879066039731963
+        ],
+        [
+          0.5165329284336897,
+          -0.25215313249806665,
+          -0.7308413029280918
+        ]
+      ],
+      "base_pose": [
+        0.08104199304706101,
+        -0.067694497636,
+        0.15001014324808237,
+        0.15,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair_proxy_gap_m": 0.04625750453870313,
+      "pair_check": {
+        "pair": [
+          {
+            "leg": "lb",
+            "link": "knee"
+          },
+          {
+            "leg": "lm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "broadphase_excluded_all_triangle_pairs; collision result is clear",
+        "filtered_triangle_counts": {
+          "left": 39,
+          "right": 11
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": false
+      }
+    },
+    {
+      "label": "B_MID_TO_019_DIRECT_rb_rm_min_tick370",
+      "stage": "MID_TO_019_DIRECT",
+      "tick": 370,
+      "phase_before_s": 0.0,
+      "q_rad": [
+        [
+          0.5734684782558003,
+          0.376245314437059,
+          1.055114395556419
+        ],
+        [
+          0.24353169710182393,
+          -1.1203713931624053,
+          1.1866966250836462
+        ],
+        [
+          -0.5171850484559224,
+          0.254970518339137,
+          0.7273198701210044
+        ],
+        [
+          -0.5734562543650431,
+          -0.3762459807240687,
+          -1.0551144890177886
+        ],
+        [
+          -0.24273555372268618,
+          1.0948145891534222,
+          -1.1870986847519323
+        ],
+        [
+          0.5171871372261234,
+          -0.2549705183442388,
+          -0.7273198701151815
+        ]
+      ],
+      "base_pose": [
+        0.081,
+        -0.067694497636,
+        0.15,
+        0.15,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair_proxy_gap_m": 0.0460535312988528,
+      "pair_check": {
+        "pair": [
+          {
+            "leg": "rb",
+            "link": "knee"
+          },
+          {
+            "leg": "rm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "broadphase_excluded_all_triangle_pairs; collision result is clear",
+        "filtered_triangle_counts": {
+          "left": 24,
+          "right": 8
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": false
+      }
+    },
+    {
+      "label": "B_MID_TO_019_DIRECT_rb_rm_neighbor_tick371",
+      "stage": "MID_TO_019_DIRECT",
+      "tick": 371,
+      "phase_before_s": 0.03333333333333333,
+      "q_rad": [
+        [
+          0.5725971372121808,
+          0.3759548145682449,
+          1.0552392251789298
+        ],
+        [
+          0.24344038412661623,
+          -1.1209498554447406,
+          1.1875095543991536
+        ],
+        [
+          -0.5165308487034364,
+          0.252153132445141,
+          0.7308413029552276
+        ],
+        [
+          -0.5725849221845971,
+          -0.37595548000100776,
+          -1.055239319033588
+        ],
+        [
+          -0.2426437385674309,
+          1.0953781769787583,
+          -1.1879066039731963
+        ],
+        [
+          0.5165329284336897,
+          -0.25215313249806665,
+          -0.7308413029280918
+        ]
+      ],
+      "base_pose": [
+        0.08104199304706101,
+        -0.067694497636,
+        0.15001014324808237,
+        0.15,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair_proxy_gap_m": 0.04626581667545489,
+      "pair_check": {
+        "pair": [
+          {
+            "leg": "rb",
+            "link": "knee"
+          },
+          {
+            "leg": "rm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "broadphase_excluded_all_triangle_pairs; collision result is clear",
+        "filtered_triangle_counts": {
+          "left": 24,
+          "right": 8
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": false
+      }
+    },
+    {
+      "label": "B_BODY_MID_0235_SYNC_lb_lm_min_tick683",
+      "stage": "BODY_MID_0235_SYNC",
+      "tick": 683,
+      "phase_before_s": 0.0,
+      "q_rad": [
+        [
+          0.596155961593572,
+          1.2408970185714143,
+          -0.15251789630753435
+        ],
+        [
+          0.2240066213205931,
+          -1.1980640200237087,
+          1.3404201435985623
+        ],
+        [
+          -0.35180719291024437,
+          -1.1009985917155518,
+          1.8656256020044815
+        ],
+        [
+          -0.5961334509835006,
+          -1.2411328270562414,
+          0.15287595677884913
+        ],
+        [
+          -0.22400483638021904,
+          1.1980678014288126,
+          -1.3404249500133982
+        ],
+        [
+          0.351804244902809,
+          1.1009986159200447,
+          -1.865625614141493
+        ]
+      ],
+      "base_pose": [
+        0.23,
+        -0.067694497636,
+        0.195,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair_proxy_gap_m": 0.05601591174949522,
+      "pair_check": {
+        "pair": [
+          {
+            "leg": "lb",
+            "link": "knee"
+          },
+          {
+            "leg": "lm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "conservative_triangle_AABB_prefilter_excluded_all_pairs",
+        "filtered_triangle_counts": {
+          "left": 0,
+          "right": 0
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": false
+      }
+    },
+    {
+      "label": "B_BODY_MID_0235_SYNC_lb_lm_neighbor_tick684",
+      "stage": "BODY_MID_0235_SYNC",
+      "tick": 684,
+      "phase_before_s": 0.03333333333333333,
+      "q_rad": [
+        [
+          0.5951091593290387,
+          1.2407872473319266,
+          -0.15257500054466974
+        ],
+        [
+          0.22389131096384923,
+          -1.198741965199246,
+          1.341289941191054
+        ],
+        [
+          -0.35238790648380125,
+          -1.1013345062520254,
+          1.8656132529767961
+        ],
+        [
+          -0.5950882129517258,
+          -1.2409256655488554,
+          0.15278475710328934
+        ],
+        [
+          -0.2238895278451101,
+          1.198745748568363,
+          -1.341294748543718
+        ],
+        [
+          0.3523849561670562,
+          1.1013345304814188,
+          -1.8656132651073498
+        ]
+      ],
+      "base_pose": [
+        0.23004719447437763,
+        -0.067694497636,
+        0.195,
+        0.0,
+        0.0,
+        -1.5707963267948968
+      ],
+      "pair_proxy_gap_m": 0.0560413181263056,
+      "pair_check": {
+        "pair": [
+          {
+            "leg": "lb",
+            "link": "knee"
+          },
+          {
+            "leg": "lm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "conservative_triangle_AABB_prefilter_excluded_all_pairs",
+        "filtered_triangle_counts": {
+          "left": 0,
+          "right": 0
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": false
+      }
+    },
+    {
+      "label": "B_BODY_MID_0235_SYNC_rb_rm_min_tick683",
+      "stage": "BODY_MID_0235_SYNC",
+      "tick": 683,
+      "phase_before_s": 0.0,
+      "q_rad": [
+        [
+          0.596155961593572,
+          1.2408970185714143,
+          -0.15251789630753435
+        ],
+        [
+          0.2240066213205931,
+          -1.1980640200237087,
+          1.3404201435985623
+        ],
+        [
+          -0.35180719291024437,
+          -1.1009985917155518,
+          1.8656256020044815
+        ],
+        [
+          -0.5961334509835006,
+          -1.2411328270562414,
+          0.15287595677884913
+        ],
+        [
+          -0.22400483638021904,
+          1.1980678014288126,
+          -1.3404249500133982
+        ],
+        [
+          0.351804244902809,
+          1.1009986159200447,
+          -1.865625614141493
+        ]
+      ],
+      "base_pose": [
+        0.23,
+        -0.067694497636,
+        0.195,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair_proxy_gap_m": 0.05602959775773267,
+      "pair_check": {
+        "pair": [
+          {
+            "leg": "rb",
+            "link": "knee"
+          },
+          {
+            "leg": "rm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "conservative_triangle_AABB_prefilter_excluded_all_pairs",
+        "filtered_triangle_counts": {
+          "left": 0,
+          "right": 0
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": false
+      }
+    },
+    {
+      "label": "B_BODY_MID_0235_SYNC_rb_rm_neighbor_tick684",
+      "stage": "BODY_MID_0235_SYNC",
+      "tick": 684,
+      "phase_before_s": 0.03333333333333333,
+      "q_rad": [
+        [
+          0.5951091593290387,
+          1.2407872473319266,
+          -0.15257500054466974
+        ],
+        [
+          0.22389131096384923,
+          -1.198741965199246,
+          1.341289941191054
+        ],
+        [
+          -0.35238790648380125,
+          -1.1013345062520254,
+          1.8656132529767961
+        ],
+        [
+          -0.5950882129517258,
+          -1.2409256655488554,
+          0.15278475710328934
+        ],
+        [
+          -0.2238895278451101,
+          1.198745748568363,
+          -1.341294748543718
+        ],
+        [
+          0.3523849561670562,
+          1.1013345304814188,
+          -1.8656132651073498
+        ]
+      ],
+      "base_pose": [
+        0.23004719447437763,
+        -0.067694497636,
+        0.195,
+        0.0,
+        0.0,
+        -1.5707963267948968
+      ],
+      "pair_proxy_gap_m": 0.05605472577888071,
+      "pair_check": {
+        "pair": [
+          {
+            "leg": "rb",
+            "link": "knee"
+          },
+          {
+            "leg": "rm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "conservative_triangle_AABB_prefilter_excluded_all_pairs",
+        "filtered_triangle_counts": {
+          "left": 0,
+          "right": 0
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": false
+      }
+    },
+    {
+      "label": "C_AH_BACK_LOW_FIRST_SEGMENT_lb_lm_tick787",
+      "stage": "AH_BACK_LOW_FIRST_SEGMENT",
+      "tick": 787,
+      "phase_before_s": 1.5000000000000013,
+      "q_rad": [
+        [
+          0.5839770433859355,
+          -0.26730310617408315,
+          1.7254557251817846
+        ],
+        [
+          0.10170764717033765,
+          -0.9528939192191284,
+          1.6654665143166443
+        ],
+        [
+          -0.4301844486978943,
+          -0.4191410620824465,
+          1.410424375274124
+        ],
+        [
+          -0.5839707896770026,
+          0.26730211023713474,
+          -1.7254558355411007
+        ],
+        [
+          -0.10170484891093594,
+          0.9528961141284974,
+          -1.665471457971805
+        ],
+        [
+          0.430183838390884,
+          0.4191409326358049,
+          -1.4104242746686149
+        ]
+      ],
+      "base_pose": [
+        0.285,
+        -0.067694497636,
+        0.245,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair_proxy_gap_m": 0.05245418791821152,
+      "pair_check": {
+        "pair": [
+          {
+            "leg": "lb",
+            "link": "knee"
+          },
+          {
+            "leg": "lm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "conservative_triangle_AABB_prefilter_excluded_all_pairs",
+        "filtered_triangle_counts": {
+          "left": 0,
+          "right": 0
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": false
+      }
+    },
+    {
+      "label": "C_AH_BACK_LOW_FIRST_SEGMENT_rb_rm_tick787",
+      "stage": "AH_BACK_LOW_FIRST_SEGMENT",
+      "tick": 787,
+      "phase_before_s": 1.5000000000000013,
+      "q_rad": [
+        [
+          0.5839770433859355,
+          -0.26730310617408315,
+          1.7254557251817846
+        ],
+        [
+          0.10170764717033765,
+          -0.9528939192191284,
+          1.6654665143166443
+        ],
+        [
+          -0.4301844486978943,
+          -0.4191410620824465,
+          1.410424375274124
+        ],
+        [
+          -0.5839707896770026,
+          0.26730211023713474,
+          -1.7254558355411007
+        ],
+        [
+          -0.10170484891093594,
+          0.9528961141284974,
+          -1.665471457971805
+        ],
+        [
+          0.430183838390884,
+          0.4191409326358049,
+          -1.4104242746686149
+        ]
+      ],
+      "base_pose": [
+        0.285,
+        -0.067694497636,
+        0.245,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair_proxy_gap_m": 0.052486380553482745,
+      "pair_check": {
+        "pair": [
+          {
+            "leg": "rb",
+            "link": "knee"
+          },
+          {
+            "leg": "rm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "conservative_triangle_AABB_prefilter_excluded_all_pairs",
+        "filtered_triangle_counts": {
+          "left": 0,
+          "right": 0
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": false
+      }
+    },
+    {
+      "label": "C_AH_BACK_LOW_FIRST_SEGMENT_lb_lm_tick788",
+      "stage": "AH_BACK_LOW_FIRST_SEGMENT",
+      "tick": 788,
+      "phase_before_s": 1.5333333333333348,
+      "q_rad": [
+        [
+          0.6277331376962284,
+          -0.25723340889772894,
+          1.7262280383004482
+        ],
+        [
+          0.10170764764746873,
+          -0.9528939442036134,
+          1.6654665287836317
+        ],
+        [
+          -0.4301844474956481,
+          -0.419141083373368,
+          1.410424393172246
+        ],
+        [
+          -0.6277266948107134,
+          0.2572323724610128,
+          -1.7262281336677563
+        ],
+        [
+          -0.10170484938814381,
+          0.9528961391132121,
+          -1.665471472438906
+        ],
+        [
+          0.43018383718854997,
+          0.4191409539267268,
+          -1.4104242925667378
+        ]
+      ],
+      "base_pose": [
+        0.285,
+        -0.067694497636,
+        0.245,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair_proxy_gap_m": 0.04954698885229154,
+      "pair_check": {
+        "pair": [
+          {
+            "leg": "lb",
+            "link": "knee"
+          },
+          {
+            "leg": "lm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "conservative_triangle_AABB_prefilter_excluded_all_pairs",
+        "filtered_triangle_counts": {
+          "left": 0,
+          "right": 0
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": false
+      }
+    },
+    {
+      "label": "C_AH_BACK_LOW_FIRST_SEGMENT_rb_rm_tick788",
+      "stage": "AH_BACK_LOW_FIRST_SEGMENT",
+      "tick": 788,
+      "phase_before_s": 1.5333333333333348,
+      "q_rad": [
+        [
+          0.6277331376962284,
+          -0.25723340889772894,
+          1.7262280383004482
+        ],
+        [
+          0.10170764764746873,
+          -0.9528939442036134,
+          1.6654665287836317
+        ],
+        [
+          -0.4301844474956481,
+          -0.419141083373368,
+          1.410424393172246
+        ],
+        [
+          -0.6277266948107134,
+          0.2572323724610128,
+          -1.7262281336677563
+        ],
+        [
+          -0.10170484938814381,
+          0.9528961391132121,
+          -1.665471472438906
+        ],
+        [
+          0.43018383718854997,
+          0.4191409539267268,
+          -1.4104242925667378
+        ]
+      ],
+      "base_pose": [
+        0.285,
+        -0.067694497636,
+        0.245,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair_proxy_gap_m": 0.049599027605265855,
+      "pair_check": {
+        "pair": [
+          {
+            "leg": "rb",
+            "link": "knee"
+          },
+          {
+            "leg": "rm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "conservative_triangle_AABB_prefilter_excluded_all_pairs",
+        "filtered_triangle_counts": {
+          "left": 0,
+          "right": 0
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": false
+      }
+    },
+    {
+      "label": "C_AH_BACK_LOW_FIRST_SEGMENT_lb_lm_tick789",
+      "stage": "AH_BACK_LOW_FIRST_SEGMENT",
+      "tick": 789,
+      "phase_before_s": 1.5666666666666682,
+      "q_rad": [
+        [
+          0.6600799492830406,
+          -0.25069409262339837,
+          1.7265685666095862
+        ],
+        [
+          0.1017076478715586,
+          -0.9528939563619131,
+          1.6654665358952372
+        ],
+        [
+          -0.43018444693017066,
+          -0.4191410936773116,
+          1.4104244018527479
+        ],
+        [
+          -0.6600733912941964,
+          0.25069303245711766,
+          -1.72656865316477
+        ],
+        [
+          -0.1017048496122711,
+          0.9528961512716273,
+          -1.6654714795505694
+        ],
+        [
+          0.43018383662303,
+          0.41914096423067054,
+          -1.41042430124724
+        ]
+      ],
+      "base_pose": [
+        0.285,
+        -0.067694497636,
+        0.245,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair_proxy_gap_m": 0.04559600133709142,
+      "pair_check": {
+        "pair": [
+          {
+            "leg": "lb",
+            "link": "knee"
+          },
+          {
+            "leg": "lm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "conservative_triangle_AABB_prefilter_excluded_all_pairs",
+        "filtered_triangle_counts": {
+          "left": 0,
+          "right": 0
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": false
+      }
+    },
+    {
+      "label": "C_AH_BACK_LOW_FIRST_SEGMENT_rb_rm_tick789",
+      "stage": "AH_BACK_LOW_FIRST_SEGMENT",
+      "tick": 789,
+      "phase_before_s": 1.5666666666666682,
+      "q_rad": [
+        [
+          0.6600799492830406,
+          -0.25069409262339837,
+          1.7265685666095862
+        ],
+        [
+          0.1017076478715586,
+          -0.9528939563619131,
+          1.6654665358952372
+        ],
+        [
+          -0.43018444693017066,
+          -0.4191410936773116,
+          1.4104244018527479
+        ],
+        [
+          -0.6600733912941964,
+          0.25069303245711766,
+          -1.72656865316477
+        ],
+        [
+          -0.1017048496122711,
+          0.9528961512716273,
+          -1.6654714795505694
+        ],
+        [
+          0.43018383662303,
+          0.41914096423067054,
+          -1.41042430124724
+        ]
+      ],
+      "base_pose": [
+        0.285,
+        -0.067694497636,
+        0.245,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair_proxy_gap_m": 0.04565166957634488,
+      "pair_check": {
+        "pair": [
+          {
+            "leg": "rb",
+            "link": "knee"
+          },
+          {
+            "leg": "rm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "conservative_triangle_AABB_prefilter_excluded_all_pairs",
+        "filtered_triangle_counts": {
+          "left": 0,
+          "right": 0
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": false
+      }
+    },
+    {
+      "label": "C_AH_BACK_LOW_FIRST_SEGMENT_lb_lm_tick790",
+      "stage": "AH_BACK_LOW_FIRST_SEGMENT",
+      "tick": 790,
+      "phase_before_s": 1.6000000000000016,
+      "q_rad": [
+        [
+          0.6801377659745498,
+          -0.24707466198919978,
+          1.7266639008551155
+        ],
+        [
+          0.10170764797680486,
+          -0.9528939622792255,
+          1.6654665393899648
+        ],
+        [
+          -0.4301844466641979,
+          -0.41914109866415195,
+          1.410424406062572
+        ],
+        [
+          -0.6801311488902955,
+          0.247073592297462,
+          -1.7266639838583557
+        ],
+        [
+          -0.1017048497175355,
+          0.9528961571889976,
+          -1.6654714830453263
+        ],
+        [
+          0.4301838363570366,
+          0.4191409692175108,
+          -1.410424305457064
+        ]
+      ],
+      "base_pose": [
+        0.285,
+        -0.067694497636,
+        0.245,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair_proxy_gap_m": 0.04308734597055787,
+      "pair_check": {
+        "pair": [
+          {
+            "leg": "lb",
+            "link": "knee"
+          },
+          {
+            "leg": "lm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "conservative_triangle_AABB_prefilter_excluded_all_pairs",
+        "filtered_triangle_counts": {
+          "left": 0,
+          "right": 4
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": false
+      }
+    },
+    {
+      "label": "C_AH_BACK_LOW_FIRST_SEGMENT_rb_rm_tick790",
+      "stage": "AH_BACK_LOW_FIRST_SEGMENT",
+      "tick": 790,
+      "phase_before_s": 1.6000000000000016,
+      "q_rad": [
+        [
+          0.6801377659745498,
+          -0.24707466198919978,
+          1.7266639008551155
+        ],
+        [
+          0.10170764797680486,
+          -0.9528939622792255,
+          1.6654665393899648
+        ],
+        [
+          -0.4301844466641979,
+          -0.41914109866415195,
+          1.410424406062572
+        ],
+        [
+          -0.6801311488902955,
+          0.247073592297462,
+          -1.7266639838583557
+        ],
+        [
+          -0.1017048497175355,
+          0.9528961571889976,
+          -1.6654714830453263
+        ],
+        [
+          0.4301838363570366,
+          0.4191409692175108,
+          -1.410424305457064
+        ]
+      ],
+      "base_pose": [
+        0.285,
+        -0.067694497636,
+        0.245,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair_proxy_gap_m": 0.043144129130379974,
+      "pair_check": {
+        "pair": [
+          {
+            "leg": "rb",
+            "link": "knee"
+          },
+          {
+            "leg": "rm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "conservative_triangle_AABB_prefilter_excluded_all_pairs",
+        "filtered_triangle_counts": {
+          "left": 0,
+          "right": 4
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": false
+      }
+    },
+    {
+      "label": "C_AH_BACK_LOW_FIRST_SEGMENT_lb_lm_tick791",
+      "stage": "AH_BACK_LOW_FIRST_SEGMENT",
+      "tick": 791,
+      "phase_before_s": 1.633333333333335,
+      "q_rad": [
+        [
+          0.6886719097709069,
+          -0.2457217085892476,
+          1.7266160621183568
+        ],
+        [
+          0.10170764802623493,
+          -0.9528939651594324,
+          1.665466541106777
+        ],
+        [
+          -0.4301844465390975,
+          -0.4191411010777223,
+          1.410424408104147
+        ],
+        [
+          -0.6886652729638353,
+          0.2457206400204393,
+          -1.7266161455177165
+        ],
+        [
+          -0.10170484976697435,
+          0.9528961600692333,
+          -1.6654714847621532
+        ],
+        [
+          0.43018383623192613,
+          0.41914097163108144,
+          -1.4104243074986393
+        ]
+      ],
+      "base_pose": [
+        0.285,
+        -0.067694497636,
+        0.245,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair_proxy_gap_m": 0.04201874965149423,
+      "pair_check": {
+        "pair": [
+          {
+            "leg": "lb",
+            "link": "knee"
+          },
+          {
+            "leg": "lm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "conservative_triangle_AABB_prefilter_excluded_all_pairs",
+        "filtered_triangle_counts": {
+          "left": 0,
+          "right": 4
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": false
+      }
+    },
+    {
+      "label": "C_AH_BACK_LOW_FIRST_SEGMENT_rb_rm_tick791",
+      "stage": "AH_BACK_LOW_FIRST_SEGMENT",
+      "tick": 791,
+      "phase_before_s": 1.633333333333335,
+      "q_rad": [
+        [
+          0.6886719097709069,
+          -0.2457217085892476,
+          1.7266160621183568
+        ],
+        [
+          0.10170764802623493,
+          -0.9528939651594324,
+          1.665466541106777
+        ],
+        [
+          -0.4301844465390975,
+          -0.4191411010777223,
+          1.410424408104147
+        ],
+        [
+          -0.6886652729638353,
+          0.2457206400204393,
+          -1.7266161455177165
+        ],
+        [
+          -0.10170484976697435,
+          0.9528961600692333,
+          -1.6654714847621532
+        ],
+        [
+          0.43018383623192613,
+          0.41914097163108144,
+          -1.4104243074986393
+        ]
+      ],
+      "base_pose": [
+        0.285,
+        -0.067694497636,
+        0.245,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair_proxy_gap_m": 0.042076037565248,
+      "pair_check": {
+        "pair": [
+          {
+            "leg": "rb",
+            "link": "knee"
+          },
+          {
+            "leg": "rm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "conservative_triangle_AABB_prefilter_excluded_all_pairs",
+        "filtered_triangle_counts": {
+          "left": 0,
+          "right": 4
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": false
+      }
+    },
+    {
+      "label": "C_AH_BACK_LOW_FIRST_SEGMENT_lb_lm_tick792",
+      "stage": "AH_BACK_LOW_FIRST_SEGMENT",
+      "tick": 792,
+      "phase_before_s": 1.6666666666666685,
+      "q_rad": [
+        [
+          0.6881499274554597,
+          -0.24597889216596242,
+          1.7264836160795476
+        ],
+        [
+          0.1017076480494503,
+          -0.952893966561499,
+          1.6654665419499237
+        ],
+        [
+          -0.4301844464802564,
+          -0.41914110224589396,
+          1.4104244090941804
+        ],
+        [
+          -0.6881432969487798,
+          0.2459778313257651,
+          -1.7264837023275255
+        ],
+        [
+          -0.10170484979019397,
+          0.9528961614713146,
+          -1.6654714856053072
+        ],
+        [
+          0.43018383617308015,
+          0.4191409727992532,
+          -1.410424308488673
+        ]
+      ],
+      "base_pose": [
+        0.285,
+        -0.067694497636,
+        0.245,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair_proxy_gap_m": 0.04208259643562244,
+      "pair_check": {
+        "pair": [
+          {
+            "leg": "lb",
+            "link": "knee"
+          },
+          {
+            "leg": "lm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "conservative_triangle_AABB_prefilter_excluded_all_pairs",
+        "filtered_triangle_counts": {
+          "left": 0,
+          "right": 4
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": false
+      }
+    },
+    {
+      "label": "C_AH_BACK_LOW_FIRST_SEGMENT_rb_rm_tick792",
+      "stage": "AH_BACK_LOW_FIRST_SEGMENT",
+      "tick": 792,
+      "phase_before_s": 1.6666666666666685,
+      "q_rad": [
+        [
+          0.6881499274554597,
+          -0.24597889216596242,
+          1.7264836160795476
+        ],
+        [
+          0.1017076480494503,
+          -0.952893966561499,
+          1.6654665419499237
+        ],
+        [
+          -0.4301844464802564,
+          -0.41914110224589396,
+          1.4104244090941804
+        ],
+        [
+          -0.6881432969487798,
+          0.2459778313257651,
+          -1.7264837023275255
+        ],
+        [
+          -0.10170484979019397,
+          0.9528961614713146,
+          -1.6654714856053072
+        ],
+        [
+          0.43018383617308015,
+          0.4191409727992532,
+          -1.410424308488673
+        ]
+      ],
+      "base_pose": [
+        0.285,
+        -0.067694497636,
+        0.245,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair_proxy_gap_m": 0.04213983578983227,
+      "pair_check": {
+        "pair": [
+          {
+            "leg": "rb",
+            "link": "knee"
+          },
+          {
+            "leg": "rm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "conservative_triangle_AABB_prefilter_excluded_all_pairs",
+        "filtered_triangle_counts": {
+          "left": 0,
+          "right": 4
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": false
+      }
+    },
+    {
+      "label": "C_AH_BACK_LOW_FIRST_SEGMENT_lb_lm_tick793",
+      "stage": "AH_BACK_LOW_FIRST_SEGMENT",
+      "tick": 793,
+      "phase_before_s": 1.700000000000002,
+      "q_rad": [
+        [
+          0.6827043597297251,
+          -0.24708920828000955,
+          1.7263201350331798
+        ],
+        [
+          0.10170764806035365,
+          -0.9528939672440858,
+          1.6654665423638861
+        ],
+        [
+          -0.43018444645258047,
+          -0.419141102811306,
+          1.410424409574265
+        ],
+        [
+          -0.6826977489317709,
+          0.24708815716908697,
+          -1.7263202248854577
+        ],
+        [
+          -0.10170484980109938,
+          0.9528961621539086,
+          -1.6654714860192734
+        ],
+        [
+          0.4301838361454019,
+          0.41914097336466544,
+          -1.4104243089687578
+        ]
+      ],
+      "base_pose": [
+        0.285,
+        -0.067694497636,
+        0.245,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair_proxy_gap_m": 0.04276232669274395,
+      "pair_check": {
+        "pair": [
+          {
+            "leg": "lb",
+            "link": "knee"
+          },
+          {
+            "leg": "lm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "conservative_triangle_AABB_prefilter_excluded_all_pairs",
+        "filtered_triangle_counts": {
+          "left": 0,
+          "right": 4
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": false
+      }
+    },
+    {
+      "label": "C_AH_BACK_LOW_FIRST_SEGMENT_rb_rm_tick793",
+      "stage": "AH_BACK_LOW_FIRST_SEGMENT",
+      "tick": 793,
+      "phase_before_s": 1.700000000000002,
+      "q_rad": [
+        [
+          0.6827043597297251,
+          -0.24708920828000955,
+          1.7263201350331798
+        ],
+        [
+          0.10170764806035365,
+          -0.9528939672440858,
+          1.6654665423638861
+        ],
+        [
+          -0.43018444645258047,
+          -0.419141102811306,
+          1.410424409574265
+        ],
+        [
+          -0.6826977489317709,
+          0.24708815716908697,
+          -1.7263202248854577
+        ],
+        [
+          -0.10170484980109938,
+          0.9528961621539086,
+          -1.6654714860192734
+        ],
+        [
+          0.4301838361454019,
+          0.41914097336466544,
+          -1.4104243089687578
+        ]
+      ],
+      "base_pose": [
+        0.285,
+        -0.067694497636,
+        0.245,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair_proxy_gap_m": 0.04281921857163058,
+      "pair_check": {
+        "pair": [
+          {
+            "leg": "rb",
+            "link": "knee"
+          },
+          {
+            "leg": "rm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "conservative_triangle_AABB_prefilter_excluded_all_pairs",
+        "filtered_triangle_counts": {
+          "left": 0,
+          "right": 4
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": false
+      }
+    },
+    {
+      "label": "C_AH_BACK_LOW_FIRST_SEGMENT_lb_lm_tick794",
+      "stage": "AH_BACK_LOW_FIRST_SEGMENT",
+      "tick": 794,
+      "phase_before_s": 1.7333333333333354,
+      "q_rad": [
+        [
+          0.6780773863394888,
+          -0.2478033797284775,
+          1.7260216755207753
+        ],
+        [
+          0.10170764806547451,
+          -0.9528939675764315,
+          1.6654665425670765
+        ],
+        [
+          -0.43018444643956305,
+          -0.41914110308498087,
+          1.4104244098070582
+        ],
+        [
+          -0.6780707901861404,
+          0.24780233483738998,
+          -1.7260217676604206
+        ],
+        [
+          -0.10170484980622159,
+          0.9528961624862579,
+          -1.6654714862224658
+        ],
+        [
+          0.4301838361323834,
+          0.41914097363834024,
+          -1.410424309201551
+        ]
+      ],
+      "base_pose": [
+        0.285,
+        -0.067694497636,
+        0.245,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair_proxy_gap_m": 0.04334193662907829,
+      "pair_check": {
+        "pair": [
+          {
+            "leg": "lb",
+            "link": "knee"
+          },
+          {
+            "leg": "lm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "conservative_triangle_AABB_prefilter_excluded_all_pairs",
+        "filtered_triangle_counts": {
+          "left": 0,
+          "right": 4
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": false
+      }
+    },
+    {
+      "label": "C_AH_BACK_LOW_FIRST_SEGMENT_rb_rm_tick794",
+      "stage": "AH_BACK_LOW_FIRST_SEGMENT",
+      "tick": 794,
+      "phase_before_s": 1.7333333333333354,
+      "q_rad": [
+        [
+          0.6780773863394888,
+          -0.2478033797284775,
+          1.7260216755207753
+        ],
+        [
+          0.10170764806547451,
+          -0.9528939675764315,
+          1.6654665425670765
+        ],
+        [
+          -0.43018444643956305,
+          -0.41914110308498087,
+          1.4104244098070582
+        ],
+        [
+          -0.6780707901861404,
+          0.24780233483738998,
+          -1.7260217676604206
+        ],
+        [
+          -0.10170484980622159,
+          0.9528961624862579,
+          -1.6654714862224658
+        ],
+        [
+          0.4301838361323834,
+          0.41914097363834024,
+          -1.410424309201551
+        ]
+      ],
+      "base_pose": [
+        0.285,
+        -0.067694497636,
+        0.245,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair_proxy_gap_m": 0.0433985637273924,
+      "pair_check": {
+        "pair": [
+          {
+            "leg": "rb",
+            "link": "knee"
+          },
+          {
+            "leg": "rm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "conservative_triangle_AABB_prefilter_excluded_all_pairs",
+        "filtered_triangle_counts": {
+          "left": 0,
+          "right": 4
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": false
+      }
+    },
+    {
+      "label": "C_AH_BACK_LOW_FIRST_SEGMENT_lb_lm_tick795",
+      "stage": "AH_BACK_LOW_FIRST_SEGMENT",
+      "tick": 795,
+      "phase_before_s": 1.7666666666666688,
+      "q_rad": [
+        [
+          0.6806822567973629,
+          -0.2435309339856771,
+          1.72285243054524
+        ],
+        [
+          0.10170764806787959,
+          -0.952893967738263,
+          1.6654665426667854
+        ],
+        [
+          -0.4301844464334403,
+          -0.4191411032174501,
+          1.4104244099199357
+        ],
+        [
+          -0.6806756229659557,
+          0.24352988798233444,
+          -1.7228525214564019
+        ],
+        [
+          -0.10170484980862675,
+          0.9528961626480911,
+          -1.6654714863221753
+        ],
+        [
+          0.43018383612626016,
+          0.41914097377080983,
+          -1.4104243093144284
+        ]
+      ],
+      "base_pose": [
+        0.285,
+        -0.067694497636,
+        0.245,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair_proxy_gap_m": 0.04304929646941555,
+      "pair_check": {
+        "pair": [
+          {
+            "leg": "lb",
+            "link": "knee"
+          },
+          {
+            "leg": "lm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "conservative_triangle_AABB_prefilter_excluded_all_pairs",
+        "filtered_triangle_counts": {
+          "left": 0,
+          "right": 4
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": false
+      }
+    },
+    {
+      "label": "C_AH_BACK_LOW_FIRST_SEGMENT_rb_rm_tick795",
+      "stage": "AH_BACK_LOW_FIRST_SEGMENT",
+      "tick": 795,
+      "phase_before_s": 1.7666666666666688,
+      "q_rad": [
+        [
+          0.6806822567973629,
+          -0.2435309339856771,
+          1.72285243054524
+        ],
+        [
+          0.10170764806787959,
+          -0.952893967738263,
+          1.6654665426667854
+        ],
+        [
+          -0.4301844464334403,
+          -0.4191411032174501,
+          1.4104244099199357
+        ],
+        [
+          -0.6806756229659557,
+          0.24352988798233444,
+          -1.7228525214564019
+        ],
+        [
+          -0.10170484980862675,
+          0.9528961626480911,
+          -1.6654714863221753
+        ],
+        [
+          0.43018383612626016,
+          0.41914097377080983,
+          -1.4104243093144284
+        ]
+      ],
+      "base_pose": [
+        0.285,
+        -0.067694497636,
+        0.245,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair_proxy_gap_m": 0.04310642877013143,
+      "pair_check": {
+        "pair": [
+          {
+            "leg": "rb",
+            "link": "knee"
+          },
+          {
+            "leg": "rm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "conservative_triangle_AABB_prefilter_excluded_all_pairs",
+        "filtered_triangle_counts": {
+          "left": 0,
+          "right": 4
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": false
+      }
+    },
+    {
+      "label": "C_AH_BACK_LOW_FIRST_SEGMENT_lb_lm_tick796",
+      "stage": "AH_BACK_LOW_FIRST_SEGMENT",
+      "tick": 796,
+      "phase_before_s": 1.8000000000000023,
+      "q_rad": [
+        [
+          0.6939328389781614,
+          -0.23016259643083795,
+          1.7138898209171074
+        ],
+        [
+          0.10170764806900891,
+          -0.9528939678170721,
+          1.6654665427157032
+        ],
+        [
+          -0.4301844464305604,
+          -0.4191411032815728,
+          1.4104244099746666
+        ],
+        [
+          -0.6939260762095574,
+          0.2301615423087858,
+          -1.713889906358043
+        ],
+        [
+          -0.1017048498097563,
+          0.9528961627269009,
+          -1.6654714863710933
+        ],
+        [
+          0.43018383612338,
+          0.41914097383493215,
+          -1.410424309369159
+        ]
+      ],
+      "base_pose": [
+        0.285,
+        -0.067694497636,
+        0.245,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair_proxy_gap_m": 0.04149643894483786,
+      "pair_check": {
+        "pair": [
+          {
+            "leg": "lb",
+            "link": "knee"
+          },
+          {
+            "leg": "lm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "conservative_triangle_AABB_prefilter_excluded_all_pairs",
+        "filtered_triangle_counts": {
+          "left": 0,
+          "right": 4
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": false
+      }
+    },
+    {
+      "label": "C_AH_BACK_LOW_FIRST_SEGMENT_rb_rm_tick796",
+      "stage": "AH_BACK_LOW_FIRST_SEGMENT",
+      "tick": 796,
+      "phase_before_s": 1.8000000000000023,
+      "q_rad": [
+        [
+          0.6939328389781614,
+          -0.23016259643083795,
+          1.7138898209171074
+        ],
+        [
+          0.10170764806900891,
+          -0.9528939678170721,
+          1.6654665427157032
+        ],
+        [
+          -0.4301844464305604,
+          -0.4191411032815728,
+          1.4104244099746666
+        ],
+        [
+          -0.6939260762095574,
+          0.2301615423087858,
+          -1.713889906358043
+        ],
+        [
+          -0.1017048498097563,
+          0.9528961627269009,
+          -1.6654714863710933
+        ],
+        [
+          0.43018383612338,
+          0.41914097383493215,
+          -1.410424309369159
+        ]
+      ],
+      "base_pose": [
+        0.285,
+        -0.067694497636,
+        0.245,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair_proxy_gap_m": 0.041555497933506366,
+      "pair_check": {
+        "pair": [
+          {
+            "leg": "rb",
+            "link": "knee"
+          },
+          {
+            "leg": "rm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "conservative_triangle_AABB_prefilter_excluded_all_pairs",
+        "filtered_triangle_counts": {
+          "left": 0,
+          "right": 5
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": false
+      }
+    },
+    {
+      "label": "C_AH_BACK_LOW_FIRST_SEGMENT_lb_lm_tick797",
+      "stage": "AH_BACK_LOW_FIRST_SEGMENT",
+      "tick": 797,
+      "phase_before_s": 1.8333333333333357,
+      "q_rad": [
+        [
+          0.7181352470098469,
+          -0.2075097987480977,
+          1.6986231713968005
+        ],
+        [
+          0.10170764806953973,
+          -0.9528939678554537,
+          1.6654665427396957
+        ],
+        [
+          -0.43018444642920595,
+          -0.4191411033126118,
+          1.4104244100012027
+        ],
+        [
+          -0.7181282621489016,
+          0.20750873217587243,
+          -1.69862324794366
+        ],
+        [
+          -0.10170484981028728,
+          0.9528961627652833,
+          -1.6654714863950866
+        ],
+        [
+          0.4301838361220253,
+          0.41914097386597116,
+          -1.4104243093956952
+        ]
+      ],
+      "base_pose": [
+        0.285,
+        -0.067694497636,
+        0.245,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair_proxy_gap_m": 0.03867638763777852,
+      "pair_check": {
+        "pair": [
+          {
+            "leg": "lb",
+            "link": "knee"
+          },
+          {
+            "leg": "lm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "broadphase_excluded_all_triangle_pairs; collision result is clear",
+        "filtered_triangle_counts": {
+          "left": 5,
+          "right": 11
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": false
+      }
+    },
+    {
+      "label": "C_AH_BACK_LOW_FIRST_SEGMENT_rb_rm_tick797",
+      "stage": "AH_BACK_LOW_FIRST_SEGMENT",
+      "tick": 797,
+      "phase_before_s": 1.8333333333333357,
+      "q_rad": [
+        [
+          0.7181352470098469,
+          -0.2075097987480977,
+          1.6986231713968005
+        ],
+        [
+          0.10170764806953973,
+          -0.9528939678554537,
+          1.6654665427396957
+        ],
+        [
+          -0.43018444642920595,
+          -0.4191411033126118,
+          1.4104244100012027
+        ],
+        [
+          -0.7181282621489016,
+          0.20750873217587243,
+          -1.69862324794366
+        ],
+        [
+          -0.10170484981028728,
+          0.9528961627652833,
+          -1.6654714863950866
+        ],
+        [
+          0.4301838361220253,
+          0.41914097386597116,
+          -1.4104243093956952
+        ]
+      ],
+      "base_pose": [
+        0.285,
+        -0.067694497636,
+        0.245,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair_proxy_gap_m": 0.03873927644993211,
+      "pair_check": {
+        "pair": [
+          {
+            "leg": "rb",
+            "link": "knee"
+          },
+          {
+            "leg": "rm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "broadphase_excluded_all_triangle_pairs; collision result is clear",
+        "filtered_triangle_counts": {
+          "left": 9,
+          "right": 14
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": false
+      }
+    },
+    {
+      "label": "C_AH_BACK_LOW_FIRST_SEGMENT_lb_lm_tick798",
+      "stage": "AH_BACK_LOW_FIRST_SEGMENT",
+      "tick": 798,
+      "phase_before_s": 1.8666666666666691,
+      "q_rad": [
+        [
+          0.7516561105138074,
+          -0.17797955999241805,
+          1.6780951051464024
+        ],
+        [
+          0.10170764806978887,
+          -0.9528939678741484,
+          1.6654665427514617
+        ],
+        [
+          -0.43018444642856885,
+          -0.41914110332763693,
+          1.4104244100140684
+        ],
+        [
+          -0.7516488341948134,
+          0.1779784804675124,
+          -1.6780951710961167
+        ],
+        [
+          -0.10170484981053649,
+          0.9528961627839782,
+          -1.6654714864068525
+        ],
+        [
+          0.4301838361213881,
+          0.4191409738809963,
+          -1.410424309408561
+        ]
+      ],
+      "base_pose": [
+        0.285,
+        -0.067694497636,
+        0.245,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair_proxy_gap_m": 0.03482541916572547,
+      "pair_check": {
+        "pair": [
+          {
+            "leg": "lb",
+            "link": "knee"
+          },
+          {
+            "leg": "lm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "broadphase_excluded_all_triangle_pairs; collision result is clear",
+        "filtered_triangle_counts": {
+          "left": 34,
+          "right": 18
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": false
+      }
+    },
+    {
+      "label": "C_AH_BACK_LOW_FIRST_SEGMENT_rb_rm_tick798",
+      "stage": "AH_BACK_LOW_FIRST_SEGMENT",
+      "tick": 798,
+      "phase_before_s": 1.8666666666666691,
+      "q_rad": [
+        [
+          0.7516561105138074,
+          -0.17797955999241805,
+          1.6780951051464024
+        ],
+        [
+          0.10170764806978887,
+          -0.9528939678741484,
+          1.6654665427514617
+        ],
+        [
+          -0.43018444642856885,
+          -0.41914110332763693,
+          1.4104244100140684
+        ],
+        [
+          -0.7516488341948134,
+          0.1779784804675124,
+          -1.6780951710961167
+        ],
+        [
+          -0.10170484981053649,
+          0.9528961627839782,
+          -1.6654714864068525
+        ],
+        [
+          0.4301838361213881,
+          0.4191409738809963,
+          -1.410424309408561
+        ]
+      ],
+      "base_pose": [
+        0.285,
+        -0.067694497636,
+        0.245,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair_proxy_gap_m": 0.03489437988262907,
+      "pair_check": {
+        "pair": [
+          {
+            "leg": "rb",
+            "link": "knee"
+          },
+          {
+            "leg": "rm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "broadphase_excluded_all_triangle_pairs; collision result is clear",
+        "filtered_triangle_counts": {
+          "left": 24,
+          "right": 20
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": false
+      }
+    },
+    {
+      "label": "C_AH_BACK_LOW_FIRST_SEGMENT_lb_lm_tick799",
+      "stage": "AH_BACK_LOW_FIRST_SEGMENT",
+      "tick": 799,
+      "phase_before_s": 1.9000000000000026,
+      "q_rad": [
+        [
+          0.7914740972024862,
+          -0.14525919603670479,
+          1.6542941677500325
+        ],
+        [
+          0.10170764806990588,
+          -0.9528939678832546,
+          1.6654665427572304
+        ],
+        [
+          -0.43018444642826914,
+          -0.4191411033349105,
+          1.4104244100203058
+        ],
+        [
+          -0.7914664984844594,
+          0.14525810678529316,
+          -1.6542942234432025
+        ],
+        [
+          -0.10170484981065321,
+          0.9528961627930844,
+          -1.665471486412621
+        ],
+        [
+          0.4301838361210884,
+          0.4191409738882699,
+          -1.4104243094147983
+        ]
+      ],
+      "base_pose": [
+        0.285,
+        -0.067694497636,
+        0.245,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair_proxy_gap_m": 0.03034595619053417,
+      "pair_check": {
+        "pair": [
+          {
+            "leg": "lb",
+            "link": "knee"
+          },
+          {
+            "leg": "lm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "broadphase_excluded_all_triangle_pairs; collision result is clear",
+        "filtered_triangle_counts": {
+          "left": 70,
+          "right": 30
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": false
+      }
+    },
+    {
+      "label": "C_AH_BACK_LOW_FIRST_SEGMENT_rb_rm_tick799",
+      "stage": "AH_BACK_LOW_FIRST_SEGMENT",
+      "tick": 799,
+      "phase_before_s": 1.9000000000000026,
+      "q_rad": [
+        [
+          0.7914740972024862,
+          -0.14525919603670479,
+          1.6542941677500325
+        ],
+        [
+          0.10170764806990588,
+          -0.9528939678832546,
+          1.6654665427572304
+        ],
+        [
+          -0.43018444642826914,
+          -0.4191411033349105,
+          1.4104244100203058
+        ],
+        [
+          -0.7914664984844594,
+          0.14525810678529316,
+          -1.6542942234432025
+        ],
+        [
+          -0.10170484981065321,
+          0.9528961627930844,
+          -1.665471486412621
+        ],
+        [
+          0.4301838361210884,
+          0.4191409738882699,
+          -1.4104243094147983
+        ]
+      ],
+      "base_pose": [
+        0.285,
+        -0.067694497636,
+        0.245,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair_proxy_gap_m": 0.03042319449228004,
+      "pair_check": {
+        "pair": [
+          {
+            "leg": "rb",
+            "link": "knee"
+          },
+          {
+            "leg": "rm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "broadphase_excluded_all_triangle_pairs; collision result is clear",
+        "filtered_triangle_counts": {
+          "left": 30,
+          "right": 28
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": false
+      }
+    },
+    {
+      "label": "C_AH_BACK_LOW_FIRST_SEGMENT_lb_lm_tick800",
+      "stage": "AH_BACK_LOW_FIRST_SEGMENT",
+      "tick": 800,
+      "phase_before_s": 1.933333333333336,
+      "q_rad": [
+        [
+          0.8335515122750429,
+          -0.11320191899827964,
+          1.629697696686965
+        ],
+        [
+          0.10170764806996084,
+          -0.9528939678876908,
+          1.6654665427600581
+        ],
+        [
+          -0.43018444642812825,
+          -0.4191411033384314,
+          1.4104244100233296
+        ],
+        [
+          -0.8335436022052879,
+          0.11320082571833912,
+          -1.629697744250114
+        ],
+        [
+          -0.10170484981070857,
+          0.9528961627975205,
+          -1.6654714864154487
+        ],
+        [
+          0.4301838361209474,
+          0.4191409738917909,
+          -1.4104243094178224
+        ]
+      ],
+      "base_pose": [
+        0.285,
+        -0.067694497636,
+        0.245,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair_proxy_gap_m": 0.025738832719250135,
+      "pair_check": {
+        "pair": [
+          {
+            "leg": "lb",
+            "link": "knee"
+          },
+          {
+            "leg": "lm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "triangle_candidates_checked",
+        "filtered_triangle_counts": {
+          "left": 191,
+          "right": 21
+        },
+        "triangle_test_count": 12,
+        "broad_phase_candidates": 1,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": false
+      }
+    },
+    {
+      "label": "C_AH_BACK_LOW_FIRST_SEGMENT_rb_rm_tick800",
+      "stage": "AH_BACK_LOW_FIRST_SEGMENT",
+      "tick": 800,
+      "phase_before_s": 1.933333333333336,
+      "q_rad": [
+        [
+          0.8335515122750429,
+          -0.11320191899827964,
+          1.629697696686965
+        ],
+        [
+          0.10170764806996084,
+          -0.9528939678876908,
+          1.6654665427600581
+        ],
+        [
+          -0.43018444642812825,
+          -0.4191411033384314,
+          1.4104244100233296
+        ],
+        [
+          -0.8335436022052879,
+          0.11320082571833912,
+          -1.629697744250114
+        ],
+        [
+          -0.10170484981070857,
+          0.9528961627975205,
+          -1.6654714864154487
+        ],
+        [
+          0.4301838361209474,
+          0.4191409738917909,
+          -1.4104243094178224
+        ]
+      ],
+      "base_pose": [
+        0.285,
+        -0.067694497636,
+        0.245,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair_proxy_gap_m": 0.02582591787426121,
+      "pair_check": {
+        "pair": [
+          {
+            "leg": "rb",
+            "link": "knee"
+          },
+          {
+            "leg": "rm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "triangle_candidates_checked",
+        "filtered_triangle_counts": {
+          "left": 143,
+          "right": 20
+        },
+        "triangle_test_count": 8,
+        "broad_phase_candidates": 1,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": false
+      }
+    },
+    {
+      "label": "C_AH_BACK_LOW_FIRST_SEGMENT_lb_lm_tick801",
+      "stage": "AH_BACK_LOW_FIRST_SEGMENT",
+      "tick": 801,
+      "phase_before_s": 1.9666666666666694,
+      "q_rad": [
+        [
+          0.8733433952418005,
+          -0.08504942845565425,
+          1.6068680400856232
+        ],
+        [
+          0.10170764806998664,
+          -0.9528939678898519,
+          1.665466542761444
+        ],
+        [
+          -0.4301844464280619,
+          -0.419141103340136,
+          1.4104244100247956
+        ],
+        [
+          -0.8733352197736326,
+          0.08504833740838415,
+          -1.606868082700037
+        ],
+        [
+          -0.10170484981073435,
+          0.9528961627996818,
+          -1.6654714864168347
+        ],
+        [
+          0.4301838361208811,
+          0.41914097389349547,
+          -1.4104243094192883
+        ]
+      ],
+      "base_pose": [
+        0.285,
+        -0.067694497636,
+        0.245,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair_proxy_gap_m": 0.021516820137253277,
+      "pair_check": {
+        "pair": [
+          {
+            "leg": "lb",
+            "link": "knee"
+          },
+          {
+            "leg": "lm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "triangle_candidates_checked",
+        "filtered_triangle_counts": {
+          "left": 999,
+          "right": 17
+        },
+        "triangle_test_count": 50,
+        "broad_phase_candidates": 1,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": false
+      }
+    },
+    {
+      "label": "C_AH_BACK_LOW_FIRST_SEGMENT_rb_rm_tick801",
+      "stage": "AH_BACK_LOW_FIRST_SEGMENT",
+      "tick": 801,
+      "phase_before_s": 1.9666666666666694,
+      "q_rad": [
+        [
+          0.8733433952418005,
+          -0.08504942845565425,
+          1.6068680400856232
+        ],
+        [
+          0.10170764806998664,
+          -0.9528939678898519,
+          1.665466542761444
+        ],
+        [
+          -0.4301844464280619,
+          -0.419141103340136,
+          1.4104244100247956
+        ],
+        [
+          -0.8733352197736326,
+          0.08504833740838415,
+          -1.606868082700037
+        ],
+        [
+          -0.10170484981073435,
+          0.9528961627996818,
+          -1.6654714864168347
+        ],
+        [
+          0.4301838361208811,
+          0.41914097389349547,
+          -1.4104243094192883
+        ]
+      ],
+      "base_pose": [
+        0.285,
+        -0.067694497636,
+        0.245,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair_proxy_gap_m": 0.021614091221113393,
+      "pair_check": {
+        "pair": [
+          {
+            "leg": "rb",
+            "link": "knee"
+          },
+          {
+            "leg": "rm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "triangle_candidates_checked",
+        "filtered_triangle_counts": {
+          "left": 1227,
+          "right": 17
+        },
+        "triangle_test_count": 36,
+        "broad_phase_candidates": 1,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": false
+      }
+    },
+    {
+      "label": "C_AH_BACK_LOW_FIRST_SEGMENT_lb_lm_tick802",
+      "stage": "AH_BACK_LOW_FIRST_SEGMENT",
+      "tick": 802,
+      "phase_before_s": 2.0000000000000027,
+      "q_rad": [
+        [
+          0.9065327147242949,
+          -0.06304404646281017,
+          1.5880788005597628
+        ],
+        [
+          0.10170764806999875,
+          -0.9528939678909051,
+          1.665466542762123
+        ],
+        [
+          -0.4301844464280307,
+          -0.41914110334096044,
+          1.410424410025506
+        ],
+        [
+          -0.9065243403866149,
+          0.06304296263348816,
+          -1.5880788415315656
+        ],
+        [
+          -0.10170484981074646,
+          0.9528961628007347,
+          -1.6654714864175137
+        ],
+        [
+          0.43018383612085,
+          0.4191409738943207,
+          -1.410424309419999
+        ]
+      ],
+      "base_pose": [
+        0.285,
+        -0.067694497636,
+        0.245,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair_proxy_gap_m": 0.018107341188592835,
+      "pair_check": {
+        "pair": [
+          {
+            "leg": "lb",
+            "link": "knee"
+          },
+          {
+            "leg": "lm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "triangle_candidates_checked",
+        "filtered_triangle_counts": {
+          "left": 2011,
+          "right": 23
+        },
+        "triangle_test_count": 387,
+        "broad_phase_candidates": 1,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": false
+      }
+    },
+    {
+      "label": "C_AH_BACK_LOW_FIRST_SEGMENT_rb_rm_tick802",
+      "stage": "AH_BACK_LOW_FIRST_SEGMENT",
+      "tick": 802,
+      "phase_before_s": 2.0000000000000027,
+      "q_rad": [
+        [
+          0.9065327147242949,
+          -0.06304404646281017,
+          1.5880788005597628
+        ],
+        [
+          0.10170764806999875,
+          -0.9528939678909051,
+          1.665466542762123
+        ],
+        [
+          -0.4301844464280307,
+          -0.41914110334096044,
+          1.410424410025506
+        ],
+        [
+          -0.9065243403866149,
+          0.06304296263348816,
+          -1.5880788415315656
+        ],
+        [
+          -0.10170484981074646,
+          0.9528961628007347,
+          -1.6654714864175137
+        ],
+        [
+          0.43018383612085,
+          0.4191409738943207,
+          -1.410424309419999
+        ]
+      ],
+      "base_pose": [
+        0.285,
+        -0.067694497636,
+        0.245,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair_proxy_gap_m": 0.018213626157554876,
+      "pair_check": {
+        "pair": [
+          {
+            "leg": "rb",
+            "link": "knee"
+          },
+          {
+            "leg": "rm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "triangle_candidates_checked",
+        "filtered_triangle_counts": {
+          "left": 2010,
+          "right": 25
+        },
+        "triangle_test_count": 289,
+        "broad_phase_candidates": 1,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": false
+      }
+    },
+    {
+      "label": "C_AH_BACK_LOW_FIRST_SEGMENT_lb_lm_tick803",
+      "stage": "AH_BACK_LOW_FIRST_SEGMENT",
+      "tick": 803,
+      "phase_before_s": 2.033333333333336,
+      "q_rad": [
+        [
+          0.9298679864110537,
+          -0.04834195656059315,
+          1.5749688664954116
+        ],
+        [
+          0.10170764807000444,
+          -0.9528939678914181,
+          1.6654665427624555
+        ],
+        [
+          -0.43018444642801607,
+          -0.4191411033413608,
+          1.410424410025851
+        ],
+        [
+          -0.9298594849048191,
+          0.04834088251885396,
+          -1.5749689084786307
+        ],
+        [
+          -0.10170484981075213,
+          0.9528961628012477,
+          -1.6654714864178464
+        ],
+        [
+          0.43018383612083533,
+          0.4191409738947204,
+          -1.4104243094203437
+        ]
+      ],
+      "base_pose": [
+        0.285,
+        -0.067694497636,
+        0.245,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair_proxy_gap_m": 0.015776428044667105,
+      "pair_check": {
+        "pair": [
+          {
+            "leg": "lb",
+            "link": "knee"
+          },
+          {
+            "leg": "lm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "triangle_candidates_checked",
+        "filtered_triangle_counts": {
+          "left": 2484,
+          "right": 26
+        },
+        "triangle_test_count": 775,
+        "broad_phase_candidates": 1,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": false
+      }
+    },
+    {
+      "label": "C_AH_BACK_LOW_FIRST_SEGMENT_rb_rm_tick803",
+      "stage": "AH_BACK_LOW_FIRST_SEGMENT",
+      "tick": 803,
+      "phase_before_s": 2.033333333333336,
+      "q_rad": [
+        [
+          0.9298679864110537,
+          -0.04834195656059315,
+          1.5749688664954116
+        ],
+        [
+          0.10170764807000444,
+          -0.9528939678914181,
+          1.6654665427624555
+        ],
+        [
+          -0.43018444642801607,
+          -0.4191411033413608,
+          1.410424410025851
+        ],
+        [
+          -0.9298594849048191,
+          0.04834088251885396,
+          -1.5749689084786307
+        ],
+        [
+          -0.10170484981075213,
+          0.9528961628012477,
+          -1.6654714864178464
+        ],
+        [
+          0.43018383612083533,
+          0.4191409738947204,
+          -1.4104243094203437
+        ]
+      ],
+      "base_pose": [
+        0.285,
+        -0.067694497636,
+        0.245,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair_proxy_gap_m": 0.0158892582131641,
+      "pair_check": {
+        "pair": [
+          {
+            "leg": "rb",
+            "link": "knee"
+          },
+          {
+            "leg": "rm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "triangle_candidates_checked",
+        "filtered_triangle_counts": {
+          "left": 2395,
+          "right": 33
+        },
+        "triangle_test_count": 654,
+        "broad_phase_candidates": 1,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": false
+      }
+    },
+    {
+      "label": "C_AH_BACK_LOW_FIRST_SEGMENT_lb_lm_tick804",
+      "stage": "AH_BACK_LOW_FIRST_SEGMENT",
+      "tick": 804,
+      "phase_before_s": 2.066666666666669,
+      "q_rad": [
+        [
+          0.9419183288463907,
+          -0.04103554057109689,
+          1.568215690030034
+        ],
+        [
+          0.10170764807000712,
+          -0.9528939678916681,
+          1.6654665427626185
+        ],
+        [
+          -0.4301844464280092,
+          -0.41914110334155413,
+          1.410424410026018
+        ],
+        [
+          -0.9419097657179673,
+          0.04103447631683427,
+          -1.5682157346396155
+        ],
+        [
+          -0.10170484981075481,
+          0.9528961628014978,
+          -1.6654714864180094
+        ],
+        [
+          0.4301838361208284,
+          0.41914097389491384,
+          -1.4104243094205107
+        ]
+      ],
+      "base_pose": [
+        0.285,
+        -0.067694497636,
+        0.245,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair_proxy_gap_m": 0.014594054750502176,
+      "pair_check": {
+        "pair": [
+          {
+            "leg": "lb",
+            "link": "knee"
+          },
+          {
+            "leg": "lm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "triangle_candidates_checked",
+        "filtered_triangle_counts": {
+          "left": 2725,
+          "right": 33
+        },
+        "triangle_test_count": 955,
+        "broad_phase_candidates": 1,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": false
+      }
+    },
+    {
+      "label": "C_AH_BACK_LOW_FIRST_SEGMENT_rb_rm_tick804",
+      "stage": "AH_BACK_LOW_FIRST_SEGMENT",
+      "tick": 804,
+      "phase_before_s": 2.066666666666669,
+      "q_rad": [
+        [
+          0.9419183288463907,
+          -0.04103554057109689,
+          1.568215690030034
+        ],
+        [
+          0.10170764807000712,
+          -0.9528939678916681,
+          1.6654665427626185
+        ],
+        [
+          -0.4301844464280092,
+          -0.41914110334155413,
+          1.410424410026018
+        ],
+        [
+          -0.9419097657179673,
+          0.04103447631683427,
+          -1.5682157346396155
+        ],
+        [
+          -0.10170484981075481,
+          0.9528961628014978,
+          -1.6654714864180094
+        ],
+        [
+          0.4301838361208284,
+          0.41914097389491384,
+          -1.4104243094205107
+        ]
+      ],
+      "base_pose": [
+        0.285,
+        -0.067694497636,
+        0.245,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair_proxy_gap_m": 0.014710303966513419,
+      "pair_check": {
+        "pair": [
+          {
+            "leg": "rb",
+            "link": "knee"
+          },
+          {
+            "leg": "rm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "triangle_candidates_checked",
+        "filtered_triangle_counts": {
+          "left": 2490,
+          "right": 40
+        },
+        "triangle_test_count": 781,
+        "broad_phase_candidates": 1,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": false
+      }
+    },
+    {
+      "label": "C_AH_BACK_LOW_FIRST_SEGMENT_lb_lm_tick805",
+      "stage": "AH_BACK_LOW_FIRST_SEGMENT",
+      "tick": 805,
+      "phase_before_s": 2.1000000000000023,
+      "q_rad": [
+        [
+          0.9436740428382384,
+          -0.04008105104291089,
+          1.5672174557554759
+        ],
+        [
+          0.10170764807000837,
+          -0.9528939678917899,
+          1.6654665427626982
+        ],
+        [
+          -0.43018444642800596,
+          -0.41914110334164767,
+          1.4104244100260988
+        ],
+        [
+          -0.9436654704574419,
+          0.04007999466594515,
+          -1.56721750354799
+        ],
+        [
+          -0.10170484981075607,
+          0.9528961628016196,
+          -1.665471486418089
+        ],
+        [
+          0.43018383612082517,
+          0.4191409738950073,
+          -1.4104243094205915
+        ]
+      ],
+      "base_pose": [
+        0.285,
+        -0.067694497636,
+        0.245,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair_proxy_gap_m": 0.014419971077046463,
+      "pair_check": {
+        "pair": [
+          {
+            "leg": "lb",
+            "link": "knee"
+          },
+          {
+            "leg": "lm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "triangle_candidates_checked",
+        "filtered_triangle_counts": {
+          "left": 2767,
+          "right": 37
+        },
+        "triangle_test_count": 969,
+        "broad_phase_candidates": 1,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": false
+      }
+    },
+    {
+      "label": "C_AH_BACK_LOW_FIRST_SEGMENT_rb_rm_tick805",
+      "stage": "AH_BACK_LOW_FIRST_SEGMENT",
+      "tick": 805,
+      "phase_before_s": 2.1000000000000023,
+      "q_rad": [
+        [
+          0.9436740428382384,
+          -0.04008105104291089,
+          1.5672174557554759
+        ],
+        [
+          0.10170764807000837,
+          -0.9528939678917899,
+          1.6654665427626982
+        ],
+        [
+          -0.43018444642800596,
+          -0.41914110334164767,
+          1.4104244100260988
+        ],
+        [
+          -0.9436654704574419,
+          0.04007999466594515,
+          -1.56721750354799
+        ],
+        [
+          -0.10170484981075607,
+          0.9528961628016196,
+          -1.665471486418089
+        ],
+        [
+          0.43018383612082517,
+          0.4191409738950073,
+          -1.4104243094205915
+        ]
+      ],
+      "base_pose": [
+        0.285,
+        -0.067694497636,
+        0.245,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair_proxy_gap_m": 0.014536702816832198,
+      "pair_check": {
+        "pair": [
+          {
+            "leg": "rb",
+            "link": "knee"
+          },
+          {
+            "leg": "rm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "triangle_candidates_checked",
+        "filtered_triangle_counts": {
+          "left": 2504,
+          "right": 42
+        },
+        "triangle_test_count": 799,
+        "broad_phase_candidates": 1,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": false
+      }
+    },
+    {
+      "label": "C_AH_BACK_LOW_FIRST_SEGMENT_lb_lm_tick806",
+      "stage": "AH_BACK_LOW_FIRST_SEGMENT",
+      "tick": 806,
+      "phase_before_s": 2.1333333333333355,
+      "q_rad": [
+        [
+          0.9390534940479902,
+          -0.04299667310163744,
+          1.569782133015646
+        ],
+        [
+          0.10170764807000897,
+          -0.9528939678918492,
+          1.6654665427627373
+        ],
+        [
+          -0.43018444642800446,
+          -0.4191411033416931,
+          1.410424410026138
+        ],
+        [
+          -0.9390449440041829,
+          0.042995621714326734,
+          -1.5697821835791097
+        ],
+        [
+          -0.10170484981075666,
+          0.9528961628016788,
+          -1.665471486418128
+        ],
+        [
+          0.4301838361208236,
+          0.4191409738950525,
+          -1.4104243094206308
+        ]
+      ],
+      "base_pose": [
+        0.285,
+        -0.067694497636,
+        0.245,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair_proxy_gap_m": 0.01486607097363872,
+      "pair_check": {
+        "pair": [
+          {
+            "leg": "lb",
+            "link": "knee"
+          },
+          {
+            "leg": "lm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "triangle_candidates_checked",
+        "filtered_triangle_counts": {
+          "left": 2665,
+          "right": 30
+        },
+        "triangle_test_count": 960,
+        "broad_phase_candidates": 1,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": false
+      }
+    },
+    {
+      "label": "C_AH_BACK_LOW_FIRST_SEGMENT_rb_rm_tick806",
+      "stage": "AH_BACK_LOW_FIRST_SEGMENT",
+      "tick": 806,
+      "phase_before_s": 2.1333333333333355,
+      "q_rad": [
+        [
+          0.9390534940479902,
+          -0.04299667310163744,
+          1.569782133015646
+        ],
+        [
+          0.10170764807000897,
+          -0.9528939678918492,
+          1.6654665427627373
+        ],
+        [
+          -0.43018444642800446,
+          -0.4191411033416931,
+          1.410424410026138
+        ],
+        [
+          -0.9390449440041829,
+          0.042995621714326734,
+          -1.5697821835791097
+        ],
+        [
+          -0.10170484981075666,
+          0.9528961628016788,
+          -1.665471486418128
+        ],
+        [
+          0.4301838361208236,
+          0.4191409738950525,
+          -1.4104243094206308
+        ]
+      ],
+      "base_pose": [
+        0.285,
+        -0.067694497636,
+        0.245,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair_proxy_gap_m": 0.014981461452044771,
+      "pair_check": {
+        "pair": [
+          {
+            "leg": "rb",
+            "link": "knee"
+          },
+          {
+            "leg": "rm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "triangle_candidates_checked",
+        "filtered_triangle_counts": {
+          "left": 2485,
+          "right": 37
+        },
+        "triangle_test_count": 862,
+        "broad_phase_candidates": 1,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": false
+      }
+    },
+    {
+      "label": "C_AH_BACK_LOW_FIRST_SEGMENT_lb_lm_tick807",
+      "stage": "AH_BACK_LOW_FIRST_SEGMENT",
+      "tick": 807,
+      "phase_before_s": 2.142857142857143,
+      "q_rad": [
+        [
+          0.9346382291307457,
+          -0.04578542803867954,
+          1.5722433791752348
+        ],
+        [
+          0.10170764807000923,
+          -0.9528939678918781,
+          1.6654665427627564
+        ],
+        [
+          -0.43018444642800374,
+          -0.41914110334171517,
+          1.4104244100261571
+        ],
+        [
+          -0.9346297015571011,
+          0.045784378512543626,
+          -1.5722434311612459
+        ],
+        [
+          -0.10170484981075693,
+          0.952896162801708,
+          -1.6654714864181472
+        ],
+        [
+          0.4301838361208229,
+          0.41914097389507426,
+          -1.4104243094206497
+        ]
+      ],
+      "base_pose": [
+        0.285,
+        -0.067694497636,
+        0.245,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair_proxy_gap_m": 0.015295287899876615,
+      "pair_check": {
+        "pair": [
+          {
+            "leg": "lb",
+            "link": "knee"
+          },
+          {
+            "leg": "lm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "triangle_candidates_checked",
+        "filtered_triangle_counts": {
+          "left": 2571,
+          "right": 30
+        },
+        "triangle_test_count": 920,
+        "broad_phase_candidates": 1,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": false
+      }
+    },
+    {
+      "label": "C_AH_BACK_LOW_FIRST_SEGMENT_rb_rm_tick807",
+      "stage": "AH_BACK_LOW_FIRST_SEGMENT",
+      "tick": 807,
+      "phase_before_s": 2.142857142857143,
+      "q_rad": [
+        [
+          0.9346382291307457,
+          -0.04578542803867954,
+          1.5722433791752348
+        ],
+        [
+          0.10170764807000923,
+          -0.9528939678918781,
+          1.6654665427627564
+        ],
+        [
+          -0.43018444642800374,
+          -0.41914110334171517,
+          1.4104244100261571
+        ],
+        [
+          -0.9346297015571011,
+          0.045784378512543626,
+          -1.5722434311612459
+        ],
+        [
+          -0.10170484981075693,
+          0.952896162801708,
+          -1.6654714864181472
+        ],
+        [
+          0.4301838361208229,
+          0.41914097389507426,
+          -1.4104243094206497
+        ]
+      ],
+      "base_pose": [
+        0.285,
+        -0.067694497636,
+        0.245,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair_proxy_gap_m": 0.015409403502523622,
+      "pair_check": {
+        "pair": [
+          {
+            "leg": "rb",
+            "link": "knee"
+          },
+          {
+            "leg": "rm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "triangle_candidates_checked",
+        "filtered_triangle_counts": {
+          "left": 2483,
+          "right": 37
+        },
+        "triangle_test_count": 816,
+        "broad_phase_candidates": 1,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": false
+      }
+    }
+  ],
+  "completed": true,
+  "boundary": "Triangle hits establish intersection at sampled poses. Clear samples do not establish continuous clearance, containment, contact, load, stability, or hardware safety.",
+  "query_count": 93,
+  "summary": {
+    "body_warning_and_worst_pose_samples": 2,
+    "changed_stage_knee_proxy_min_neighbor_queries": 43,
+    "AH_phase_window_samples": 21,
+    "AH_knee_pair_queries": 42,
+    "real_triangle_hits": 0,
+    "capsule_proxy_clear_claim": false,
+    "whole_route_clearance_claim": false
+  }
+}

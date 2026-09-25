@@ -1,0 +1,244 @@
+{
+  "candidate_config_sha256": "d15bf4d9f9a8feca09ebb1290502176e539f5b56c8b751ce9f9d0161f6601898",
+  "audit_sha256": "dd196591dd0ad61c20dfe0b673dca4c5444268f91a10bdcb045b43c3dcc33f92",
+  "records": [
+    {
+      "label": "fast_Q_MID_LOW_capsule_witness",
+      "phase_time_s": 1.2000000000000004,
+      "q_rad": [
+        [
+          0.4229083529912811,
+          0.38246646494950237,
+          1.0012276377094544
+        ],
+        [
+          0.21036245075419477,
+          -1.317277520681589,
+          1.4492984417188488
+        ],
+        [
+          0.5587907820275492,
+          -1.8101391978204093,
+          2.0501029443555336
+        ],
+        [
+          -0.4228972465415702,
+          -0.38246701186699344,
+          -1.0012277794831055
+        ],
+        [
+          -0.20937377888429312,
+          1.2859629106695079,
+          -1.4478263929811703
+        ],
+        [
+          -0.5587963981780647,
+          1.8101392126808613,
+          -2.050102947816796
+        ]
+      ],
+      "base_pose": [
+        0.1017,
+        -0.067694497636,
+        0.155,
+        0.15,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair_checks": [
+        {
+          "pair": [
+            {
+              "leg": null,
+              "link": "body"
+            },
+            {
+              "leg": "lm",
+              "link": "knee"
+            }
+          ],
+          "mesh_checked": true,
+          "pair_query_count": 1,
+          "components_nonempty": {
+            "left": 1,
+            "right": 1
+          },
+          "pair_status": "broadphase_excluded_all_triangle_pairs; collision result is clear",
+          "filtered_triangle_counts": {
+            "left": 34,
+            "right": 63
+          },
+          "triangle_test_count": 0,
+          "broad_phase_candidates": 0,
+          "mesh_collision": false,
+          "triangle_hit": null,
+          "cache_reused": true
+        },
+        {
+          "pair": [
+            {
+              "leg": null,
+              "link": "body"
+            },
+            {
+              "leg": "lm",
+              "link": "ankle"
+            }
+          ],
+          "mesh_checked": true,
+          "pair_query_count": 1,
+          "components_nonempty": {
+            "left": 1,
+            "right": 13
+          },
+          "pair_status": "conservative_triangle_AABB_prefilter_excluded_all_pairs",
+          "filtered_triangle_counts": {
+            "left": 0,
+            "right": 112
+          },
+          "triangle_test_count": 0,
+          "broad_phase_candidates": 0,
+          "mesh_collision": false,
+          "triangle_hit": null,
+          "cache_reused": true
+        },
+        {
+          "pair": [
+            {
+              "leg": null,
+              "link": "body"
+            },
+            {
+              "leg": "rm",
+              "link": "knee"
+            }
+          ],
+          "mesh_checked": true,
+          "pair_query_count": 1,
+          "components_nonempty": {
+            "left": 1,
+            "right": 1
+          },
+          "pair_status": "broadphase_excluded_all_triangle_pairs; collision result is clear",
+          "filtered_triangle_counts": {
+            "left": 33,
+            "right": 71
+          },
+          "triangle_test_count": 0,
+          "broad_phase_candidates": 0,
+          "mesh_collision": false,
+          "triangle_hit": null,
+          "cache_reused": true
+        },
+        {
+          "pair": [
+            {
+              "leg": null,
+              "link": "body"
+            },
+            {
+              "leg": "rm",
+              "link": "ankle"
+            }
+          ],
+          "mesh_checked": true,
+          "pair_query_count": 1,
+          "components_nonempty": {
+            "left": 1,
+            "right": 13
+          },
+          "pair_status": "conservative_triangle_AABB_prefilter_excluded_all_pairs",
+          "filtered_triangle_counts": {
+            "left": 0,
+            "right": 153
+          },
+          "triangle_test_count": 0,
+          "broad_phase_candidates": 0,
+          "mesh_collision": false,
+          "triangle_hit": null,
+          "cache_reused": true
+        }
+      ]
+    },
+    {
+      "label": "fast_Q_MID_LOW_worst_body_proxy_gap",
+      "phase_time_s": 1.2666666666666673,
+      "q_rad": [
+        [
+          0.4229083529912813,
+          0.38246646494950204,
+          1.0012276377094549
+        ],
+        [
+          0.21036245075419482,
+          -1.317277520681589,
+          1.4492984417188488
+        ],
+        [
+          0.5746758027296218,
+          -1.834769536092947,
+          2.0421371869254235
+        ],
+        [
+          -0.42289724654156996,
+          -0.3824670118669934,
+          -1.001227779483106
+        ],
+        [
+          -0.20937377888429312,
+          1.285962910669508,
+          -1.4478263929811703
+        ],
+        [
+          -0.5746815846231509,
+          1.8347695560831856,
+          -2.0421371913464377
+        ]
+      ],
+      "base_pose": [
+        0.1017,
+        -0.067694497636,
+        0.155,
+        0.15,
+        0.0,
+        -1.5707963267948966
+      ],
+      "worst_proxy_pair": {
+        "leg": "lm",
+        "link": "knee"
+      },
+      "proxy_gap_m": -0.0023154744147277084,
+      "pair_checks": [
+        {
+          "pair": [
+            {
+              "leg": null,
+              "link": "body"
+            },
+            {
+              "leg": "lm",
+              "link": "knee"
+            }
+          ],
+          "mesh_checked": true,
+          "pair_query_count": 1,
+          "components_nonempty": {
+            "left": 1,
+            "right": 1
+          },
+          "pair_status": "broadphase_excluded_all_triangle_pairs; collision result is clear",
+          "filtered_triangle_counts": {
+            "left": 34,
+            "right": 121
+          },
+          "triangle_test_count": 0,
+          "broad_phase_candidates": 0,
+          "mesh_collision": false,
+          "triangle_hit": null,
+          "cache_reused": true
+        }
+      ]
+    }
+  ],
+  "boundary": "Discrete sampled visual-mesh triangle intersection only. Containment and continuous clearance are not evaluated; no contact/load/stability/hardware claim."
+}

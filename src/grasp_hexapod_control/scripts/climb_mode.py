@@ -224,6 +224,20 @@ class ClimbMode:
             active_base_velocities = stage.get("active_base_velocities_m_s")
             if active_base_velocities is not None:
                 active_base_velocities = np.asarray(active_base_velocities, dtype=np.float64)
+            pose_curve = stage.get("pose_curve")
+            pose_knots_value = stage.get("pose_knots")
+            pose_knots = (None if pose_knots_value is None else
+                          np.asarray(pose_knots_value, dtype=np.float64))
+            piecewise_pose_curve = bool(
+                pose_curve == "piecewise_quintic"
+                and is_front
+                and anchor_curve == "piecewise_quintic"
+                and pose_knots is not None
+                and pose_knots.shape == (len(knots), 6)
+                and np.all(np.isfinite(pose_knots))
+                and np.allclose(pose_knots[0], pose_start, rtol=0.0, atol=1e-12)
+                and np.allclose(pose_knots[-1], pose_end, rtol=0.0, atol=1e-12)
+            )
             base_piecewise_curve = bool(
                 anchor_curve == "piecewise_base_quintic"
                 and isinstance(active, list)
@@ -275,14 +289,17 @@ class ClimbMode:
                 )
                 or len(set(active)) != len(active)
                 or stage.get("pose_curve") not in (
-                    "quintic_full_stage", "quintic_first_segment"
+                    "quintic_full_stage", "quintic_first_segment",
+                    "piecewise_quintic",
                 )
+                or (pose_knots is not None and not piecewise_pose_curve)
+                or (pose_curve == "piecewise_quintic" and not piecewise_pose_curve)
                 or (
                     stage.get("pose_curve") == "quintic_first_segment"
                     and not first_segment_pose_curve
                 )
                 or not (
-                    (anchor_curve == "piecewise_quintic" and not active)
+                    (anchor_curve == "piecewise_quintic" and (not active or is_front))
                     or base_piecewise_curve
                     or relative_curve
                 )
@@ -540,12 +557,18 @@ class ClimbMode:
         total = float(sum(durations))
         phase = float(np.clip(self.phase_time / total, 0.0, 1.0))
         pose_phase = phase
-        if stage["pose_curve"] == "quintic_first_segment":
-            pose_phase = float(np.clip(
-                self.phase_time / float(durations[0]), 0.0, 1.0
-            ))
-        pose_weight = self._smoothstep(pose_phase)
-        pose = pose_start * (1.0 - pose_weight) + pose_end * pose_weight
+        if stage["pose_curve"] == "piecewise_quintic":
+            pose = self._piecewise(
+                np.asarray(stage["pose_knots"], dtype=np.float64), durations
+            )
+            pose_weight = self._smoothstep(phase)
+        else:
+            if stage["pose_curve"] == "quintic_first_segment":
+                pose_phase = float(np.clip(
+                    self.phase_time / float(durations[0]), 0.0, 1.0
+                ))
+            pose_weight = self._smoothstep(pose_phase)
+            pose = pose_start * (1.0 - pose_weight) + pose_end * pose_weight
         if stage["anchor_curve"] == "relative_base_high_step":
             anchors = self._relative_base_high_step(
                 stage,

@@ -1,0 +1,1414 @@
+{
+  "version": "v5 cross gate snapshot; preserved before v6 geometry change",
+  "config_sha256": "990ee38578d538150ba0b87aadf08f4890be7f902b81010e5b6959eeecd78a78",
+  "cpu_sha256": "2162e440552a9d7b76f84db980a35732133487d3d41e0998569809be24a5ef6c",
+  "runtime_sha256": "225009277f1498d031409e25787056ab003d4c6a74d6380cfc847195690541a6",
+  "mesh_sha256": {
+    "xiaolan": "e61d489ab5d2b9e0e02fc8b1671cbddcd2e7cc49ffd48d1d2fed7541b42580be"
+  },
+  "stage": "MID_PLATFORM_285",
+  "cross_phase_window_s": [
+    0.85,
+    2.45
+  ],
+  "sample_count": 96,
+  "gate": {
+    "minimum_crossing_sphere_gap_m": 0.015,
+    "surface_height_delta_must_be_nonnegative": true
+  },
+  "summary": {
+    "min_planned_anchor_gap": {
+      "tick": 450,
+      "phase_s": 1.7666666666666688,
+      "leg_index": 5,
+      "leg": "RM",
+      "anchor_world_xyz_m": [
+        0.2303985821759262,
+        -0.26166507117951365,
+        0.1886654851466052
+      ],
+      "surface_height_delta_m": 0.029327370120257962,
+      "planned_anchor_sphere_gap_m": 0.014720859415408061,
+      "planned_root_fk_foot_sphere_gap_m": 0.014899375013229969
+    },
+    "min_planned_root_fk_gap": {
+      "tick": 450,
+      "phase_s": 1.7666666666666688,
+      "leg_index": 5,
+      "leg": "RM",
+      "anchor_world_xyz_m": [
+        0.2303985821759262,
+        -0.26166507117951365,
+        0.1886654851466052
+      ],
+      "surface_height_delta_m": 0.029327370120257962,
+      "planned_anchor_sphere_gap_m": 0.014720859415408061,
+      "planned_root_fk_foot_sphere_gap_m": 0.014899375013229969
+    },
+    "min_surface_height_delta": {
+      "tick": 436,
+      "phase_s": 1.3000000000000007,
+      "leg_index": 2,
+      "leg": "LM",
+      "anchor_world_xyz_m": [
+        0.17555840000000025,
+        0.12627607590696494,
+        0.16730240000000007
+      ],
+      "surface_height_delta_m": 0.020220412794142467,
+      "planned_anchor_sphere_gap_m": 0.01905012226524169,
+      "planned_root_fk_foot_sphere_gap_m": 0.02008032691490112
+    },
+    "negative_surface_height_samples": 0,
+    "under_15mm_samples": 1
+  },
+  "samples": [
+    {
+      "tick": 423,
+      "phase_s": 0.8666666666666666,
+      "leg_index": 2,
+      "leg": "LM",
+      "anchor_world_xyz_m": [
+        0.08001485594675609,
+        0.12627607590696494,
+        0.14000424455621602
+      ],
+      "surface_height_delta_m": null,
+      "planned_anchor_sphere_gap_m": 0.06053411342535766,
+      "planned_root_fk_foot_sphere_gap_m": 0.060862004503951815
+    },
+    {
+      "tick": 423,
+      "phase_s": 0.8666666666666666,
+      "leg_index": 5,
+      "leg": "RM",
+      "anchor_world_xyz_m": [
+        0.08001485594675609,
+        -0.26166507117951365,
+        0.14000424455621602
+      ],
+      "surface_height_delta_m": null,
+      "planned_anchor_sphere_gap_m": 0.08384915460637965,
+      "planned_root_fk_foot_sphere_gap_m": 0.08391860305586903
+    },
+    {
+      "tick": 424,
+      "phase_s": 0.8999999999999999,
+      "leg_index": 2,
+      "leg": "LM",
+      "anchor_world_xyz_m": [
+        0.08037443950617283,
+        0.12627607590696494,
+        0.1401069827160494
+      ],
+      "surface_height_delta_m": null,
+      "planned_anchor_sphere_gap_m": 0.060549606729481655,
+      "planned_root_fk_foot_sphere_gap_m": 0.06073222098392873
+    },
+    {
+      "tick": 424,
+      "phase_s": 0.8999999999999999,
+      "leg_index": 5,
+      "leg": "RM",
+      "anchor_world_xyz_m": [
+        0.08037443950617283,
+        -0.26166507117951365,
+        0.1401069827160494
+      ],
+      "surface_height_delta_m": null,
+      "planned_anchor_sphere_gap_m": 0.08350033346881336,
+      "planned_root_fk_foot_sphere_gap_m": 0.0834217183507585
+    },
+    {
+      "tick": 425,
+      "phase_s": 0.9333333333333332,
+      "leg_index": 2,
+      "leg": "LM",
+      "anchor_world_xyz_m": [
+        0.08161459127165574,
+        0.12627607590696494,
+        0.14046131179190163
+      ],
+      "surface_height_delta_m": null,
+      "planned_anchor_sphere_gap_m": 0.0606190008973416,
+      "planned_root_fk_foot_sphere_gap_m": 0.06079932311595498
+    },
+    {
+      "tick": 425,
+      "phase_s": 0.9333333333333332,
+      "leg_index": 5,
+      "leg": "RM",
+      "anchor_world_xyz_m": [
+        0.08161459127165574,
+        -0.26166507117951365,
+        0.14046131179190163
+      ],
+      "surface_height_delta_m": null,
+      "planned_anchor_sphere_gap_m": 0.0822988703448754,
+      "planned_root_fk_foot_sphere_gap_m": 0.08188030868039267
+    },
+    {
+      "tick": 426,
+      "phase_s": 0.9666666666666666,
+      "leg_index": 2,
+      "leg": "LM",
+      "anchor_world_xyz_m": [
+        0.08411659946146419,
+        0.12627607590696494,
+        0.14117617127470408
+      ],
+      "surface_height_delta_m": null,
+      "planned_anchor_sphere_gap_m": 0.06082483677262785,
+      "planned_root_fk_foot_sphere_gap_m": 0.061128727658107875
+    },
+    {
+      "tick": 426,
+      "phase_s": 0.9666666666666666,
+      "leg_index": 5,
+      "leg": "RM",
+      "anchor_world_xyz_m": [
+        0.08411659946146419,
+        -0.26166507117951365,
+        0.14117617127470408
+      ],
+      "surface_height_delta_m": null,
+      "planned_anchor_sphere_gap_m": 0.07988266956219335,
+      "planned_root_fk_foot_sphere_gap_m": 0.07892291303033433
+    },
+    {
+      "tick": 427,
+      "phase_s": 0.9999999999999999,
+      "leg_index": 2,
+      "leg": "LM",
+      "anchor_world_xyz_m": [
+        0.08810879999999999,
+        0.12627607590696494,
+        0.14231680000000002
+      ],
+      "surface_height_delta_m": null,
+      "planned_anchor_sphere_gap_m": 0.06133777159073104,
+      "planned_root_fk_foot_sphere_gap_m": 0.06193418575951911
+    },
+    {
+      "tick": 427,
+      "phase_s": 0.9999999999999999,
+      "leg_index": 5,
+      "leg": "RM",
+      "anchor_world_xyz_m": [
+        0.08810879999999999,
+        -0.26166507117951365,
+        0.14231680000000002
+      ],
+      "surface_height_delta_m": null,
+      "planned_anchor_sphere_gap_m": 0.07605079166647358,
+      "planned_root_fk_foot_sphere_gap_m": 0.07440171010130792
+    },
+    {
+      "tick": 428,
+      "phase_s": 1.0333333333333332,
+      "leg_index": 2,
+      "leg": "LM",
+      "anchor_world_xyz_m": [
+        0.09368405677996239,
+        0.12627607590696494,
+        0.1439097305085607
+      ],
+      "surface_height_delta_m": null,
+      "planned_anchor_sphere_gap_m": 0.06246723885953497,
+      "planned_root_fk_foot_sphere_gap_m": 0.06356153717279604
+    },
+    {
+      "tick": 428,
+      "phase_s": 1.0333333333333332,
+      "leg_index": 5,
+      "leg": "RM",
+      "anchor_world_xyz_m": [
+        0.09368405677996239,
+        -0.26166507117951365,
+        0.1439097305085607
+      ],
+      "surface_height_delta_m": null,
+      "planned_anchor_sphere_gap_m": 0.07075480437428296,
+      "planned_root_fk_foot_sphere_gap_m": 0.06834978459654945
+    },
+    {
+      "tick": 429,
+      "phase_s": 1.0666666666666667,
+      "leg_index": 2,
+      "leg": "LM",
+      "anchor_world_xyz_m": [
+        0.10081724192450339,
+        0.12627607590696494,
+        0.14594778340700099
+      ],
+      "surface_height_delta_m": 0.06444778042676874,
+      "planned_anchor_sphere_gap_m": 0.06409414590281906,
+      "planned_root_fk_foot_sphere_gap_m": 0.06096262419128406
+    },
+    {
+      "tick": 429,
+      "phase_s": 1.0666666666666667,
+      "leg_index": 5,
+      "leg": "RM",
+      "anchor_world_xyz_m": [
+        0.10081724192450339,
+        -0.26166507117951365,
+        0.14594778340700099
+      ],
+      "surface_height_delta_m": null,
+      "planned_anchor_sphere_gap_m": 0.06409414590281906,
+      "planned_root_fk_foot_sphere_gap_m": 0.060962623446473914
+    },
+    {
+      "tick": 430,
+      "phase_s": 1.1,
+      "leg_index": 2,
+      "leg": "LM",
+      "anchor_world_xyz_m": [
+        0.10938271604938274,
+        0.12627607590696494,
+        0.14839506172839506
+      ],
+      "surface_height_delta_m": 0.06689505874816282,
+      "planned_anchor_sphere_gap_m": 0.05627376026278682,
+      "planned_root_fk_foot_sphere_gap_m": 0.0523829823434672
+    },
+    {
+      "tick": 430,
+      "phase_s": 1.1,
+      "leg_index": 5,
+      "leg": "RM",
+      "anchor_world_xyz_m": [
+        0.10938271604938274,
+        -0.26166507117951365,
+        0.14839506172839506
+      ],
+      "surface_height_delta_m": null,
+      "planned_anchor_sphere_gap_m": 0.056273760262786805,
+      "planned_root_fk_foot_sphere_gap_m": 0.05238298136004281
+    },
+    {
+      "tick": 431,
+      "phase_s": 1.1333333333333335,
+      "leg_index": 2,
+      "leg": "LM",
+      "anchor_world_xyz_m": [
+        0.11917180852512327,
+        0.12627607590696494,
+        0.15119194529289237
+      ],
+      "surface_height_delta_m": 0.06969194231266013,
+      "planned_anchor_sphere_gap_m": 0.047440729398435216,
+      "planned_root_fk_foot_sphere_gap_m": 0.043120527879570145
+    },
+    {
+      "tick": 431,
+      "phase_s": 1.1333333333333335,
+      "leg_index": 5,
+      "leg": "RM",
+      "anchor_world_xyz_m": [
+        0.11917180852512327,
+        -0.26166507117951365,
+        0.15119194529289237
+      ],
+      "surface_height_delta_m": null,
+      "planned_anchor_sphere_gap_m": 0.047440729398435216,
+      "planned_root_fk_foot_sphere_gap_m": 0.04312052671813785
+    },
+    {
+      "tick": 432,
+      "phase_s": 1.166666666666667,
+      "leg_index": 2,
+      "leg": "LM",
+      "anchor_world_xyz_m": [
+        0.1299102977391659,
+        0.12627607590696494,
+        0.1542600850683331
+      ],
+      "surface_height_delta_m": 0.07276008208810086,
+      "planned_anchor_sphere_gap_m": 0.038360081180581485,
+      "planned_root_fk_foot_sphere_gap_m": 0.03412436645927886
+    },
+    {
+      "tick": 432,
+      "phase_s": 1.166666666666667,
+      "leg_index": 5,
+      "leg": "RM",
+      "anchor_world_xyz_m": [
+        0.1299102977391659,
+        -0.26166507117951365,
+        0.1542600850683331
+      ],
+      "surface_height_delta_m": null,
+      "planned_anchor_sphere_gap_m": 0.038360081180581485,
+      "planned_root_fk_foot_sphere_gap_m": 0.03412436523987421
+    },
+    {
+      "tick": 433,
+      "phase_s": 1.2000000000000004,
+      "leg_index": 2,
+      "leg": "LM",
+      "anchor_world_xyz_m": [
+        0.14127589135802485,
+        0.12627607590696494,
+        0.15750739753086426
+      ],
+      "surface_height_delta_m": 0.07600739455063202,
+      "planned_anchor_sphere_gap_m": 0.030032077097638624,
+      "planned_root_fk_foot_sphere_gap_m": 0.026513047481592278
+    },
+    {
+      "tick": 433,
+      "phase_s": 1.2000000000000004,
+      "leg_index": 5,
+      "leg": "RM",
+      "anchor_world_xyz_m": [
+        0.14127589135802485,
+        -0.26166507117951365,
+        0.15750739753086426
+      ],
+      "surface_height_delta_m": null,
+      "planned_anchor_sphere_gap_m": 0.030032077097638624,
+      "planned_root_fk_foot_sphere_gap_m": 0.026513046310347295
+    },
+    {
+      "tick": 434,
+      "phase_s": 1.2333333333333338,
+      "leg_index": 2,
+      "leg": "LM",
+      "anchor_world_xyz_m": [
+        0.15291570658944287,
+        0.12627607590696494,
+        0.16083305902555511
+      ],
+      "surface_height_delta_m": 0.07933305604532287,
+      "planned_anchor_sphere_gap_m": 0.023183397855458483,
+      "planned_root_fk_foot_sphere_gap_m": 0.021033066755342562
+    },
+    {
+      "tick": 434,
+      "phase_s": 1.2333333333333338,
+      "leg_index": 5,
+      "leg": "RM",
+      "anchor_world_xyz_m": [
+        0.15291570658944287,
+        -0.26166507117951365,
+        0.16083305902555511
+      ],
+      "surface_height_delta_m": null,
+      "planned_anchor_sphere_gap_m": 0.023183397855458483,
+      "planned_root_fk_foot_sphere_gap_m": 0.02103306575774731
+    },
+    {
+      "tick": 435,
+      "phase_s": 1.2666666666666673,
+      "leg_index": 2,
+      "leg": "LM",
+      "anchor_world_xyz_m": [
+        0.16446375044454628,
+        0.12627607590696494,
+        0.16413250012701322
+      ],
+      "surface_height_delta_m": 0.08263249714678098,
+      "planned_anchor_sphere_gap_m": 0.019532814893258917,
+      "planned_root_fk_foot_sphere_gap_m": 0.019383550221580628
+    },
+    {
+      "tick": 435,
+      "phase_s": 1.2666666666666673,
+      "leg_index": 5,
+      "leg": "RM",
+      "anchor_world_xyz_m": [
+        0.16446375044454628,
+        -0.26166507117951365,
+        0.16413250012701322
+      ],
+      "surface_height_delta_m": null,
+      "planned_anchor_sphere_gap_m": 0.019532814893258917,
+      "planned_root_fk_foot_sphere_gap_m": 0.01938354935879759
+    },
+    {
+      "tick": 436,
+      "phase_s": 1.3000000000000007,
+      "leg_index": 2,
+      "leg": "LM",
+      "anchor_world_xyz_m": [
+        0.17555840000000025,
+        0.12627607590696494,
+        0.16730240000000007
+      ],
+      "surface_height_delta_m": 0.020220412794142467,
+      "planned_anchor_sphere_gap_m": 0.01905012226524169,
+      "planned_root_fk_foot_sphere_gap_m": 0.02008032691490112
+    },
+    {
+      "tick": 436,
+      "phase_s": 1.3000000000000007,
+      "leg_index": 5,
+      "leg": "RM",
+      "anchor_world_xyz_m": [
+        0.17555840000000025,
+        -0.26166507117951365,
+        0.16730240000000007
+      ],
+      "surface_height_delta_m": 0.020220412794142467,
+      "planned_anchor_sphere_gap_m": 0.01905012003520054,
+      "planned_root_fk_foot_sphere_gap_m": 0.019700699672512614
+    },
+    {
+      "tick": 437,
+      "phase_s": 1.3333333333333341,
+      "leg_index": 2,
+      "leg": "LM",
+      "anchor_world_xyz_m": [
+        0.18585988266016384,
+        0.12627607590696494,
+        0.1702456807600468
+      ],
+      "surface_height_delta_m": 0.020374558750996946,
+      "planned_anchor_sphere_gap_m": 0.019787288265411446,
+      "planned_root_fk_foot_sphere_gap_m": 0.020705944120831293
+    },
+    {
+      "tick": 437,
+      "phase_s": 1.3333333333333341,
+      "leg_index": 5,
+      "leg": "RM",
+      "anchor_world_xyz_m": [
+        0.18585988266016384,
+        -0.26166507117951365,
+        0.1702456807600468
+      ],
+      "surface_height_delta_m": 0.02037455880821154,
+      "planned_anchor_sphere_gap_m": 0.018389009348337683,
+      "planned_root_fk_foot_sphere_gap_m": 0.018099030370912275
+    },
+    {
+      "tick": 438,
+      "phase_s": 1.3666666666666676,
+      "leg_index": 2,
+      "leg": "LM",
+      "anchor_world_xyz_m": [
+        0.1950677564192453,
+        0.12627607590696494,
+        0.17287650183407008
+      ],
+      "surface_height_delta_m": 0.02104818845254741,
+      "planned_anchor_sphere_gap_m": 0.020446193563194194,
+      "planned_root_fk_foot_sphere_gap_m": 0.02122790424547085
+    },
+    {
+      "tick": 438,
+      "phase_s": 1.3666666666666676,
+      "leg_index": 5,
+      "leg": "RM",
+      "anchor_world_xyz_m": [
+        0.1950677564192453,
+        -0.26166507117951365,
+        0.17287650183407008
+      ],
+      "surface_height_delta_m": 0.021048184528859648,
+      "planned_anchor_sphere_gap_m": 0.017492900154270272,
+      "planned_root_fk_foot_sphere_gap_m": 0.018153315195619454
+    },
+    {
+      "tick": 439,
+      "phase_s": 1.400000000000001,
+      "leg_index": 2,
+      "leg": "LM",
+      "anchor_world_xyz_m": [
+        0.202938390123457,
+        0.12627607590696494,
+        0.17512525432098772
+      ],
+      "surface_height_delta_m": 0.021623984237292504,
+      "planned_anchor_sphere_gap_m": 0.021009405264443476,
+      "planned_root_fk_foot_sphere_gap_m": 0.021642115650799074
+    },
+    {
+      "tick": 439,
+      "phase_s": 1.400000000000001,
+      "leg_index": 5,
+      "leg": "RM",
+      "anchor_world_xyz_m": [
+        0.202938390123457,
+        -0.26166507117951365,
+        0.17512525432098772
+      ],
+      "surface_height_delta_m": 0.021623978376761416,
+      "planned_anchor_sphere_gap_m": 0.017835966874735924,
+      "planned_root_fk_foot_sphere_gap_m": 0.018813329729820194
+    },
+    {
+      "tick": 440,
+      "phase_s": 1.4333333333333345,
+      "leg_index": 2,
+      "leg": "LM",
+      "anchor_world_xyz_m": [
+        0.2093024437331709,
+        0.12627607590696494,
+        0.17694355535233455
+      ],
+      "surface_height_delta_m": 0.022089561139077424,
+      "planned_anchor_sphere_gap_m": 0.021464809255354704,
+      "planned_root_fk_foot_sphere_gap_m": 0.021950287523004843
+    },
+    {
+      "tick": 440,
+      "phase_s": 1.4333333333333345,
+      "leg_index": 5,
+      "leg": "RM",
+      "anchor_world_xyz_m": [
+        0.2093024437331709,
+        -0.26166507117951365,
+        0.17694355535233455
+      ],
+      "surface_height_delta_m": 0.02208955969702081,
+      "planned_anchor_sphere_gap_m": 0.018538213039681988,
+      "planned_root_fk_foot_sphere_gap_m": 0.01938942991203548
+    },
+    {
+      "tick": 441,
+      "phase_s": 1.466666666666668,
+      "leg_index": 2,
+      "leg": "LM",
+      "anchor_world_xyz_m": [
+        0.21408234858507363,
+        0.12627607590696494,
+        0.17830924245287819
+      ],
+      "surface_height_delta_m": 0.02243924683031631,
+      "planned_anchor_sphere_gap_m": 0.021806854070476164,
+      "planned_root_fk_foot_sphere_gap_m": 0.022157978522387184
+    },
+    {
+      "tick": 441,
+      "phase_s": 1.466666666666668,
+      "leg_index": 5,
+      "leg": "RM",
+      "anchor_world_xyz_m": [
+        0.21408234858507363,
+        -0.26166507117951365,
+        0.17830924245287819
+      ],
+      "surface_height_delta_m": 0.022439247186256478,
+      "planned_anchor_sphere_gap_m": 0.019137910704134856,
+      "planned_root_fk_foot_sphere_gap_m": 0.019355786934009803
+    },
+    {
+      "tick": 442,
+      "phase_s": 1.5000000000000013,
+      "leg_index": 2,
+      "leg": "LM",
+      "anchor_world_xyz_m": [
+        0.21730978765432116,
+        0.12627607590696494,
+        0.1792313679012346
+      ],
+      "surface_height_delta_m": 0.02267535848777455,
+      "planned_anchor_sphere_gap_m": 0.0220378067216614,
+      "planned_root_fk_foot_sphere_gap_m": 0.022274443549934
+    },
+    {
+      "tick": 442,
+      "phase_s": 1.5000000000000013,
+      "leg_index": 5,
+      "leg": "RM",
+      "anchor_world_xyz_m": [
+        0.21730978765432116,
+        -0.26166507117951365,
+        0.1792313679012346
+      ],
+      "surface_height_delta_m": 0.022675359640322773,
+      "planned_anchor_sphere_gap_m": 0.019292031131392023,
+      "planned_root_fk_foot_sphere_gap_m": 0.018081199712327193
+    },
+    {
+      "tick": 443,
+      "phase_s": 1.5333333333333348,
+      "leg_index": 2,
+      "leg": "LM",
+      "anchor_world_xyz_m": [
+        0.21914317581669474,
+        0.12627607590696494,
+        0.1797551930904842
+      ],
+      "surface_height_delta_m": 0.022809484743451125,
+      "planned_anchor_sphere_gap_m": 0.022169002421840354,
+      "planned_root_fk_foot_sphere_gap_m": 0.022314258673503264
+    },
+    {
+      "tick": 443,
+      "phase_s": 1.5333333333333348,
+      "leg_index": 5,
+      "leg": "RM",
+      "anchor_world_xyz_m": [
+        0.21914317581669474,
+        -0.26166507117951365,
+        0.1797551930904842
+      ],
+      "surface_height_delta_m": 0.022809486348522784,
+      "planned_anchor_sphere_gap_m": 0.018735180003203518,
+      "planned_root_fk_foot_sphere_gap_m": 0.017423487598402378
+    },
+    {
+      "tick": 444,
+      "phase_s": 1.5666666666666682,
+      "leg_index": 2,
+      "leg": "LM",
+      "anchor_world_xyz_m": [
+        0.2198851401107555,
+        0.12627607590696494,
+        0.17996718288878727
+      ],
+      "surface_height_delta_m": 0.022863765061525848,
+      "planned_anchor_sphere_gap_m": 0.02222209675672523,
+      "planned_root_fk_foot_sphere_gap_m": 0.022299970182978624
+    },
+    {
+      "tick": 444,
+      "phase_s": 1.5666666666666682,
+      "leg_index": 5,
+      "leg": "RM",
+      "anchor_world_xyz_m": [
+        0.2198851401107555,
+        -0.26166507117951365,
+        0.17996718288878727
+      ],
+      "surface_height_delta_m": 0.022863766849731765,
+      "planned_anchor_sphere_gap_m": 0.01829748552848341,
+      "planned_root_fk_foot_sphere_gap_m": 0.017467141235652947
+    },
+    {
+      "tick": 445,
+      "phase_s": 1.6000000000000016,
+      "leg_index": 2,
+      "leg": "LM",
+      "anchor_world_xyz_m": [
+        0.22,
+        0.12627607590696494,
+        0.18
+      ],
+      "surface_height_delta_m": 0.02287216793397151,
+      "planned_anchor_sphere_gap_m": 0.02223031603287265,
+      "planned_root_fk_foot_sphere_gap_m": 0.022265023242372676
+    },
+    {
+      "tick": 445,
+      "phase_s": 1.6000000000000016,
+      "leg_index": 5,
+      "leg": "RM",
+      "anchor_world_xyz_m": [
+        0.22,
+        -0.26166507117951365,
+        0.18
+      ],
+      "surface_height_delta_m": 0.022872169750527555,
+      "planned_anchor_sphere_gap_m": 0.0182194843139497,
+      "planned_root_fk_foot_sphere_gap_m": 0.01780477821723304
+    },
+    {
+      "tick": 446,
+      "phase_s": 1.633333333333335,
+      "leg_index": 2,
+      "leg": "LM",
+      "anchor_world_xyz_m": [
+        0.22015263310185187,
+        0.1262760759069649,
+        0.1801271942515432
+      ],
+      "surface_height_delta_m": 0.022966918997410657,
+      "planned_anchor_sphere_gap_m": 0.022322996595276586,
+      "planned_root_fk_foot_sphere_gap_m": 0.022380265723143306
+    },
+    {
+      "tick": 446,
+      "phase_s": 1.633333333333335,
+      "leg_index": 5,
+      "leg": "RM",
+      "anchor_world_xyz_m": [
+        0.22015263310185187,
+        -0.26166507117951365,
+        0.1801271942515432
+      ],
+      "surface_height_delta_m": 0.02296692085164015,
+      "planned_anchor_sphere_gap_m": 0.018151152637293198,
+      "planned_root_fk_foot_sphere_gap_m": 0.017927139924823424
+    },
+    {
+      "tick": 447,
+      "phase_s": 1.6666666666666685,
+      "leg_index": 2,
+      "leg": "LM",
+      "anchor_world_xyz_m": [
+        0.2210648148148149,
+        0.12627607590696494,
+        0.1808873456790124
+      ],
+      "surface_height_delta_m": 0.02353318009218222,
+      "planned_anchor_sphere_gap_m": 0.02287688374784239,
+      "planned_root_fk_foot_sphere_gap_m": 0.02316145729787167
+    },
+    {
+      "tick": 447,
+      "phase_s": 1.6666666666666685,
+      "leg_index": 5,
+      "leg": "RM",
+      "anchor_world_xyz_m": [
+        0.2210648148148149,
+        -0.26166507117951365,
+        0.1808873456790124
+      ],
+      "surface_height_delta_m": 0.023533182171559697,
+      "planned_anchor_sphere_gap_m": 0.017717965103030503,
+      "planned_root_fk_foot_sphere_gap_m": 0.017423297855868235
+    },
+    {
+      "tick": 448,
+      "phase_s": 1.700000000000002,
+      "leg_index": 2,
+      "leg": "LM",
+      "anchor_world_xyz_m": [
+        0.22310546875000015,
+        0.12627607590696494,
+        0.18258789062500014
+      ],
+      "surface_height_delta_m": 0.024799970963817725,
+      "planned_anchor_sphere_gap_m": 0.024115992120077232,
+      "planned_root_fk_foot_sphere_gap_m": 0.024830991012929786
+    },
+    {
+      "tick": 448,
+      "phase_s": 1.700000000000002,
+      "leg_index": 5,
+      "leg": "RM",
+      "anchor_world_xyz_m": [
+        0.22310546875000015,
+        -0.26166507117951365,
+        0.18258789062500014
+      ],
+      "surface_height_delta_m": 0.024799972959420824,
+      "planned_anchor_sphere_gap_m": 0.0167495795991213,
+      "planned_root_fk_foot_sphere_gap_m": 0.016281649066345695
+    },
+    {
+      "tick": 449,
+      "phase_s": 1.7333333333333354,
+      "leg_index": 2,
+      "leg": "LM",
+      "anchor_world_xyz_m": [
+        0.22629629629629652,
+        0.12627607590696494,
+        0.18524691358024709
+      ],
+      "surface_height_delta_m": 0.02678076290405118,
+      "planned_anchor_sphere_gap_m": 0.026053499043128488,
+      "planned_root_fk_foot_sphere_gap_m": 0.027307149393876302
+    },
+    {
+      "tick": 449,
+      "phase_s": 1.7333333333333354,
+      "leg_index": 5,
+      "leg": "RM",
+      "anchor_world_xyz_m": [
+        0.22629629629629652,
+        -0.26166507117951365,
+        0.18524691358024709
+      ],
+      "surface_height_delta_m": 0.02678076493576087,
+      "planned_anchor_sphere_gap_m": 0.015537116133747138,
+      "planned_root_fk_foot_sphere_gap_m": 0.015133682349983111
+    },
+    {
+      "tick": 450,
+      "phase_s": 1.7666666666666688,
+      "leg_index": 2,
+      "leg": "LM",
+      "anchor_world_xyz_m": [
+        0.2303985821759262,
+        0.12627607590696494,
+        0.1886654851466052
+      ],
+      "surface_height_delta_m": 0.029327367096539103,
+      "planned_anchor_sphere_gap_m": 0.028544453874373987,
+      "planned_root_fk_foot_sphere_gap_m": 0.03032894212042285
+    },
+    {
+      "tick": 450,
+      "phase_s": 1.7666666666666688,
+      "leg_index": 5,
+      "leg": "RM",
+      "anchor_world_xyz_m": [
+        0.2303985821759262,
+        -0.26166507117951365,
+        0.1886654851466052
+      ],
+      "surface_height_delta_m": 0.029327370120257962,
+      "planned_anchor_sphere_gap_m": 0.014720859415408061,
+      "planned_root_fk_foot_sphere_gap_m": 0.014899375013229969
+    },
+    {
+      "tick": 451,
+      "phase_s": 1.8000000000000023,
+      "leg_index": 2,
+      "leg": "LM",
+      "anchor_world_xyz_m": [
+        0.23500000000000032,
+        0.12627607590696494,
+        0.19250000000000025
+      ],
+      "surface_height_delta_m": 0.03218382085573768,
+      "planned_anchor_sphere_gap_m": 0.0313384873220115,
+      "planned_root_fk_foot_sphere_gap_m": 0.033535995530591806
+    },
+    {
+      "tick": 451,
+      "phase_s": 1.8000000000000023,
+      "leg_index": 5,
+      "leg": "RM",
+      "anchor_world_xyz_m": [
+        0.23500000000000032,
+        -0.26166507117951365,
+        0.19250000000000025
+      ],
+      "surface_height_delta_m": 0.03218382992091759,
+      "planned_anchor_sphere_gap_m": 0.015016407842746375,
+      "planned_root_fk_foot_sphere_gap_m": 0.016347687843906118
+    },
+    {
+      "tick": 452,
+      "phase_s": 1.8333333333333357,
+      "leg_index": 2,
+      "leg": "LM",
+      "anchor_world_xyz_m": [
+        0.2396014178240744,
+        0.12627607590696494,
+        0.19633451485339531
+      ],
+      "surface_height_delta_m": 0.03504027461493625,
+      "planned_anchor_sphere_gap_m": 0.034132520769648934,
+      "planned_root_fk_foot_sphere_gap_m": 0.03653529273630909
+    },
+    {
+      "tick": 452,
+      "phase_s": 1.8333333333333357,
+      "leg_index": 5,
+      "leg": "RM",
+      "anchor_world_xyz_m": [
+        0.2396014178240744,
+        -0.26166507117951365,
+        0.19633451485339531
+      ],
+      "surface_height_delta_m": 0.035001494791673915,
+      "planned_anchor_sphere_gap_m": 0.01665260533107217,
+      "planned_root_fk_foot_sphere_gap_m": 0.018778647857199328
+    },
+    {
+      "tick": 453,
+      "phase_s": 1.8666666666666691,
+      "leg_index": 2,
+      "leg": "LM",
+      "anchor_world_xyz_m": [
+        0.243703703703704,
+        0.12627607590696494,
+        0.1997530864197533
+      ],
+      "surface_height_delta_m": 0.03758687880742406,
+      "planned_anchor_sphere_gap_m": 0.03662347560089436,
+      "planned_root_fk_foot_sphere_gap_m": 0.0389732800658736
+    },
+    {
+      "tick": 453,
+      "phase_s": 1.8666666666666691,
+      "leg_index": 5,
+      "leg": "RM",
+      "anchor_world_xyz_m": [
+        0.243703703703704,
+        -0.26166507117951365,
+        0.1997530864197533
+      ],
+      "surface_height_delta_m": 0.028690461895539365,
+      "planned_anchor_sphere_gap_m": 0.018879911138523827,
+      "planned_root_fk_foot_sphere_gap_m": 0.02154842688709549
+    },
+    {
+      "tick": 454,
+      "phase_s": 1.9000000000000026,
+      "leg_index": 2,
+      "leg": "LM",
+      "anchor_world_xyz_m": [
+        0.24689453125000022,
+        0.12627607590696494,
+        0.20241210937500018
+      ],
+      "surface_height_delta_m": 0.03956767074765746,
+      "planned_anchor_sphere_gap_m": 0.038560982523945554,
+      "planned_root_fk_foot_sphere_gap_m": 0.040606729168184974
+    },
+    {
+      "tick": 454,
+      "phase_s": 1.9000000000000026,
+      "leg_index": 5,
+      "leg": "RM",
+      "anchor_world_xyz_m": [
+        0.24689453125000022,
+        -0.26166507117951365,
+        0.20241210937500018
+      ],
+      "surface_height_delta_m": 0.02165186738127922,
+      "planned_anchor_sphere_gap_m": 0.021114384627995374,
+      "planned_root_fk_foot_sphere_gap_m": 0.023557873932585228
+    },
+    {
+      "tick": 455,
+      "phase_s": 1.933333333333336,
+      "leg_index": 2,
+      "leg": "LM",
+      "anchor_world_xyz_m": [
+        0.24893518518518531,
+        0.12627607590696494,
+        0.20411265432098777
+      ],
+      "surface_height_delta_m": 0.040834461512427006,
+      "planned_anchor_sphere_gap_m": 0.039800090896180286,
+      "planned_root_fk_foot_sphere_gap_m": 0.04135727924897041
+    },
+    {
+      "tick": 455,
+      "phase_s": 1.933333333333336,
+      "leg_index": 5,
+      "leg": "RM",
+      "anchor_world_xyz_m": [
+        0.24893518518518531,
+        -0.26166507117951365,
+        0.20411265432098777
+      ],
+      "surface_height_delta_m": 0.02275877411617125,
+      "planned_anchor_sphere_gap_m": 0.022629680814173127,
+      "planned_root_fk_foot_sphere_gap_m": 0.024492282092399967
+    },
+    {
+      "tick": 456,
+      "phase_s": 1.9666666666666694,
+      "leg_index": 2,
+      "leg": "LM",
+      "anchor_world_xyz_m": [
+        0.24984736689814818,
+        0.12627607590696494,
+        0.2048728057484568
+      ],
+      "surface_height_delta_m": 0.041400722822024366,
+      "planned_anchor_sphere_gap_m": 0.04035397804874597,
+      "planned_root_fk_foot_sphere_gap_m": 0.04135194500636745
+    },
+    {
+      "tick": 456,
+      "phase_s": 1.9666666666666694,
+      "leg_index": 5,
+      "leg": "RM",
+      "anchor_world_xyz_m": [
+        0.24984736689814818,
+        -0.26166507117951365,
+        0.2048728057484568
+      ],
+      "surface_height_delta_m": 0.023439120265024288,
+      "planned_anchor_sphere_gap_m": 0.023307025192326226,
+      "planned_root_fk_foot_sphere_gap_m": 0.024501406038959356
+    },
+    {
+      "tick": 457,
+      "phase_s": 2.0000000000000027,
+      "leg_index": 2,
+      "leg": "LM",
+      "anchor_world_xyz_m": [
+        0.25,
+        0.12627607590696494,
+        0.205
+      ],
+      "surface_height_delta_m": 0.041495473921409814,
+      "planned_anchor_sphere_gap_m": 0.04044665861114992,
+      "planned_root_fk_foot_sphere_gap_m": 0.04096414177863987
+    },
+    {
+      "tick": 457,
+      "phase_s": 2.0000000000000027,
+      "leg_index": 5,
+      "leg": "RM",
+      "anchor_world_xyz_m": [
+        0.25,
+        -0.26166507117951365,
+        0.205
+      ],
+      "surface_height_delta_m": 0.0235529608973859,
+      "planned_anchor_sphere_gap_m": 0.02342036354584753,
+      "planned_root_fk_foot_sphere_gap_m": 0.024038632405956453
+    },
+    {
+      "tick": 458,
+      "phase_s": 2.033333333333336,
+      "leg_index": 2,
+      "leg": "LM",
+      "anchor_world_xyz_m": [
+        0.25012691698399053,
+        0.12627607590696494,
+        0.2049676914263134
+      ],
+      "surface_height_delta_m": 0.041436188322601875,
+      "planned_anchor_sphere_gap_m": 0.04038866854374581,
+      "planned_root_fk_foot_sphere_gap_m": 0.040612139278759556
+    },
+    {
+      "tick": 458,
+      "phase_s": 2.033333333333336,
+      "leg_index": 5,
+      "leg": "RM",
+      "anchor_world_xyz_m": [
+        0.25012691698399053,
+        -0.26166507117951365,
+        0.2050163510614396
+      ],
+      "surface_height_delta_m": 0.023558208200523262,
+      "planned_anchor_sphere_gap_m": 0.02342558769723949,
+      "planned_root_fk_foot_sphere_gap_m": 0.023725327447207786
+    },
+    {
+      "tick": 459,
+      "phase_s": 2.066666666666669,
+      "leg_index": 2,
+      "leg": "LM",
+      "anchor_world_xyz_m": [
+        0.2509001270967887,
+        0.12627607590696494,
+        0.20477085948846638
+      ],
+      "surface_height_delta_m": 0.04107500557857277,
+      "planned_anchor_sphere_gap_m": 0.04003537850210694,
+      "planned_root_fk_foot_sphere_gap_m": 0.039997358110780826
+    },
+    {
+      "tick": 459,
+      "phase_s": 2.066666666666669,
+      "leg_index": 5,
+      "leg": "RM",
+      "anchor_world_xyz_m": [
+        0.2509001270967887,
+        -0.26166507117951365,
+        0.20511596583057912
+      ],
+      "surface_height_delta_m": 0.02359017608790262,
+      "planned_anchor_sphere_gap_m": 0.023457414345743197,
+      "planned_root_fk_foot_sphere_gap_m": 0.023637278356835927
+    },
+    {
+      "tick": 460,
+      "phase_s": 2.1000000000000023,
+      "leg_index": 2,
+      "leg": "LM",
+      "anchor_world_xyz_m": [
+        0.25267438906670747,
+        0.12627607590696494,
+        0.20431919516591435
+      ],
+      "surface_height_delta_m": 0.04024621040852175,
+      "planned_anchor_sphere_gap_m": 0.03922469447863701,
+      "planned_root_fk_foot_sphere_gap_m": 0.03885554134440496
+    },
+    {
+      "tick": 460,
+      "phase_s": 2.1000000000000023,
+      "leg_index": 5,
+      "leg": "RM",
+      "anchor_world_xyz_m": [
+        0.25267438906670747,
+        -0.26166507117951365,
+        0.20534454884262335
+      ],
+      "surface_height_delta_m": 0.023663531836743773,
+      "planned_anchor_sphere_gap_m": 0.023530439546005633,
+      "planned_root_fk_foot_sphere_gap_m": 0.023695325026545862
+    },
+    {
+      "tick": 461,
+      "phase_s": 2.1333333333333355,
+      "leg_index": 2,
+      "leg": "LM",
+      "anchor_world_xyz_m": [
+        0.2555375144601608,
+        0.12627607590696494,
+        0.20359034474070076
+      ],
+      "surface_height_delta_m": 0.03890878417858734,
+      "planned_anchor_sphere_gap_m": 0.03791649419422808,
+      "planned_root_fk_foot_sphere_gap_m": 0.037144866814976744
+    },
+    {
+      "tick": 461,
+      "phase_s": 2.1333333333333355,
+      "leg_index": 5,
+      "leg": "RM",
+      "anchor_world_xyz_m": [
+        0.2555375144601608,
+        -0.26166507117951365,
+        0.2057134131013359
+      ],
+      "surface_height_delta_m": 0.023781899762504943,
+      "planned_anchor_sphere_gap_m": 0.023648290714003442,
+      "planned_root_fk_foot_sphere_gap_m": 0.023843963365707814
+    },
+    {
+      "tick": 462,
+      "phase_s": 2.1666666666666687,
+      "leg_index": 2,
+      "leg": "LM",
+      "anchor_world_xyz_m": [
+        0.2593665670841691,
+        0.12627607590696494,
+        0.2026156034179648
+      ],
+      "surface_height_delta_m": 0.03712015297617563,
+      "planned_anchor_sphere_gap_m": 0.036166948839631355,
+      "planned_root_fk_foot_sphere_gap_m": 0.03497477966733739
+    },
+    {
+      "tick": 462,
+      "phase_s": 2.1666666666666687,
+      "leg_index": 5,
+      "leg": "RM",
+      "anchor_world_xyz_m": [
+        0.2593665670841691,
+        -0.26166507117951365,
+        0.20620672040144772
+      ],
+      "surface_height_delta_m": 0.023940207831138982,
+      "planned_anchor_sphere_gap_m": 0.023805901108957226,
+      "planned_root_fk_foot_sphere_gap_m": 0.024044163861556334
+    },
+    {
+      "tick": 463,
+      "phase_s": 2.200000000000002,
+      "leg_index": 2,
+      "leg": "LM",
+      "anchor_world_xyz_m": [
+        0.26388406238886375,
+        0.12627607590696494,
+        0.20146560894644927
+      ],
+      "surface_height_delta_m": 0.035009935684289256,
+      "planned_anchor_sphere_gap_m": 0.034102844816828,
+      "planned_root_fk_foot_sphere_gap_m": 0.032545837340269716
+    },
+    {
+      "tick": 463,
+      "phase_s": 2.200000000000002,
+      "leg_index": 5,
+      "leg": "RM",
+      "anchor_world_xyz_m": [
+        0.26388406238886375,
+        -0.26166507117951365,
+        0.20678872165106596
+      ],
+      "surface_height_delta_m": 0.024126979777077784,
+      "planned_anchor_sphere_gap_m": 0.02399184898930509,
+      "planned_root_fk_foot_sphere_gap_m": 0.024267572595764834
+    },
+    {
+      "tick": 464,
+      "phase_s": 2.233333333333335,
+      "leg_index": 2,
+      "leg": "LM",
+      "anchor_world_xyz_m": [
+        0.2687141668699925,
+        0.12627607590696494,
+        0.20023603523900832
+      ],
+      "surface_height_delta_m": 0.03275369205585568,
+      "planned_anchor_sphere_gap_m": 0.03189590548040021,
+      "planned_root_fk_foot_sphere_gap_m": 0.030095130691418365
+    },
+    {
+      "tick": 464,
+      "phase_s": 2.233333333333335,
+      "leg_index": 5,
+      "leg": "RM",
+      "anchor_world_xyz_m": [
+        0.2687141668699925,
+        -0.26166507117951365,
+        0.2074109971940825
+      ],
+      "surface_height_delta_m": 0.02432667627971516,
+      "planned_anchor_sphere_gap_m": 0.02419066440128602,
+      "planned_root_fk_foot_sphere_gap_m": 0.024491033780087632
+    },
+    {
+      "tick": 465,
+      "phase_s": 2.2666666666666684,
+      "leg_index": 2,
+      "leg": "LM",
+      "anchor_world_xyz_m": [
+        0.27343889747142436,
+        0.12627607590696494,
+        0.1990332859931153
+      ],
+      "surface_height_delta_m": 0.030546670788056035,
+      "planned_anchor_sphere_gap_m": 0.029737112878902044,
+      "planned_root_fk_foot_sphere_gap_m": 0.02785261557608361
+    },
+    {
+      "tick": 465,
+      "phase_s": 2.2666666666666684,
+      "leg_index": 5,
+      "leg": "RM",
+      "anchor_world_xyz_m": [
+        0.27343889747142436,
+        -0.26166507117951365,
+        0.20801969713258278
+      ],
+      "surface_height_delta_m": 0.02452201619020694,
+      "planned_anchor_sphere_gap_m": 0.024385142443053526,
+      "planned_root_fk_foot_sphere_gap_m": 0.02469307916309719
+    },
+    {
+      "tick": 466,
+      "phase_s": 2.3000000000000016,
+      "leg_index": 2,
+      "leg": "LM",
+      "anchor_world_xyz_m": [
+        0.27765432098765447,
+        0.12627607590696494,
+        0.1979601883113704
+      ],
+      "surface_height_delta_m": 0.028577557596653508,
+      "planned_anchor_sphere_gap_m": 0.02781102949623021,
+      "planned_root_fk_foot_sphere_gap_m": 0.02601036378259857
+    },
+    {
+      "tick": 466,
+      "phase_s": 2.3000000000000016,
+      "leg_index": 5,
+      "leg": "RM",
+      "anchor_world_xyz_m": [
+        0.27765432098765447,
+        -0.26166507117951365,
+        0.20856278164925435
+      ],
+      "surface_height_delta_m": 0.02469629923866179,
+      "planned_anchor_sphere_gap_m": 0.024558656528789743,
+      "planned_root_fk_foot_sphere_gap_m": 0.024853768398719438
+    },
+    {
+      "tick": 467,
+      "phase_s": 2.333333333333335,
+      "leg_index": 2,
+      "leg": "LM",
+      "anchor_world_xyz_m": [
+        0.28102675346630945,
+        0.12627607590696494,
+        0.19710168632200867
+      ],
+      "surface_height_delta_m": 0.02700222329032198,
+      "planned_anchor_sphere_gap_m": 0.026270119992995,
+      "planned_root_fk_foot_sphere_gap_m": 0.024586621712012337
+    },
+    {
+      "tick": 467,
+      "phase_s": 2.333333333333335,
+      "leg_index": 5,
+      "leg": "RM",
+      "anchor_world_xyz_m": [
+        0.28102675346630945,
+        -0.26166507117951365,
+        0.20899726132979557
+      ],
+      "surface_height_delta_m": 0.024835729549951974,
+      "planned_anchor_sphere_gap_m": 0.024697471652818877,
+      "planned_root_fk_foot_sphere_gap_m": 0.024957529210540647
+    },
+    {
+      "tick": 468,
+      "phase_s": 2.366666666666668,
+      "leg_index": 2,
+      "leg": "LM",
+      "anchor_world_xyz_m": [
+        0.28334895961065193,
+        0.12627607590696494,
+        0.19651053479940764
+      ],
+      "surface_height_delta_m": 0.025917471844974865,
+      "planned_anchor_sphere_gap_m": 0.02520907051425713,
+      "planned_root_fk_foot_sphere_gap_m": 0.022905048017210633
+    },
+    {
+      "tick": 468,
+      "phase_s": 2.366666666666668,
+      "leg_index": 5,
+      "leg": "RM",
+      "anchor_world_xyz_m": [
+        0.28334895961065193,
+        -0.26166507117951365,
+        0.2092964374853245
+      ],
+      "surface_height_delta_m": 0.024931739159524596,
+      "planned_anchor_sphere_gap_m": 0.0247930576537213,
+      "planned_root_fk_foot_sphere_gap_m": 0.024997520039209874
+    },
+    {
+      "tick": 469,
+      "phase_s": 2.4000000000000012,
+      "leg_index": 2,
+      "leg": "LM",
+      "anchor_world_xyz_m": [
+        0.28459635218208607,
+        0.12627607590696494,
+        0.19619299278459512
+      ],
+      "surface_height_delta_m": 0.02533478847809334,
+      "planned_anchor_sphere_gap_m": 0.024241959514518185,
+      "planned_root_fk_foot_sphere_gap_m": 0.022439418802062624
+    },
+    {
+      "tick": 469,
+      "phase_s": 2.4000000000000012,
+      "leg_index": 5,
+      "leg": "RM",
+      "anchor_world_xyz_m": [
+        0.28459635218208607,
+        -0.26166507117951365,
+        0.2094571424747873
+      ],
+      "surface_height_delta_m": 0.024983311529212376,
+      "planned_anchor_sphere_gap_m": 0.02484440247844729,
+      "planned_root_fk_foot_sphere_gap_m": 0.024980209025215305
+    },
+    {
+      "tick": 470,
+      "phase_s": 2.4333333333333345,
+      "leg_index": 2,
+      "leg": "LM",
+      "anchor_world_xyz_m": [
+        0.28498319140266226,
+        0.12627607590696494,
+        0.19609451720575707
+      ],
+      "surface_height_delta_m": 0.02515408772305519,
+      "planned_anchor_sphere_gap_m": 0.02384619707574568,
+      "planned_root_fk_foot_sphere_gap_m": 0.022811278735253113
+    },
+    {
+      "tick": 470,
+      "phase_s": 2.4333333333333345,
+      "leg_index": 5,
+      "leg": "RM",
+      "anchor_world_xyz_m": [
+        0.28498319140266226,
+        -0.26166507117951365,
+        0.20950698002736706
+      ],
+      "surface_height_delta_m": 0.02499930506304454,
+      "planned_anchor_sphere_gap_m": 0.024860325446430583,
+      "planned_root_fk_foot_sphere_gap_m": 0.02492934312657128
+    }
+  ],
+  "mesh_queries_started": false,
+  "stop_reason": "minimum planned anchor sphere gap 14.7209 mm < 15 mm",
+  "evidence_boundary": "CPU planned-reference/FK and closest-triangle diagnostics; no contact or whole-route collision proof."
+}

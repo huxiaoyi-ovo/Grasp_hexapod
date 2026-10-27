@@ -1,0 +1,39 @@
+{
+  "stage": "LM_BODY_TRANSFER",
+  "samples": [
+    {
+      "time_s": 0.19,
+      "knot_or_midpoint": false,
+      "nonfoot_collision": false,
+      "active_foot_collision": false,
+      "footprint_projection_unavailable": "{\"metric\": \"CAD_footprint_projection\", \"foot\": [-0.10671967699954643, -0.06769402266682716, 0.01992589137691614]}"
+    },
+    {
+      "time_s": 0.38,
+      "knot_or_midpoint": true,
+      "nonfoot_collision": false,
+      "active_foot_collision": false
+    },
+    {
+      "time_s": 0.855,
+      "knot_or_midpoint": false,
+      "nonfoot_collision": false,
+      "active_foot_collision": false,
+      "footprint_projection_unavailable": "{\"metric\": \"CAD_footprint_projection\", \"foot\": [-0.01837091698984533, -0.06769402266682714, 0.04257057824458865]}"
+    },
+    {
+      "time_s": 1.33,
+      "knot_or_midpoint": true,
+      "nonfoot_collision": false,
+      "active_foot_collision": false
+    },
+    {
+      "time_s": 1.6,
+      "knot_or_midpoint": false,
+      "nonfoot_collision": false,
+      "active_foot_collision": false,
+      "footprint_projection_unavailable": "{\"metric\": \"CAD_footprint_projection\", \"foot\": [0.07467950084285302, -0.06769402266682714, 0.02028414083308372]}"
+    }
+  ],
+  "boundary": "two interior knots and one midpoint per segment; local active foot/nonfoot scene checks only."
+}

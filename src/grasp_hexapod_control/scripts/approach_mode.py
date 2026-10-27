@@ -22,10 +22,11 @@ import numpy as np
 
 from utils import (
     NavigationState,
-    circular_path_feasible,
     distance_to_polygon_boundary,
     points_in_polygon,
+    polygon_area,
     transform_points,
+    sample_segment,
     wrap_angle,
     yaw_from_transform,
 )
@@ -45,7 +46,10 @@ class ApproachPlan:
     target_pose_pv: np.ndarray = field(
         default_factory=lambda: np.eye(4, dtype=np.float64)
     )
-    score: float = np.inf
+    waypoints_pv: np.ndarray = field(
+        default_factory=lambda: np.empty((0, 2), dtype=np.float64)
+    )
+    waypoint_index: int = 0
     minimum_clearance: float = 0.0
     ready_for_climb: bool = False
     failed: bool = False
@@ -59,8 +63,10 @@ class ApproachMode:
         self.controller = controller
         self.dt = controller.dt
 
-        # 自动接近参数只有在左右标准位姿完成测量后才会启用。
-        self.xiaolan_from_approach = {}
+        # 左右入口都必须是相对xiaolan_frame的外部标定量。
+        self.xiaolan_from_fixed_approaches = {}
+        self.xiaolan_keepout_polygon_xy = np.empty((0, 2), dtype=np.float64)
+        self.xiaolan_body_clearance = 0.13
         self.approach_plan = ApproachPlan()
         self.navigation_state = None
         self.boundary_margin = 0.03
@@ -78,9 +84,8 @@ class ApproachMode:
         self.gaits[TRIPOD_A_INDICES] = True
         self.stance_group_index = 0
 
-        # 每个摆动相固定为0.30 s；0.20 m/s满杆时，
-        # 单相机身位移约60 mm。
-        self.phase_duration = 0.30
+        # 实机优先保持足端轨迹和舵机跟踪平滑，不追求极限步频。
+        self.phase_duration = 0.70
         self.phase_time = 0.0
 
         # 共同支撑目标为50 ms，并量化到最接近的整数控制帧：
@@ -93,8 +98,20 @@ class ApproachMode:
         self.transfer_time = 0.0
         self.transfer_active = False
 
-        self.step_height = 0.020
-        self.phase_command = np.zeros(4, dtype=np.float64)
+        self.step_height = 0.040
+        # 前45%平滑抬起、中间10%保持高位、后45%平滑落下。
+        self.swing_lift_fraction = 0.45
+        # 梯形剖面加减速段占比，峰值速度由单程抬腿时间决定。
+        self.lift_accel_fraction = 0.15
+        self.max_linear_acceleration = 0.40
+        self.max_yaw_acceleration = 2.0
+        # 合并平移和偏航后，限制标准足端的平面速度预算。
+        self.max_foot_planar_speed = 0.12
+        self.nominal_foot_radius = float(np.mean(
+            np.linalg.norm(controller.foot_init_base[:, :2], axis=1)
+        ))
+        self.requested_command = np.zeros(4, dtype=np.float64)
+        self.active_phase_command = np.zeros(4, dtype=np.float64)
         self.stop_requested = False
 
         self.body_height_offset = 0.0
@@ -116,36 +133,67 @@ class ApproachMode:
             dtype=np.float64,
         )
 
-    def configure_autonomous_approach(
+    def configure_fixed_approach(
         self,
-        xiaolan_from_left_base,
-        xiaolan_from_right_base,
+        xiaolan_from_base,
+        target_side="left",
         boundary_margin=0.03,
         linear_speed=0.12,
         yaw_rate=0.8,
+        xiaolan_keepout_polygon_xy_m=(),
+        xiaolan_body_clearance_m=0.13,
     ):
-        """设置两侧标准接近位姿和经过实机确认的导航参数。
+        """增加一个固定左右接近位姿和共用导航参数。
 
-        xiaolan_from_*_base表示目标base_link在xiaolan_base中的4×4位姿。
-        这些值与小蓝尺寸、攀爬动作和RTK天线外参有关，不能在控制器中猜测。
+        xiaolan_from_base表示目标base_link在xiaolan_base中的4×4位姿。
+        仿真与实机均使用该接口；实机来源必须先通过外部标定配置门。
         """
 
-        self.xiaolan_from_approach = {
-            "left": np.asarray(
-                xiaolan_from_left_base,
-                dtype=np.float64,
-            ).reshape(4, 4).copy(),
-            "right": np.asarray(
-                xiaolan_from_right_base,
-                dtype=np.float64,
-            ).reshape(4, 4).copy(),
-        }
+        if target_side not in ("left", "right"):
+            raise ValueError("fixed approach target_side must be left or right")
+        target_transform = np.asarray(
+            xiaolan_from_base,
+            dtype=np.float64,
+        ).reshape(4, 4)
+        if (
+            not np.isfinite(target_transform).all()
+            or not np.allclose(target_transform[3], [0.0, 0.0, 0.0, 1.0])
+            or not np.allclose(
+                target_transform[:3, :3].T @ target_transform[:3, :3],
+                np.eye(3),
+                atol=1e-6,
+            )
+            or not np.isclose(
+                np.linalg.det(target_transform[:3, :3]), 1.0, atol=1e-6
+            )
+        ):
+            raise ValueError("fixed approach pose must be a finite rigid transform")
+        self.xiaolan_from_fixed_approaches[target_side] = target_transform.copy()
         self.boundary_margin = float(boundary_margin)
         self.auto_linear_speed = float(linear_speed)
         self.auto_yaw_rate = float(yaw_rate)
+        self.xiaolan_keepout_polygon_xy = np.asarray(
+            xiaolan_keepout_polygon_xy_m,
+            dtype=np.float64,
+        ).reshape(-1, 2).copy()
+        if (
+            len(self.xiaolan_keepout_polygon_xy) not in (0,)
+            and len(self.xiaolan_keepout_polygon_xy) < 3
+        ):
+            raise ValueError("xiaolan keepout polygon must contain at least 3 points")
+        if not np.isfinite(self.xiaolan_keepout_polygon_xy).all():
+            raise ValueError("xiaolan keepout polygon must be finite")
+        if (
+            len(self.xiaolan_keepout_polygon_xy) >= 3
+            and abs(polygon_area(self.xiaolan_keepout_polygon_xy)) <= 1e-9
+        ):
+            raise ValueError("xiaolan keepout polygon must enclose area")
+        self.xiaolan_body_clearance = float(xiaolan_body_clearance_m)
+        if min(self.boundary_margin, self.xiaolan_body_clearance) <= 0.0:
+            raise ValueError("approach safety margins must be positive")
 
-    def plan_autonomous_approach(self, navigation_state):
-        """枚举左右接近点，选择边界内代价最低的固定直线路径。"""
+    def plan_autonomous_approach(self, navigation_state, target_side=None):
+        """在左右入口中选择可直达者；不搜索绕障路线。"""
 
         navigation = navigation_state.normalized()
         self.navigation_state = navigation
@@ -156,72 +204,203 @@ class ApproachMode:
             return self._fail_approach("landing is not confirmed")
         if len(navigation.pv_boundary) < 3:
             return self._fail_approach("pv boundary is unavailable")
-        if set(self.xiaolan_from_approach) != {"left", "right"}:
+        if not self.xiaolan_from_fixed_approaches:
             return self._fail_approach(
-                "left/right approach poses are not configured"
+                "fixed approach poses are not configured"
+            )
+        if target_side is not None and target_side not in ("left", "right"):
+            return self._fail_approach("requested approach side is invalid")
+        if (
+            target_side is not None
+            and target_side not in self.xiaolan_from_fixed_approaches
+        ):
+            return self._fail_approach(
+                f"fixed {target_side} approach pose is not configured"
             )
 
         current_xy = navigation.pv_from_base[:2, 3]
         current_yaw = yaw_from_transform(navigation.pv_from_base)
-        safety_radius = self.robot_safety_radius + self.boundary_margin
+        if len(self.xiaolan_keepout_polygon_xy) < 3:
+            return self._fail_approach(
+                "xiaolan keepout polygon is not configured"
+            )
+        obstacle_polygon_pv = transform_points(
+            navigation.pv_from_xiaolan,
+            self.xiaolan_keepout_polygon_xy,
+        )
+        candidate_sides = (
+            [target_side]
+            if target_side is not None
+            else sorted(self.xiaolan_from_fixed_approaches)
+        )
         candidates = []
-
-        for side, xiaolan_from_target in (
-            self.xiaolan_from_approach.items()
-        ):
+        for side in candidate_sides:
             target_pose = (
-                navigation.pv_from_xiaolan @ xiaolan_from_target
+                navigation.pv_from_xiaolan
+                @ self.xiaolan_from_fixed_approaches[side]
             )
             target_xy = target_pose[:2, 3]
-            feasible, minimum_clearance = circular_path_feasible(
+            target_yaw = yaw_from_transform(target_pose)
+            feasible, clearance = self._remaining_route_feasible(
+                navigation,
+                current_xy,
+                current_yaw,
+                target_xy.reshape(1, 2),
+                target_yaw,
+            )
+            if not feasible or not self._xiaolan_direct_path_feasible(
                 current_xy,
                 target_xy,
-                navigation.pv_boundary,
-                safety_radius,
-                self.path_sample_spacing,
-            )
-            if not feasible:
+                obstacle_polygon_pv,
+            ):
                 continue
-
-            travel_distance = np.linalg.norm(target_xy - current_xy)
-            yaw_change = abs(
-                wrap_angle(
-                    yaw_from_transform(target_pose) - current_yaw
-                )
-            )
-            # 把转角按机器人安全半径折算为等效弧长，同时奖励更大边界余量。
-            score = (
-                travel_distance
-                + self.robot_safety_radius * yaw_change
-                - 0.25 * minimum_clearance
-            )
+            distance = float(np.linalg.norm(target_xy - current_xy))
+            yaw_change = float(abs(wrap_angle(target_yaw - current_yaw)))
             candidates.append(
-                (
-                    score,
-                    side,
-                    target_pose,
-                    minimum_clearance,
-                )
+                (distance, yaw_change, side, target_pose, clearance)
             )
-
         if not candidates:
+            requested = "left/right" if target_side is None else target_side
             return self._fail_approach(
-                "no approach side has a boundary-safe straight path"
+                f"no direct {requested} approach satisfies panel/Xiaolan constraints"
             )
-
-        score, side, target_pose, clearance = min(
+        _, _, selected_side, target_pose, clearance = min(
             candidates,
-            key=lambda candidate: candidate[0],
+            key=lambda item: (item[0], item[1], item[2]),
         )
+        waypoint_array = target_pose[:2, 3].reshape(1, 2)
+
         self.approach_plan = ApproachPlan(
             active=True,
             state="align",
-            target_side=side,
+            target_side=selected_side,
             target_pose_pv=target_pose,
-            score=float(score),
+            waypoints_pv=waypoint_array,
             minimum_clearance=float(clearance),
         )
         return self.approach_plan
+
+    def _xiaolan_direct_path_feasible(self, start_xy, target_xy, obstacle):
+        """机身中心直线不得进入小蓝轮廓及其机身安全余量。"""
+
+        samples = sample_segment(
+            start_xy,
+            target_xy,
+            self.path_sample_spacing,
+        )
+        outside = ~points_in_polygon(samples, obstacle)
+        clearance = distance_to_polygon_boundary(samples, obstacle)
+        return bool(
+            outside.all()
+            and np.all(clearance >= self.xiaolan_body_clearance)
+        )
+
+    def _gait_motion_margin(self):
+        """返回一次三角步态周期内标准足端的保守平面运动余量。"""
+
+        support_duration = (
+            self.phase_duration + 2.0 * self.transfer_duration
+        )
+        return 0.5 * support_duration * max(
+            self.auto_linear_speed,
+            self.robot_safety_radius * self.auto_yaw_rate,
+        )
+
+    def _pose_feasible(self, center_xy, yaw, boundary):
+        """检查一个标准足印和机身中心的光伏板边界余量。"""
+
+        cosine, sine = np.cos(yaw), np.sin(yaw)
+        rotation = np.array(
+            [[cosine, -sine], [sine, cosine]],
+            dtype=np.float64,
+        )
+        feet_xy = (
+            self.controller.foot_init_base[:, :2] @ rotation.T
+            + np.asarray(center_xy, dtype=np.float64).reshape(2)
+        )
+        checked_points = np.vstack(
+            (np.asarray(center_xy, dtype=np.float64).reshape(1, 2), feet_xy)
+        )
+        clearance = distance_to_polygon_boundary(checked_points, boundary)
+        required_margin = self.boundary_margin + self._gait_motion_margin()
+        feasible = bool(
+            points_in_polygon(checked_points, boundary).all()
+            and np.all(clearance >= required_margin)
+        )
+        return feasible, float(clearance.min())
+
+    def _rotation_feasible(self, center_xy, start_yaw, target_yaw, boundary):
+        """按最大5度采样检查原地转向的标准足印。"""
+
+        yaw_change = wrap_angle(target_yaw - start_yaw)
+        count = max(2, int(np.ceil(abs(yaw_change) / np.deg2rad(5.0))) + 1)
+        minimum_clearance = np.inf
+        for yaw in np.linspace(start_yaw, start_yaw + yaw_change, count):
+            feasible, clearance = self._pose_feasible(center_xy, yaw, boundary)
+            minimum_clearance = min(minimum_clearance, clearance)
+            if not feasible:
+                return False, float(minimum_clearance)
+        return True, float(minimum_clearance)
+
+    def _translation_feasible(self, start_xy, end_xy, yaw, boundary):
+        """按最大0.02m采样检查固定偏航直线路段的标准足印。"""
+
+        start_xy = np.asarray(start_xy, dtype=np.float64).reshape(2)
+        end_xy = np.asarray(end_xy, dtype=np.float64).reshape(2)
+        count = max(
+            2,
+            int(
+                np.ceil(
+                    np.linalg.norm(end_xy - start_xy)
+                    / self.path_sample_spacing
+                )
+            )
+            + 1,
+        )
+        minimum_clearance = np.inf
+        for center_xy in np.linspace(start_xy, end_xy, count):
+            feasible, clearance = self._pose_feasible(center_xy, yaw, boundary)
+            minimum_clearance = min(minimum_clearance, clearance)
+            if not feasible:
+                return False, float(minimum_clearance)
+        return True, float(minimum_clearance)
+
+    def _remaining_route_feasible(
+        self,
+        navigation,
+        current_xy,
+        current_yaw,
+        waypoints_pv,
+        target_yaw,
+    ):
+        """复核当前转向及所有剩余固定路线的标准足印。"""
+
+        boundary = navigation.pv_boundary
+        rotation_ok, minimum_clearance = self._rotation_feasible(
+            current_xy,
+            current_yaw,
+            target_yaw,
+            boundary,
+        )
+        if not rotation_ok:
+            return False, minimum_clearance
+
+        previous_xy = np.asarray(current_xy, dtype=np.float64).reshape(2)
+        for waypoint_xy in np.asarray(
+            waypoints_pv,
+            dtype=np.float64,
+        ).reshape(-1, 2):
+            feasible, clearance = self._translation_feasible(
+                previous_xy,
+                waypoint_xy,
+                target_yaw,
+                boundary,
+            )
+            minimum_clearance = min(minimum_clearance, clearance)
+            if not feasible:
+                return False, float(minimum_clearance)
+            previous_xy = waypoint_xy
+        return True, float(minimum_clearance)
 
     def cancel_autonomous_approach(self, reason="cancelled"):
         """取消自动接近，并让当前摆动组三腿正常落地后停止。"""
@@ -259,23 +438,34 @@ class ApproachMode:
 
         target_pose = self.approach_plan.target_pose_pv
         current_xy = navigation.pv_from_base[:2, 3]
-        target_xy = target_pose[:2, 3]
         current_yaw = yaw_from_transform(navigation.pv_from_base)
         target_yaw = yaw_from_transform(target_pose)
         yaw_error = wrap_angle(target_yaw - current_yaw)
-        position_error_pv = target_xy - current_xy
-        position_error = np.linalg.norm(position_error_pv)
-
-        feasible, minimum_clearance = circular_path_feasible(
+        waypoints = self.approach_plan.waypoints_pv[
+            self.approach_plan.waypoint_index :
+        ]
+        feasible, minimum_clearance = self._remaining_route_feasible(
+            navigation,
             current_xy,
-            target_xy,
-            navigation.pv_boundary,
-            self.robot_safety_radius + self.boundary_margin,
-            self.path_sample_spacing,
+            current_yaw,
+            waypoints,
+            target_yaw,
         )
         self.approach_plan.minimum_clearance = minimum_clearance
         if not feasible:
             self._fail_approach("remaining approach path became unsafe")
+            return command
+        if not self._xiaolan_direct_path_feasible(
+            current_xy,
+            target_pose[:2, 3],
+            transform_points(
+                navigation.pv_from_xiaolan,
+                self.xiaolan_keepout_polygon_xy,
+            ),
+        ):
+            self._fail_approach(
+                "remaining direct route reaches Xiaolan safety envelope"
+            )
             return command
 
         if self.approach_plan.state == "align":
@@ -289,11 +479,22 @@ class ApproachMode:
             self.approach_plan.state = "translate"
 
         if self.approach_plan.state == "translate":
+            if (
+                self.approach_plan.waypoint_index
+                >= len(self.approach_plan.waypoints_pv)
+            ):
+                self.approach_plan.state = "settle"
+                return command
             # 偏航漂移明显时先停下重新对齐，避免边走边扭影响相机稳定。
             if abs(yaw_error) > 2.0 * self.yaw_tolerance:
                 self.approach_plan.state = "align"
                 return command
 
+            target_xy = self.approach_plan.waypoints_pv[
+                self.approach_plan.waypoint_index
+            ]
+            position_error_pv = target_xy - current_xy
+            position_error = np.linalg.norm(position_error_pv)
             if position_error > self.position_tolerance:
                 speed = min(
                     self.auto_linear_speed,
@@ -318,8 +519,24 @@ class ApproachMode:
                 # 不能只凭发出零指令前的位置宣布到达。
                 if abs(yaw_error) > self.yaw_tolerance:
                     self.approach_plan.state = "align"
-                elif position_error > self.position_tolerance:
+                elif (
+                    self.approach_plan.waypoint_index
+                    < len(self.approach_plan.waypoints_pv)
+                    and np.linalg.norm(
+                        self.approach_plan.waypoints_pv[
+                            self.approach_plan.waypoint_index
+                        ]
+                        - current_xy
+                    )
+                    > self.position_tolerance
+                ):
                     self.approach_plan.state = "translate"
+                elif (
+                    self.approach_plan.waypoint_index
+                    < len(self.approach_plan.waypoints_pv)
+                ):
+                    self.approach_plan.waypoint_index += 1
+                    self.approach_plan.state = "align"
                 else:
                     self.approach_plan.active = False
                     self.approach_plan.state = "ready"
@@ -359,12 +576,23 @@ class ApproachMode:
                 )
                 return False
 
-        self.controller._commit_workspace_candidate(candidate_base)
-        return True
+        return self.controller._commit_workspace_candidate(candidate_base)
 
     @staticmethod
     def _smooth_step(phase):
         return 10.0 * phase**3 - 15.0 * phase**4 + 6.0 * phase**5
+
+    def _trapezoid_rise(self, u):
+        """梯形升起剖面(归一化0→1): smoothstep加速-匀速-减速, 峰值速度=1/(T_rise·(1-a))。"""
+        a = self.lift_accel_fraction
+        v = 1.0 / (1.0 - a)
+        if u <= a:
+            return v * a * 0.5 * self._smooth_step(u / a)
+        if u <= 1.0 - a:
+            return v * (a * 0.5 + (u - a))
+        return v * (
+            1.0 - 1.5 * a + 0.5 * a * self._smooth_step((u - 1.0 + a) / a)
+        )
 
     @staticmethod
     def _quintic_segment(
@@ -417,6 +645,65 @@ class ApproachMode:
         )
         return velocity
 
+    def _slew_requested_command(self, command):
+        """按实机可控加速度追踪平面/偏航指令。"""
+
+        command = np.asarray(command, dtype=np.float64).reshape(4).copy()
+        foot_speed_budget = (
+            np.linalg.norm(command[:2])
+            + self.nominal_foot_radius * abs(command[3])
+        )
+        if foot_speed_budget > self.max_foot_planar_speed:
+            scale = self.max_foot_planar_speed / foot_speed_budget
+            command[:2] *= scale
+            command[3] *= scale
+        linear_delta = command[:2] - self.requested_command[:2]
+        linear_norm = np.linalg.norm(linear_delta)
+        linear_step = self.max_linear_acceleration * self.dt
+        if linear_norm > linear_step:
+            linear_delta *= linear_step / linear_norm
+        self.requested_command[:2] += linear_delta
+
+        yaw_delta = np.clip(
+            command[3] - self.requested_command[3],
+            -self.max_yaw_acceleration * self.dt,
+            self.max_yaw_acceleration * self.dt,
+        )
+        self.requested_command[3] += yaw_delta
+        self.requested_command[2] = command[2]
+
+    def _update_swing_target(self, swing_indices):
+        """根据当前限加速度指令更新本相落点。"""
+
+        controller = self.controller
+        target = controller.foot_init_base.copy()
+        home_xy = controller.foot_init_base[swing_indices, :2]
+        body_velocity_at_home = -self._stance_velocity(
+            home_xy,
+            self.active_phase_command,
+        )
+        support_duration = (
+            self.phase_duration + 2.0 * self.transfer_duration
+        )
+        target[swing_indices, :2] += (
+            0.5 * support_duration * body_velocity_at_home
+        )
+        target[swing_indices, 2] = (
+            controller.foot_init_base[swing_indices, 2]
+            - self.body_height_offset
+        )
+
+        target_feasible = controller._workspace_feasible(target)
+        if not target_feasible[swing_indices].all():
+            target = controller._project_workspace(target)
+        self.swing_target_base[swing_indices] = target[swing_indices]
+        self.swing_target_velocity_xy[swing_indices] = (
+            self._stance_velocity(
+                self.swing_target_base[swing_indices, :2],
+                self.active_phase_command,
+            )
+        )
+
     def reset(self):
         """回正期间清空三角步态状态，完成后从A组重新起步。"""
         self.stance_group_index = 0
@@ -426,7 +713,8 @@ class ApproachMode:
         self.phase_time = 0.0
         self.transfer_time = 0.0
         self.transfer_active = False
-        self.phase_command[:] = 0.0
+        self.requested_command[:] = 0.0
+        self.active_phase_command[:] = 0.0
         self.stop_requested = False
         self.gait_started = False
         self.first_step = True
@@ -442,56 +730,17 @@ class ApproachMode:
         self.swing_start_base[:] = self.controller.foot_init_base
         self.swing_target_base[:] = self.controller.foot_init_base
 
-    def _begin_step(self, command):
-        """开启一个新的三角步态阶段，command=[vx,vy,vz,wz]。"""
+    def _begin_step(self):
+        """开启一个新的三角步态阶段。"""
         controller = self.controller
         self.phase_time = 0.0
-        self.phase_command = np.asarray(
-            command,
-            dtype=np.float64,
-        ).reshape(4).copy()
+        self.active_phase_command[:] = self.requested_command
 
         swing_indices = np.where(~self.gaits)[0]
         self.swing_start_base = controller.foot_desired_base.copy()
         self.swing_target_base = controller.foot_init_base.copy()
         self.swing_start_velocity_xy = self.foot_velocity_xy.copy()
-
-        home_xy = controller.foot_init_base[swing_indices, :2]
-        body_velocity_at_home = -self._stance_velocity(
-            home_xy,
-            self.phase_command,
-        )
-
-        support_duration = (
-            self.phase_duration + 2.0 * self.transfer_duration
-        )
-        self.swing_target_base[swing_indices, :2] += (
-            0.5 * support_duration * body_velocity_at_home
-        )
-        self.swing_target_base[swing_indices, 2] = (
-            controller.foot_init_base[swing_indices, 2]
-            - self.body_height_offset
-        )
-
-        # 越界落点连续压到安全边界，不退回固定工作中心。
-        target_feasible = controller._workspace_feasible(
-            self.swing_target_base
-        )
-        if not target_feasible[swing_indices].all():
-            projected_target = controller._project_workspace(
-                self.swing_target_base
-            )
-            self.swing_target_base[swing_indices] = projected_target[
-                swing_indices
-            ]
-
-        # 落地速度衔接下一段支撑速度，减少触地水平擦动。
-        self.swing_target_velocity_xy[swing_indices] = (
-            self._stance_velocity(
-                self.swing_target_base[swing_indices, :2],
-                self.phase_command,
-            )
-        )
+        self._update_swing_target(swing_indices)
 
     def update(self, command, navigation_state=None):
         """根据手柄或自动接近指令更新六足目标，并返回接近任务状态。"""
@@ -520,6 +769,9 @@ class ApproachMode:
         if controller.reset_active:
             return
 
+        # 每帧过滤操作者请求；本相使用的命令只会在下一次换相时锁存。
+        self._slew_requested_command(command)
+
         velocity_right = command[0]
         velocity_forward = command[1]
         velocity_up = command[2]
@@ -545,7 +797,8 @@ class ApproachMode:
         )
         if not self.gait_started:
             candidate_base[:, 2] = ground_z
-            self._commit_candidate(candidate_base)
+            if not self._commit_candidate(candidate_base):
+                return
             self.foot_velocity_xy[:] = 0.0
 
             if np.linalg.norm(planar_command) < 1e-8:
@@ -553,7 +806,7 @@ class ApproachMode:
 
             self.gait_started = True
             self.stop_requested = False
-            self._begin_step(command)
+            self._begin_step()
         else:
             # 零指令时先让当前摆动组落地，再停止。
             self.stop_requested = (
@@ -567,14 +820,17 @@ class ApproachMode:
             )
             stance_velocity = self._stance_velocity(
                 candidate_base[:, :2],
-                self.phase_command,
+                self.active_phase_command,
             )
             candidate_base[:, :2] += stance_velocity * transfer_dt
             candidate_base[:, 2] = ground_z
+            velocity_before = self.foot_velocity_xy.copy()
             self.foot_velocity_xy[:] = stance_velocity
 
+            if not self._commit_candidate(candidate_base):
+                self.foot_velocity_xy[:] = velocity_before
+                return
             self.transfer_time += transfer_dt
-            self._commit_candidate(candidate_base)
 
             transfer_finished = (
                 self.transfer_time
@@ -596,10 +852,12 @@ class ApproachMode:
             if self.stop_requested:
                 self.gait_started = False
                 self.phase_time = 0.0
+                self.requested_command[:] = 0.0
+                self.active_phase_command[:] = 0.0
                 self.foot_velocity_xy[:] = 0.0
                 return
 
-            self._begin_step(command)
+            self._begin_step()
             return
 
         phase_dt = min(
@@ -609,23 +867,20 @@ class ApproachMode:
         stance_indices = np.where(self.gaits)[0]
         swing_indices = np.where(~self.gaits)[0]
 
-        # 一个phase内冻结平面指令，换相后再采用新方向。
         stance_velocity = self._stance_velocity(
             candidate_base[stance_indices, :2],
-            self.phase_command,
+            self.active_phase_command,
         )
-        if self.first_step:
-            stance_velocity *= 0.5
-
         candidate_base[stance_indices, :2] += (
             stance_velocity * phase_dt
         )
         candidate_base[stance_indices, 2] = ground_z[stance_indices]
+        velocity_before = self.foot_velocity_xy.copy()
         self.foot_velocity_xy[stance_indices] = stance_velocity
 
-        self.phase_time += phase_dt
+        next_phase_time = self.phase_time + phase_dt
         phase = np.clip(
-            self.phase_time / self.phase_duration,
+            next_phase_time / self.phase_duration,
             0.0,
             1.0,
         )
@@ -640,35 +895,39 @@ class ApproachMode:
         candidate_base[swing_indices, :2] = swing_position
         self.foot_velocity_xy[swing_indices] = swing_velocity
 
-        if phase < 0.5:
-            lift_height = (
-                self.step_height * self._smooth_step(2.0 * phase)
+        if phase < self.swing_lift_fraction:
+            lift_height = self.step_height * self._trapezoid_rise(
+                phase / self.swing_lift_fraction
+            )
+        elif phase > 1.0 - self.swing_lift_fraction:
+            lift_height = self.step_height * self._trapezoid_rise(
+                (1.0 - phase) / self.swing_lift_fraction
             )
         else:
-            lift_height = (
-                self.step_height
-                * self._smooth_step(2.0 * (1.0 - phase))
-            )
+            lift_height = self.step_height
         candidate_base[swing_indices, 2] = (
             ground_z[swing_indices] + lift_height
         )
 
         phase_finished = (
-            self.phase_time >= self.phase_duration - 1e-12
+            next_phase_time >= self.phase_duration - 1e-12
         )
         if phase_finished:
-            self.swing_target_base[swing_indices, 2] = ground_z[
-                swing_indices
-            ]
-            candidate_base[swing_indices] = self.swing_target_base[
-                swing_indices
-            ]
+            endpoint = self.swing_target_base[swing_indices].copy()
+            endpoint[:, 2] = ground_z[swing_indices]
+            candidate_base[swing_indices] = endpoint
             self.foot_velocity_xy[swing_indices] = (
                 self.swing_target_velocity_xy[swing_indices]
             )
 
-        self._commit_candidate(candidate_base)
+        if not self._commit_candidate(candidate_base):
+            self.foot_velocity_xy[:] = velocity_before
+            return
+        self.phase_time = next_phase_time
 
         if phase_finished:
+            self.swing_target_base[swing_indices, 2] = ground_z[
+                swing_indices
+            ]
             self.transfer_active = True
             self.transfer_time = 0.0

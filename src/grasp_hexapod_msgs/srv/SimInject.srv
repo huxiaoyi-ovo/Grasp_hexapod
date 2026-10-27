@@ -1,0 +1,5 @@
+# 手动单步注入：dashboard 面板按钮 → sim_manual 节点（动作 id 见其 ACTIONS）
+string action
+---
+bool success
+string message

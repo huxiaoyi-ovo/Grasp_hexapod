@@ -1,0 +1,112 @@
+{
+  "candidate_config_sha256": "a6837e980085b140710269ba6523ab19206ec5a64ed107ae627a306733ec3e9a",
+  "source_cpu_audit_sha256": "dd196591dd0ad61c20dfe0b673dca4c5444268f91a10bdcb045b43c3dcc33f92",
+  "stage": "AH_BACK_LOW_FIRST_SEGMENT",
+  "dt_s": 0.03333333333333333,
+  "initial_q_source": "old cpu_fast_41_audit.json boundaries.AH_BACK_LOW_FIRST_SEGMENT.entry_q_rad",
+  "ticks": 50,
+  "state": "RUNNING",
+  "max_foot_error_m": 0.006360717738052887,
+  "min_joint_margin_rad": 0.13993031131639633,
+  "min_support_com_margin_m": 0.041562684052933896,
+  "min_active_foot_sphere_gap_m": 0.00984226503903705,
+  "velocity_clips": 0,
+  "capsule_warning_samples": [
+    {
+      "tick": 49,
+      "phase_time_s": 1.633333333333335,
+      "q_rad": [
+        [
+          1.0330634672622672,
+          -0.20015048170455083,
+          1.7185493835167842
+        ],
+        [
+          0.10170764797680486,
+          -0.9528939622792256,
+          1.665466539389965
+        ],
+        [
+          -0.4301844466641979,
+          -0.41914109866415195,
+          1.410424406062572
+        ],
+        [
+          -1.0330565456880996,
+          0.20014924825492303,
+          -1.7185494007132776
+        ],
+        [
+          -0.1017048497175355,
+          0.9528961571889975,
+          -1.665471483045326
+        ],
+        [
+          0.4301838363570366,
+          0.4191409692175108,
+          -1.410424305457064
+        ]
+      ],
+      "pose": [
+        0.285,
+        -0.067694497636,
+        0.245,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "mask": [
+        false,
+        true,
+        false,
+        false,
+        true,
+        false
+      ]
+    }
+  ],
+  "first_failure": {
+    "reason": "capsule_proxy_warning",
+    "tick": 49,
+    "phase_time_s": 1.633333333333335,
+    "foot_error_m": 0.0022896675093215255,
+    "joint_margin_rad": 0.26781555346090247,
+    "support_com_margin_m": 0.0556364714663894,
+    "active_foot_stl_gap_m": 0.00984226503903705
+  },
+  "evidence_boundary": "AH-only seeded 30 Hz DLS replay, capsule proxy, support COM and active-foot/static-STL checks; not full-route or hardware evidence",
+  "terminal_capsule_clear": false,
+  "last_q_rad": [
+    [
+      1.0457789835096893,
+      -0.20076115841627984,
+      1.7184617017750743
+    ],
+    [
+      0.10170764802623494,
+      -0.9528939651594323,
+      1.6654665411067773
+    ],
+    [
+      -0.4301844465390975,
+      -0.4191411010777223,
+      1.410424408104147
+    ],
+    [
+      -1.0457721112522635,
+      0.20075994156369237,
+      -1.718461725391296
+    ],
+    [
+      -0.10170484976697435,
+      0.9528961600692331,
+      -1.665471484762153
+    ],
+    [
+      0.43018383623192613,
+      0.41914097163108144,
+      -1.4104243074986393
+    ]
+  ],
+  "passed": false
+}

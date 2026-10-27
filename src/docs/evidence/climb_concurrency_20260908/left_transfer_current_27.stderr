@@ -1,0 +1,10 @@
+Traceback (most recent call last):
+  File "src/grasp_hexapod_control/scripts/tools/validate_left_transfer.py", line 573, in <module>
+    main()
+  File "src/grasp_hexapod_control/scripts/tools/validate_left_transfer.py", line 554, in main
+    stages, summary = dense_validate(compact)
+  File "src/grasp_hexapod_control/scripts/tools/validate_left_transfer.py", line 401, in dense_validate
+    require(item["min_joint_margin_rad"] >= 0.08,
+  File "src/grasp_hexapod_control/scripts/tools/validate_left_transfer.py", line 76, in require
+    raise AssertionError(message)
+AssertionError: {'stage': 'LB_LOW_STEP', 'time_s': 1.7, 'leg': 0, 'metric': 'joint_margin_rad', 'actual': 0.0760645719754871, 'threshold': 0.08, 'joint': 2}

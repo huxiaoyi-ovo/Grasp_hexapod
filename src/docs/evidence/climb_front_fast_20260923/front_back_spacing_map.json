@@ -1,0 +1,137 @@
+[
+  {
+    "candidate": "IJ_MID_DIRECT",
+    "source_stages": [
+      "I_MID_FORWARD_SYNC",
+      "J_MID_BACK_SYNC"
+    ],
+    "active_legs": [
+      2,
+      5
+    ],
+    "clearance_m": 0.02,
+    "segment_durations_s": [
+      0.55,
+      0.75,
+      0.55
+    ]
+  },
+  {
+    "candidate": "LM_MID_RELAND",
+    "source_stages": [
+      "L_MID_FORWARD_SYNC",
+      "M_MID_PREP_SYNC"
+    ],
+    "active_legs": [
+      2,
+      5
+    ],
+    "clearance_m": 0.01,
+    "segment_durations_s": [
+      0.55,
+      0.75,
+      0.55
+    ]
+  },
+  {
+    "candidate": "OP_MID_BODY_LIFT",
+    "source_stages": [
+      "O_MID_FORWARD_SYNC",
+      "P_BODY_PREP"
+    ],
+    "active_legs": [
+      2,
+      5
+    ],
+    "clearance_m": 0.02,
+    "segment_durations_s": [
+      0.55,
+      0.75,
+      0.55
+    ]
+  },
+  {
+    "candidate": "R_FRONT_BODY_LIFT",
+    "source_stages": [
+      "R_FRONT_40_SYNC",
+      "S0_BODY_LIFT"
+    ],
+    "active_legs": [
+      1,
+      4
+    ],
+    "clearance_m": 0.02,
+    "segment_durations_s": [
+      0.7,
+      0.9,
+      0.7
+    ]
+  },
+  {
+    "candidate": "RB_RESET_BODY_LIFT",
+    "source_stages": [
+      "RB_RESET_NEG03",
+      "T0_BODY_LIFT"
+    ],
+    "active_legs": [
+      3
+    ],
+    "clearance_m": 0.02,
+    "segment_durations_s": [
+      0.5,
+      0.7,
+      0.5
+    ]
+  },
+  {
+    "candidate": "AE_AF_BACK_PAIR",
+    "source_stages": [
+      "AE_LB_090_SYNC",
+      "AF_RB_090_SYNC"
+    ],
+    "active_legs": [
+      0,
+      3
+    ],
+    "clearance_m": 0.02,
+    "segment_durations_s": [
+      0.55,
+      0.75,
+      0.55
+    ]
+  },
+  {
+    "candidate": "AGAB_BACK_PAIR",
+    "source_stages": [
+      "AGa_LB_11_STATIC_BODY",
+      "AGb_RB_11_SYNC"
+    ],
+    "active_legs": [
+      0,
+      3
+    ],
+    "clearance_m": 0.02,
+    "segment_durations_s": [
+      0.825,
+      1.125,
+      0.825
+    ]
+  },
+  {
+    "candidate": "AGCD_BACK_PAIR",
+    "source_stages": [
+      "AGc_LB_13_SYNC",
+      "AGd_RB_13_SYNC"
+    ],
+    "active_legs": [
+      0,
+      3
+    ],
+    "clearance_m": 0.02,
+    "segment_durations_s": [
+      0.55,
+      0.75,
+      0.55
+    ]
+  }
+]

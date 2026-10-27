@@ -2,7 +2,7 @@
 <package format="2">
   <name>grasp_hexapod_description</name>
   <version>0.1.0</version>
-  <description>URDF, meshes, and visualization assets for the grasp hexapod and Xiaolan.</description>
+  <description>Grasp 六足机器人和小蓝的 URDF、网格与可视化资源。</description>
 
   <maintainer email="huxiaoyi-ovo@users.noreply.github.com">huxiaoyi-ovo</maintainer>
   <license>BSD-3-Clause</license>

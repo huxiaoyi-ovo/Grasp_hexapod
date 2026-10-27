@@ -1,0 +1,6 @@
+# 夹爪动作服务（由机器人模式内部调用，不在行为树中体现）。
+# release 模式内部 call open（松开包紧装置）；dock 模式内部 call clamp（夹紧对接桩）。
+string action         # open / clamp
+---
+bool success          # 动作完成且到位验证通过
+string message        # 失败原因（受限 / 离线 / 超时 等）

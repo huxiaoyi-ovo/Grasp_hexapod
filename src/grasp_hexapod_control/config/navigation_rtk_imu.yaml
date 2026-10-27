@@ -1,0 +1,36 @@
+# 双RTK/IMU -> pv_map 实机标定模板。
+# 填写并复核全部安装量后才可改为 true；false 时导航节点拒绝启动。
+installation_calibrated: false
+panel_frame: pv_map
+
+# pv_map 原点的 WGS84 [纬度deg, 经度deg, 椭球高m]。
+panel_origin_geodetic_deg_m: [null, null, null]
+# pv_map +x 相对 ENU +East 的逆时针角度。
+panel_yaw_from_east_deg: null
+
+# IMU驱动参考世界系到ENU的旋转；驱动已输出ENU姿态时为[0,0,0]。
+enu_from_imu_reference_rpy_deg: [null, null, null]
+# R_imu_from_base 的 ZYX 欧拉角；IMU轴与base_link一致时为[0,0,0]。
+imu_from_base_rpy_deg: [null, null, null]
+# 机器人RTK天线相位中心在base_link中的位置。
+robot_rtk_antenna_in_base_m: [null, null, null]
+
+# 固定小蓝坐标系在pv_map中的姿态，以及RTK天线在小蓝坐标系中的杆臂。
+panel_from_xiaolan_rpy_deg: [null, null, null]
+xiaolan_rtk_antenna_in_xiaolan_m: [null, null, null]
+
+# 光伏板可行驶外边界，必须按顺/逆时针给出，坐标均在pv_map中。
+pv_boundary_xy_m: []
+
+max_fix_age_s: 0.5
+max_fix_skew_s: 0.2
+max_imu_age_s: 0.2
+max_sensor_skew_s: 0.2
+max_horizontal_std_m: 0.05
+require_known_covariance: true
+# NavSatFix只能区分普通/SBAS/GBAS；若接收机把RTK fixed/float都映射为GBAS，
+# 仍须由接收机驱动在进入本节点前拒绝float解，不能只靠本开关证明fixed。
+require_gbas_fix: true
+max_imu_orientation_std_deg: 5.0
+require_known_imu_orientation_covariance: true
+publish_rate_hz: 10.0

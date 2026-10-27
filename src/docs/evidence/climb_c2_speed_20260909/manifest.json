@@ -1,0 +1,28 @@
+{
+  "baseline_sha256": "f8da102282bffef261bfa0a2fe94b07558121f6c4bb38bc97c1c8c1c3061440f",
+  "candidate_sha256": "5f8edbc7ba46e5776e800cdfb7b786234ea50e844cf617aaf20e6bbd5489fcce",
+  "stage_count": 27,
+  "files": [
+    "baseline_f8da.json",
+    "candidate.json",
+    "local_dls_cad.json",
+    "native_timing_c1_c4.json",
+    "native_timing_c1_c4.log",
+    "gpu_nominal.json",
+    "gpu_nominal.log",
+    "gpu_stress.json",
+    "gpu_stress.log",
+    "strict_active.json",
+    "strict_active.stdout",
+    "retime_active.json",
+    "retime_active.stdout"
+  ],
+  "candidate_change": "C2/RM only: active_base_knots_m[2][0][2] -= .020 m; segment_durations_s[1] 2.10 -> 1.70 s; world knots and .4 internal tangents rebuilt.",
+  "local": "120 Hz and 30 Hz seeded DLS pass. The sparse C2 visual CAD set has nine nodes/midpoints: active nonfoot has no hit; one crossing midpoint has no STL XY projection and is null, while the projectable crossing gap is .087501347 m.",
+  "native_timing": "C1-C4 headless 240 Hz physics/30 Hz control: simulate 14.249851 s, fetch .003903 s, controller .435807 s over 2928 physics frames. Per-step simulate+fetch rises C1 4.066 ms -> C4 5.625 ms; render and sync are zero in headless mode.",
+  "gpu_nominal": "PASS five preview gates; full flow 60.766667 s versus f8da 61.166667 s, and C2 3.366667 s versus 3.766667 s.",
+  "gpu_stress": "PASS five preview gates at friction .75 with .10 s RM delay: full 60.800000 s; end foot .00162178 m, end root .00651317 m, global root .0119757 m, min joint margin .0304278 rad.",
+  "active_strict": "PASS: PREVIEW_VALID ticks=1731 min_margin_rad=.031172 final_foot_target_error_m=5.551e-17.",
+  "active_retime": "PASS: output is semantically identical to the promoted default config.",
+  "boundary": "All DLS, visual CAD, native timing, and GPU preview results are simulation/model diagnostics; they do not establish contact, load, friction, stability, or hardware authorization."
+}

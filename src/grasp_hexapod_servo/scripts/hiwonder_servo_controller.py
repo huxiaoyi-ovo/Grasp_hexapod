@@ -35,7 +35,11 @@ exception = None
 # port_as_write()
 
 class servo_state:
+    """保存单个舵机的估计状态。"""
+
     def __init__(self):
+        """初始化默认状态。"""
+
         self.start_timestamp = time.time()
         self.end_timestamp = time.time()
         self.speed = 200
@@ -43,8 +47,15 @@ class servo_state:
         self.estimated_pos = 500
 
 class HiwonderServoController:
+    """通过串口读写 LX-15D 舵机。"""
+
     def __init__(self, port, baudrate):
-        """打开串口, 初始化参数"""
+        """打开串口。
+
+        参数:
+            port: 串口设备路径。
+            baudrate: 串口波特率。
+        """
         try:
             self.serial_mutex = Lock()
             self.ser = None
@@ -58,9 +69,7 @@ class HiwonderServoController:
         self.close()
 
     def close(self):
-        """
-        Be nice, close the serial port.
-        """
+        """关闭当前串口。"""
         if self.ser:
             self.ser.flushInput()
             self.ser.flushOutput()
@@ -86,12 +95,12 @@ class HiwonderServoController:
         return data
 
     def read(self, servo_id, cmd):
-        # Number of bytes following standard header (0xFF, 0xFF, id, length)
+        # 标准报头（0xFF, 0xFF, id, length）之后的字节数。
         length = 3  # instruction, address, size, checksum
 
         ##计算校验和
         checksum = 255 - ((servo_id + length + cmd) % 256)
-        # packet: 0x55  0x55  ID LENGTH INSTRUCTION PARAM_1 ... CHECKSUM
+        # 数据包：0x55  0x55  ID LENGTH INSTRUCTION PARAM_1 ... CHECKSUM
         packet = [0x55, 0x55, servo_id, length, cmd, checksum]
         
         with self.serial_mutex:
@@ -105,20 +114,18 @@ class HiwonderServoController:
         return data
 
     def write(self, servo_id, cmd, params):
-        """ Write the values from the "data" list to the servo with "servo_id"
-        starting with data[0] at "address", continuing through data[n-1] at
-        "address" + (n-1), where n = len(data). "address" is an integer between
-        0 and 49. It is recommended to use the constants in module dynamixel_const
-        for readability. "data" is a list/tuple of integers.
-        To set servo with id 1 to position 276, the method should be called
-        like:
-            write(1, DXL_GOAL_POSITION_L, (20, 1))
+        """向舵机写入一条指令。
+
+        参数:
+            servo_id: 舵机 ID。
+            cmd: 指令字节。
+            params: 指令参数字节。
         """
-        # Number of bytes following standard header (0xFF, 0xFF, id)
+        # 标准报头（0xFF, 0xFF, id）之后的字节数。
         length = 3 + len(params)  # length, cmd, params, checksum
-        # Check Sum = ~ ((ID + LENGTH + COMMAND + PARAM_1 + ... + PARAM_N) & 0xFF)
+        # 校验和 = ~ ((ID + LENGTH + COMMAND + PARAM_1 + ... + PARAM_N) & 0xFF)
         checksum = 255 - ((servo_id + length + cmd + sum(params)) % 256)
-        # packet: FF  FF  ID LENGTH INSTRUCTION PARAM_1 ... CHECKSUM
+        # 数据包：FF  FF  ID LENGTH INSTRUCTION PARAM_1 ... CHECKSUM
         packet = [0x55, 0x55, servo_id, length, cmd]
         packet.extend(params)
         packet.append(checksum)
@@ -141,19 +148,23 @@ class HiwonderServoController:
         self.timeout = t
 
     def set_servo_id(self, oldid, newid):
-        '''
-        配置舵机id号, 出厂默认为1
-        :param oldid: 原来的id， 出厂默认为1
-        :param newid: 新的id
-        '''
+        """修改舵机 ID。
+
+        参数:
+            oldid: 当前 ID。
+            newid: 新 ID。
+        """
         self.write(oldid, HIWONDER_SERVO_ID_WRITE, (newid, ))
     
     def get_servo_id(self, servo_id=None):
-        '''
-        读取串口舵机id
-        :param id: 默认为空
-        :return: 返回舵机id
-        '''
+        """读取舵机 ID。
+
+        参数:
+            servo_id: 要查询的 ID；为空时广播查询。
+
+        返回:
+            舵机 ID；超时返回 None。
+        """
         count = 0
         while True:
             count += 1
@@ -171,11 +182,12 @@ class HiwonderServoController:
                 return None
 
     def set_servo_position(self, servo_id, position, duration=None):
-        """
-        驱动串口舵机转到指定位置
-        :param id: 要驱动的舵机id
-        :pulse: 位置
-        :use_time: 转动需要的时间
+        """让舵机转到指定脉冲位置。
+
+        参数:
+            servo_id: 舵机 ID。
+            position: 目标脉冲。
+            duration: 运动时间，单位 ms。
         """
         # print("id:{}, pos:{}, duration:{}".format(servo_id, position, duration))
 
@@ -193,34 +205,39 @@ class HiwonderServoController:
         self.write(servo_id, HIWONDER_SERVO_MOVE_TIME_WRITE, (loVal, hiVal, loTime, hiTime))
 
     def stop(self, servo_id):
-        '''
-        停止舵机运行
-        :param id:
-        :return:
-        '''
+        """停止指定舵机。
+
+        参数:
+            servo_id: 舵机 ID。
+        """
         self.write(servo_id, HIWONDER_SERVO_MOVE_STOP, ())
 
     def set_servo_deviation(self, servo_id, dev=0):
-        '''
-        调整偏差
-        :param id: 舵机id
-        :param d:  偏差
-        '''
+        """设置舵机偏差。
+
+        参数:
+            servo_id: 舵机 ID。
+            dev: 偏差值。
+        """
         self.write(servo_id, HIWONDER_SERVO_ANGLE_OFFSET_ADJUST, (dev, ))
 
     def save_servo_deviation(self, servo_id):
-        '''
-        配置偏差，掉电保护
-        :param id: 舵机id
-        '''
+        """保存舵机偏差。
+
+        参数:
+            servo_id: 舵机 ID。
+        """
         self.write(servo_id, HIWONDER_SERVO_ANGLE_OFFSET_WRITE, ())
         
     def get_servo_deviation(self, servo_id):
-        '''
-        读取偏差值
-        :param id: 舵机号
-        :return:
-        '''
+        """读取舵机偏差。
+
+        参数:
+            servo_id: 舵机 ID。
+
+        返回:
+            偏差值；超时返回 None。
+        """
         # 发送读取偏差指令
         count = 0
         while True:
@@ -235,13 +252,13 @@ class HiwonderServoController:
                 return None
 
     def set_servo_range(self, servo_id, low, high):
-        '''
-        设置舵机转动范围
-        :param id:
-        :param low:
-        :param high:
-        :return:
-        '''
+        """设置舵机脉冲范围。
+
+        参数:
+            servo_id: 舵机 ID。
+            low: 最小脉冲。
+            high: 最大脉冲。
+        """
         low = int(low)
         high = int(high)
         loLow = int(low & 0xFF)
@@ -262,11 +279,14 @@ class HiwonderServoController:
             return None
 
     def get_servo_range(self, servo_id):
-        '''
-        读取舵机转动范围
-        :param id:
-        :return: 返回元祖 0： 低位  1： 高位
-        '''
+        """读取舵机脉冲范围。
+
+        参数:
+            servo_id: 舵机 ID。
+
+        返回:
+            最小和最大脉冲；超时返回 None。
+        """
         count = 0
         while True:
             count += 1
@@ -280,13 +300,13 @@ class HiwonderServoController:
                 return None
 
     def set_servo_vin_range(self, servo_id, low, high):
-        '''
-        设置舵机电压范围
-        :param id:
-        :param low:
-        :param high:
-        :return:
-        '''
+        """设置舵机电压范围。
+
+        参数:
+            servo_id: 舵机 ID。
+            low: 最低电压阈值。
+            high: 最高电压阈值。
+        """
         low = int(low)
         high = int(high)
         loLow = int(low & 0xFF)
@@ -296,11 +316,14 @@ class HiwonderServoController:
         self.write(servo_id, HIWONDER_SERVO_VIN_LIMIT_WRITE, (loLow, hiLow, loHigh, hiHigh))
 
     def get_servo_vin_range(self, servo_id):
-        '''
-        读取舵机转动范围
-        :param id:
-        :return: 返回元祖 0： 低位  1： 高位
-        '''
+        """读取舵机电压范围。
+
+        参数:
+            servo_id: 舵机 ID。
+
+        返回:
+            最低和最高电压阈值；超时返回 None。
+        """
         count = 0
         while True:
             response = self.read(servo_id, HIWONDER_SERVO_VIN_LIMIT_READ)
@@ -313,20 +336,23 @@ class HiwonderServoController:
                 return None
 
     def set_servo_temp_range(self, servo_id, m_temp):
-        '''
-        设置舵机最高温度报警
-        :param id:
-        :param m_temp:
-        :return:
-        '''
+        """设置最高温度阈值。
+
+        参数:
+            servo_id: 舵机 ID。
+            m_temp: 最高温度阈值。
+        """
         self.write(servo_id, HIWONDER_SERVO_TEMP_MAX_LIMIT_WRITE, (m_temp, ))
 
     def get_servo_temp_range(self, servo_id):
-        '''
-        读取舵机温度报警范围
-        :param id:
-        :return:
-        '''
+        """读取最高温度阈值。
+
+        参数:
+            servo_id: 舵机 ID。
+
+        返回:
+            最高温度阈值；超时返回 None。
+        """
         count = 0
         while True:
             count += 1
@@ -340,11 +366,14 @@ class HiwonderServoController:
                 return None
 
     def get_servo_temp(self, servo_id):
-        '''
-        读取舵机温度
-        :param id:
-        :return:
-        '''
+        """读取舵机温度。
+
+        参数:
+            servo_id: 舵机 ID。
+
+        返回:
+            温度值；超时返回 None。
+        """
         count = 0
         while True:
             count += 1
@@ -358,11 +387,14 @@ class HiwonderServoController:
                 return None
 
     def get_servo_vin(self, servo_id):
-        '''
-        读取舵机电压
-        :param id:
-        :return:
-        '''
+        """读取舵机电压。
+
+        参数:
+            servo_id: 舵机 ID。
+
+        返回:
+            电压值；超时返回 None。
+        """
         count = 0
         while True:
             count += 1
@@ -415,6 +447,8 @@ class HiwonderServoController:
             return
 
 class SerialOpenError(Exception):
+    """无法打开串口时抛出的异常。"""
+
     def __init__(self, port, baud):
         Exception.__init__(self)
         self.message = "Cannot open port '%s' at %d bps" % (port, baud)
@@ -425,6 +459,8 @@ class SerialOpenError(Exception):
         return self.message
 
 class ChecksumError(Exception):
+    """收到的数据包校验和错误时抛出的异常。"""
+
     def __init__(self, servo_id, response, checksum):
         Exception.__init__(self)
         self.message = 'Checksum received from motor %d does not match the expected one (%d != %d)' \
@@ -436,6 +472,8 @@ class ChecksumError(Exception):
         return self.message
 
 class FatalErrorCodeError(Exception):
+    """表示舵机返回的致命错误。"""
+
     def __init__(self, message, ec_const):
         Exception.__init__(self)
         self.message = message
@@ -445,6 +483,8 @@ class FatalErrorCodeError(Exception):
         return self.message
 
 class NonfatalErrorCodeError(Exception):
+    """表示舵机返回的非致命错误。"""
+
     def __init__(self, message, ec_const):
         Exception.__init__(self)
         self.message = message
@@ -454,6 +494,8 @@ class NonfatalErrorCodeError(Exception):
         return self.message
 
 class ErrorCodeError(Exception):
+    """保存舵机错误码。"""
+
     def __init__(self, message, ec_const):
         Exception.__init__(self)
         self.message = message
@@ -463,6 +505,8 @@ class ErrorCodeError(Exception):
         return self.message
 
 class DroppedPacketError(Exception):
+    """收到不完整或无效数据包时抛出的异常。"""
+
     def __init__(self, message):
         Exception.__init__(self)
         self.message = message
@@ -471,12 +515,11 @@ class DroppedPacketError(Exception):
         return self.message
 
 class UnsupportedFeatureError(Exception):
+    """请求了舵机不支持的功能时抛出的异常。"""
+
     def __init__(self, model_id, feature_id):
         Exception.__init__(self)
-        if model_id in HIWONDER_SERVO_PARAMS:
-            model = HIWONDER_SERVO_PARAMS[model_id]['name']
-        else:
-            model = 'Unknown'
+        model = 'Unknown'
         self.message = "Feature %d not supported by model %d (%s)" % (feature_id, model_id, model)
 
     def __str__(self):

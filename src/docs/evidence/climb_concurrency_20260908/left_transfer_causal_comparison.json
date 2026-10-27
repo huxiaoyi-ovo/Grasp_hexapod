@@ -1,0 +1,27 @@
+{
+  "current_27": {
+    "exit_code": 1,
+    "stderr": "/tmp/climb_concurrent_AB1C_left_transfer.stderr",
+    "first_failure": {
+      "stage": "LB_LOW_STEP",
+      "time_s": 1.7,
+      "leg": 0,
+      "joint": 2,
+      "joint_margin_rad": 0.0760645719754871,
+      "threshold_rad": 0.08
+    }
+  },
+  "baseline_68f": {
+    "exit_code": 1,
+    "stderr": "/tmp/climb_concurrent_68f_left_transfer.stderr",
+    "first_failure": {
+      "stage": "LB_LOW_STEP",
+      "time_s": 1.7,
+      "leg": 0,
+      "joint": 2,
+      "joint_margin_rad": 0.0760645719754871,
+      "threshold_rad": 0.08
+    }
+  },
+  "conclusion": "Identical first failure under the same named validator; this does not attribute the margin failure to concurrent merging."
+}

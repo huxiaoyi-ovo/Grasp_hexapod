@@ -1,0 +1,153 @@
+{
+  "schema_version": 1,
+  "status": "UNRESOLVED",
+  "units": {
+    "length": "m",
+    "angle": "rad"
+  },
+  "description": "Task frame C has +x from the robot toward Xiaolan, +y along the Xiaolan edge, and +z along the photovoltaic-panel support-plane normal. Its fixed origin and +y sign reference remain unresolved. Gravity need not align with C.-z. Terminal-axis and geometry-projected support values are model diagnostics only and never prove contact, load, friction, or stability.",
+  "task_frame_C": {
+    "origin": "unresolved fixed physical reference; see unknown.task_frame_origin_climb_m",
+    "+x": "from robot toward Xiaolan at the predefined climb start pose",
+    "+y": "along Xiaolan edge; positive sign reference unresolved",
+    "+z": "outward photovoltaic-panel support-plane normal",
+    "gravity_note": "gravity need not align with C.-z"
+  },
+  "semantics": {
+    "foot_contact_model": "The foot lower contact is hemispherical and the upper part is cylindrical. Terminal-axis error is the angle between -ankle_to_foot_axis and the outward surface normal; zero is the desired central/pole orientation, not contact or load evidence.",
+    "support_projection": "Geometry-projected support is a necessary diagnostic only. It is insufficient for inclined or non-coplanar friction/contact-wrench feasibility and never proves contact or load.",
+    "lora_transport": "LoRa transports Xiaolan RTK messages. Transport freshness, ordering, integrity, and latency are separate from the RTK solution's spatial uncertainty."
+  },
+  "known": {
+    "deck_height_nominal_m": 0.150,
+    "rm_motor_envelope_rough_range_m": [0.050, 0.060],
+    "hip_origin_delta_m": 0.0425,
+    "foot_center_delta_nominal_m": 0.096985,
+    "model_foot_radius_m": 0.0065,
+    "xiaolan_cad_low_contact": {
+      "status": "USER_CONFIRMED_MODEL_GEOMETRY",
+      "stl_sha256": "e61d489ab5d2b9e0e02fc8b1671cbddcd2e7cc49ffd48d1d2fed7541b42580be",
+      "internal_features_policy": "IGNORE_FOR_FIRST_PASS_LANDING_REGION",
+      "upper_surfaces_policy": "NO_CONTACT_OBSTACLE",
+      "upper_surfaces_height_range_m": [0.18, 0.19],
+      "negative_x": {
+        "normal": [-0.20791157, 0.0, 0.97814763],
+        "plane_offset_m": 0.19515595,
+        "normal_tolerance": 2e-05,
+        "plane_offset_tolerance_m": 2e-06,
+        "transition_anchors_xy_m": [
+          [-0.1445341, 0.1724553],
+          [-0.2084391, -0.2241534]
+        ]
+      },
+      "positive_x": {
+        "normal": [0.20791157, 0.0, 0.97814763],
+        "plane_offset_m": 0.19515595,
+        "normal_tolerance": 2e-05,
+        "plane_offset_tolerance_m": 2e-06,
+        "transition_anchors_xy_m": [
+          [0.1445341, 0.1724553],
+          [0.2084391, -0.2241534]
+        ]
+      },
+      "selector_tolerance_semantics": "Selector normal and plane-offset tolerances are binary-STL numerical matching tolerances only; they are not physical safety margins or contact clearances."
+    }
+  },
+  "known_notes": {
+    "deck_height_nominal_m": "Approximate physical measurement; tolerance and reference points are unresolved.",
+    "rm_motor_envelope_rough_range_m": "Rough thigh-motor/hip-envelope observation, not foot reach.",
+    "hip_origin_delta_m": "Controller-model hip-origin difference.",
+    "foot_center_delta_nominal_m": "Nominal Q_STAND foot-center difference, distinct from motor envelope.",
+    "model_foot_radius_m": "Model-only value, not measured real-foot geometry."
+  },
+  "offline_analysis": {
+    "status": "UNRESOLVED",
+    "blocked_by": "M2/M3 offline search and certification are blocked by required physical inputs: task frame C, deck/edge/safe region, body/camera/motor envelopes, measured real-foot geometry, real COM uncertainty, friction, and loaded LX-15D behavior remain unresolved.",
+    "candidate_sequence_ids": [
+      "pair_first_rm_retract",
+      "pair_first_rb_rf_extend",
+      "pair_first_combined",
+      "rm_first_then_pair"
+    ],
+    "m2_gate": "physical_input_presence_then_joint_search_and_full_sample_certification",
+    "m3_gate": "continuous_C4_C5_corridor_with_far_tripod_fallback"
+  },
+  "unknown": {
+    "task_frame_origin_climb_m": null,
+    "task_frame_y_positive_reference": null,
+    "xiaolan_orientation_climb": null,
+    "deck_height_tolerance_m": null,
+    "deck_height_reference": null,
+    "deck_edge_survey_climb": null,
+    "deck_safe_polygon_uv_climb": null,
+    "deck_normal_survey_climb": null,
+    "body_collision_envelope_m": null,
+    "bottom_camera_collision_envelope_m": null,
+    "motor_collision_envelope_m": null,
+    "measured_foot_geometry": null,
+    "real_mass_kg": null,
+    "real_com_uncertainty_m": null,
+    "friction_range": null,
+    "imu_extrinsic_climb": null,
+    "imu_rate_hz": null,
+    "imu_noise": null,
+    "imu_bias": null,
+    "imu_timing_latency_s": null,
+    "robot_antenna_lever_arm_m": null,
+    "xiaolan_antenna_lever_arm_m": null,
+    "robot_rtk_solution_status_semantics": null,
+    "xiaolan_rtk_solution_status_semantics": null,
+    "rtk_rate_hz": null,
+    "rtk_latency_s": null,
+    "rtk_reported_uncertainty_semantics": null,
+    "rtk_timing_sync": null,
+    "lora_message_status_semantics": null,
+    "lora_rate_hz": null,
+    "lora_latency_s": null,
+    "lora_timing_sync": null,
+    "lx15d_loaded_tracking_error_rad": null,
+    "lx15d_backlash_rad": null,
+    "lx15d_loaded_speed_rad_s": null,
+    "lx15d_board_skew_rad": null,
+    "deploy_event_thresholds": null
+  },
+  "unresolved": [
+    "unknown.task_frame_origin_climb_m",
+    "unknown.task_frame_y_positive_reference",
+    "unknown.xiaolan_orientation_climb",
+    "unknown.deck_height_tolerance_m",
+    "unknown.deck_height_reference",
+    "unknown.deck_edge_survey_climb",
+    "unknown.deck_safe_polygon_uv_climb",
+    "unknown.deck_normal_survey_climb",
+    "unknown.body_collision_envelope_m",
+    "unknown.bottom_camera_collision_envelope_m",
+    "unknown.motor_collision_envelope_m",
+    "unknown.measured_foot_geometry",
+    "unknown.real_mass_kg",
+    "unknown.real_com_uncertainty_m",
+    "unknown.friction_range",
+    "unknown.imu_extrinsic_climb",
+    "unknown.imu_rate_hz",
+    "unknown.imu_noise",
+    "unknown.imu_bias",
+    "unknown.imu_timing_latency_s",
+    "unknown.robot_antenna_lever_arm_m",
+    "unknown.xiaolan_antenna_lever_arm_m",
+    "unknown.robot_rtk_solution_status_semantics",
+    "unknown.xiaolan_rtk_solution_status_semantics",
+    "unknown.rtk_rate_hz",
+    "unknown.rtk_latency_s",
+    "unknown.rtk_reported_uncertainty_semantics",
+    "unknown.rtk_timing_sync",
+    "unknown.lora_message_status_semantics",
+    "unknown.lora_rate_hz",
+    "unknown.lora_latency_s",
+    "unknown.lora_timing_sync",
+    "unknown.lx15d_loaded_tracking_error_rad",
+    "unknown.lx15d_backlash_rad",
+    "unknown.lx15d_loaded_speed_rad_s",
+    "unknown.lx15d_board_skew_rad",
+    "unknown.deploy_event_thresholds"
+  ]
+}

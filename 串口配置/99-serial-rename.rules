@@ -1,0 +1,4 @@
+# 串口重命名规则(由 serial_rename.sh 自动生成)
+# 修改后执行: sudo udevadm control --reload-rules && sudo udevadm trigger
+# RTK (由 serial_rename.sh 自动生成, 2026-08-26 15:41:01)
+SUBSYSTEM=="tty", KERNELS=="1-6", ATTRS{idVendor}=="19d1", ATTRS{idProduct}=="0001", ATTRS{serial}=="000000000001", SYMLINK+="RTK", MODE="0666"

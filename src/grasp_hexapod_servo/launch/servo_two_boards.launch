@@ -1,0 +1,31 @@
+<launch>
+  <!-- 两块板分别管理三条腿；ID和方向的唯一默认值在servo.py中。 -->
+  <arg name="left_port" default="/dev/ttyTHS0"/>
+  <arg name="right_port" default="/dev/ttyACM0"/>
+  <arg name="baudrate" default="115200"/>
+  <arg name="servo_rate_hz" default="30.0"/>
+  <arg name="command_duration_ms" default="33"/>
+  <arg name="servo_diagnostics" default="true"/>
+  <!-- 电压读取开关：轮询电压占用串口总线，默认关闭。 -->
+  <arg name="voltage_read" default="false"/>
+
+  <node pkg="grasp_hexapod_servo" type="servo.py" name="servo_left_node" output="screen">
+    <param name="side" value="left"/>
+    <param name="port" value="$(arg left_port)"/>
+    <param name="baudrate" value="$(arg baudrate)"/>
+    <param name="servo_rate_hz" value="$(arg servo_rate_hz)"/>
+    <param name="command_duration_ms" value="$(arg command_duration_ms)"/>
+    <param name="enable_diagnostics" value="$(arg servo_diagnostics)"/>
+    <param name="enable_voltage_read" value="$(arg voltage_read)"/>
+  </node>
+
+  <node pkg="grasp_hexapod_servo" type="servo.py" name="servo_right_node" output="screen">
+    <param name="side" value="right"/>
+    <param name="port" value="$(arg right_port)"/>
+    <param name="baudrate" value="$(arg baudrate)"/>
+    <param name="servo_rate_hz" value="$(arg servo_rate_hz)"/>
+    <param name="command_duration_ms" value="$(arg command_duration_ms)"/>
+    <param name="enable_diagnostics" value="$(arg servo_diagnostics)"/>
+    <param name="enable_voltage_read" value="$(arg voltage_read)"/>
+  </node>
+</launch>

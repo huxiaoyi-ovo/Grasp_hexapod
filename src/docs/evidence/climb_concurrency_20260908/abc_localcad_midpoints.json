@@ -1,0 +1,233 @@
+{
+  "sample_count": 16,
+  "samples": [
+    {
+      "stage": "RB_BODY_ADVANCE",
+      "segment": 0,
+      "semantic": "lift",
+      "time_s": 0.175,
+      "legs": [
+        3
+      ],
+      "nonfoot_collision": false,
+      "active_foot_collision": false,
+      "crossing_gate_applies": false
+    },
+    {
+      "stage": "RB_BODY_ADVANCE",
+      "segment": 1,
+      "semantic": "transfer",
+      "time_s": 0.575,
+      "legs": [
+        3
+      ],
+      "nonfoot_collision": false,
+      "active_foot_collision": false,
+      "crossing_gate_applies": true,
+      "footprint_clearance_m": {
+        "3": 0.031678736534011265
+      },
+      "footprint_projection_unavailable": null
+    },
+    {
+      "stage": "RB_BODY_ADVANCE",
+      "segment": 2,
+      "semantic": "touch",
+      "time_s": 0.9800000000000001,
+      "legs": [
+        3
+      ],
+      "nonfoot_collision": false,
+      "active_foot_collision": false,
+      "crossing_gate_applies": false
+    },
+    {
+      "stage": "LM_RM_PRE_ADVANCE",
+      "segment": 0,
+      "semantic": "lift",
+      "time_s": 0.175,
+      "legs": [
+        2,
+        5
+      ],
+      "nonfoot_collision": false,
+      "active_foot_collision": false,
+      "crossing_gate_applies": false
+    },
+    {
+      "stage": "LM_RM_PRE_ADVANCE",
+      "segment": 1,
+      "semantic": "lift",
+      "time_s": 0.5249999999999999,
+      "legs": [
+        2,
+        5
+      ],
+      "nonfoot_collision": false,
+      "active_foot_collision": false,
+      "crossing_gate_applies": false
+    },
+    {
+      "stage": "LM_RM_PRE_ADVANCE",
+      "segment": 2,
+      "semantic": "transfer",
+      "time_s": 1.1099999999999999,
+      "legs": [
+        2,
+        5
+      ],
+      "nonfoot_collision": false,
+      "active_foot_collision": false,
+      "crossing_gate_applies": true,
+      "footprint_clearance_m": {
+        "5": 0.026519213067619812
+      },
+      "footprint_projection_unavailable": {
+        "2": "{\"metric\": \"CAD_footprint_projection\", \"foot\": [-0.12938167263637707, -0.06769402266682714, 0.04030021807363143]}"
+      }
+    },
+    {
+      "stage": "LM_RM_PRE_ADVANCE",
+      "segment": 3,
+      "semantic": "touch",
+      "time_s": 1.77,
+      "legs": [
+        2,
+        5
+      ],
+      "nonfoot_collision": false,
+      "active_foot_collision": false,
+      "crossing_gate_applies": false
+    },
+    {
+      "stage": "LM_RM_BODY_TRANSFER",
+      "segment": 0,
+      "semantic": "lift",
+      "time_s": 0.225,
+      "legs": [
+        2,
+        5
+      ],
+      "nonfoot_collision": false,
+      "active_foot_collision": false,
+      "crossing_gate_applies": false
+    },
+    {
+      "stage": "LM_RM_BODY_TRANSFER",
+      "segment": 1,
+      "semantic": "transfer",
+      "time_s": 0.9249999999999999,
+      "legs": [
+        2,
+        5
+      ],
+      "nonfoot_collision": false,
+      "active_foot_collision": false,
+      "crossing_gate_applies": true,
+      "footprint_clearance_m": {
+        "5": 0.050914303139167394
+      },
+      "footprint_projection_unavailable": {
+        "2": "{\"metric\": \"CAD_footprint_projection\", \"foot\": [-0.019461991773521786, -0.06769402266682714, 0.040788787891224254]}"
+      }
+    },
+    {
+      "stage": "LM_RM_BODY_TRANSFER",
+      "segment": 2,
+      "semantic": "touch",
+      "time_s": 2.01,
+      "legs": [
+        2,
+        5
+      ],
+      "nonfoot_collision": false,
+      "active_foot_collision": false,
+      "crossing_gate_applies": false
+    },
+    {
+      "stage": "RM_BODY_REPOSITION",
+      "segment": 0,
+      "semantic": "lift",
+      "time_s": 0.4,
+      "legs": [
+        5
+      ],
+      "nonfoot_collision": false,
+      "active_foot_collision": false,
+      "crossing_gate_applies": false
+    },
+    {
+      "stage": "RM_BODY_REPOSITION",
+      "segment": 1,
+      "semantic": "transfer",
+      "time_s": 1.25,
+      "legs": [
+        5
+      ],
+      "nonfoot_collision": false,
+      "active_foot_collision": false,
+      "crossing_gate_applies": true,
+      "footprint_clearance_m": {
+        "5": 0.04776803538299962
+      },
+      "footprint_projection_unavailable": null
+    },
+    {
+      "stage": "RM_BODY_REPOSITION",
+      "segment": 2,
+      "semantic": "touch",
+      "time_s": 2.35,
+      "legs": [
+        5
+      ],
+      "nonfoot_collision": false,
+      "active_foot_collision": false,
+      "crossing_gate_applies": false
+    },
+    {
+      "stage": "LB_LF_DOCK_TRANSFER",
+      "segment": 0,
+      "semantic": "lift",
+      "time_s": 0.375,
+      "legs": [
+        0,
+        1
+      ],
+      "nonfoot_collision": false,
+      "active_foot_collision": false,
+      "crossing_gate_applies": false
+    },
+    {
+      "stage": "LB_LF_DOCK_TRANSFER",
+      "segment": 1,
+      "semantic": "transfer",
+      "time_s": 1.3,
+      "legs": [
+        0,
+        1
+      ],
+      "nonfoot_collision": false,
+      "active_foot_collision": false,
+      "crossing_gate_applies": true,
+      "footprint_clearance_m": {
+        "0": 0.02995380788775706,
+        "1": 0.056632691909702826
+      },
+      "footprint_projection_unavailable": null
+    },
+    {
+      "stage": "LB_LF_DOCK_TRANSFER",
+      "segment": 2,
+      "semantic": "touch",
+      "time_s": 2.2,
+      "legs": [
+        0,
+        1
+      ],
+      "nonfoot_collision": false,
+      "active_foot_collision": false,
+      "crossing_gate_applies": false
+    }
+  ],
+  "boundary": "one midpoint per merged segment; local visual only. Transfer projection absent means no CAD height at that XY, not a clearance pass/fail."
+}

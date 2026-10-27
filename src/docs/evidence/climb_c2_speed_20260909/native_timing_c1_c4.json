@@ -1,0 +1,62 @@
+{
+  "source": "/home/artrc/Grasp_hexapod/src/grasp_hexapod_control/scripts/run_sim.py",
+  "headless": true,
+  "control_rate_hz": 30.0,
+  "physics_rate_hz": 240.0,
+  "total_wall_s": 14.700028434977867,
+  "physics_frames": 2928,
+  "physics_sim_time_s": 12.200000636279583,
+  "total_s": {
+    "controller": 0.4358071065507829,
+    "simulate": 14.24985144333914,
+    "fetch": 0.0039028640603646636,
+    "render": 0.0,
+    "sync": 0.0
+  },
+  "by_stage": {
+    "PREP": {
+      "controller": 0.06184395379386842,
+      "simulate": 1.7557628345675766,
+      "fetch": 0.0005347508704289794,
+      "render": 0.0,
+      "sync": 0.0,
+      "physics_frames": 432,
+      "control_ticks": 54,
+      "mean_physics_step_s": 0.004065503669995384,
+      "mean_controller_tick_s": 0.001145258403590156
+    },
+    "RM": {
+      "controller": 0.13310787361115217,
+      "simulate": 3.714767709490843,
+      "fetch": 0.0010830616811290383,
+      "render": 0.0,
+      "sync": 0.0,
+      "physics_frames": 904,
+      "control_ticks": 113,
+      "mean_physics_step_s": 0.00411045439288935,
+      "mean_controller_tick_s": 0.0011779457841694881
+    },
+    "BODY": {
+      "controller": 0.030860353726893663,
+      "simulate": 0.9969045845791698,
+      "fetch": 0.0002979285782203078,
+      "render": 0.0,
+      "sync": 0.0,
+      "physics_frames": 208,
+      "control_ticks": 26,
+      "mean_physics_step_s": 0.004794242851718222,
+      "mean_controller_tick_s": 0.0011869366818036025
+    },
+    "PAIR": {
+      "controller": 0.20999492541886866,
+      "simulate": 7.78241631470155,
+      "fetch": 0.001987122930586338,
+      "render": 0.0,
+      "sync": 0.0,
+      "physics_frames": 1384,
+      "control_ticks": 173,
+      "mean_physics_step_s": 0.005624568957826688,
+      "mean_controller_tick_s": 0.0012138434995310327
+    }
+  }
+}

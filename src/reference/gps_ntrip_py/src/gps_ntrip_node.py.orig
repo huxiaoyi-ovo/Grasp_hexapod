@@ -1,0 +1,186 @@
+#!/usr/bin/env python
+# coding=utf-8
+import rospy
+import serial
+import socket
+import time
+import base64
+from std_msgs.msg import String
+import time
+from datetime import datetime
+
+
+# 串口通信相关
+port = "/dev/ttyUSB0"
+baudrate = 115200
+AskGGA = "GPGGA 1\r\n"
+
+# NTRIP客户端相关
+ntrip_server = "120.253.226.97"
+ntrip_port = 8002
+ntrip_username = "cwtm19977"
+ntrip_password = "fvr7e969"
+ntrip_mountpoint = "RTCM33_GRCE"
+
+sp = None
+ntrip_socket = None
+ntrip_is_connect = False
+gga_rx_flag = False
+gga_rx_data = ""
+
+def send_gpgga_to_gps(event):
+    global sp
+    global gga_rx_flag
+    if gga_rx_flag is True:
+        gga_rx_flag =False
+        return
+    if sp is not None and sp.is_open:
+        try:
+            sp.write(AskGGA.encode('utf-8'))
+        except Exception as e:
+            rospy.logerr("Failed to send GPGGA to GPS: %s", e)
+
+def send_gpgga_to_ntrip(event):
+    global ntrip_socket
+    if ntrip_socket is None:
+        return
+    # rospy.loginfo("Sent GPGGA:%s",gga_rx_data)
+    try:
+        # ntrip_socket.connect((ntrip_server, ntrip_port))
+        ntrip_socket.send(gga_rx_data.encode('utf-8') + b"\r\n")
+    except (Exception):
+        return
+
+def parse_gps(data):
+    global gga_rx_flag, gga_rx_data
+    if "$GPGGA" in data or "$GNGGA" in data:
+        fields = data.split(',')
+        
+        if len(fields) >= 14:
+            try:
+                flag = int(fields[6])
+                if flag is None:
+                    return
+                latitude = float(fields[2])
+                longitude = float(fields[4])
+                altitude = float(fields[9])
+                #需要其他数据，可自行解析
+                gga_rx_flag = True
+                gga_rx_data = data  # 存储解析到的 GPGGA 数据
+                rospy.loginfo(gga_rx_data)
+            except (ValueError, IndexError):
+                return
+
+def gps_ntrip_node():
+    global sp, ntrip_socket, ntrip_is_connect,gga_rx_flag,gga_rx_data
+    rospy.init_node('gps_ntrip_node', anonymous=True)
+
+    # 配置串口
+    sp = serial.Serial(port, baudrate, timeout=1)
+   # sp.write("UNLOG\r\n".encode('utf-8'))
+    time.sleep(1)
+    sp.write(AskGGA.encode('utf-8'))
+    rate = rospy.Rate(100)  
+    buffer = bytearray() 
+    while not rospy.is_shutdown():
+        # 从串口读取GPS数据
+        if sp.in_waiting > 0:
+            data = sp.read(sp.in_waiting)
+            # 确保 data 是 bytes 类型
+            if isinstance(data, str) or isinstance(data,unicode):
+                data = bytearray(data.encode('utf-8'))  # 将 str 转换为 bytes
+            buffer.extend(data)
+        else:
+            if len(buffer) > 0:
+                try:
+                    # 将缓存数据解码为字符串
+                    data_str = buffer.decode('utf-8')
+                    parse_gps(data_str)
+                    buffer = bytearray()   # 清空缓存
+                except UnicodeDecodeError:
+                    rospy.logwarn("Failed to decode data,Check data format\r\n")
+                    buffer = bytearray()   # 清空缓存以避免累积错误数据
+        if gga_rx_flag is True: 
+            break
+        rate.sleep()
+
+    # rospy.loginfo("GGA: %s", gga_rx_data)
+    # 配置NTRIP客户端
+    try:
+        ntrip_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        ntrip_socket.connect((ntrip_server, ntrip_port))
+
+        # 构造认证字符串
+        auth_str = ntrip_username + ":" + ntrip_password
+        auth_bytes = auth_str.encode('utf-8')
+        auth_base64 = base64.b64encode(auth_bytes).decode('utf-8')
+
+        # 发送HTTP请求
+        request = (
+            "GET /%s HTTP/1.0\r\n"
+            "User-Agent: NTRIP ntrip_client\r\n"
+            "Accept:*/*\r\n"
+            "Connection:close\r\n"
+            "Authorization: Basic %s\r\n"
+            "\r\n"
+        ) % (ntrip_mountpoint, auth_base64)
+        ntrip_socket.send(request.encode('utf-8'))
+    except Exception as e:
+        rospy.logerr("Failed to connect to NTRIP server: %s", e)
+        return
+
+    rospy.Timer(rospy.Duration(3), send_gpgga_to_gps)
+    rospy.Timer(rospy.Duration(1), send_gpgga_to_ntrip)
+    rate = rospy.Rate(100)  # 100hz
+    buffer = bytearray()
+    while not rospy.is_shutdown():
+        # 从串口读取GPS数据
+        if sp.in_waiting > 0:
+            data = sp.read(sp.in_waiting)
+            # 确保 data 是 bytes 类型
+            if isinstance(data, str) or isinstance(data,unicode):
+                data = bytearray(data,'utf-8')  # 将 str 转换为 bytes
+            buffer.extend(data)
+            # 查找 $ 和 \r\n 的位置
+            start_index = buffer.find(b'$')
+            end_index = buffer.find(b'\r\n')
+
+            if start_index != -1 and end_index != -1 and start_index < end_index:
+                # 截取从 $ 到 \r\n 的数据段
+                gps_data = buffer[start_index:end_index + 2]  # 包括 \r\n
+                # 解码数据
+                decoded_data = gps_data.decode('utf-8', errors='ignore')
+                # print("Extracted GPS data:", decoded_data)
+                # 解析 GPS 数据
+                parse_gps(decoded_data)
+                # 清空缓冲区
+                buffer = bytearray() 
+
+        # 从NTRIP获取RTCM数据并发送到串口
+        try:
+            if ntrip_socket is not None:
+                rtcm_data = ntrip_socket.recv(4096)
+                if rtcm_data:
+                    # rospy.loginfo("Rx RTCM: %s", rtcm_data)
+                    if "ICY 200 OK" in rtcm_data:
+                        ntrip_is_connect = True
+                        send_gpgga_to_ntrip(0)
+                        rospy.loginfo("Connected to NTRIP server.")
+                    sp.write(rtcm_data)
+                    # rospy.loginfo("Sent RTCM data to serial port.%d",len(rtcm_data))
+
+        except Exception as e:
+            rospy.logerr("Error receiving RTCM data: %s", e)
+
+        rate.sleep()
+
+    if sp is not None and sp.is_open:
+        sp.close()
+    if ntrip_socket is not None:
+        ntrip_socket.close()
+
+if __name__ == '__main__':
+    try:
+        gps_ntrip_node()
+    except rospy.ROSInterruptException:
+        pass

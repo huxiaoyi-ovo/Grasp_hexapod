@@ -1,0 +1,25 @@
+<launch>
+  <!-- 标准NavSatFix + Imu到现有pv_map PoseStamped接口。 -->
+  <arg name="config" default="$(find grasp_hexapod_control)/config/navigation_rtk_imu.yaml"/>
+  <arg name="robot_fix_topic" default="/grasp_hexapod/rtk/fix"/>
+  <arg name="xiaolan_fix_topic" default="/grasp_hexapod/xiaolan/rtk/fix"/>
+  <arg name="imu_topic" default="/grasp_hexapod/imu"/>
+  <arg name="base_pose_topic" default="/grasp_hexapod/navigation/base_pose"/>
+  <arg name="xiaolan_pose_topic" default="/grasp_hexapod/navigation/xiaolan_pose"/>
+  <arg name="pv_boundary_topic" default="/grasp_hexapod/navigation/pv_boundary"/>
+
+  <node
+    pkg="grasp_hexapod_control"
+    type="navigation_node.py"
+    name="grasp_hexapod_rtk_imu_navigation"
+    output="screen"
+    required="true">
+    <param name="config" value="$(arg config)"/>
+    <param name="robot_fix_topic" value="$(arg robot_fix_topic)"/>
+    <param name="xiaolan_fix_topic" value="$(arg xiaolan_fix_topic)"/>
+    <param name="imu_topic" value="$(arg imu_topic)"/>
+    <param name="base_pose_topic" value="$(arg base_pose_topic)"/>
+    <param name="xiaolan_pose_topic" value="$(arg xiaolan_pose_topic)"/>
+    <param name="pv_boundary_topic" value="$(arg pv_boundary_topic)"/>
+  </node>
+</launch>

@@ -1,0 +1,4 @@
+# TensorRT plans are built locally for the target device/runtime.
+*.engine
+*.engine.json
+*.engine.tmp

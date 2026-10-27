@@ -1,0 +1,19 @@
+{
+  "baseline_sha256": "67616b7056329c0f65723962befa5166c4d162c45ca0b85fc79aad516aed9edf",
+  "candidate_sha256": "f8da102282bffef261bfa0a2fe94b07558121f6c4bb38bc97c1c8c1c3061440f",
+  "stage_count": 27,
+  "files": [
+    "baseline_6761.json",
+    "candidate_v2.json",
+    "local_dock_v2.json",
+    "generic_v2.json",
+    "gpu_nominal_v2.json",
+    "gpu_nominal_v2.log",
+    "gpu_stress_v2.json",
+    "gpu_stress_v2.log"
+  ],
+  "gpu": "full-chain visible nominal and .75 friction/.10 s RM-delay stress both PASS five preview gates",
+  "boundary": "CPU support, IK, replay, and DockMode-path outputs are simulation diagnostics only.",
+  "nominal_gpu": "PASS five preview gates: motion/full 56.100000/61.166667 s; end foot .00352759 m, end root .00788508 m, global root .00847891 m, min joint margin .0304283 rad.",
+  "stress_gpu": "PASS five preview gates at friction .75 with .10 s RM delay: motion/full 56.100000/61.200000 s; end foot .00168006 m, end root .00654630 m, global root .01207420 m, min joint margin .0304276 rad; one RM-delay activation occurred at LM_LEFT_FINAL_LAND."
+}

@@ -1,0 +1,28 @@
+<launch>
+  <arg name="config" default="$(find xiaolan_yolo_detection)/config/xiaolan_yolo.yaml"/>
+  <arg name="model_path" default="$(find xiaolan_yolo_detection)/models/best.onnx"/>
+  <arg name="backend" default="tensorrt"/>
+  <arg name="engine_path" default="$(find xiaolan_yolo_detection)/models/best.engine"/>
+  <arg name="yolo_python" default="$(find xiaolan_yolo_detection)/../../.venv/jetson-gpu/bin/python3"/>
+  <arg name="start_yolo" default="true"/>
+  <arg name="start_3d" default="true"/>
+  <arg name="start_visualizer" default="true"/>
+  <arg name="show_window" default="false"/>
+  <node if="$(arg start_yolo)" pkg="xiaolan_yolo_detection" type="xiaolan_yolo_node.py" name="xiaolan_yolo_node" output="screen" launch-prefix="$(arg yolo_python)" required="true">
+    <env name="OMP_NUM_THREADS" value="2"/>
+    <env name="OPENBLAS_NUM_THREADS" value="1"/>
+    <env name="MKL_NUM_THREADS" value="1"/>
+    <rosparam command="load" file="$(arg config)"/>
+    <param name="model_path" value="$(arg model_path)"/>
+    <param name="backend" value="$(arg backend)"/>
+    <param name="engine_path" value="$(arg engine_path)"/>
+  </node>
+  <node if="$(arg start_3d)" pkg="xiaolan_yolo_detection" type="xiaolan_target_3d_node.py" name="xiaolan_target_3d_node" output="screen">
+    <env name="OPENBLAS_NUM_THREADS" value="1"/>
+    <rosparam command="load" file="$(arg config)"/>
+  </node>
+  <node if="$(arg start_visualizer)" pkg="xiaolan_yolo_detection" type="xiaolan_visualizer.py" name="xiaolan_visualizer" output="screen">
+    <rosparam command="load" file="$(arg config)"/>
+    <param name="show_window" value="$(arg show_window)"/>
+  </node>
+</launch>

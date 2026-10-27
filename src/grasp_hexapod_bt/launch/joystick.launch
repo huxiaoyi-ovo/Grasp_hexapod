@@ -1,0 +1,45 @@
+<!-- 一键启动虚拟手柄遥控链（手机模拟手柄 → 行为树）。
+
+链路：
+    手机浏览器 http://<本机IP>:8080 「虚拟手柄(/joy)」分页
+      → bt_dashboard 发布 /joy（axes[8]/buttons[11]，与实体手柄同格式）
+      → remote_control 语义转换（A使能/B复位/X攀爬/Y对接，摇杆=行走/转向）
+      → /grasp_hexapod/remote_cmd
+      → run_real_bt 遥控测试链（CheckRemoteCmd → switch_mode）
+
+用法：
+    roslaunch grasp_hexapod_bt joystick.launch                    # 默认：模拟模式执行(walk)
+    roslaunch grasp_hexapod_bt joystick.launch remote_test:=dock  # 换初始遥控模式
+    roslaunch grasp_hexapod_bt joystick.launch sim:=false         # 实机控制栈提供 switch_mode
+    roslaunch grasp_hexapod_bt joystick.launch port:=9000         # 换看板端口
+    roslaunch grasp_hexapod_bt joystick.launch sim_manual:=true   # 附带看板注入面板执行端
+
+注意：
+    - 手机保持手柄页在前台；锁屏/切后台超 1s 后看板 watchdog 自动补零（停车）。
+    - sim:=false 时不要同时跑 sim_feedback，switch_mode 只能有一个提供方。 -->
+<launch>
+  <arg name="port"        default="8080"/>   <!-- 看板/手柄页 HTTP 端口 -->
+  <arg name="remote_test" default="walk"/>   <!-- 遥控测试链初始选中模式 -->
+  <arg name="sim"         default="true"/>   <!-- true=sim_feedback 模拟模式执行（无实机控制栈） -->
+  <arg name="sim_manual"  default="false"/>  <!-- 看板"反馈注入"面板按钮的执行端（可选） -->
+
+  <!-- 语义转换：/joy -> /grasp_hexapod/remote_cmd -->
+  <node pkg="grasp_hexapod_bt" type="remote_control.py" name="remote_control"
+        output="screen"/>
+
+  <!-- 看板 + 虚拟手柄页（发布 /joy） -->
+  <node pkg="grasp_hexapod_bt" type="bt_dashboard.py" name="bt_dashboard"
+        output="screen" args="_port:=$(arg port)"/>
+
+  <!-- 行为树遥控测试链（消费 remote_cmd；walk 为连续模式，摇杆切走即停） -->
+  <!-- <node pkg="grasp_hexapod_bt" type="run_real_bt.py" name="run_real_bt"
+        output="screen" args="_remote_test:=$(arg remote_test)"/> -->
+
+  <!-- 无实机控制栈时：模拟 switch_mode/gripper_act 等服务 -->
+  <!-- <node if="$(arg sim)" pkg="grasp_hexapod_bt" type="sim_feedback.py"
+        name="sim_feedback" output="screen"/> -->
+
+  <!-- 可选：看板"反馈注入"面板按钮执行端 -->
+  <!-- <node if="$(arg sim_manual)" pkg="grasp_hexapod_bt" type="sim_manual.py"
+        name="sim_manual" output="screen"/> -->
+</launch>

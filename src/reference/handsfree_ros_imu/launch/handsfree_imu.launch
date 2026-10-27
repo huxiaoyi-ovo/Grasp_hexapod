@@ -1,0 +1,18 @@
+<!--imu ros 驱动-->
+
+<launch>
+
+    <!-- imu型号，默认 a9 -->
+    <arg name="imu_type" default="a9" doc="imu_type [b6, b9, a9, tb100]"/>
+    <!-- 串口，默认 HFRobotIMU -->
+    <arg name="port" default="/dev/HFRobotIMU"/>
+
+    <!-- imu 对应 python 文件 -->
+    <node pkg="handsfree_ros_imu" type="ros_driver_$(arg imu_type).py" name="imu" output="screen">
+        <param name="port" type = "str" value="$(arg port)"/>
+        <!-- a9 重力加速度归一化处理，True 使用归一化处理， False 不适用归一化处理 -->
+        <param name="gra_normalization" type = "bool" value="True" if="$(eval imu_type == 'a9')"/>
+    </node>
+
+</launch>
+

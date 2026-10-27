@@ -1,0 +1,66 @@
+{
+  "source_metrics": "gpu_metrics.json",
+  "stage": "C41",
+  "runtime_name": "FINAL_HOLD",
+  "foot_radius_m": 0.0065,
+  "method": "per-foot closest triangle distance minus FOOT_RADIUS; local static mesh query only",
+  "feet": [
+    {
+      "leg": "lb",
+      "actual_world_foot_center_m": [
+        0.17529160880449876,
+        0.02776709946051352,
+        0.14762854350184074
+      ],
+      "signed_sphere_gap_m": 3.8607512227711166e-07
+    },
+    {
+      "leg": "lf",
+      "actual_world_foot_center_m": [
+        0.46532538793425293,
+        0.029483139771113012,
+        0.1964978895343087
+      ],
+      "signed_sphere_gap_m": -2.108081505519145e-06
+    },
+    {
+      "leg": "lm",
+      "actual_world_foot_center_m": [
+        0.21966158200386654,
+        0.12488206037037544,
+        0.15718141590190565
+      ],
+      "signed_sphere_gap_m": -1.926665177025711e-05
+    },
+    {
+      "leg": "rb",
+      "actual_world_foot_center_m": [
+        0.17611999502985157,
+        -0.1658876991778757,
+        0.14792741734726156
+      ],
+      "signed_sphere_gap_m": -1.6924119057189213e-06
+    },
+    {
+      "leg": "rf",
+      "actual_world_foot_center_m": [
+        0.4662270668720799,
+        -0.1650648402554702,
+        0.19649849883394357
+      ],
+      "signed_sphere_gap_m": -1.4987818706341596e-06
+    },
+    {
+      "leg": "rm",
+      "actual_world_foot_center_m": [
+        0.22133770240584016,
+        -0.2626926891781799,
+        0.15755537783817786
+      ],
+      "signed_sphere_gap_m": -1.9596917635407093e-06
+    }
+  ],
+  "boundary": "Numeric near-zero gaps indicate foot-center geometry is on the visual mesh within floating-point tolerance. This does not prove contact, load, friction, stability, or hardware execution.",
+  "source_field": "stage_start_actual_world_foot_xyz_m",
+  "sample_timing": "C41 FINAL_HOLD stage entry; these are not the final simulation frame positions"
+}

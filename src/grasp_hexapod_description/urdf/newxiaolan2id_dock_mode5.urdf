@@ -1,0 +1,356 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- This URDF was automatically created by SolidWorks to URDF Exporter! Originally created by Stephen Brawner (brawner@gmail.com)
+     Commit Version: 1.6.0-4-g7f85cfe  Build Version: 1.6.7995.38578
+     For more information, please see http://wiki.ros.org/sw_urdf_exporter -->
+<robot
+  name="newxiaolan2id_dock_mode5">
+  <link
+    name="base_link_newxiaolan">
+    <inertial>
+      <origin
+        xyz="2.5518E-08 0.10298 0.081761"
+        rpy="0 0 0" />
+      <mass
+        value="11.467" />
+      <inertia
+        ixx="0.12338"
+        ixy="-1.1714E-07"
+        ixz="-7.2629E-09"
+        iyy="0.30254"
+        iyz="0.00039088"
+        izz="0.40629" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes/base_link_newxiaolan.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.70588 0.70588 0.70588 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes/base_link_newxiaolan.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <link
+    name="Empty_Link_newxiaolan">
+    <inertial>
+      <origin
+        xyz="2.5518E-08 0.10298 0.081761"
+        rpy="0 0 0" />
+      <mass
+        value="11.467" />
+      <inertia
+        ixx="0.12338"
+        ixy="-1.1714E-07"
+        ixz="-7.2629E-09"
+        iyy="0.30254"
+        iyz="0.00039088"
+        izz="0.40629" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes/Empty_Link_newxiaolan.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.70588 0.70588 0.70588 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes/Empty_Link_newxiaolan.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="newxiaolan_joint"
+    type="fixed">
+    <origin
+      xyz="0 0 0"
+      rpy="0 0 0" />
+    <parent
+      link="base_link_newxiaolan" />
+    <child
+      link="Empty_Link_newxiaolan" />
+    <axis
+      xyz="0 0 0" />
+  </joint>
+  <link
+    name="Empty_Link_ID0">
+    <inertial>
+      <origin
+        xyz="1.1505E-15 0.08 0.1905"
+        rpy="0 0 0" />
+      <mass
+        value="0.0025" />
+      <inertia
+        ixx="5.2104E-07"
+        ixy="4.4842E-39"
+        ixz="6.8932E-25"
+        iyy="5.2104E-07"
+        iyz="0"
+        izz="1.0417E-06" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes/Empty_Link_ID0.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="1 1 1 1" />
+      </material>
+    </visual>
+    <!-- 40 mm AprilTag ID0, placed 0.2 mm above the platform top face. -->
+    <visual
+      name="apriltag_ID0">
+      <origin
+        xyz="0 0.08 0.1912"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes/apriltag/ID0_dock_mode5.obj" />
+      </geometry>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes/Empty_Link_ID0.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="ID0_joint"
+    type="fixed">
+    <origin
+      xyz="0 -0.008 0"
+      rpy="0 0 0" />
+    <parent
+      link="Empty_Link_newxiaolan" />
+    <child
+      link="Empty_Link_ID0" />
+    <axis
+      xyz="0 0 0" />
+  </joint>
+  <link
+    name="Empty_Link_ID1">
+    <inertial>
+      <origin
+        xyz="0.108 -0.028 0.1905"
+        rpy="0 0 0" />
+      <mass
+        value="0.0025" />
+      <inertia
+        ixx="5.2104E-07"
+        ixy="-1.3553E-23"
+        ixz="5.1848E-40"
+        iyy="5.2104E-07"
+        iyz="6.8932E-25"
+        izz="1.0417E-06" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes/Empty_Link_ID1.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="1 1 1 1" />
+      </material>
+    </visual>
+    <!-- 40 mm AprilTag ID1, placed 0.2 mm above the platform top face. -->
+    <visual
+      name="apriltag_ID1">
+      <origin
+        xyz="0.108 -0.028 0.1912"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes/apriltag/ID1_dock_mode5.obj" />
+      </geometry>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes/Empty_Link_ID1.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="ID1_joint"
+    type="fixed">
+    <origin
+      xyz="-0.008 0 0"
+      rpy="0 0 0" />
+    <parent
+      link="Empty_Link_newxiaolan" />
+    <child
+      link="Empty_Link_ID1" />
+    <axis
+      xyz="0 0 0" />
+  </joint>
+  <link
+    name="Empty_Link_ID2">
+    <inertial>
+      <origin
+        xyz="1.1519E-15 -0.136 0.1905"
+        rpy="0 0 0" />
+      <mass
+        value="0.0025" />
+      <inertia
+        ixx="5.2104E-07"
+        ixy="0"
+        ixz="6.8932E-25"
+        iyy="5.2104E-07"
+        iyz="6.8932E-25"
+        izz="1.0417E-06" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes/Empty_Link_ID2.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="1 1 1 1" />
+      </material>
+    </visual>
+    <!-- 40 mm AprilTag ID2, placed 0.2 mm above the platform top face. -->
+    <visual
+      name="apriltag_ID2">
+      <origin
+        xyz="0 -0.136 0.1912"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes/apriltag/ID2_dock_mode5.obj" />
+      </geometry>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes/Empty_Link_ID2.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="ID2_joint"
+    type="fixed">
+    <origin
+      xyz="0 0.008 0"
+      rpy="0 0 0" />
+    <parent
+      link="Empty_Link_newxiaolan" />
+    <child
+      link="Empty_Link_ID2" />
+    <axis
+      xyz="0 0 0" />
+  </joint>
+  <link
+    name="Empty_Link_ID3">
+    <inertial>
+      <origin
+        xyz="-0.108 -0.028 0.1905"
+        rpy="0 0 0" />
+      <mass
+        value="0.0025" />
+      <inertia
+        ixx="5.2104E-07"
+        ixy="-2.8234E-23"
+        ixz="-3.1755E-40"
+        iyy="5.2104E-07"
+        iyz="1.1267E-40"
+        izz="1.0417E-06" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes/Empty_Link_ID3.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="1 1 1 1" />
+      </material>
+    </visual>
+    <!-- 40 mm AprilTag ID3, placed 0.2 mm above the platform top face. -->
+    <visual
+      name="apriltag_ID3">
+      <origin
+        xyz="-0.108 -0.028 0.1912"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes/apriltag/ID3_dock_mode5.obj" />
+      </geometry>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes/Empty_Link_ID3.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="ID3_joint"
+    type="fixed">
+    <origin
+      xyz="0.008 0 0"
+      rpy="0 0 0" />
+    <parent
+      link="Empty_Link_newxiaolan" />
+    <child
+      link="Empty_Link_ID3" />
+    <axis
+      xyz="0 0 0" />
+  </joint>
+</robot>

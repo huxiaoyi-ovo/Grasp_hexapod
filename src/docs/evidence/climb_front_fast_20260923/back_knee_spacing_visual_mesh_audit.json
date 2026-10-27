@@ -1,0 +1,764 @@
+{
+  "method": "Explicit selected visual-mesh triangle intersection queries at exact candidate 30 Hz witnesses, using conservative triangle-AABB prefilter and original triangle indices; no whole-robot or Xiaolan scan.",
+  "candidate_cpu_audit": {
+    "state": "DONE",
+    "ticks": 2737,
+    "zero_velocity_clips": 0
+  },
+  "baseline_config_sha256": "bac3f74e8e2904a04df9e2ddebdaf308831119033ddabc342fd2b02561c16aee",
+  "candidate_config_sha256": "704352bb27faf64ff7de9ce1be487aa868de39f8c174f684672b7be343f877a7",
+  "visual_mesh_sha256": {
+    "body_link.STL": "730623d24e4f0cfd0fe9341fc697a76de556061747d0f91c9904eb1e9c204eca",
+    "knee_link.STL": "957f159c5ec7e4d2cb48c7a0b0d17a5d397923a3886399aadef0de37978f9040",
+    "ankle_link.STL": "1f48a886fce0e2effc51b481d9bee94e637b5d7c7f29e59074a264575a0db5c9"
+  },
+  "required_counts": {
+    "rear_knee_pairs_checked": 4,
+    "body_witness_pairs_checked": 8,
+    "body_worst_phase_pairs_checked": 2,
+    "all_required_pairs_checked": true
+  },
+  "records": [
+    {
+      "label": "candidate_LM_MID_RELAND_rear_knee_pairs",
+      "source_stage": "LM_MID_RELAND",
+      "note": "candidate repaired LM witness; LB-LM and RB-RM knee pairs",
+      "phase_time_s": 0.03333333333333333,
+      "q_rad": [
+        [
+          0.573572401844735,
+          0.3759477326806886,
+          1.0554870773494462
+        ],
+        [
+          0.24353344868891563,
+          -1.1203540617839782,
+          1.1866765911102126
+        ],
+        [
+          -0.517176121375201,
+          0.25497324382826875,
+          0.7273211001489713
+        ],
+        [
+          -0.5735601810559177,
+          -0.3759483990023364,
+          -1.0554871708356144
+        ],
+        [
+          -0.2427373151191579,
+          1.0947974902145154,
+          -1.18707867131461
+        ],
+        [
+          0.5171782102056581,
+          -0.2549732438285149,
+          -0.7273211001455341
+        ]
+      ],
+      "base_pose": [
+        0.08100045540600347,
+        -0.067694497636,
+        0.15,
+        0.15,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair_checks": [
+        {
+          "pair": [
+            {
+              "leg": "lb",
+              "link": "knee"
+            },
+            {
+              "leg": "lm",
+              "link": "knee"
+            }
+          ],
+          "mesh_checked": true,
+          "pair_query_count": 1,
+          "components_nonempty": {
+            "left": 1,
+            "right": 1
+          },
+          "pair_status": "broadphase_excluded_all_triangle_pairs; collision result is clear",
+          "filtered_triangle_counts": {
+            "left": 40,
+            "right": 11
+          },
+          "triangle_test_count": 0,
+          "broad_phase_candidates": 0,
+          "mesh_collision": false,
+          "triangle_hit": null,
+          "cache_reused": true
+        },
+        {
+          "pair": [
+            {
+              "leg": "rb",
+              "link": "knee"
+            },
+            {
+              "leg": "rm",
+              "link": "knee"
+            }
+          ],
+          "mesh_checked": true,
+          "pair_query_count": 1,
+          "components_nonempty": {
+            "left": 1,
+            "right": 1
+          },
+          "pair_status": "broadphase_excluded_all_triangle_pairs; collision result is clear",
+          "filtered_triangle_counts": {
+            "left": 24,
+            "right": 8
+          },
+          "triangle_test_count": 0,
+          "broad_phase_candidates": 0,
+          "mesh_collision": false,
+          "triangle_hit": null,
+          "cache_reused": true
+        }
+      ]
+    },
+    {
+      "label": "candidate_OP_MID_BODY_LIFT_rear_knee_pairs",
+      "source_stage": "OP_MID_BODY_LIFT",
+      "note": "candidate repaired OP witness; LB-LM and RB-RM knee pairs",
+      "phase_time_s": 0.03333333333333333,
+      "q_rad": [
+        [
+          0.4781923545952724,
+          0.3441754646359889,
+          1.066950878902849
+        ],
+        [
+          0.21786202672927174,
+          -1.3129599471779239,
+          1.4031483038105181
+        ],
+        [
+          -0.6260439007133619,
+          0.22306971214586227,
+          0.6989774037030764
+        ],
+        [
+          -0.47818113130044265,
+          -0.3441760702459525,
+          -1.0669510019883315
+        ],
+        [
+          -0.21691871233530885,
+          1.284237398180851,
+          -1.4036030959643813
+        ],
+        [
+          0.6260452117699656,
+          -0.22306971214636576,
+          -0.6989774036995088
+        ]
+      ],
+      "base_pose": [
+        0.0980002106252766,
+        -0.067694497636,
+        0.15000028462875215,
+        0.15,
+        0.0,
+        -1.5707963267948966
+      ],
+      "pair_checks": [
+        {
+          "pair": [
+            {
+              "leg": "lb",
+              "link": "knee"
+            },
+            {
+              "leg": "lm",
+              "link": "knee"
+            }
+          ],
+          "mesh_checked": true,
+          "pair_query_count": 1,
+          "components_nonempty": {
+            "left": 1,
+            "right": 1
+          },
+          "pair_status": "broadphase_excluded_all_triangle_pairs; collision result is clear",
+          "filtered_triangle_counts": {
+            "left": 102,
+            "right": 40
+          },
+          "triangle_test_count": 0,
+          "broad_phase_candidates": 0,
+          "mesh_collision": false,
+          "triangle_hit": null,
+          "cache_reused": true
+        },
+        {
+          "pair": [
+            {
+              "leg": "rb",
+              "link": "knee"
+            },
+            {
+              "leg": "rm",
+              "link": "knee"
+            }
+          ],
+          "mesh_checked": true,
+          "pair_query_count": 1,
+          "components_nonempty": {
+            "left": 1,
+            "right": 1
+          },
+          "pair_status": "broadphase_excluded_all_triangle_pairs; collision result is clear",
+          "filtered_triangle_counts": {
+            "left": 64,
+            "right": 36
+          },
+          "triangle_test_count": 0,
+          "broad_phase_candidates": 0,
+          "mesh_collision": false,
+          "triangle_hit": null,
+          "cache_reused": true
+        }
+      ]
+    },
+    {
+      "label": "candidate_FRONT_INWARD_body_proxy_witness",
+      "source_stage": "FRONT_INWARD",
+      "note": "cached first body capsule proxy warning witness",
+      "phase_time_s": 0.39999999999999997,
+      "q_rad": [
+        [
+          -0.28245148314611257,
+          -0.04729334918381558,
+          0.2466189538965005
+        ],
+        [
+          0.10968958989785393,
+          -1.87721054801577,
+          1.9954721341098673
+        ],
+        [
+          0.029851143477797784,
+          0.44468704267223597,
+          0.6177381558082616
+        ],
+        [
+          0.28244791851253015,
+          0.047293106303913944,
+          -0.24661833233109415
+        ],
+        [
+          -0.1096896871413968,
+          1.8772198843872943,
+          -1.9954794730286745
+        ],
+        [
+          -0.029846752178025345,
+          -0.44468704267162207,
+          -0.6177381558051803
+        ]
+      ],
+      "base_pose": [
+        0.0,
+        -0.067694497636,
+        0.15,
+        0.25,
+        0.0,
+        -1.5707963267948966
+      ],
+      "proxy_gaps_m": [
+        {
+          "leg": "lf",
+          "link": "knee",
+          "proxy_gap_m": -0.0017105930765658611
+        },
+        {
+          "leg": "lf",
+          "link": "ankle",
+          "proxy_gap_m": -0.0017105930765658611
+        },
+        {
+          "leg": "rf",
+          "link": "knee",
+          "proxy_gap_m": -0.001670390943490821
+        },
+        {
+          "leg": "rf",
+          "link": "ankle",
+          "proxy_gap_m": -0.001670390943490821
+        }
+      ],
+      "pair_checks": [
+        {
+          "pair": [
+            {
+              "leg": null,
+              "link": "body"
+            },
+            {
+              "leg": "lf",
+              "link": "knee"
+            }
+          ],
+          "mesh_checked": true,
+          "pair_query_count": 1,
+          "components_nonempty": {
+            "left": 1,
+            "right": 1
+          },
+          "pair_status": "broadphase_excluded_all_triangle_pairs; collision result is clear",
+          "filtered_triangle_counts": {
+            "left": 72,
+            "right": 858
+          },
+          "triangle_test_count": 0,
+          "broad_phase_candidates": 1,
+          "mesh_collision": false,
+          "triangle_hit": null,
+          "cache_reused": true
+        },
+        {
+          "pair": [
+            {
+              "leg": null,
+              "link": "body"
+            },
+            {
+              "leg": "lf",
+              "link": "ankle"
+            }
+          ],
+          "mesh_checked": true,
+          "pair_query_count": 1,
+          "components_nonempty": {
+            "left": 1,
+            "right": 13
+          },
+          "pair_status": "conservative_triangle_AABB_prefilter_excluded_all_pairs",
+          "filtered_triangle_counts": {
+            "left": 0,
+            "right": 10954
+          },
+          "triangle_test_count": 0,
+          "broad_phase_candidates": 0,
+          "mesh_collision": false,
+          "triangle_hit": null,
+          "cache_reused": true
+        },
+        {
+          "pair": [
+            {
+              "leg": null,
+              "link": "body"
+            },
+            {
+              "leg": "rf",
+              "link": "knee"
+            }
+          ],
+          "mesh_checked": true,
+          "pair_query_count": 1,
+          "components_nonempty": {
+            "left": 1,
+            "right": 1
+          },
+          "pair_status": "broadphase_excluded_all_triangle_pairs; collision result is clear",
+          "filtered_triangle_counts": {
+            "left": 73,
+            "right": 842
+          },
+          "triangle_test_count": 0,
+          "broad_phase_candidates": 1,
+          "mesh_collision": false,
+          "triangle_hit": null,
+          "cache_reused": true
+        },
+        {
+          "pair": [
+            {
+              "leg": null,
+              "link": "body"
+            },
+            {
+              "leg": "rf",
+              "link": "ankle"
+            }
+          ],
+          "mesh_checked": true,
+          "pair_query_count": 1,
+          "components_nonempty": {
+            "left": 1,
+            "right": 13
+          },
+          "pair_status": "conservative_triangle_AABB_prefilter_excluded_all_pairs",
+          "filtered_triangle_counts": {
+            "left": 0,
+            "right": 9745
+          },
+          "triangle_test_count": 0,
+          "broad_phase_candidates": 0,
+          "mesh_collision": false,
+          "triangle_hit": null,
+          "cache_reused": true
+        }
+      ]
+    },
+    {
+      "label": "candidate_Q_MID_LOW_body_proxy_witness",
+      "source_stage": "Q_MID_LOW",
+      "note": "cached first body capsule proxy warning witness",
+      "phase_time_s": 3.0666666666666655,
+      "q_rad": [
+        [
+          0.4229083529912813,
+          0.38246646494950204,
+          1.0012276377094549
+        ],
+        [
+          0.21036245075419494,
+          -1.3172775206815877,
+          1.4492984417188475
+        ],
+        [
+          0.5586470111356873,
+          -1.809455414603649,
+          2.046915052508919
+        ],
+        [
+          -0.42289724654156996,
+          -0.3824670118669932,
+          -1.001227779483106
+        ],
+        [
+          -0.20937377888429323,
+          1.2859629106695072,
+          -1.4478263929811692
+        ],
+        [
+          -0.5586526392717872,
+          1.8094554357658397,
+          -2.0469150577816126
+        ]
+      ],
+      "base_pose": [
+        0.1017,
+        -0.067694497636,
+        0.155,
+        0.15,
+        0.0,
+        -1.5707963267948966
+      ],
+      "proxy_gaps_m": [
+        {
+          "leg": "lm",
+          "link": "knee",
+          "proxy_gap_m": -0.0003584423716781887
+        },
+        {
+          "leg": "lm",
+          "link": "ankle",
+          "proxy_gap_m": -0.0003584423716781887
+        },
+        {
+          "leg": "rm",
+          "link": "knee",
+          "proxy_gap_m": -0.00016282120460874017
+        },
+        {
+          "leg": "rm",
+          "link": "ankle",
+          "proxy_gap_m": -0.00016282120460874017
+        }
+      ],
+      "pair_checks": [
+        {
+          "pair": [
+            {
+              "leg": null,
+              "link": "body"
+            },
+            {
+              "leg": "lm",
+              "link": "knee"
+            }
+          ],
+          "mesh_checked": true,
+          "pair_query_count": 1,
+          "components_nonempty": {
+            "left": 1,
+            "right": 1
+          },
+          "pair_status": "broadphase_excluded_all_triangle_pairs; collision result is clear",
+          "filtered_triangle_counts": {
+            "left": 34,
+            "right": 63
+          },
+          "triangle_test_count": 0,
+          "broad_phase_candidates": 0,
+          "mesh_collision": false,
+          "triangle_hit": null,
+          "cache_reused": true
+        },
+        {
+          "pair": [
+            {
+              "leg": null,
+              "link": "body"
+            },
+            {
+              "leg": "lm",
+              "link": "ankle"
+            }
+          ],
+          "mesh_checked": true,
+          "pair_query_count": 1,
+          "components_nonempty": {
+            "left": 1,
+            "right": 13
+          },
+          "pair_status": "conservative_triangle_AABB_prefilter_excluded_all_pairs",
+          "filtered_triangle_counts": {
+            "left": 0,
+            "right": 107
+          },
+          "triangle_test_count": 0,
+          "broad_phase_candidates": 0,
+          "mesh_collision": false,
+          "triangle_hit": null,
+          "cache_reused": true
+        },
+        {
+          "pair": [
+            {
+              "leg": null,
+              "link": "body"
+            },
+            {
+              "leg": "rm",
+              "link": "knee"
+            }
+          ],
+          "mesh_checked": true,
+          "pair_query_count": 1,
+          "components_nonempty": {
+            "left": 1,
+            "right": 1
+          },
+          "pair_status": "broadphase_excluded_all_triangle_pairs; collision result is clear",
+          "filtered_triangle_counts": {
+            "left": 33,
+            "right": 71
+          },
+          "triangle_test_count": 0,
+          "broad_phase_candidates": 0,
+          "mesh_collision": false,
+          "triangle_hit": null,
+          "cache_reused": true
+        },
+        {
+          "pair": [
+            {
+              "leg": null,
+              "link": "body"
+            },
+            {
+              "leg": "rm",
+              "link": "ankle"
+            }
+          ],
+          "mesh_checked": true,
+          "pair_query_count": 1,
+          "components_nonempty": {
+            "left": 1,
+            "right": 13
+          },
+          "pair_status": "conservative_triangle_AABB_prefilter_excluded_all_pairs",
+          "filtered_triangle_counts": {
+            "left": 0,
+            "right": 135
+          },
+          "triangle_test_count": 0,
+          "broad_phase_candidates": 0,
+          "mesh_collision": false,
+          "triangle_hit": null,
+          "cache_reused": true
+        }
+      ]
+    },
+    {
+      "label": "candidate_FRONT_INWARD_worst_body_proxy_gap",
+      "source_stage": "FRONT_INWARD",
+      "note": "local 30 Hz replay from cached stage entry; minimum body-link capsule proxy gap",
+      "phase_time_s": 0.49999999999999994,
+      "q_rad": [
+        [
+          -0.2824514798987293,
+          -0.04729335760625053,
+          0.24661899949803245
+        ],
+        [
+          0.1137868770193448,
+          -1.9398754275909573,
+          1.9912665340332523
+        ],
+        [
+          0.029851182745647707,
+          0.4446870568795958,
+          0.6177381365140815
+        ],
+        [
+          0.2824479152653112,
+          0.04729311472645752,
+          -0.24661837793278688
+        ],
+        [
+          -0.11378722173168622,
+          1.9398852433263383,
+          -1.9912739185464146
+        ],
+        [
+          -0.029846791445825888,
+          -0.44468705687890125,
+          -0.6177381365110535
+        ]
+      ],
+      "base_pose": [
+        0.0,
+        -0.067694497636,
+        0.15,
+        0.25,
+        0.0,
+        -1.5707963267948966
+      ],
+      "worst_proxy_pair": {
+        "leg": "lf",
+        "link": "knee",
+        "proxy_gap_m": -0.006283398352194977
+      },
+      "pair_checks": [
+        {
+          "pair": [
+            {
+              "leg": null,
+              "link": "body"
+            },
+            {
+              "leg": "lf",
+              "link": "knee"
+            }
+          ],
+          "mesh_checked": true,
+          "pair_query_count": 1,
+          "components_nonempty": {
+            "left": 1,
+            "right": 1
+          },
+          "pair_status": "broadphase_excluded_all_triangle_pairs; collision result is clear",
+          "triangle_test_count": 0,
+          "broad_phase_candidates": 1,
+          "mesh_collision": false,
+          "triangle_hit": null
+        }
+      ]
+    },
+    {
+      "label": "candidate_Q_MID_LOW_worst_body_proxy_gap",
+      "source_stage": "Q_MID_LOW",
+      "note": "local 30 Hz replay from cached stage entry; minimum body-link capsule proxy gap",
+      "phase_time_s": 3.166666666666665,
+      "q_rad": [
+        [
+          0.4229083529912813,
+          0.38246646494950204,
+          1.0012276377094549
+        ],
+        [
+          0.21036245075419482,
+          -1.3172775206815888,
+          1.4492984417188486
+        ],
+        [
+          0.5623107372180414,
+          -1.815951031244465,
+          2.0460503627286024
+        ],
+        [
+          -0.42289724654157,
+          -0.3824670118669932,
+          -1.001227779483106
+        ],
+        [
+          -0.2093737788842931,
+          1.285962910669508,
+          -1.4478263929811703
+        ],
+        [
+          -0.56231640239921,
+          1.815951053241005,
+          -2.0460503680289435
+        ]
+      ],
+      "base_pose": [
+        0.1017,
+        -0.067694497636,
+        0.155,
+        0.15,
+        0.0,
+        -1.5707963267948966
+      ],
+      "worst_proxy_pair": {
+        "leg": "lm",
+        "link": "knee",
+        "proxy_gap_m": -0.0008572725328907099
+      },
+      "pair_checks": [
+        {
+          "pair": [
+            {
+              "leg": null,
+              "link": "body"
+            },
+            {
+              "leg": "lm",
+              "link": "knee"
+            }
+          ],
+          "mesh_checked": true,
+          "pair_query_count": 1,
+          "components_nonempty": {
+            "left": 1,
+            "right": 1
+          },
+          "pair_status": "broadphase_excluded_all_triangle_pairs; collision result is clear",
+          "triangle_test_count": 0,
+          "broad_phase_candidates": 1,
+          "mesh_collision": false,
+          "triangle_hit": null
+        }
+      ]
+    }
+  ],
+  "boundary": "A clear result covers triangle intersection at the sampled pose, with triangle AABB rejection where narrow-phase count is zero. cached_active_component_collision uses components_only and does not perform point-in-solid containment. Samples do not prove continuous clearance, contact, load, stability, simulator collision filtering, or hardware safety.",
+  "prefilter_regression": {
+    "case": "baseline_N_exit",
+    "expected_mesh_collision": true,
+    "observed_mesh_collision": true,
+    "triangle_hit": {
+      "left_link": "knee",
+      "left_leg": 0,
+      "left_component": 0,
+      "left_triangle": 20535,
+      "right_link": "knee",
+      "right_leg": 2,
+      "right_component": 0,
+      "right_triangle": 21036
+    },
+    "narrow_phase_tests": 13225
+  }
+}

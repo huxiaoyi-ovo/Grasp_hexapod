@@ -1,0 +1,713 @@
+{
+  "schema": "COMPACT_CLIMB_REBUILD_PROFILE_V1",
+  "version": 1,
+  "template_sha256": "dc4eff1308e99369e815dc754037fc3fd11e0657297adb3fb6dc738ed600c711",
+  "template_repo_relative_path": "src/grasp_hexapod_control/config/climb_compact.json",
+  "model": {
+    "repo_relative_path": "src/grasp_hexapod_description/meshes/xiaolan/base_link_xiaolan.STL",
+    "sha256": "e61d489ab5d2b9e0e02fc8b1671cbddcd2e7cc49ffd48d1d2fed7541b42580be",
+    "world_from_model": [
+      [
+        1.0,
+        0.0,
+        0.0,
+        0.45
+      ],
+      [
+        0.0,
+        1.0,
+        0.0,
+        -0.03
+      ],
+      [
+        0.0,
+        0.0,
+        1.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ]
+    ],
+    "triangle_count": 22664,
+    "local_bounds_m": [
+      [
+        -0.35499998927116394,
+        -0.37299999594688416,
+        2.1094237467877974e-15
+      ],
+      [
+        0.35499998927116394,
+        0.30699998140335083,
+        0.24799999594688416
+      ]
+    ],
+    "world_bounds_m": [
+      [
+        0.09500001072883607,
+        -0.4029999959468842,
+        2.1094237467877974e-15
+      ],
+      [
+        0.8049999892711639,
+        0.2769999814033508,
+        0.24799999594688416
+      ]
+    ]
+  },
+  "thresholds": {
+    "joint_margin_rad": 0.02,
+    "fixed_thigh_preferred_rad": 0.08,
+    "support_m": 0.01,
+    "active_foot_m": 0.015,
+    "cross_clearance_m": 0.015,
+    "touchdown_m": [
+      -0.0005,
+      0.002
+    ]
+  },
+  "p0": {
+    "base": [
+      -0.1,
+      -0.06769449763600001,
+      0.06988468052793656,
+      0.0
+    ],
+    "anchors_world_m": [
+      [
+        -0.19698546701054667,
+        -0.23567567852906157,
+        0.0065
+      ],
+      [
+        -0.1969860309185547,
+        0.1002863576809389,
+        0.0065
+      ],
+      [
+        -0.29397057354296496,
+        -0.06769402266682714,
+        0.0065
+      ],
+      [
+        -0.003014662369930265,
+        -0.23567575322712597,
+        0.0065
+      ],
+      [
+        -0.0030152262803301126,
+        0.1002870835271059,
+        0.0065
+      ],
+      [
+        0.09397057354351365,
+        -0.06769417206263915,
+        0.0065
+      ]
+    ]
+  },
+  "stage_names": [
+    "PREP",
+    "RM",
+    "BODY",
+    "PAIR",
+    "LB_LF_GROUND_SHIFT",
+    "LM_GROUND_SHIFT",
+    "BODY2",
+    "RM_HIGH_C",
+    "RB_RF_HIGH_C",
+    "RB_BODY_ADVANCE",
+    "LM_RM_PRE_ADVANCE",
+    "LB_LF_BODY_ADVANCE_HIGH_STEP",
+    "RB_RF_TOP_INWARD_PAIR",
+    "LM_BODY_TRANSFER",
+    "RM_RIGHT_SYMMETRY",
+    "BODY_LEFT_TRANSFER_PREP",
+    "LB_LOW_STEP",
+    "BODY_RIGHT_BEFORE_LF",
+    "LF_LOW_STEP",
+    "BODY_PRELOAD_LM",
+    "LM_LIFT",
+    "BODY_ADVANCE_LM_AIR",
+    "LM_LEFT_FINAL_LAND",
+    "RB_RF_DIRECT_FINAL",
+    "RM_BODY_REPOSITION",
+    "LB_LF_DOCK_TRANSFER",
+    "STAND_FINAL_HOLD"
+  ],
+  "stages": [
+    {
+      "name": "PREP",
+      "pose_end": [
+        -0.08,
+        -0.06769449763600001,
+        0.15,
+        0.0,
+        -0.15
+      ],
+      "active_endpoints": []
+    },
+    {
+      "name": "RM",
+      "pose_end": [
+        -0.08,
+        -0.06769449763600001,
+        0.15,
+        0.0,
+        -0.15
+      ],
+      "active_endpoints": [
+        {
+          "leg": 5,
+          "world_point_m": [
+            0.20848224553728018,
+            -0.06769449862304833,
+            0.15564273712938032
+          ],
+          "surface_id": "unassigned"
+        }
+      ]
+    },
+    {
+      "name": "BODY",
+      "pose_end": [
+        -0.05,
+        -0.06769449763600001,
+        0.15,
+        0.0,
+        -0.05
+      ],
+      "active_endpoints": []
+    },
+    {
+      "name": "PAIR",
+      "pose_end": [
+        -0.05,
+        -0.06769449763600001,
+        0.15,
+        0.0,
+        -0.05
+      ],
+      "active_endpoints": [
+        {
+          "leg": 3,
+          "world_point_m": [
+            0.20864857479269686,
+            -0.23567607978615424,
+            0.15486019294964248
+          ],
+          "surface_id": "unassigned"
+        },
+        {
+          "leg": 4,
+          "world_point_m": [
+            0.20864857479269686,
+            0.10028708254005758,
+            0.15486024510660718
+          ],
+          "surface_id": "unassigned"
+        }
+      ]
+    },
+    {
+      "name": "LB_LF_GROUND_SHIFT",
+      "pose_end": [
+        -0.05,
+        -0.06769449763600001,
+        0.15,
+        0.0,
+        -0.05
+      ],
+      "active_endpoints": [
+        {
+          "leg": 0,
+          "world_point_m": [
+            -0.08698546701054669,
+            -0.23567567852906157,
+            0.006500000000000006
+          ],
+          "surface_id": "unassigned"
+        },
+        {
+          "leg": 1,
+          "world_point_m": [
+            -0.08698603091855472,
+            0.1002863576809389,
+            0.006500000000000006
+          ],
+          "surface_id": "unassigned"
+        }
+      ]
+    },
+    {
+      "name": "LM_GROUND_SHIFT",
+      "pose_end": [
+        -0.05,
+        -0.06769449763600001,
+        0.15,
+        0.0,
+        -0.05
+      ],
+      "active_endpoints": [
+        {
+          "leg": 2,
+          "world_point_m": [
+            -0.15397057354296495,
+            -0.06769402266682714,
+            0.006500000000000006
+          ],
+          "surface_id": "unassigned"
+        }
+      ]
+    },
+    {
+      "name": "BODY2",
+      "pose_end": [
+        0.06,
+        -0.06769449763600001,
+        0.19,
+        0.0,
+        -0.56
+      ],
+      "active_endpoints": []
+    },
+    {
+      "name": "RM_HIGH_C",
+      "pose_end": [
+        0.06,
+        -0.06769449763600001,
+        0.19,
+        0.0,
+        -0.3
+      ],
+      "active_endpoints": [
+        {
+          "leg": 5,
+          "world_point_m": [
+            0.299434,
+            -0.130227,
+            0.19040800000000002
+          ],
+          "surface_id": "unassigned"
+        }
+      ]
+    },
+    {
+      "name": "RB_RF_HIGH_C",
+      "pose_end": [
+        0.06,
+        -0.06769449763600001,
+        0.19,
+        0.0,
+        -0.3
+      ],
+      "active_endpoints": [
+        {
+          "leg": 3,
+          "world_point_m": [
+            0.269434,
+            -0.220227,
+            0.184628
+          ],
+          "surface_id": "unassigned"
+        },
+        {
+          "leg": 4,
+          "world_point_m": [
+            0.325,
+            0.07,
+            0.1965
+          ],
+          "surface_id": "unassigned"
+        }
+      ]
+    },
+    {
+      "name": "RB_BODY_ADVANCE",
+      "pose_end": [
+        0.1,
+        -0.06769449763600001,
+        0.18,
+        0.0,
+        -0.3
+      ],
+      "active_endpoints": [
+        {
+          "leg": 3,
+          "world_point_m": [
+            0.31610056740000003,
+            -0.22022689973333334,
+            0.18871092546666668
+          ],
+          "surface_id": "unassigned"
+        }
+      ]
+    },
+    {
+      "name": "LM_RM_PRE_ADVANCE",
+      "pose_end": [
+        0.1,
+        -0.06769449763600001,
+        0.18,
+        0.0,
+        -0.3
+      ],
+      "active_endpoints": [
+        {
+          "leg": 2,
+          "world_point_m": [
+            -0.10397057354296495,
+            -0.06769402266682714,
+            0.006500000000000006
+          ],
+          "surface_id": "unassigned"
+        },
+        {
+          "leg": 5,
+          "world_point_m": [
+            0.42,
+            -0.13,
+            0.1976
+          ],
+          "surface_id": "unassigned"
+        }
+      ]
+    },
+    {
+      "name": "LB_LF_BODY_ADVANCE_HIGH_STEP",
+      "pose_end": [
+        0.16,
+        -0.06769449763600001,
+        0.18,
+        0.0,
+        -0.2
+      ],
+      "active_endpoints": [
+        {
+          "leg": 0,
+          "world_point_m": [
+            0.09,
+            -0.23567567852906157,
+            0.0065
+          ],
+          "surface_id": "unassigned"
+        },
+        {
+          "leg": 1,
+          "world_point_m": [
+            0.09,
+            0.1002863576809389,
+            0.0065
+          ],
+          "surface_id": "unassigned"
+        }
+      ]
+    },
+    {
+      "name": "RB_RF_TOP_INWARD_PAIR",
+      "pose_end": [
+        0.16,
+        -0.06769449763600001,
+        0.18,
+        0.0,
+        -0.2
+      ],
+      "active_endpoints": [
+        {
+          "leg": 3,
+          "world_point_m": [
+            0.43,
+            -0.18,
+            0.1965
+          ],
+          "surface_id": "unassigned"
+        },
+        {
+          "leg": 4,
+          "world_point_m": [
+            0.425,
+            0.02,
+            0.1965
+          ],
+          "surface_id": "unassigned"
+        }
+      ]
+    },
+    {
+      "name": "LM_BODY_TRANSFER",
+      "pose_end": [
+        0.23,
+        -0.06769449763600001,
+        0.19,
+        0.0,
+        -0.2
+      ],
+      "active_endpoints": [
+        {
+          "leg": 2,
+          "world_point_m": [
+            0.07,
+            -0.06769402266682714,
+            0.0065
+          ],
+          "surface_id": "unassigned"
+        }
+      ]
+    },
+    {
+      "name": "RM_RIGHT_SYMMETRY",
+      "pose_end": [
+        0.23,
+        -0.06769449763600001,
+        0.19,
+        0.0,
+        -0.2
+      ],
+      "active_endpoints": [
+        {
+          "leg": 5,
+          "world_point_m": [
+            0.51,
+            -0.08,
+            0.1965
+          ],
+          "surface_id": "unassigned"
+        }
+      ]
+    },
+    {
+      "name": "BODY_LEFT_TRANSFER_PREP",
+      "pose_end": [
+        0.23,
+        -0.06769449763600001,
+        0.201,
+        0.0,
+        -0.2
+      ],
+      "active_endpoints": []
+    },
+    {
+      "name": "LB_LOW_STEP",
+      "pose_end": [
+        0.23,
+        -0.06769449763600001,
+        0.215,
+        -0.2617993877991494,
+        -0.2
+      ],
+      "active_endpoints": [
+        {
+          "leg": 0,
+          "world_point_m": [
+            0.20364857479269685,
+            -0.2506760807732025,
+            0.15379742215574044
+          ],
+          "surface_id": "unassigned"
+        }
+      ]
+    },
+    {
+      "name": "BODY_RIGHT_BEFORE_LF",
+      "pose_end": [
+        0.232,
+        -0.06769449763600001,
+        0.2,
+        0.0,
+        -0.2
+      ],
+      "active_endpoints": []
+    },
+    {
+      "name": "LF_LOW_STEP",
+      "pose_end": [
+        0.232,
+        -0.06769449763600001,
+        0.226,
+        0.16,
+        -0.2
+      ],
+      "active_endpoints": [
+        {
+          "leg": 1,
+          "world_point_m": [
+            0.21364857479269686,
+            0.12028708155300925,
+            0.15592301975850517
+          ],
+          "surface_id": "unassigned"
+        }
+      ]
+    },
+    {
+      "name": "BODY_PRELOAD_LM",
+      "pose_end": [
+        0.239,
+        -0.06769449763600001,
+        0.226,
+        0.16,
+        -0.2
+      ],
+      "active_endpoints": []
+    },
+    {
+      "name": "LM_LIFT",
+      "pose_end": [
+        0.239,
+        -0.06769449763600001,
+        0.226,
+        0.0,
+        -0.2
+      ],
+      "active_endpoints": [
+        {
+          "leg": 2,
+          "world_point_m": [
+            0.0956779402809192,
+            -0.06769449763600001,
+            0.12099999999999997
+          ],
+          "surface_id": "unassigned"
+        }
+      ]
+    },
+    {
+      "name": "BODY_ADVANCE_LM_AIR",
+      "pose_end": [
+        0.33,
+        -0.06769449763600001,
+        0.28,
+        0.0,
+        -0.2
+      ],
+      "active_endpoints": [
+        {
+          "leg": 2,
+          "world_point_m": [
+            0.19748058329957416,
+            -0.06769449961009663,
+            0.18417758181938626
+          ],
+          "surface_id": "unassigned"
+        }
+      ]
+    },
+    {
+      "name": "LM_LEFT_FINAL_LAND",
+      "pose_end": [
+        0.33,
+        -0.06769449763600001,
+        0.28,
+        0.0,
+        -0.2
+      ],
+      "active_endpoints": [
+        {
+          "leg": 2,
+          "world_point_m": [
+            0.20344066322342602,
+            -0.06769449961009663,
+            0.15477558448414902
+          ],
+          "surface_id": "unassigned"
+        }
+      ]
+    },
+    {
+      "name": "RB_RF_DIRECT_FINAL",
+      "pose_end": [
+        0.36,
+        -0.06527087322700001,
+        0.295,
+        0.0,
+        -0.15000000000000002
+      ],
+      "active_endpoints": [
+        {
+          "leg": 3,
+          "world_point_m": [
+            0.5423322377301724,
+            -0.21962874608688565,
+            0.1923691075872171
+          ],
+          "surface_id": "unassigned"
+        },
+        {
+          "leg": 4,
+          "world_point_m": [
+            0.5477660704851153,
+            0.11059810066223177,
+            0.19649999761581421
+          ],
+          "surface_id": "unassigned"
+        }
+      ]
+    },
+    {
+      "name": "RM_BODY_REPOSITION",
+      "pose_end": [
+        0.39,
+        -0.06284724881800001,
+        0.27,
+        0.0,
+        -0.1
+      ],
+      "active_endpoints": [
+        {
+          "leg": 5,
+          "world_point_m": [
+            0.6167854252002603,
+            -0.05747349999999976,
+            0.17070972237924364
+          ],
+          "surface_id": "unassigned"
+        }
+      ]
+    },
+    {
+      "name": "LB_LF_DOCK_TRANSFER",
+      "pose_end": [
+        0.45,
+        -0.058,
+        0.26,
+        0.0,
+        0.0
+      ],
+      "active_endpoints": [
+        {
+          "leg": 0,
+          "world_point_m": [
+            0.3571737724974,
+            -0.21963921590647986,
+            0.19262685293211096
+          ],
+          "surface_id": "unassigned"
+        },
+        {
+          "leg": 1,
+          "world_point_m": [
+            0.35376607048511516,
+            0.11059810066223177,
+            0.1972999976158142
+          ],
+          "surface_id": "unassigned"
+        }
+      ]
+    },
+    {
+      "name": "STAND_FINAL_HOLD",
+      "pose_end": [
+        0.45,
+        -0.058,
+        0.26,
+        0.0,
+        0.0
+      ],
+      "active_endpoints": []
+    }
+  ],
+  "evidence_boundary": "Model file/geometry summaries are diagnostics only and do not establish CAD safety, contact, load, or stability."
+}

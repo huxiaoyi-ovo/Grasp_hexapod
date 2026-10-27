@@ -1,0 +1,238 @@
+{
+  "candidate_config_sha256": "4421aff133035f358e69ed33ddaa649d580750d868f2318736efc17e797bf60c",
+  "prelaunch_manifest_sha256": "40a28a4d7e1e63e45aeec7c7dc8e30be991e803bc5ebd6d957f0481102454567",
+  "gpu_metrics_sha256": "a7b6d171240c8f423959b7b553ba5a82e4285bd6dd12f294d5a9a154efd99c3a",
+  "gpu_console_sha256": "1247d6ec9cdc79f2dcf141ab17c16c79f135a0ecf256fdf95a1bfe7310ab4c27",
+  "cpu_audit_sha256": "b90c10155515719be07b7a1b1a2484c1c0a28835fea491d9974050b4055c26ce",
+  "pid": 275531,
+  "display": ":1",
+  "command": [
+    "/home/artrc/miniconda3/bin/conda",
+    "run",
+    "--no-capture-output",
+    "-n",
+    "grasp_hexapod",
+    "python3",
+    "-u",
+    "src/grasp_hexapod_control/scripts/run_sim.py",
+    "--climb-start",
+    "--climb-config",
+    "src/grasp_hexapod_control/config/climb_front_direct.json",
+    "--climb-speed",
+    "1",
+    "--climb-joint-speed",
+    "1.8",
+    "--climb-metrics",
+    "src/docs/evidence/climb_front_direct_20260924/gpu_rear_body_advance_metrics.json"
+  ],
+  "runtime_sha256": {
+    "src/grasp_hexapod_control/scripts/run_sim.py": "6b8ed32e642b58e35794caffbd89491ee9084bf9e225343aa6ead497fe848c8f",
+    "src/grasp_hexapod_control/scripts/climb_mode.py": "7ee03f04516d795db1a5281b99bb08128908330d82e8b993a5a6f9cbd1fd0822",
+    "src/grasp_hexapod_control/scripts/control.py": "66f3c5490d58aeb3ef3913f81676a26f0d3789e1632cb60597d07dcb6659901a",
+    "src/grasp_hexapod_control/scripts/utils/climb.py": "bc57241156a71df1e5bbee51d164ceb1c8962d47efc5fcf13c5181a92a37ba5a",
+    "src/grasp_hexapod_description/urdf/grasp_hexapod.urdf": "2a0bb25650d77cbd260642a154e45ea8e0dca1b523248e56ea35095c24f3d30c"
+  },
+  "rates_hz": {
+    "physics": 240,
+    "controller": 30,
+    "dof_target": 30
+  },
+  "preview_flags": {
+    "climb_speed": 1.0,
+    "climb_joint_speed": 1.8,
+    "headless": false
+  },
+  "final_state": "DONE",
+  "final_reason": "none",
+  "runtime_summary": {
+    "stage_count": 21,
+    "total_simulated_control_time_s": 29.100000000000016,
+    "max_kinematic_foot_target_error_m": 0.011627056182540254,
+    "max_root_position_error_m": 0.034016423366821626,
+    "max_world_foot_anchor_error_m": 0.03385982742943303,
+    "max_support_foot_world_drift_m": 0.009408087205276036,
+    "max_root_attitude_error_deg": 1.3446380980136985,
+    "min_joint_limit_margin_rad": 0.01641671466827388,
+    "max_controller_target_joint_speed_rad_s": 5.134416896206923,
+    "velocity_limit_clip_count": 0,
+    "FINAL_HOLD_entry_root_error_m": 0.03302133848753154,
+    "FINAL_HOLD_entry_actual_world_foot_center_m": [
+      [
+        0.1933527541068626,
+        0.02950978008110358,
+        0.15159674778129106
+      ],
+      [
+        0.44960796409746495,
+        0.030640052958681163,
+        0.19430618210243247
+      ],
+      [
+        0.20322016482543045,
+        0.12676606431998116,
+        0.15372887396192753
+      ],
+      [
+        0.19443136918426826,
+        -0.16361878512305264,
+        0.15183768984077994
+      ],
+      [
+        0.44981745327615563,
+        -0.16364463578202704,
+        0.19405828887490814
+      ],
+      [
+        0.2040575110441732,
+        -0.26096041315721114,
+        0.1538820155031984
+      ]
+    ],
+    "FINAL_HOLD_end_foot_target_error_m": 0.0018228672938095586,
+    "FINAL_HOLD_end_root_position_error_m": 0.032971370119638514,
+    "FINAL_HOLD_support_drift_m": 4.969403278812489e-05
+  },
+  "preview_gates": [
+    {
+      "name": "hold_q_drift_lt_20mrad",
+      "value": "0.0857115",
+      "threshold": "20.0",
+      "result": "PASS"
+    },
+    {
+      "name": "end_foot_target_error_le_0.015m",
+      "value": "0.00182479",
+      "threshold": "0.015",
+      "result": "PASS"
+    },
+    {
+      "name": "end_root_position_error_le_0.05m",
+      "value": "0.0329764",
+      "threshold": "0.05",
+      "result": "PASS"
+    },
+    {
+      "name": "global_max_root_position_error_le_0.20m",
+      "value": "0.0340164",
+      "threshold": "0.2",
+      "result": "PASS"
+    },
+    {
+      "name": "global_min_joint_limit_margin_ge_0rad",
+      "value": "0.0164167",
+      "threshold": "0.0",
+      "result": "PASS"
+    }
+  ],
+  "preview_verdict": "SUCCESS (simulation preview gates only; not contact, load, stability, or hardware proof)",
+  "terminal_patch_acceptance_pass": true,
+  "per_stage_root_and_support_drift": {
+    "PREP": {
+      "max_root_position_error_m": 0.007753905920688195,
+      "max_root_attitude_error_deg": 0.8636474573936896,
+      "max_support_foot_world_drift_m": 0.0028488545169611783
+    },
+    "FRONT_LOW": {
+      "max_root_position_error_m": 0.0029477059450564182,
+      "max_root_attitude_error_deg": 0.5076658455551224,
+      "max_support_foot_world_drift_m": 0.0025832218688535314
+    },
+    "BODY_A": {
+      "max_root_position_error_m": 0.00426088204387111,
+      "max_root_attitude_error_deg": 0.3218235981510157,
+      "max_support_foot_world_drift_m": 0.004112857176371736
+    },
+    "M_GROUND_FIRST_MINUS02": {
+      "max_root_position_error_m": 0.005404299643279944,
+      "max_root_attitude_error_deg": 0.2910992343555063,
+      "max_support_foot_world_drift_m": 0.0031523591310377596
+    },
+    "FRONT_TO_029": {
+      "max_root_position_error_m": 0.006027852856293993,
+      "max_root_attitude_error_deg": 0.4239067155359298,
+      "max_support_foot_world_drift_m": 0.001934112525339599
+    },
+    "SIX_SUPPORT_BODY_ADVANCE": {
+      "max_root_position_error_m": 0.009609840351244413,
+      "max_root_attitude_error_deg": 1.3446380980136985,
+      "max_support_foot_world_drift_m": 0.0052004443803040905
+    },
+    "BACK_TO_MINUS09": {
+      "max_root_position_error_m": 0.011059813886589744,
+      "max_root_attitude_error_deg": 0.4365263590496937,
+      "max_support_foot_world_drift_m": 0.0019159578783671774
+    },
+    "MID_TO_040": {
+      "max_root_position_error_m": 0.014143878694388766,
+      "max_root_attitude_error_deg": 0.4526743203594185,
+      "max_support_foot_world_drift_m": 0.004642836331543252
+    },
+    "FRONT_TO_034": {
+      "max_root_position_error_m": 0.013181740761616283,
+      "max_root_attitude_error_deg": 0.6763040919884679,
+      "max_support_foot_world_drift_m": 0.0006066128978728754
+    },
+    "SIX_SUPPORT_ADVANCE_059": {
+      "max_root_position_error_m": 0.013022941523987716,
+      "max_root_attitude_error_deg": 0.43039213891569755,
+      "max_support_foot_world_drift_m": 0.0022439319739826187
+    },
+    "BACK_TO_000": {
+      "max_root_position_error_m": 0.013394368329667696,
+      "max_root_attitude_error_deg": 0.6457304293392133,
+      "max_support_foot_world_drift_m": 0.0024274726422636233
+    },
+    "MID_DIRECT_PLATFORM": {
+      "max_root_position_error_m": 0.013580437173283257,
+      "max_root_attitude_error_deg": 0.48338486310931394,
+      "max_support_foot_world_drift_m": 0.003782393445605538
+    },
+    "FRONT_TO_040": {
+      "max_root_position_error_m": 0.012441967290389919,
+      "max_root_attitude_error_deg": 0.7118519959707776,
+      "max_support_foot_world_drift_m": 0.0017637269236759968
+    },
+    "BODY_LB_0055_SYNC": {
+      "max_root_position_error_m": 0.014096761443823158,
+      "max_root_attitude_error_deg": 0.7185111464436525,
+      "max_support_foot_world_drift_m": 0.004528856043579523
+    },
+    "FRONT_TO_048": {
+      "max_root_position_error_m": 0.01439023997788253,
+      "max_root_attitude_error_deg": 1.2217600264402215,
+      "max_support_foot_world_drift_m": 0.005167497842808397
+    },
+    "RB_TO_0055": {
+      "max_root_position_error_m": 0.015123820384792097,
+      "max_root_attitude_error_deg": 0.8189831462044371,
+      "max_support_foot_world_drift_m": 0.0026543751376062455
+    },
+    "BODY_LB_013_SYNC": {
+      "max_root_position_error_m": 0.022655074118403253,
+      "max_root_attitude_error_deg": 1.1730296618914484,
+      "max_support_foot_world_drift_m": 0.009408087205276036
+    },
+    "RB_TO_013": {
+      "max_root_position_error_m": 0.02424042260085976,
+      "max_root_attitude_error_deg": 0.8543192873869624,
+      "max_support_foot_world_drift_m": 0.0042535471342710985
+    },
+    "BODY_MID_0235_SYNC": {
+      "max_root_position_error_m": 0.027567150306070636,
+      "max_root_attitude_error_deg": 0.3369143966876863,
+      "max_support_foot_world_drift_m": 0.006639544523906739
+    },
+    "AH_BACK_LOW_FIRST_SEGMENT": {
+      "max_root_position_error_m": 0.034016423366821626,
+      "max_root_attitude_error_deg": 1.261384888288303,
+      "max_support_foot_world_drift_m": 0.008465715947369754
+    },
+    "FINAL_HOLD": {
+      "max_root_position_error_m": 0.03302133848753154,
+      "max_root_attitude_error_deg": 0.8925330319447544,
+      "max_support_foot_world_drift_m": 4.969403278812489e-05
+    }
+  },
+  "viewer_process_status": "run_sim exited after built-in terminal hold; no duplicate run",
+  "evidence_boundary": "One visible Isaac GPU simulation and static STL samples at named stage entries; diagnostics only."
+}

@@ -171,10 +171,10 @@
     </joint>
   </xacro:macro>
 
-  <xacro:leg prefix="lf" hip_x="-0.0425" hip_y="0.07361" hip_z="0.02525" hip_yaw="2.0944" thigh_lower="-1.571" thigh_upper="0.698" knee_axis="0 0 -1" ankle_axis="0 0 -1"/>
+  <xacro:leg prefix="lf" hip_x="-0.0425" hip_y="0.07361" hip_z="0.02525" hip_yaw="2.0944" thigh_lower="-1.571" thigh_upper="1.047065850398866" knee_axis="0 0 -1" ankle_axis="0 0 -1"/>
   <xacro:leg prefix="lm" hip_x="-0.085" hip_y="0" hip_z="0.02525" hip_yaw="-3.1416" thigh_lower="-0.698" thigh_upper="0.698" knee_axis="0 0 -1" ankle_axis="0 0 -1"/>
-  <xacro:leg prefix="lb" hip_x="-0.0425" hip_y="-0.07361" hip_z="0.02525" hip_yaw="-2.0944" thigh_lower="-0.698" thigh_upper="1.571" knee_axis="0 0 -1" ankle_axis="0 0 -1"/>
-  <xacro:leg prefix="rf" hip_x="0.0425" hip_y="0.07361" hip_z="0.02525" hip_yaw="1.0472" thigh_lower="-0.698" thigh_upper="1.571" knee_axis="0 0 1" ankle_axis="0 0 1"/>
+  <xacro:leg prefix="lb" hip_x="-0.0425" hip_y="-0.07361" hip_z="0.02525" hip_yaw="-2.0944" thigh_lower="-1.047065850398866" thigh_upper="1.571" knee_axis="0 0 -1" ankle_axis="0 0 -1"/>
+  <xacro:leg prefix="rf" hip_x="0.0425" hip_y="0.07361" hip_z="0.02525" hip_yaw="1.0472" thigh_lower="-1.047065850398866" thigh_upper="1.571" knee_axis="0 0 1" ankle_axis="0 0 1"/>
   <xacro:leg prefix="rm" hip_x="0.085" hip_y="0" hip_z="0.02525" hip_yaw="0" thigh_lower="-0.698" thigh_upper="0.698" knee_axis="0 0 1" ankle_axis="0 0 1"/>
-  <xacro:leg prefix="rb" hip_x="0.0425" hip_y="-0.07361" hip_z="0.02525" hip_yaw="-1.0472" thigh_lower="-1.571" thigh_upper="0.698" knee_axis="0 0 1" ankle_axis="0 0 1"/>
+  <xacro:leg prefix="rb" hip_x="0.0425" hip_y="-0.07361" hip_z="0.02525" hip_yaw="-1.0472" thigh_lower="-1.571" thigh_upper="1.047065850398866" knee_axis="0 0 1" ankle_axis="0 0 1"/>
 </robot>

@@ -1,0 +1,145 @@
+Not connected to PVD
++++ Using GPU PhysX
+Physics Engine: PhysX
+Physics Device: cuda:0
+GPU Pipeline: disabled
+Importing module 'gym_38' (/home/artrc/isaacgym/python/isaacgym/_bindings/linux-x86_64/gym_38.so)
+Setting GYM_USD_PLUG_INFO_PATH to /home/artrc/isaacgym/python/isaacgym/_bindings/linux-x86_64/usd/plugInfo.json
+PhysX contact scales: rest_offset=0m contact_offset=20mm friction_offset_threshold=1mm friction_correlation_distance=0.5mm robot_thickness=1mm
+Compact climb config selected: /tmp/climb_c2_speed_20260909/candidate.json (side=left)
+Compact climb scene loaded (C1:PREP -> C27:STAND_FINAL_HOLD, 1x, 57.3s)
+Xiaolan loaded: 22664 exact static collision triangles
+Physics: 240 Hz, controller: 30 Hz, actuator: 30 Hz
+Robot loaded: 25 rigid bodies, 18 DOFs
+Control DOF mapping ready: 18 joints
+Compact climb joint velocity limit: 1.2x (same Isaac drive baseline as Approach: stiffness=100, damping=0.8, URDF effort unchanged; 1.2x is the LX-15D official no-load upper-bound candidate, >1.2x is diagnostics-only and not hardware-aligned; Isaac gains are not calibrated servo gains)
+Compact climb: initialized at C1:PREP entry snapshot
+Compact climb started (--climb-start, real feedback gates)
+A: enable/pause motion | B: reset to stand | X: compact climb
+[climb] state=RUNNING stage=1/27 phase=PREP prior_tracking_error=2.34679e-08rad prior_foot_target_error=5.33354e-09m
+[render] frame=0 fps=231942.9
+[render] frame=240 fps=235.1
+[climb] C1 PREP metrics: t=1.83s track=0.005943rad foot=0.003306m limit_margin=0.3715rad worst_joint=rm/ankle@1.83s worst_foot=rm@0.97s root=0.00834m@1.23s world_foot=0.007777mlm@1.73s support_drift=0.007777m end_track=0.005943rad end_foot=0.0006563m end_root=0.007321m end_world_foot=0.007775m
+[climb] state=RUNNING stage=2/27 phase=RM prior_tracking_error=0.00594327rad prior_foot_target_error=0.00065631m
+[render] frame=480 fps=238.4
+[render] frame=720 fps=242.1
+[render] frame=960 fps=241.6
+[render] frame=1200 fps=223.5
+[climb] C2 RM metrics: t=3.37s track=0.01074rad foot=0.007005m limit_margin=0.1364rad worst_joint=lm/ankle@3.03s worst_foot=rm@2.53s root=0.007698m@2.53s world_foot=0.01168mrm@2.53s support_drift=0.0005512m end_track=0.006449rad end_foot=0.001289m end_root=0.006791m end_world_foot=0.007751m
+[climb] state=RUNNING stage=3/27 phase=BODY prior_tracking_error=0.00644899rad prior_foot_target_error=0.00128869m
+[render] frame=1440 fps=210.7
+[climb] C3 BODY metrics: t=0.87s track=0.03604rad foot=0.009443m limit_margin=0.4911rad worst_joint=lm/ankle@0.83s worst_foot=lm@0.87s root=0.00756m@0.27s world_foot=0.008923mlm@0.77s support_drift=0.007834m end_track=0.03572rad end_foot=0.009443m end_root=0.001101m end_world_foot=0.008899m
+[climb] state=RUNNING stage=4/27 phase=PAIR prior_tracking_error=0.0357209rad prior_foot_target_error=0.00944294m
+[render] frame=1680 fps=238.5
+[render] frame=1920 fps=240.7
+[render] frame=2160 fps=241.5
+[climb] C4 PAIR metrics: t=3.77s track=0.0511rad foot=0.0125m limit_margin=0.03043rad worst_joint=lm/ankle@0.13s worst_foot=lm@3.27s root=0.003266m@3.27s world_foot=0.01699mrf@3.17s support_drift=0.001915m end_track=0.04592rad end_foot=0.01098m end_root=0.001699m end_world_foot=0.008833m
+[climb] state=RUNNING stage=5/27 phase=LB_LF_GROUND_SHIFT prior_tracking_error=0.0459196rad prior_foot_target_error=0.0109753m
+[render] frame=2400 fps=153.1
+[render] frame=2640 fps=145.0
+[climb] C5 LB_LF_GROUND_SHIFT metrics: t=1.87s track=0.047rad foot=0.01113m limit_margin=0.5078rad worst_joint=lm/ankle@1.33s worst_foot=lm@1.43s root=0.001856m@1.40s world_foot=0.008857mlm@1.57s support_drift=8.611e-05m end_track=0.04107rad end_foot=0.01105m end_root=0.001406m end_world_foot=0.008842m
+[climb] state=RUNNING stage=6/27 phase=LM_GROUND_SHIFT prior_tracking_error=0.0410653rad prior_foot_target_error=0.0110463m
+[render] frame=2880 fps=144.1
+[render] frame=3120 fps=145.0
+[climb] C6 LM_GROUND_SHIFT metrics: t=1.90s track=0.04107rad foot=0.01105m limit_margin=0.5366rad worst_joint=lm/ankle@0.03s worst_foot=lm@0.03s root=0.002434m@0.87s world_foot=0.008841mlm@0.03s support_drift=0.0004349m end_track=0.009846rad end_foot=0.002745m end_root=0.002274m end_world_foot=0.002536m
+[climb] state=RUNNING stage=7/27 phase=BODY2 prior_tracking_error=0.00984569rad prior_foot_target_error=0.00274511m
+[render] frame=3360 fps=144.0
+[render] frame=3600 fps=144.4
+[climb] C7 BODY2 metrics: t=2.03s track=0.01846rad foot=0.00685m limit_margin=0.4602rad worst_joint=lf/ankle@2.03s worst_foot=lm@1.17s root=0.005745m@2.03s world_foot=0.007324mrf@1.33s support_drift=0.006421m end_track=0.01846rad end_foot=0.005013m end_root=0.005745m end_world_foot=0.006778m
+[climb] state=RUNNING stage=8/27 phase=RM_HIGH_C prior_tracking_error=0.0184568rad prior_foot_target_error=0.00501333m
+[render] frame=3840 fps=145.1
+[render] frame=4080 fps=151.5
+[climb] C8 RM_HIGH_C metrics: t=2.23s track=0.01862rad foot=0.009139m limit_margin=0.0473rad worst_joint=lf/ankle@0.07s worst_foot=rm@1.03s root=0.005823m@0.10s world_foot=0.00815mrm@1.73s support_drift=0.003228m end_track=0.0154rad end_foot=0.003407m end_root=0.003967m end_world_foot=0.004565m
+[climb] state=RUNNING stage=9/27 phase=RB_RF_HIGH_C prior_tracking_error=0.0153956rad prior_foot_target_error=0.00340722m
+[render] frame=4320 fps=144.8
+[render] frame=4560 fps=190.4
+[render] frame=4800 fps=170.5
+[climb] C9 RB_RF_HIGH_C metrics: t=2.37s track=0.01723rad foot=0.00703m limit_margin=0.2864rad worst_joint=lf/ankle@1.83s worst_foot=rf@1.07s root=0.0041m@2.03s world_foot=0.009015mrf@1.87s support_drift=0.0002658m end_track=0.01613rad end_foot=0.003284m end_root=0.004008m end_world_foot=0.004224m
+[climb] state=RUNNING stage=10/27 phase=RB_BODY_ADVANCE prior_tracking_error=0.0161331rad prior_foot_target_error=0.003284m
+[render] frame=5040 fps=144.4
+[climb] C10 RB_BODY_ADVANCE metrics: t=1.23s track=0.01679rad foot=0.004634m limit_margin=0.1683rad worst_joint=lf/ankle@0.43s worst_foot=rb@1.10s root=0.004008m@0.03s world_foot=0.005396mrb@1.10s support_drift=0.004191m end_track=0.01236rad end_foot=0.002952m end_root=0.0007634m end_world_foot=0.002778m
+[climb] state=RUNNING stage=11/27 phase=LM_RM_PRE_ADVANCE prior_tracking_error=0.0123611rad prior_foot_target_error=0.00295239m
+[render] frame=5280 fps=141.5
+[render] frame=5520 fps=141.9
+[climb] C11 LM_RM_PRE_ADVANCE metrics: t=2.33s track=0.0137rad foot=0.006613m limit_margin=0.1706rad worst_joint=lb/ankle@0.10s worst_foot=rm@0.23s root=0.0009052m@1.87s world_foot=0.006323mrm@1.90s support_drift=0.0007177m end_track=0.01248rad end_foot=0.00271m end_root=0.0007795m end_world_foot=0.002773m
+[climb] state=RUNNING stage=12/27 phase=LB_LF_BODY_ADVANCE_HIGH_STEP prior_tracking_error=0.0124804rad prior_foot_target_error=0.00271025m
+[render] frame=5760 fps=138.9
+[render] frame=6000 fps=139.9
+[render] frame=6240 fps=132.2
+[climb] C12 LB_LF_BODY_ADVANCE_HIGH_STEP metrics: t=2.30s track=0.02511rad foot=0.005279m limit_margin=0.2563rad worst_joint=lm/ankle@0.90s worst_foot=lb@1.40s root=0.003273m@1.47s world_foot=0.009432mlf@1.47s support_drift=0.004062m end_track=0.01195rad end_foot=0.003242m end_root=0.001232m end_world_foot=0.002862m
+[climb] state=RUNNING stage=13/27 phase=RB_RF_TOP_INWARD_PAIR prior_tracking_error=0.0119515rad prior_foot_target_error=0.00324241m
+[render] frame=6480 fps=134.2
+[render] frame=6720 fps=132.4
+[climb] C13 RB_RF_TOP_INWARD_PAIR metrics: t=1.97s track=0.01491rad foot=0.006568m limit_margin=0.1779rad worst_joint=lf/ankle@1.50s worst_foot=rb@0.93s root=0.001724m@1.57s world_foot=0.009692mrf@1.57s support_drift=0.001156m end_track=0.01268rad end_foot=0.002941m end_root=0.001174m end_world_foot=0.002612m
+[climb] state=RUNNING stage=14/27 phase=LM_BODY_TRANSFER prior_tracking_error=0.0126828rad prior_foot_target_error=0.00294148m
+[render] frame=6960 fps=130.5
+[climb] C14 LM_BODY_TRANSFER metrics: t=1.97s track=0.01339rad foot=0.007388m limit_margin=0.1346rad worst_joint=lf/ankle@0.43s worst_foot=lm@0.97s root=0.003019m@1.13s world_foot=0.00962mlm@0.97s support_drift=0.001958m end_track=0.01202rad end_foot=0.002495m end_root=0.001589m end_world_foot=0.003355m
+[climb] state=RUNNING stage=15/27 phase=RM_RIGHT_SYMMETRY prior_tracking_error=0.0120216rad prior_foot_target_error=0.00249548m
+[render] frame=7200 fps=130.9
+[render] frame=7440 fps=128.2
+[climb] C15 RM_RIGHT_SYMMETRY metrics: t=1.97s track=0.01251rad foot=0.008115m limit_margin=0.1234rad worst_joint=lf/ankle@0.23s worst_foot=rm@0.30s root=0.001637m@1.60s world_foot=0.005842mrm@0.30s support_drift=0.0003583m end_track=0.01182rad end_foot=0.002315m end_root=0.001634m end_world_foot=0.004371m
+[climb] state=RUNNING stage=16/27 phase=BODY_LEFT_TRANSFER_PREP prior_tracking_error=0.0118219rad prior_foot_target_error=0.00231509m
+[render] frame=7680 fps=127.6
+[climb] C16 BODY_LEFT_TRANSFER_PREP metrics: t=0.87s track=0.01182rad foot=0.002851m limit_margin=0.491rad worst_joint=lf/ankle@0.03s worst_foot=lf@0.87s root=0.001903m@0.80s world_foot=0.00439mrm@0.37s support_drift=0.0008892m end_track=0.006742rad end_foot=0.002851m end_root=0.001898m end_world_foot=0.004332m
+[climb] state=RUNNING stage=17/27 phase=LB_LOW_STEP prior_tracking_error=0.00674165rad prior_foot_target_error=0.00285092m
+[render] frame=7920 fps=129.1
+[render] frame=8160 fps=127.9
+[render] frame=8400 fps=128.4
+[render] frame=8640 fps=124.4
+[climb] C17 LB_LOW_STEP metrics: t=3.43s track=0.0199rad foot=0.006045m limit_margin=0.06979rad worst_joint=lm/ankle@2.33s worst_foot=lb@1.73s root=0.004152m@0.30s world_foot=0.007352mlb@2.60s support_drift=0.007475m end_track=0.01293rad end_foot=0.004112m end_root=0.003252m end_world_foot=0.005289m
+[climb] state=RUNNING stage=18/27 phase=BODY_RIGHT_BEFORE_LF prior_tracking_error=0.0129301rad prior_foot_target_error=0.00411157m
+[render] frame=8880 fps=123.6
+[climb] C18 BODY_RIGHT_BEFORE_LF metrics: t=1.23s track=0.01418rad foot=0.005336m limit_margin=0.1115rad worst_joint=lm/ankle@0.40s worst_foot=lm@0.43s root=0.006706m@1.07s world_foot=0.009424mlb@1.10s support_drift=0.006585m end_track=0.009297rad end_foot=0.003147m end_root=0.006642m end_world_foot=0.009421m
+[climb] state=RUNNING stage=19/27 phase=LF_LOW_STEP prior_tracking_error=0.00929702rad prior_foot_target_error=0.00314699m
+[render] frame=9120 fps=123.5
+[render] frame=9360 fps=131.9
+[render] frame=9600 fps=134.8
+[climb] C19 LF_LOW_STEP metrics: t=3.30s track=0.02095rad foot=0.006122m limit_margin=0.06433rad worst_joint=lm/ankle@0.20s worst_foot=lf@1.73s root=0.008278m@0.23s world_foot=0.01098mlb@0.23s support_drift=0.001588m end_track=0.01228rad end_foot=0.003969m end_root=0.007509m end_world_foot=0.009729m
+[climb] state=RUNNING stage=20/27 phase=BODY_PRELOAD_LM prior_tracking_error=0.0122838rad prior_foot_target_error=0.00396878m
+[render] frame=9840 fps=133.3
+[climb] C20 BODY_PRELOAD_LM metrics: t=0.57s track=0.01228rad foot=0.003969m limit_margin=0.1361rad worst_joint=lm/ankle@0.03s worst_foot=lm@0.03s root=0.00751m@0.03s world_foot=0.009729mlb@0.03s support_drift=0.000894m end_track=0.01081rad end_foot=0.003924m end_root=0.007189m end_world_foot=0.009583m
+[climb] state=RUNNING stage=21/27 phase=LM_LIFT prior_tracking_error=0.0108058rad prior_foot_target_error=0.0039239m
+[render] frame=10080 fps=132.8
+[render] frame=10320 fps=135.6
+[climb] C21 LM_LIFT metrics: t=1.70s track=0.01139rad foot=0.005358m limit_margin=0.1364rad worst_joint=lm/ankle@0.17s worst_foot=lm@0.70s root=0.009571m@1.50s world_foot=0.01055mrb@0.97s support_drift=0.002765m end_track=0.0106rad end_foot=0.001669m end_root=0.009555m end_world_foot=0.01051m
+[climb] state=RUNNING stage=22/27 phase=BODY_ADVANCE_LM_AIR prior_tracking_error=0.0106049rad prior_foot_target_error=0.00166941m
+[render] frame=10560 fps=135.7
+[render] frame=10800 fps=135.2
+[render] frame=11040 fps=134.1
+[climb] C22 BODY_ADVANCE_LM_AIR metrics: t=3.03s track=0.01063rad foot=0.002717m limit_margin=0.1401rad worst_joint=lf/knee@0.03s worst_foot=rm@1.63s root=0.009554m@0.03s world_foot=0.01125mrb@1.17s support_drift=0.002395m end_track=0.008212rad end_foot=0.00155m end_root=0.008548m end_world_foot=0.01026m
+[climb] state=RUNNING stage=23/27 phase=LM_LEFT_FINAL_LAND prior_tracking_error=0.00821153rad prior_foot_target_error=0.00154951m
+[render] frame=11280 fps=133.1
+[climb] C23 LM_LEFT_FINAL_LAND metrics: t=1.10s track=0.008475rad foot=0.002061m limit_margin=0.2281rad worst_joint=lf/knee@0.40s worst_foot=lm@0.43s root=0.008565m@0.73s world_foot=0.01027mrb@0.40s support_drift=6.548e-05m end_track=0.00831rad end_foot=0.001571m end_root=0.008544m end_world_foot=0.01027m
+[climb] state=RUNNING stage=24/27 phase=RB_RF_DIRECT_FINAL prior_tracking_error=0.00830974rad prior_foot_target_error=0.00157127m
+[render] frame=11520 fps=134.1
+[render] frame=11760 fps=138.0
+[render] frame=12000 fps=133.8
+[climb] C24 RB_RF_DIRECT_FINAL metrics: t=2.97s track=0.02039rad foot=0.006959m limit_margin=0.2056rad worst_joint=rm/ankle@1.90s worst_foot=rf@1.43s root=0.008561m@0.23s world_foot=0.01263mrb@2.33s support_drift=0.001558m end_track=0.008926rad end_foot=0.002021m end_root=0.00791m end_world_foot=0.01074m
+[climb] state=RUNNING stage=25/27 phase=RM_BODY_REPOSITION prior_tracking_error=0.00892603rad prior_foot_target_error=0.00202088m
+[render] frame=12240 fps=133.9
+[render] frame=12480 fps=136.1
+[render] frame=12720 fps=133.5
+[climb] C25 RM_BODY_REPOSITION metrics: t=3.40s track=0.1117rad foot=0.03054m limit_margin=0.1342rad worst_joint=rm/ankle@1.33s worst_foot=rm@1.53s root=0.008641m@3.40s world_foot=0.03726mrm@1.53s support_drift=0.002309m end_track=0.008255rad end_foot=0.001291m end_root=0.008641m end_world_foot=0.01165m
+[climb] state=RUNNING stage=26/27 phase=LB_LF_DOCK_TRANSFER prior_tracking_error=0.00825493rad prior_foot_target_error=0.00129069m
+[render] frame=12960 fps=133.4
+[render] frame=13200 fps=138.6
+[render] frame=13440 fps=134.3
+[climb] C26 LB_LF_DOCK_TRANSFER metrics: t=2.90s track=0.03256rad foot=0.006775m limit_margin=0.1446rad worst_joint=rm/ankle@1.03s worst_foot=lb@1.40s root=0.01198m@1.00s world_foot=0.01589mrb@1.00s support_drift=0.005761m end_track=0.006196rad end_foot=0.001622m end_root=0.006513m end_world_foot=0.009324m
+[climb] state=RUNNING stage=27/27 phase=STAND_FINAL_HOLD prior_tracking_error=0.00619572rad prior_foot_target_error=0.00162195m
+[render] frame=13680 fps=138.3
+[render] frame=13920 fps=138.5
+[render] frame=14160 fps=138.4
+[render] frame=14400 fps=138.3
+[climb] C27 STAND_FINAL_HOLD metrics: t=4.30s track=0.006208rad foot=0.001622m limit_margin=0.3596rad worst_joint=rm/ankle@4.13s worst_foot=rm@4.13s root=0.006513m@0.23s world_foot=0.009324mrm@0.40s support_drift=2.58e-07m end_track=0.006207rad end_foot=0.001622m end_root=0.006513m end_world_foot=0.009324m
+[climb] state=DONE stage=27/27 phase=STAND_FINAL_HOLD prior_tracking_error=0.00620748rad prior_foot_target_error=0.00162186m
+[climb] diagnostics-only metrics: /tmp/climb_c2_speed_20260909/stress_metrics.json
+[climb] DONE at t=60.8s, tracking_error=0.00620748rad, foot_target_error=0.00162186m, reason=none, holding final pose for 2s
+[render] frame=14640 fps=138.3
+[render] frame=14880 fps=138.6
+[climb] hold check: joint drift over 2s 0.0mrad, joint tracking error 6.2mrad
+[climb] preview gate hold_q_drift_lt_20mrad: value=0.0013113 threshold=20.0 PASS
+[climb] preview gate end_foot_target_error_le_0.015m: value=0.00162178 threshold=0.015 PASS
+[climb] preview gate end_root_position_error_le_0.05m: value=0.00651317 threshold=0.05 PASS
+[climb] preview gate global_max_root_position_error_le_0.20m: value=0.0119757 threshold=0.2 PASS
+[climb] preview gate global_min_joint_limit_margin_ge_0rad: value=0.0304278 threshold=0.0 PASS
+[climb] PREVIEW VERDICT: SUCCESS (simulation preview gates only; not contact, load, stability, or hardware proof)

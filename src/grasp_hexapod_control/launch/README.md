@@ -23,20 +23,45 @@ roslaunch grasp_hexapod_control run_real.launch
 roslaunch grasp_hexapod_control run_real.launch mode:=navigation
 ```
 
-开发机上的`ttyUSB`编号可能变化，可以在启动时覆盖：
+若机器人和小蓝的RTK都发布标准`sensor_msgs/NavSatFix`，可显式启动
+RTK/IMU适配节点：
+
+```bash
+roslaunch grasp_hexapod_control run_real.launch \
+  mode:=navigation \
+  start_rtk_imu_navigation:=true \
+  navigation_sensor_config:=/absolute/path/navigation_rtk_imu.yaml
+```
+
+部署配置必须填写`pv_map`的WGS84原点/航向、机器人与小蓝RTK天线杆臂、
+IMU到`base_link`的安装旋转、小蓝固定姿态和光伏板边界，并明确设置
+`installation_calibrated: true`。仓库内模板故意保持`false`和空标定，不能直接用于
+实机运动。适配节点只在双RTK达到GBAS等级、水平标准差、数据年龄、双RTK
+时间差、IMU新鲜度和姿态协方差全部通过时发布同时间戳的
+`base_pose/xiaolan_pose/pv_boundary`。标准`NavSatFix`不能继续区分RTK fixed与
+float；若驱动把两者都映射成GBAS，必须在上游另行拒绝float解。
+
+左右攀爬入口不再另建导航副本：控制节点启动时直接从当前
+`climb_compact.json`的P0和左右镜像规则生成目标，并从CLIMB场景使用的
+`base_link_xiaolan.STL`提取保守XY包围盒作为小蓝轮廓。光伏板边界仍来自上述
+传感器标定文件；`navigation_boundary_margin_m`和
+`navigation_xiaolan_body_clearance_m`只表达额外安全余量。compact/STL属于模型
+几何来源，不能替代现场尺寸、RTK/IMU标定或真实净空验证。
+
+串口名称可在启动时覆盖：
 
 ```bash
 roslaunch grasp_hexapod_control run_real.launch \
   joy_dev:=/dev/input/js0 \
-  left_port:=/dev/ttyUSB0 \
-  right_port:=/dev/ttyUSB1 \
-  mid_port:=/dev/ttyUSB2
+  left_port:=/dev/ttyTHS0 \
+  right_port:=/dev/ttyACM0
 ```
 
-工控机部署时再用稳定的`/dev/serial/by-id/...`路径替换三个串口参数。
+默认即为 Jetson 板载串口`/dev/ttyTHS0`（left）和 USB 串口`/dev/ttyACM0`（right），
+串口名称变化时再显式覆盖。
 
 仿真和实机默认都使用`0.20 m/s`平移、`0.02 m/s`升降。
-实机控制器以60 Hz运行，Servo串口以30 Hz运行并使用33 ms位置插值。
+实机控制器与Servo串口均以30 Hz运行，并使用33 ms位置插值。
 第一次架空测试如需临时降速，可以显式覆盖：
 
 ```bash
@@ -45,16 +70,19 @@ roslaunch grasp_hexapod_control run_real.launch \
   max_vertical_speed:=0.003
 ```
 
-当前工控机上三块板依次为`left=/dev/ttyUSB1`、`right=/dev/ttyUSB2`、
-`mid=/dev/ttyUSB0`。如果无法在60 Hz内完成整机连杆碰撞计算，使用下面的
-完整指令临时关闭这一项：
+`run_real.launch` 当前暂时把攀爬 FK 足端任务门设为 `0.05 m`；可用
+`climb_foot_gate_m:=0.02` 回退。它仅在既有 segment knot/最终 endpoint 阻止进入下一段，
+段内不冻结；绝不是接触或负载证明，
+可能掩盖约 5 cm 的 FK 偏差；实机测试必须具备可靠支撑与急停条件。
+
+当前两块板依次为`left=/dev/ttyTHS0`、`right=/dev/ttyACM0`。如果无法在
+30 Hz内完成整机连杆碰撞计算，使用下面的完整指令临时关闭这一项：
 
 ```bash
 roslaunch grasp_hexapod_control run_real.launch \
   joy_dev:=/dev/input/js0 \
-  left_port:=/dev/ttyUSB1 \
-  right_port:=/dev/ttyUSB2 \
-  mid_port:=/dev/ttyUSB0 \
+  left_port:=/dev/ttyTHS0 \
+  right_port:=/dev/ttyACM0 \
   enable_link_collision_check:=false
 ```
 
@@ -92,13 +120,32 @@ roslaunch grasp_hexapod_control run_sim_ros.launch \
 
 ROS仿真默认使用`/usr/bin/python3`，因为它同时具备ROS的`rospy/rospkg`
 和Isaac Gym所需的Python 3.8 ABI。原Python直启链路才使用conda环境。
-ROS仿真默认使用60 Hz控制器和60 Hz Isaac执行节拍，与原Python仿真一致。
-实机舵机节点仍按30 Hz发送带33 ms运动时间的指令。若只想观察30 Hz
-零阶保持对Isaac位置驱动的影响，可以显式运行：
+ROS仿真默认使用30 Hz控制器、30 Hz执行器写入和240 Hz物理步进，与实机目标
+节拍一致。若需要60 Hz诊断，必须同时覆盖控制器和执行器频率，并保持物理频率可整除：
 
 ```bash
-roslaunch grasp_hexapod_control run_sim_ros.launch actuator_rate_hz:=30.0
+roslaunch grasp_hexapod_control run_sim_ros.launch \
+  controller_rate_hz:=60.0 actuator_rate_hz:=60.0 physics_rate_hz:=240.0
 ```
+
+ROS Isaac compact 攀爬使用同一套 `ClimbMode`、20 mm FK 足端门、`.25 s`
+持续稳定和 `5 s` 超时：
+
+```bash
+roslaunch grasp_hexapod_control run_sim_ros_climb.launch
+```
+
+场景固定在 active compact 的 C1 入口，按 X 开始 C1--C35；A 在 armed 状态会被忽略，B
+取消并正常回站。`/lb_pos` 与 `/lb_des` 是 Isaac 同步反馈/目标 telemetry，约为 30 Hz：
+
+```bash
+rostopic hz /lb_pos
+rostopic hz /lb_des
+```
+
+日志中的 `ACTIVE LEG TRACE` 是 base_link 中的规划/Isaac FK 对照，`PHASE HOLD` 表示同一
+反馈门冻结相位。此路径没有模拟两串口逐舵机读写/重试、跨板 skew、真实电源/负载/回差/力矩，
+也不构成真实接触或攀爬认证。
 
 原来的非ROS仿真链路仍然保留：
 
@@ -106,19 +153,31 @@ roslaunch grasp_hexapod_control run_sim_ros.launch actuator_rate_hz:=30.0
 python src/grasp_hexapod_control/scripts/run_sim.py
 ```
 
-## 导航模式参数
+## Isaac 攀爬区间回放
 
-导航模式需要经过实测的左右接近位姿，每个位姿都是按行展开的4×4矩阵：
+仅 Python/Isaac 的 compact 攀爬预览支持闭区间参数，`C1` 到 `C35` 是固定数组
+别名，亦可传运行时阶段名：
 
 ```bash
-roslaunch grasp_hexapod_control run_real.launch \
-  mode:=navigation \
-  xiaolan_from_left_base:='[r00,r01,r02,tx,r10,r11,r12,ty,r20,r21,r22,tz,0,0,0,1]' \
-  xiaolan_from_right_base:='[r00,r01,r02,tx,r10,r11,r12,ty,r20,r21,r22,tz,0,0,0,1]'
+python src/grasp_hexapod_control/scripts/run_sim.py \
+  --climb-scene --climb-from C13 --climb-to C15 \
+  --climb-speed 4 --climb-joint-speed 3
 ```
 
-没有配置外参、导航位姿过期、没有落板确认或路径越界时，A不会启动导航，
-机器人保持不动；推动摇杆仍可接管。
+场景会在 C13 精确入口等待 X；等待期间保持该入口快照，不运行普通 APPROACH。
+`--climb-metrics path.json` 可输出逐阶段 simulation-only 指标。这些指标不参与
+阶段门限，且不构成接触、承载或稳定性证明。上述三个参数不属于 ROS launch 或
+实机攀爬接口。
+
+## 导航模式目标
+
+导航采用固定的最简决策，不建立通用障碍地图，也不搜索绕行。控制器把从当前CLIMB
+模型导出的左右攀爬入口变换到`pv_map`，分别检查“原地转到目标朝向 -> 直线到入口”：标准足印
+及一步运动余量必须始终位于光伏板边界内，机身中心直线不得穿过小蓝安全轮廓。可行
+候选先按直线路程、再按转向量确定，固定平局顺序为left优先；若指定侧不可直达，
+直接拒绝而不是绕路。选定后只有一个终点，到达后当前摆动组落地并复测，才报告就绪。
+没有新鲜且同步的双位姿、新鲜板边界、落板确认或安全余量时，A不会启动；运动中导航
+失效会先让当前摆动腿落地，再进入失败态。
 
 ## 安全操作顺序
 
@@ -128,13 +187,52 @@ B -> 等待回到标准站姿 -> A -> 接受运动指令
 
 - B：最高优先级，停止当前行为并回到站姿。
 - A：站姿初始化完成后启用或暂停运动。
-- X：预留攀爬模式，当前只暂停。
-- Y：预留对接模式，当前只暂停。
+- X（默认索引2）：`run_real.launch`默认启用。完成B回站、Joy和18关节反馈新鲜并通过compact入口关节门限后，按X从C1启动完整C1--C35诊断回放；A暂停或恢复，B可随时中止。阶段只按实际关节跟踪与FK足端目标误差的连续稳定门限推进。IMU和RTK/LoRa不要求；若启动瞬间两者恰好有效，才启用可选相对运动监控。关节反馈门限不证明接触、承载或稳定性；可用`enable_real_climb:=false`显式关闭该入口。
+- Y（默认索引3）：`run_real.launch`默认启用。完成B回站、Joy和18关节反馈新鲜且没有运行中的攀爬时，按Y进入DockMode；不依赖IMU或RTK。DockMode等待稳定的完整AprilTag输入；它只把18关节候选交给同一个`run_real.py -> GraspController -> /<leg>_des`链路，未另行发布舵机或`JointTrajectory`命令。完成或失败都进入HOLD，B可随时中止。
 - 导航运行时推动任一运动摇杆会取消导航并锁存为手柄控制。
 - 松开摇杆不会恢复导航；按B重新初始化，再按A才会重新规划。
 
 整机状态为`WAIT_B -> RESETTING -> HOLD <-> RUNNING`。`ApproachMode`
 内部的摆动腿、支撑腿和换相状态始终保留。
+
+IMU和RTK/LoRa话题保留为攀爬诊断回放的可选相对运动监控接口，不是启动或推进条件。DOCK使用独立底部USB链：`/dock_camera/image_raw -> image_proc -> /dock_camera/image_rect_color -> /dock/tag_detections`；它与顶部Orbbec及`xiaolan_tag_system.launch`严格分离。
+
+先安装相机与标定工具：
+
+```bash
+sudo apt install ros-noetic-usb-cam ros-noetic-image-proc ros-noetic-apriltag-ros \
+  ros-noetic-nodelet ros-noetic-camera-calibration python3-opencv python3-yaml
+```
+
+必须以最终实机分辨率和像素格式完成标定。下面的棋盘格`8x6`、格长`0.025 m`只是示例，必须替换为实际棋盘参数：
+
+```bash
+rosrun camera_calibration cameracalibrator.py --size 8x6 --square 0.025 \
+  image:=/dock_camera/image_raw camera:=/dock_camera
+```
+
+保存内参 YAML 后，使用绝对路径让USB相机读取它；相机外参必须以相机光学帧到卡紧机构为实测值。Tag size 是黑白边界的有效边长，不是标签纸张外沿。推荐把`dock_system.yaml`复制为部署文件，写入实测外参与`real_calibrated: true`，并在同一条启动命令中把该绝对路径同时交给 detector 与控制器：
+
+```bash
+roslaunch grasp_hexapod_control run_real.launch \
+  dock_camera_info_url:=file:///absolute/path/dock_camera.yaml \
+  dock_system_config:=/absolute/path/dock_system.yaml
+```
+
+仅在机器人架空状态下检查节点、频率和检测输入：
+
+```bash
+roslaunch --nodes src/grasp_hexapod_control/launch/dock_tag_system.launch
+rostopic hz /dock_camera/image_rect_color
+rostopic echo -n1 /dock_camera/camera_info
+rostopic echo -n1 /dock/tag_detections
+```
+
+`run_real.launch`默认启动该链，可用`start_dock_perception:=false`关闭。默认未标定时Y会被`dock_require_real_calibrated:=true`阻止；仅在架空调试时可显式传入`dock_allow_uncalibrated:=true`。视觉检测、对准或锁紧话题通过都不证明物理锁紧、接触、承载或整机安全。`dock_allow_inference`和`dock_require_lock_confirmation`仍默认`false`；未要求锁紧确认时，`SUCCESS`只表示对准流程完成，不证明物理锁紧。锁紧确认只接受本次Y启动后、`dock_lock_confirmation_max_age_s`（默认0.5 s）内的新消息。若要关闭默认攀爬诊断回放入口：
+
+```bash
+roslaunch grasp_hexapod_control run_real.launch enable_real_climb:=false
+```
 
 ## 常用检查
 
@@ -188,17 +286,25 @@ rostopic echo /lf_des
 rosparam get /grasp_hexapod_control/control_source
 rosparam get /servo_left_node/port
 rosparam get /servo_right_node/port
-rosparam get /servo_mid_node/port
 ```
 
-仅启动三块舵机板：
+仅启动两块舵机板：
 
 ```bash
-roslaunch grasp_hexapod_servo servo_three_boards.launch
+roslaunch grasp_hexapod_servo servo_two_boards.launch
+```
+
+仅启动两块舵机板（C++ 版驱动）：
+
+```bash
+roslaunch grasp_hexapod_servo_cpp servo_two_boards.launch
 ```
 
 ## 文件职责
 
-- `run_real.launch`：公共控制链加三块Servo板。
+- `run_real.launch`：公共控制链加两块Servo板；`servo_backend:=cpp` 可切换为
+  C++ 版舵机驱动（`grasp_hexapod_servo_cpp`），默认仍为 Python 版。
+- `run_real_cpp.launch`：与 `run_real.launch` 相同，固定使用 C++ 版舵机驱动；
+  支持覆盖 `left_port`、`right_port`、`servo_rate_hz`、`command_duration_ms`、`servo_diagnostics`、`voltage_read`。
 - `run_sim_ros.launch`：ROS输入加Isaac内部同步控制循环。
 - `control_stack.launch`：实机复用的`joy_node`和高层控制节点，不作为日常入口。

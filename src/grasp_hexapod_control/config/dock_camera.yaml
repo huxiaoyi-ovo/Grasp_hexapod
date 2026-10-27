@@ -1,0 +1,20 @@
+image_width: 1280
+image_height: 720
+camera_name: dock_camera
+camera_matrix:
+  rows: 3
+  cols: 3
+  data: [617.445000, 0.000000, 659.582100, 0.000000, 617.854530, 364.359990, 0.000000, 0.000000, 1.000000]
+distortion_model: plumb_bob
+distortion_coefficients:
+  rows: 1
+  cols: 5
+  data: [0.044172, -0.058247, -0.000467, 0.004164, 0.000000]
+rectification_matrix:
+  rows: 3
+  cols: 3
+  data: [1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, 1.000000]
+projection_matrix:
+  rows: 3
+  cols: 4
+  data: [599.885800, 0.000000, 675.797400, 0.000000, 0.000000, 624.318580, 364.069370, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000]

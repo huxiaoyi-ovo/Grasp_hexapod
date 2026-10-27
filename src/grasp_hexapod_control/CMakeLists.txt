@@ -3,20 +3,44 @@ project(grasp_hexapod_control)
 
 find_package(
   catkin REQUIRED COMPONENTS
+  cv_bridge
   geometry_msgs
+  grasp_hexapod_msgs
   rospy
+  roscpp
   sensor_msgs
   std_msgs
+  tf
+  tf2_ros
+  tf2
+  roslib
+  trajectory_msgs
 )
+find_package(Eigen3 REQUIRED)
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(YAML_CPP REQUIRED yaml-cpp)
 
 catkin_package(
-  CATKIN_DEPENDS geometry_msgs rospy sensor_msgs std_msgs
+  INCLUDE_DIRS include
+  LIBRARIES grasp_hexapod_control_core grasp_hexapod_control_ros
+  CATKIN_DEPENDS cv_bridge geometry_msgs grasp_hexapod_msgs rospy roscpp sensor_msgs std_msgs tf tf2_ros tf2 roslib trajectory_msgs
+  DEPENDS EIGEN3
+)
+
+include_directories(
+  include
+  vendor
+  ${catkin_INCLUDE_DIRS}
+  ${EIGEN3_INCLUDE_DIRS}
+  ${YAML_CPP_INCLUDE_DIRS}
 )
 
 catkin_install_python(
   PROGRAMS
+    scripts/navigation_node.py
     scripts/run_real.py
     scripts/run_sim.py
+    scripts/dock_static_tf.py
     scripts/tag_perception.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
@@ -28,12 +52,131 @@ install(
     scripts/control.py
     scripts/dock_mode.py
     scripts/kinematics.py
-    scripts/navigation_ros.py
-    scripts/utils.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
 install(
-  DIRECTORY config launch
+  DIRECTORY scripts/utils
+  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+  PATTERN "__pycache__" EXCLUDE
+)
+
+install(
+  FILES
+    config/climb_compact.json
+    config/climb_rebuild_profile.json
+    config/dock_camera.yaml
+    config/dock_system.yaml
+    config/navigation_rtk_imu.yaml
+    config/workspace_bounds.csv
+  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/config
+)
+
+install(
+  DIRECTORY launch
   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
 )
+
+# ---------------------------------------------------------------------------
+# C++ 高层控制器（原 grasp_hexapod_control_cpp 合并而来）。
+# 与 scripts/run_real.py 共用 config/，运行期二选一（节点同名）。
+# ---------------------------------------------------------------------------
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# 数值核心库：不依赖 ROS，仅 Eigen + nlohmann/json + yaml-cpp。
+add_library(grasp_hexapod_control_core
+  src/math_utils.cpp
+  src/kinematics.cpp
+  src/config_io.cpp
+  src/climb_compact.cpp
+  src/approach_mode.cpp
+  src/climb_mode.cpp
+  src/dock_mode.cpp
+  src/control.cpp
+)
+target_link_libraries(grasp_hexapod_control_core
+  ${YAML_CPP_LIBRARIES}
+)
+add_dependencies(grasp_hexapod_control_core ${catkin_EXPORTED_TARGETS})
+
+# ROS 壳：对应 run_real.py 的 RosControlNode（话题/服务/参数/状态机/BT仲裁）
+# 与 dock_mode.py 的 DockPerception（tf2 查询）。
+add_library(grasp_hexapod_control_ros
+  src/dock_perception_ros.cpp
+  src/real_control_node.cpp
+)
+target_link_libraries(grasp_hexapod_control_ros
+  grasp_hexapod_control_core
+  ${catkin_LIBRARIES}
+  ${YAML_CPP_LIBRARIES}
+)
+add_dependencies(grasp_hexapod_control_ros ${catkin_EXPORTED_TARGETS})
+
+# 实机高层控制节点：节点名与 Python 版一致（同一时刻只运行一个实例）。
+add_executable(run_real_cpp node/run_real_cpp_main.cpp)
+target_link_libraries(run_real_cpp grasp_hexapod_control_ros ${catkin_LIBRARIES})
+add_dependencies(run_real_cpp ${catkin_EXPORTED_TARGETS})
+
+# 测试：金标数值回归（与 Python 实现逐帧对比）+ 运动学/模式纯函数单测。
+if(CATKIN_ENABLE_TESTING)
+  # 本机 catkin 打包的 gtest 不含 gtest_main，直接补系统源文件。
+  set(GTEST_MAIN_SRC /usr/src/googletest/googletest/src/gtest_main.cc)
+
+  set(GRASP_CONTROL_CONFIG_DIR "${CMAKE_CURRENT_SOURCE_DIR}/config")
+  set(GRASP_DESCRIPTION_MESH_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../grasp_hexapod_description/meshes")
+  set(GRASP_GOLDEN_JSON "${CMAKE_CURRENT_SOURCE_DIR}/test/golden_control_trajectories.json")
+
+  catkin_add_gtest(test_kinematics_golden test/test_kinematics_golden.cpp ${GTEST_MAIN_SRC})
+  target_link_libraries(test_kinematics_golden grasp_hexapod_control_core)
+  target_compile_definitions(test_kinematics_golden PRIVATE
+    GRASP_GOLDEN_JSON="${GRASP_GOLDEN_JSON}"
+    GRASP_CONTROL_CONFIG_DIR="${GRASP_CONTROL_CONFIG_DIR}")
+
+  catkin_add_gtest(test_golden_trajectory test/test_golden_trajectory.cpp ${GTEST_MAIN_SRC})
+  target_link_libraries(test_golden_trajectory grasp_hexapod_control_core)
+  target_compile_definitions(test_golden_trajectory PRIVATE
+    GRASP_GOLDEN_JSON="${GRASP_GOLDEN_JSON}"
+    GRASP_CONTROL_CONFIG_DIR="${GRASP_CONTROL_CONFIG_DIR}")
+
+  catkin_add_gtest(test_golden_config test/test_golden_config.cpp ${GTEST_MAIN_SRC})
+  target_link_libraries(test_golden_config grasp_hexapod_control_core)
+  target_compile_definitions(test_golden_config PRIVATE
+    GRASP_GOLDEN_JSON="${GRASP_GOLDEN_JSON}"
+    GRASP_CONTROL_CONFIG_DIR="${GRASP_CONTROL_CONFIG_DIR}"
+    GRASP_DESCRIPTION_MESH_DIR="${GRASP_DESCRIPTION_MESH_DIR}")
+endif()
+
+install(TARGETS run_real_cpp
+  RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
+
+
+# Independent all-C++ ring chain; original run_real_cpp targets remain unchanged.
+find_package(OpenCV REQUIRED COMPONENTS core imgproc calib3d imgcodecs)
+add_library(grasp_hexapod_ring_core src/ring_detection.cpp src/ring_dock_mode.cpp)
+target_include_directories(grasp_hexapod_ring_core PUBLIC ${OpenCV_INCLUDE_DIRS})
+target_link_libraries(grasp_hexapod_ring_core grasp_hexapod_control_core ${OpenCV_LIBRARIES})
+target_compile_options(grasp_hexapod_ring_core PRIVATE -O3 -Wall -Wextra -ffp-contract=off)
+# ring_perception 只含 ROS 感知壳（图像订阅 + 圆环识别线程），
+# 供 run_real_ring_cpp 与 bt_control_node 共用；独立节点逻辑在 ring_ros。
+add_library(grasp_hexapod_ring_perception src/ring_perception_ros.cpp)
+target_link_libraries(grasp_hexapod_ring_perception grasp_hexapod_ring_core ${catkin_LIBRARIES})
+add_dependencies(grasp_hexapod_ring_perception ${catkin_EXPORTED_TARGETS})
+add_library(grasp_hexapod_ring_ros src/ring_control_node.cpp)
+target_link_libraries(grasp_hexapod_ring_ros grasp_hexapod_ring_perception ${catkin_LIBRARIES})
+add_dependencies(grasp_hexapod_ring_ros ${catkin_EXPORTED_TARGETS})
+add_executable(run_real_ring_cpp node/run_real_ring_cpp_main.cpp)
+target_link_libraries(run_real_ring_cpp grasp_hexapod_ring_ros ${catkin_LIBRARIES})
+install(TARGETS grasp_hexapod_control_core grasp_hexapod_ring_core grasp_hexapod_ring_perception grasp_hexapod_ring_ros run_real_ring_cpp
+  LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+  RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
+
+if(CATKIN_ENABLE_TESTING)
+  catkin_add_gtest(test_ring_native test/test_ring_native.cpp ${GTEST_MAIN_SRC})
+  target_link_libraries(test_ring_native grasp_hexapod_ring_core)
+  target_compile_definitions(test_ring_native PRIVATE
+    RING_CONFIG_DIR="${CMAKE_CURRENT_SOURCE_DIR}/config"
+    RING_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/ring_fixtures"
+    RING_FIXTURE_JSON="${CMAKE_CURRENT_SOURCE_DIR}/test/ring_fixtures/expected.json")
+endif()

@@ -1,0 +1,8 @@
+[climb] DONE at t=103.4s, tracking_error=0.00704808rad, foot_target_error=0.0018189m, reason=none, holding final pose for 2s
+[climb] hold check: joint drift over 2s 0.1mrad, joint tracking error 7.1mrad
+[climb] preview gate hold_q_drift_lt_20mrad: value=0.0886321 threshold=20.0 PASS
+[climb] preview gate end_foot_target_error_le_0.015m: value=0.00181841 threshold=0.015 PASS
+[climb] preview gate end_root_position_error_le_0.05m: value=0.0204656 threshold=0.05 PASS
+[climb] preview gate global_max_root_position_error_le_0.20m: value=0.0206704 threshold=0.2 PASS
+[climb] preview gate global_min_joint_limit_margin_ge_0rad: value=0.0164804 threshold=0.0 PASS
+[climb] PREVIEW VERDICT: SUCCESS (simulation preview gates only; not contact, load, stability, or hardware proof)

@@ -1,0 +1,21 @@
+<launch>
+  <!--
+    完整对接TF链：
+      dock_lock_center -> dock_camera_optical_frame -> dock_tag_N
+                                                   -> dock_pin_from_tag_N
+    camera -> tag由apriltag_ros动态发布；其余为机械安装外参。
+    四个插销估计帧必须使用不同名字，避免一个TF子帧拥有多个父帧。
+  -->
+  <arg name="lock_frame" default="dock_lock_center"/>
+  <arg name="camera_frame" default="dock_camera_optical_frame"/>
+  <arg name="pin_frame_prefix" default="dock_pin_from_tag_"/>
+  <arg name="dock_system_config" default="$(find grasp_hexapod_control)/config/dock_system.yaml"/>
+
+  <node pkg="grasp_hexapod_control" type="dock_static_tf.py"
+        name="dock_static_tf" output="screen" required="true">
+    <param name="dock_system_config" value="$(arg dock_system_config)"/>
+    <param name="lock_frame" value="$(arg lock_frame)"/>
+    <param name="camera_frame" value="$(arg camera_frame)"/>
+    <param name="pin_frame_prefix" value="$(arg pin_frame_prefix)"/>
+  </node>
+</launch>

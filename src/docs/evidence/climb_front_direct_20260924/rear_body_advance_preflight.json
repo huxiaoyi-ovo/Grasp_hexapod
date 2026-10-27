@@ -1,0 +1,332 @@
+{
+  "method": "One seeded terminal IK and six exact visual-STL pair queries at the frozen pose; source feet unchanged.",
+  "source_candidate_sha256": "18a85c4a502f6df7bf482a5c07c58647523b36a8762607bc04beab53c485b9c7",
+  "pose": [
+    0.318,
+    -0.067694497636,
+    0.245,
+    0.0,
+    0.0,
+    -1.5707963267948966
+  ],
+  "anchors_world_m": [
+    [
+      0.225,
+      0.029290969374546658,
+      0.15701442195016274
+    ],
+    [
+      0.48,
+      0.029291533282554738,
+      0.19649999761581421
+    ],
+    [
+      0.235,
+      0.12627607590696494,
+      0.16031617914426252
+    ],
+    [
+      0.225,
+      -0.16467983526606975,
+      0.1583358226638817
+    ],
+    [
+      0.48,
+      -0.16467927135566987,
+      0.19649999761581421
+    ],
+    [
+      0.235,
+      -0.26166507117951365,
+      0.1603161700790826
+    ]
+  ],
+  "q_seed_rad": [
+    [
+      1.2919674151312226,
+      -0.10107175364326412,
+      1.6138603802468952
+    ],
+    [
+      0.10170764807000951,
+      -0.9528939678919058,
+      1.6654665427627748
+    ],
+    [
+      -0.4301844464280031,
+      -0.41914110334173565,
+      1.410424410026175
+    ],
+    [
+      -1.2919605970946955,
+      0.1194670840329234,
+      -1.6309621262674094
+    ],
+    [
+      -0.1017048498107572,
+      0.9528961628017356,
+      -1.665471486418166
+    ],
+    [
+      0.4301838361208222,
+      0.41914097389509486,
+      -1.4104243094206674
+    ]
+  ],
+  "q_rad": [
+    [
+      0.7053171862723323,
+      -0.11489369059310106,
+      1.6129718902112489
+    ],
+    [
+      -0.028804809689269142,
+      -1.0492387059749069,
+      1.9266203302522302
+    ],
+    [
+      -0.6509347922657257,
+      -0.4104103838173498,
+      1.282710522130759
+    ],
+    [
+      -0.7053094785268498,
+      0.13343864207057596,
+      -1.6300618775243267
+    ],
+    [
+      0.028807067089154478,
+      1.049240054800305,
+      -1.9266257181918856
+    ],
+    [
+      0.6509333417325408,
+      0.4104102613189688,
+      -1.282710426507315
+    ]
+  ],
+  "ik_max_residual_m": 1.110885412026233e-06,
+  "min_joint_margin_rad": 0.04706520773427425,
+  "same_leg_collision_free": [
+    true,
+    true,
+    true,
+    true,
+    true,
+    true
+  ],
+  "com_world_m": [
+    0.3181214270577357,
+    -0.06801037924253017,
+    0.28752001651307957
+  ],
+  "com_support_margin_m": 0.0931214270577357,
+  "rear_middle_capsule_gaps": [
+    {
+      "pair": "LB-LM",
+      "gap_m": 0.01707351744599763
+    },
+    {
+      "pair": "RB-RM",
+      "gap_m": 0.01650111489781894
+    }
+  ],
+  "gates": {
+    "ik_residual_le_0_015m": true,
+    "joint_margin_ge_0_03rad": true,
+    "same_leg_collision_free": true,
+    "com_margin_all6_ge_0_010m": true,
+    "all_six_exact_mesh_pairs_clear": true
+  },
+  "pass": true,
+  "queries": [
+    {
+      "label": "LB-LM_knee",
+      "pair_check": {
+        "pair": [
+          {
+            "leg": "lb",
+            "link": "knee"
+          },
+          {
+            "leg": "lm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "triangle_candidates_checked",
+        "filtered_triangle_counts": {
+          "left": 3451,
+          "right": 73
+        },
+        "triangle_test_count": 367,
+        "broad_phase_candidates": 1,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": true
+      }
+    },
+    {
+      "label": "RB-RM_knee",
+      "pair_check": {
+        "pair": [
+          {
+            "leg": "rb",
+            "link": "knee"
+          },
+          {
+            "leg": "rm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "triangle_candidates_checked",
+        "filtered_triangle_counts": {
+          "left": 3802,
+          "right": 80
+        },
+        "triangle_test_count": 331,
+        "broad_phase_candidates": 1,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": true
+      }
+    },
+    {
+      "label": "body-LM_knee",
+      "pair_check": {
+        "pair": [
+          {
+            "leg": null,
+            "link": "body"
+          },
+          {
+            "leg": "lm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "conservative_triangle_AABB_prefilter_excluded_all_pairs",
+        "filtered_triangle_counts": {
+          "left": 0,
+          "right": 0
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": true
+      }
+    },
+    {
+      "label": "body-LM_ankle",
+      "pair_check": {
+        "pair": [
+          {
+            "leg": null,
+            "link": "body"
+          },
+          {
+            "leg": "lm",
+            "link": "ankle"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 13
+        },
+        "pair_status": "conservative_triangle_AABB_prefilter_excluded_all_pairs",
+        "filtered_triangle_counts": {
+          "left": 0,
+          "right": 0
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": true
+      }
+    },
+    {
+      "label": "body-RM_knee",
+      "pair_check": {
+        "pair": [
+          {
+            "leg": null,
+            "link": "body"
+          },
+          {
+            "leg": "rm",
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "conservative_triangle_AABB_prefilter_excluded_all_pairs",
+        "filtered_triangle_counts": {
+          "left": 0,
+          "right": 0
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": true
+      }
+    },
+    {
+      "label": "body-RM_ankle",
+      "pair_check": {
+        "pair": [
+          {
+            "leg": null,
+            "link": "body"
+          },
+          {
+            "leg": "rm",
+            "link": "ankle"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 13
+        },
+        "pair_status": "conservative_triangle_AABB_prefilter_excluded_all_pairs",
+        "filtered_triangle_counts": {
+          "left": 0,
+          "right": 0
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": true
+      }
+    }
+  ],
+  "mesh_path": "src/grasp_hexapod_description/meshes/xiaolan/base_link_xiaolan.STL",
+  "mesh_hash": "e61d489ab5d2b9e0e02fc8b1671cbddcd2e7cc49ffd48d1d2fed7541b42580be"
+}

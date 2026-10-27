@@ -475,10 +475,7 @@ class DroppedPacketError(Exception):
 class UnsupportedFeatureError(Exception):
     def __init__(self, model_id, feature_id):
         Exception.__init__(self)
-        if model_id in HIWONDER_SERVO_PARAMS:
-            model = HIWONDER_SERVO_PARAMS[model_id]['name']
-        else:
-            model = 'Unknown'
+        model = 'Unknown'
         self.message = "Feature %d not supported by model %d (%s)" % (feature_id, model_id, model)
 
     def __str__(self):

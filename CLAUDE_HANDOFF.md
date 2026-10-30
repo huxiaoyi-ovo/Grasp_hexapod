@@ -108,3 +108,14 @@
   4. 单模式：先 `home`，再 spin_search / approach / climb / dock；中止用 `home` 抢占或手柄 B；
   5. 分段：`start_sequence:=true stop_after:=spin_search|approach|climb`，最后完整流程。
 - 状态：以上全部未在实机或 ROS 环境运行过；首个现场结果应追加到本文件。
+
+## 2026-10-30 W5：tag 对准 + 末段盲走到 P0
+
+- 背景：正面 P0 处前置相机贴近小蓝、无法成像 tag，无法在 P0 示教或伺服。用户确认采用"tag 对中推进 + 末段盲走"，并说明越近越好、碰到小蓝可接受。
+- execution_owner：Luna（中间档位、effort high：状态机、几何符号、腿里程与 IMU 耦合）；Sol 逐行审查三轮（首次实现 → 4 项修正 → 航向目标修正）。
+- 行为：Aligning（先对横向/yaw，2× 容差门内才前进）→ Advancing（tag 修正下前进）→ tag 不可靠（丢失 >0.3 s 或可选深度下限）时 Handover：最后一帧需在 1× 容差内；remaining = z_last − (tag_p0_z_m − 0.01) − 最后一帧后已走腿里程；>0.25 m 失败；≤0 直接停稳 → Blind：0.015 m/s 前进，腿里程（关节反馈 FK、前后两帧均支撑的足）计距，IMU 航向锁定到"最后一帧 IMU 航向 + tag yaw 误差"，指令积分仅监控（差 >3 cm 失败）→ 停稳 → ready_for_climb。tag 可见时比目标更近也算成功。伺服死区为 0.5× 容差。
+- 新/改参数：`tag_ref_z_m` → `tag_p0_z_m`；新增 overshoot、handover_loss、min_reliable_z、max_blind_distance、blind_speed、heading_gain、max_heading_error、odom_mismatch、blind_timeout、`tag_imu_yaw_sign`（±1，IMU 安装方向）。
+- 示教：P0 地面标记 → 沿朝向线直线后退到 tag 清晰处，量 D → `record_tag_reference.py _offset_from_p0_m:=D`，输出 `tag_ref_x_m`、`tag_ref_yaw_rad`、`tag_p0_z_m`（= 示教深度 − D）及标准差。D 误差 1:1 传到停车位置。
+- 控制包仅新增只读 `ApproachMode::stanceMask()`。
+- 验证：tag gtest 50/50（Sol 复跑）；平面闭环（0.5 m 起点、±5 cm、±8°、航向漂移 ≤0.02 rad/s）最终前后误差 <1 mm、横向 ≤7.5 mm、yaw ≤1.82°；金标与基线一致。理想化模型，不含真实步态跳变、打滑、相机延迟噪声。未运行 catkin/ROS/实机。
+- 实机待确认：`tag_imu_yaw_sign`（README 第 1 步手转检查）；步态在 0.015 m/s 低速与停/启时的实际响应；腿里程在真实打滑下的误差；tag 实际丢失距离（看 handover 日志的 z_last）。

@@ -22,10 +22,11 @@
 3. **CMakeLists 加一行**：把 `src/modes/mode_<name>.cpp` 加进
    `MODE_SOURCES` 列表。
 
-`spin_search` 是现成的占位例子：`mode_spin_search.cpp` 用
-`REGISTER_MODE_STUB` 注册，行为树调用会得到
-`executor not implemented: spin_search`（与旧版一致）；实现时把它换成
-`REGISTER_MODE` 并补齐逻辑即可。
+`spin_search` 是现成的例子：`mode_spin_search.cpp` 用 `REGISTER_MODE` 注册。
+默认行为是计时假动作：保持当前位姿，经过 `~spin_search_fake_duration_s`（默认 5.0 s）
+后报告成功。设置 `~visual_guidance_enabled:=true` 时，改为依据 `/xiaolan/target`
+观测旋转搜索（一期视觉），只报告粗粒度视觉锁定，不授权攀爬。`REGISTER_MODE_STUB`
+仍可用于占位模式（例如 `test/test_mode_framework.cpp`）。
 
 ## 接口契约（mode_base.h，冻结）
 
@@ -106,7 +107,7 @@ class MyMode : public ModeBase {
 - 节点用 yaml-cpp 直读，路径由 `~topics_config` 指定
   （launch 默认指向本包 `config/mode_topics.yaml`）。
 - `shared.joint_feedback/joint_command` 必须是 6 个话题、按腿索引
-  `lf,lm,lb,rf,rm,rb` 排序。
+  `lb,lf,lm,rb,rf,rm` 排序。
 - launch 文件不再逐个设置话题参数（旧 `~base_pose_topic` 等 8 个参数已删除；
   `dock_image_topic/dock_camera_info_topic` 为死参数一并清理）。
 

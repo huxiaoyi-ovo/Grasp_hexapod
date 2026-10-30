@@ -11,7 +11,7 @@
 # =============================================================================
 
 shared:
-  # 六腿关节反馈/目标话题，顺序必须是 leg 索引 0..5：lf, lm, lb, rf, rm, rb。
+  # 六腿关节反馈/目标话题，顺序必须是 leg 索引 0..5：lb, lf, lm, rb, rf, rm。
   joint_feedback: [/lb_pos, /lf_pos, /lm_pos, /rb_pos, /rf_pos, /rm_pos]
   joint_command: [/lb_des, /lf_des, /lm_des, /rb_des, /rf_des, /rm_des]
   imu: /grasp_hexapod/imu

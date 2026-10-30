@@ -229,7 +229,7 @@ void BtControlNode::createInterfaces(ros::NodeHandle& nh,
   if (joint_command.size() != kLegCount || joint_feedback.size() != kLegCount) {
     throw ConfigError(
         "mode_topics.yaml[shared.joint_feedback/joint_command] must list 6 "
-        "topics in lf,lm,lb,rf,rm,rb order");
+        "topics in lb,lf,lm,rb,rf,rm order");
   }
   for (int leg = 0; leg < kLegCount; ++leg) {
     des_publishers_.push_back(nh.advertise<std_msgs::Float64MultiArray>(

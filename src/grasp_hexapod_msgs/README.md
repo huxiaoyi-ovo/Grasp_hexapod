@@ -43,7 +43,7 @@
   `/grasp_hexapod/bt_state`）——由 `run_real_bt.py` / `bt_mock_world.py` 每 tick
   发布的行为树状态快照（前序节点 status/feedback/depth + 当前阶段 + 树状态 +
   任务结果），供 `bt_monitor.py`（终端）与 `bt_dashboard.py`（Web）订阅渲染。
-  字段含义见 msg 文件注释与 `src/docs/BT_INTERFACES.md` §6。
+  字段含义见 msg 文件注释与 `src/docs/BT_INTERFACE_GUIDE.md`。
 - 编码器状态：`EncoderState.msg`（话题 `/grasp_hexapod/encoder_state`）——
   `header / landed / angle / reason` 两态语义：**角度 ∈ [90,180] deg →
   landed=true**（范围可由编码器节点 `~landing_min/~landing_max` 调整）；编码器
@@ -53,7 +53,7 @@
 - 行为树手动单步注入：`SimInject.srv`（服务 `/grasp_hexapod/sim_inject`）——
   请求 `string action`（动作 id，注册表见 `grasp_hexapod_bt/scripts/sim_manual.py`
   的 `ACTIONS`）→ 响应 `bool success, string message`；`bt_dashboard.py` 面板
-  按钮转发，`sim_manual.py` 节点执行发布。详见 `src/docs/BT_INTERFACES.md`
+  按钮转发，`sim_manual.py` 节点执行发布。详见 `src/docs/BT_INTERFACE_GUIDE.md`
   注入面板一节。
 - 现有自建话题（`/grasp_hexapod/perception/*`、`/grasp_hexapod/navigation/*` 等）
   暂复用标准消息类型（`String`、`Float64`、`PoseStamped`、`PolygonStamped` 等）；

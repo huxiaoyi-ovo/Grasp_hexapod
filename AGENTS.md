@@ -23,7 +23,7 @@ roslaunch --nodes src/grasp_hexapod_description/launch/display.launch
 roslaunch --nodes src/grasp_hexapod_description/launch/gazebo.launch
 ```
 
-`catkin_make` builds the workspace; `roslaunch --nodes` checks launch syntax and package references when available. There is no dedicated test suite. Validate relevant changes with `catkin_make`, launch checks, and RViz/Gazebo. For URDF edits, also run:
+`catkin_make` builds the workspace; `roslaunch --nodes` checks launch syntax and package references when available. Package tests exist: gtests for grasp_hexapod_control (C++/Python golden replay, ring), grasp_hexapod_bt_control (routing, mode framework, visual and tag guidance) and grasp_hexapod_servo, plus pytest/e2e scripts under each package's test/ directory. Validate relevant changes with `catkin_make`, launch checks, and RViz/Gazebo. For URDF edits, also run:
 
 ```bash
 check_urdf src/grasp_hexapod_description/urdf/grasp_hexapod.urdf
@@ -69,7 +69,7 @@ Use `test` as the integration branch. Create feature branches from and target PR
 | C26 | `LB_LF_DOCK_TRANSFER` | Transfer LB/LF and dock the body to the final pose. |
 | C27 | `STAND_FINAL_HOLD` | Hold the final stand. |
 
-Active SHA `5f8edbc7ba46e5776e800cdfb7b786234ea50e844cf617aaf20e6bbd5489fcce`; the 27-stage plan retains the eight critical left-transfer stages and merges five bounded swing/body blocks with nonzero internal Hermite reference velocity. C2 uses the approved 20 mm lower third RM base knot and 1.70 s crossing; C20--C22 retain the no-dip LM level-and-lift contract. Nominal and `.75` friction/`.10 s` RM-delay GPU previews pass all five gates. Simulation diagnostics only.
+Active SHA `5f8edbc7ba46e5776e800cdfb7b786234ea50e844cf617aaf20e6bbd5489fcce`; the 27-stage plan retains the eight critical left-transfer stages and merges five bounded swing/body blocks with nonzero internal Hermite reference velocity. C2 uses the approved 20 mm lower third RM base knot and 1.70 s crossing; C20--C22 retain the no-dip LM level-and-lift contract. Nominal and `.75` friction/`.10 s` RM-delay GPU previews pass all five gates. Simulation diagnostics only. The shipped `climb_compact.json` bytes hash to `dc4eff1308e99369e815dc754037fc3fd11e0657297adb3fb6dc738ed600c711` because they add the historical top-level `front_v1_receipt` key; its stages are identical to `5f8edbc`, and the key is not read at runtime.
 
 ## Climbing Change and Preview Protocol
 

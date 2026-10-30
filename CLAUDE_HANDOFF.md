@@ -79,3 +79,12 @@
   5. 正面攀爬终态机身中心距对接点约 13 cm（小蓝系 x≈−0.132 m），超出 dock 约 20 mm 搜索；用户要求暂不处理。
   6. 正面攀爬与 dock 实机未认证，需吊架/保护与急停。
 - 下一步（用户机器）：`catkin_make` 与 `run_tests_grasp_hexapod_bt_control`、`run_tests_grasp_hexapod_control`；贴 tag 并示教；`stop_after:=approach` 分段实机测试。
+
+## 2026-10-30 低风险清理（W4）
+
+- 基线：`test`，起始 `59edf36`。
+- execution_owner：Luna（最轻档位、effort medium；>3 文件的机械删改），Sol 审查并补两处文档。
+- 删除：`scripts/dock_mode_tag.cpp`（无引用、内容为 Python）；`test/reference/dock_mode_python.py`（与 `scripts/dock_mode.py` 逐字节相同，`generate_ring_fixtures.py` 改为直接 `import dock_mode`）。
+- 修改：`launch_real_cpp.sh` 改为启动 `run_real_cpp.launch`；README/文档中 C1–C35→C1–C27、删除不存在的开机自启小节、`BT_INTERFACES.md`→`BT_INTERFACE_GUIDE.md`、servo C++ 链接与目录说明；`mode_topics.yaml`、两份 `MODE_DEV_GUIDE.md`、`bt_control_node.cpp` 报错字符串的腿序改为 `lb,lf,lm,rb,rf,rm`（仅字符串）；`MODE_DEV_GUIDE` 的 spin_search 描述更新；`AGENTS.md` 测试套件描述与 compact 字节 SHA 说明。
+- 验证：`py_compile`、`bash -n`；在临时副本中重生成圆环 fixtures，PNG 逐字节一致，`expected.json` 仅浮点差 ≤1.8e-11（未覆盖提交文件）；两份 MODE_DEV_GUIDE `cmp` 一致。未运行 catkin/ROS。
+- 剩余（未改，非本批范围）：`grasp_hexapod_bt` 脚本与 `hexapod_mission.xml`、`BT_INTERFACE_GUIDE.md`、`run_sim_ros_climb.launch`、`climb_retime.py` 仍有 `BT_INTERFACES.md` / C1–C35 字样；`CLIMB_ENGINEERING_RULES.md` 中为历史记录，保留。

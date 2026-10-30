@@ -6,8 +6,7 @@
 
 - `src/grasp_hexapod_control/`：步态、运动学、安全控制和仿真/实机入口。
 - `src/grasp_hexapod_description/`：URDF、网格、RViz 和 Gazebo 配置。
-- `src/grasp_hexapod_servo/`：LX-15D 两板驱动和串口协议。
-- `src/grasp_hexapod_servo_cpp/`：LX-15D 两板驱动的 C++ 版，接口与前者一致，资源占用更低。
+- `src/grasp_hexapod_servo/`：LX-15D 两板驱动和串口协议（Python `servo.py` 与 C++ `servo_node` 两个后端，接口一致；`/grasp_hexapod/gripper_act` 仅由 C++ 后端提供）。
 - `src/grasp_hexapod_msgs/`：自建消息和服务定义（msg/srv），供各包统一引用。
 - `src/reference/`：参考代码，不参与运行。
 
@@ -136,23 +135,6 @@ sudo bash 串口配置/serial_rename.sh /dev/video8 cam_dock   # 按当前实际
 入口换成 `run_real_cpp.launch`，参数相同；也可给 `run_real.launch` 加
 `servo_backend:=cpp`。
 
-### 开机自启
-
-实机栈可用 systemd 配置为开机自启（在实机上执行）：
-
-```bash
-sudo bash scripts/configure_autostart.sh              # 安装并设置自启（不立即启动）
-sudo bash scripts/configure_autostart.sh start        # 立即启动
-sudo bash scripts/configure_autostart.sh status       # 查看状态
-journalctl -u grasp-hexapod -f                        # 跟踪日志
-sudo bash scripts/configure_autostart.sh uninstall    # 取消自启并删除服务
-```
-
-服务细节：串口（`/dev/ttyTHS0`、`/dev/ttyACM0`）未就绪时等待最多 30s，超时由
-systemd 每 10s 自动重试；进程退出同样自动拉起。启动即运行完整实机栈，夹爪在
-启动自检中会自动打开（若在线）。串口名、运行用户、ROS 目录等可用环境变量覆盖
-后重新 `install`（见脚本头部说明）。
-
 首次架空测试可显式降低速度：
 
 ```bash
@@ -192,7 +174,7 @@ B -> 等待回到标准站姿 -> A -> 接受运动指令
 ## 攀爬预览
 
 Isaac Gym 仍是攀爬动作和物理行为的预览权威。`run_real.launch`也提供默认启用的
-C1--C35 实机诊断回放入口：完成 B 回站后按 X 启动，A 暂停或恢复，B 可随时中止。
+C1--C27 实机诊断回放入口：完成 B 回站后按 X 启动，A 暂停或恢复，B 可随时中止。
 它只按 18 个关节位置反馈的实际关节跟踪与 FK 足端目标误差连续稳定门限推进；这些
 关节反馈门限不证明接触、承载或稳定性，也不构成实机攀爬安全授权。
 
@@ -202,7 +184,7 @@ conda run --no-capture-output -n grasp_hexapod python3 \
   --climb-start --climb-speed 1 --climb-joint-speed 1.2
 ```
 
-可只回放一个闭区间：`C1` 至 `C35` 是 compact 数组顺序的固定用户别名，也可
+可只回放一个闭区间：`C1` 至 `C27` 是 compact 数组顺序的固定用户别名，也可
 使用运行时阶段名。中途入口会把 Isaac root、18 个关节和足端锚点同步到该阶段
 的规划起点；它仍只是仿真预览。
 
@@ -227,7 +209,7 @@ conda run --no-capture-output -n grasp_hexapod python3 \
 - [启动命令与参数](src/grasp_hexapod_control/launch/README.md)
 - [自建消息与服务定义](src/grasp_hexapod_msgs/README.md)
 - [舵机协议、ID 和方向](src/grasp_hexapod_servo/README.md)
-- [C++ 版舵机驱动](src/grasp_hexapod_servo_cpp/README.md)
+- [C++ 版舵机驱动](src/grasp_hexapod_servo/README_servo_cpp.md)
 - [参考：编码器帧解析与角度发布](src/reference/encoder_driver/README.md)
 
 ## Repository Activity

@@ -86,6 +86,9 @@ add_dependencies(bt_control_node ${catkin_EXPORTED_TARGETS})
 add_executable(phase1_visual_sequence node/phase1_visual_sequence.cpp)
 target_link_libraries(phase1_visual_sequence ${catkin_LIBRARIES})
 add_dependencies(phase1_visual_sequence ${catkin_EXPORTED_TARGETS})
+add_executable(full_mission_sequence node/full_mission_sequence.cpp)
+target_link_libraries(full_mission_sequence ${catkin_LIBRARIES})
+add_dependencies(full_mission_sequence ${catkin_EXPORTED_TARGETS})
 
 # ---------------------------------------------------------------------------
 # remote_control_node：手柄 → 服务调用 + /cmd_vel（原 /joy 直连链路的替代）。
@@ -124,7 +127,7 @@ if(CATKIN_ENABLE_TESTING)
   target_link_libraries(test_mode_framework ${catkin_LIBRARIES} ${YAML_CPP_LIBRARIES})
 endif()
 
-install(TARGETS bt_control_node remote_control_node phase1_visual_sequence
+install(TARGETS bt_control_node remote_control_node phase1_visual_sequence full_mission_sequence
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 

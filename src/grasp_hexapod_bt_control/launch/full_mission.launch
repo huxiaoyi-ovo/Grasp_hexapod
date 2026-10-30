@@ -1,0 +1,108 @@
+<launch>
+  <!--
+    !!! FULL MISSION (FRONT CLIMB + DOCK) — NOT CERTIFIED FOR HARDWARE !!!
+    Front climbing and docking on hardware are not certified. Run only with
+    harness/support and the e-stop within reach, under explicit operator
+    authorization.
+    Timing note: climb_front_direct timing was previewed at 6 rad/s in
+    simulation, while hardware is capped at 4 rad/s. Simulation evidence does
+    not authorize hardware motion.
+    Route: climb_config_file selects climb_front_direct.json and
+    allow_front_hardware=true is the explicit hardware opt-in read by
+    ClimbMode; without it a front config is rejected for hardware.
+    Default: start_sequence=false. Nothing is sequenced unless requested.
+  -->
+
+  <!-- Same camera/perception args as phase1_visual.launch. -->
+  <arg name="config" default="$(find grasp_hexapod_bt_control)/config/phase1_visual.yaml"/>
+  <arg name="start_camera" default="false"/>
+  <arg name="start_perception" default="false"/>
+  <arg name="backend" default="tensorrt"/>
+  <arg name="yolo_python" default="$(find xiaolan_yolo_detection)/../../.venv/jetson-gpu/bin/python3"/>
+  <arg name="model_path" default="$(find xiaolan_yolo_detection)/models/best.onnx"/>
+  <arg name="engine_path" default="$(find xiaolan_yolo_detection)/models/best.engine"/>
+  <arg name="left_port" default="/dev/ttyTHS0"/>
+  <arg name="right_port" default="/dev/ttyACM0"/>
+  <arg name="baudrate" default="115200"/>
+  <arg name="servo_diagnostics" default="true"/>
+  <arg name="camera_fps" default="15"/>
+  <arg name="perception_config" default="$(find xiaolan_yolo_detection)/config/xiaolan_yolo.yaml"/>
+
+  <!-- Full-mission additions. -->
+  <arg name="start_tag_detector" default="true"/>
+  <!-- Must equal tag_guidance_id in phase1_visual.yaml (the controller reads it
+       from that YAML, which is loaded on the controller node). -->
+  <arg name="tag_id" default="0"/>
+  <arg name="tag_size_m" default="0.060"/>
+  <arg name="climb_foot_gate_m" default="0.04"/>
+  <arg name="start_dock_perception" default="true"/>
+  <arg name="start_sequence" default="false"/>
+  <arg name="stop_after" default=""/>
+  <arg name="home_before_dock" default="false"/>
+
+  <!-- Controller stack: control_only.launch directly (not phase1_visual.launch,
+       which hard-codes enable_real_climb/enable_real_dock=false). -->
+  <include file="$(find grasp_hexapod_bt_control)/launch/control_only.launch">
+    <arg name="visual_guidance_enabled" value="true"/>
+    <arg name="visual_guidance_config" value="$(arg config)"/>
+    <arg name="enable_real_climb" value="true"/>
+    <arg name="climb_foot_gate_m" value="$(arg climb_foot_gate_m)"/>
+    <arg name="enable_real_dock" value="true"/>
+    <arg name="start_dock_perception" value="$(arg start_dock_perception)"/>
+    <arg name="left_port" value="$(arg left_port)"/>
+    <arg name="right_port" value="$(arg right_port)"/>
+    <arg name="baudrate" value="$(arg baudrate)"/>
+    <arg name="servo_diagnostics" value="$(arg servo_diagnostics)"/>
+    <arg name="controller_rate_hz" value="30.0"/>
+    <arg name="servo_rate_hz" value="30.0"/>
+  </include>
+
+  <!-- Controller params not exposed as control_only args. tag_guidance_enabled
+       and tag_guidance_id come from phase1_visual.yaml. -->
+  <param name="/grasp_hexapod_bt_control/climb_config_file" value="climb_front_direct.json"/>
+  <param name="/grasp_hexapod_bt_control/allow_front_hardware" value="true"/>
+
+  <include if="$(arg start_camera)" file="$(find xiaolan_yolo_detection)/launch/xiaolan_orbbec_camera.launch">
+    <arg name="camera_fps" value="$(arg camera_fps)"/>
+  </include>
+  <include if="$(arg start_perception)" file="$(find xiaolan_yolo_detection)/launch/xiaolan_yolo.launch">
+    <arg name="backend" value="$(arg backend)"/>
+    <arg name="yolo_python" value="$(arg yolo_python)"/>
+    <arg name="model_path" value="$(arg model_path)"/>
+    <arg name="engine_path" value="$(arg engine_path)"/>
+    <arg name="config" value="$(arg perception_config)"/>
+  </include>
+
+  <!-- AprilTag detector for tag guidance. phase1_visual.launch does not provide
+       /camera/color/image_rect_color, so rectify it here (same pattern as
+       xiaolan_tag_system.launch). Publishes to /xiaolan/tag_detections, the
+       approach.tag_detections topic in config/mode_topics.yaml. -->
+  <group if="$(arg start_tag_detector)">
+    <group ns="/camera/color">
+      <node pkg="nodelet" type="nodelet" name="tag_image_proc_manager"
+            args="manager" output="screen"/>
+      <include file="$(find image_proc)/launch/image_proc.launch">
+        <arg name="manager" value="/camera/color/tag_image_proc_manager"/>
+      </include>
+    </group>
+    <node pkg="apriltag_ros" type="apriltag_ros_continuous_node"
+          name="xiaolan_apriltag_detector" clear_params="true" output="screen">
+      <param name="tag_family" value="tag36h11"/>
+      <param name="publish_tf" value="false"/>
+      <rosparam param="standalone_tags">
+        - {id: $(arg tag_id), size: $(arg tag_size_m), name: xiaolan_tag}
+      </rosparam>
+      <rosparam param="tag_bundles">[]</rosparam>
+      <remap from="image_rect" to="/camera/color/image_rect_color"/>
+      <remap from="camera_info" to="/camera/color/camera_info"/>
+      <remap from="tag_detections" to="/xiaolan/tag_detections"/>
+    </node>
+  </group>
+
+  <!-- Sequencer: only when explicitly requested. -->
+  <node if="$(arg start_sequence)" pkg="grasp_hexapod_bt_control" type="full_mission_sequence"
+        name="full_mission_sequence" output="screen">
+    <param name="stop_after" value="$(arg stop_after)"/>
+    <param name="home_before_dock" value="$(arg home_before_dock)"/>
+  </node>
+</launch>

@@ -127,6 +127,47 @@ Final synthetic receipts are `/tmp/grasp_phase1_startup_e2e_20261030T010110`,
 `/tmp/grasp_phase1_perception_e2e_20261030T010148`; they are not physical
 camera, servo, collision, contact, load, or hardware validation.
 
+### Full mission (front climb)
+
+`launch/full_mission.launch` starts the phase-1 stack with climb and dock
+enabled, plus the standalone AprilTag detector (`tag_id`, default 0; output
+`/xiaolan/tag_detections`). It is **not certified for hardware**: front
+climbing and docking are not certified. Run only with harness/support and the
+e-stop within reach. `climb_front_direct` timing was previewed at 6 rad/s in
+simulation, while hardware is capped at 4 rad/s.
+
+```bash
+roslaunch grasp_hexapod_bt_control full_mission.launch
+# Sequence only when requested (default start_sequence:=false):
+roslaunch grasp_hexapod_bt_control full_mission.launch start_sequence:=true
+```
+
+Staged usage with `stop_after` (empty by default; stops successfully after the
+named mode completes):
+
+```bash
+roslaunch grasp_hexapod_bt_control full_mission.launch start_sequence:=true stop_after:=approach
+roslaunch grasp_hexapod_bt_control full_mission.launch start_sequence:=true stop_after:=climb
+```
+
+The sequence is `home -> spin_search -> approach -> climb -> dock`, with an
+extra `home` before `dock` when `home_before_dock:=true`. Preflight requires
+`visual_guidance_enabled` and `tag_guidance_enabled`, plus `enable_real_climb`
+when climb is in the planned sequence and `enable_real_dock` when dock is in
+it. A failed mode stops the sequence with the robot in HOLD for operator
+takeover; nothing is retried.
+
+Teach-in reminder: `tag_ref_*` in `config/phase1_visual.yaml` are placeholders.
+Teach them with `scripts/record_tag_reference.py` before `approach` can
+succeed.
+
+The launch sets `climb_config_file:=climb_front_direct.json`,
+`allow_front_hardware:=true` (explicit hardware opt-in for the front route; the
+shared 4 rad/s joint step cap applies) and `climb_foot_gate_m:=0.04`. The tag
+id is `tag_guidance_id` in `config/phase1_visual.yaml`; the detector `tag_id`
+arg must match it. Camera and YOLO stay off unless `start_camera:=true
+start_perception:=true` are passed, as in `phase1_visual.launch`.
+
 ### AprilTag handoff inside visual `approach`
 
 With `tag_guidance_enabled: true` (set in `config/phase1_visual.yaml`; code

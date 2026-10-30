@@ -159,6 +159,159 @@ rostopic echo /lf_pos
 rostopic echo /lf_des
 ```
 
+## 实机全流程（正面攀爬）调试
+
+入口是 `full_mission.launch`，流程为：
+
+```text
+home → spin_search → approach（YOLO 粗接近 → AprilTag 精对准） → climb（正面） → dock（圆环对准 + 夹爪锁紧）
+```
+
+任何一步失败，机器人停在 HOLD 等待人工接管，不会自动重试，也不会继续下一步。正面攀爬和对接**未经实机认证**：每次都要有吊架或保护绳，急停随手可及。
+
+### launch 默认行为
+
+| 参数 | 默认 | 作用 |
+|---|---|---|
+| `start_camera` | `true` | 启动顶部 Orbbec 相机 |
+| `start_perception` | `true` | 启动 YOLO 检测与深度定位 |
+| `start_tag_detector` | `true` | 启动 AprilTag 检测，输出 `/xiaolan/tag_detections` |
+| `start_dock_perception` | `true` | 启动底部对接相机 |
+| `show_windows` | `true` | 在上位机桌面弹出 3 个画面窗口 |
+| `start_sequence` | `false` | 是否自动执行整条流程；默认只启动、不动作 |
+| `stop_after` | 空 | 执行到某个模式后停止，用于分段调试 |
+| `home_before_dock` | `false` | 攀爬后、对接前是否先回站姿 |
+| `tag_id` / `tag_size_m` | `0` / `0.060` | 检测器的 tag；id 必须与 `phase1_visual.yaml` 的 `tag_guidance_id` 一致 |
+| `climb_foot_gate_m` | `0.04` | 攀爬阶段推进的足端误差门限 |
+
+弹出的窗口：
+
+| 窗口 | 内容 |
+|---|---|
+| Xiaolan YOLO RGB | 前置相机画面、YOLO 框、小蓝中心、`X_target`（横向偏移）/`Z_target`（深度），单位 m |
+| AprilTag (approach alignment) | 矫正后的前置画面、tag 轮廓与 id |
+| Dock camera (bottom) | 底部相机原图（圆环识别暂无标注） |
+
+终端输出：串联节点打印每个模式的开始和结果；粗接近阶段每 2 s 打印状态、小蓝 x/z、方位角、前进与转向指令、帧率；精对准阶段每 2 s 打印 `tag_x/tag_z/tag_yaw_deg`、误差 `ex/ez/eyaw_deg` 和右移/前进/转向指令。
+
+窗口需要在上位机自己的桌面终端里启动。经 ssh 远程启动时加 `show_windows:=false`，在有屏幕的电脑上用 `rqt_image_view` 查看 `/xiaolan_visualizer/image`、`/xiaolan/tag_detections_image`、`/dock_camera/image_raw`。
+
+### 调试步骤
+
+**第 0 步：编译与依赖（每次更新代码后）**
+
+```bash
+sudo apt install ros-noetic-apriltag-ros ros-noetic-image-proc ros-noetic-image-view ros-noetic-usb-cam
+```
+
+```bash
+cd ~/Grasp_hexapod && catkin_make && source devel/setup.bash
+```
+
+```bash
+catkin_make run_tests_grasp_hexapod_bt_control run_tests_grasp_hexapod_control
+```
+
+**第 1 步：只启动、不动作，检查感知和反馈**
+
+机器人架空。启动后确认 3 个窗口出现、画面正常：
+
+```bash
+roslaunch grasp_hexapod_bt_control full_mission.launch
+```
+
+另开终端检查数据频率和模式状态：
+
+```bash
+rostopic hz /xiaolan/target /xiaolan/tag_detections /dock_camera/image_raw /lb_pos
+```
+
+```bash
+rostopic echo /grasp_hexapod/mode_status
+```
+
+**第 2 步：贴 tag 并示教（只需做一次，tag 或相机挪动后重做）**
+
+1. 用 tag36h11、id 0、边长 60 mm 打印 tag，贴在小蓝正对机器人一侧的竖直面上，横向居中于机器人接近中线；不要贴在 0.14–0.17 m 的前足落脚斜面上。
+2. 把机器人人工摆到正面攀爬起点：机器人中心在小蓝坐标系 (−0.55, −0.038) m，正对小蓝 −x 侧面。
+3. 保持第 1 步的 launch 运行，另开终端记录参考位姿（取 30 帧平均）：
+
+```bash
+rosrun grasp_hexapod_bt_control record_tag_reference.py _tag_id:=0 _samples:=30
+```
+
+4. 把输出的 `tag_ref_x_m`、`tag_ref_z_m`、`tag_ref_yaw_rad` 三行填进 `src/grasp_hexapod_bt_control/config/phase1_visual.yaml`，重启 launch 生效。
+5. 示教时顺带确认：tag 窗口里能稳定框出 tag；把机器人往后移约 1 m，tag 仍能被识别（这样才能在 0.20 m 停止距离之前完成接管）。
+
+**第 3 步：单模式手动调试（逐个验证）**
+
+保持 launch 运行（`start_sequence` 为默认 false），另开终端逐个调用。服务是阻塞的，模式结束才返回 `success` 和 `message`。第一个必须是 `home`，否则其他模式会被拒绝。
+
+```bash
+rosservice call /grasp_hexapod/switch_mode "target_mode: 'home'"
+```
+
+```bash
+rosservice call /grasp_hexapod/switch_mode "target_mode: 'spin_search'"
+```
+
+```bash
+rosservice call /grasp_hexapod/switch_mode "target_mode: 'approach'"
+```
+
+```bash
+rosservice call /grasp_hexapod/switch_mode "target_mode: 'climb'"
+```
+
+```bash
+rosservice call /grasp_hexapod/switch_mode "target_mode: 'dock'"
+```
+
+中途要停下：另开终端调用 `home`，会抢占当前模式并平滑回站姿；手柄 B 键同样调用 `home`。紧急情况直接断电或拍急停。
+
+**第 4 步：用串联节点分段跑**
+
+每段稳定后再加下一段：
+
+```bash
+roslaunch grasp_hexapod_bt_control full_mission.launch start_sequence:=true stop_after:=spin_search
+```
+
+```bash
+roslaunch grasp_hexapod_bt_control full_mission.launch start_sequence:=true stop_after:=approach
+```
+
+```bash
+roslaunch grasp_hexapod_bt_control full_mission.launch start_sequence:=true stop_after:=climb
+```
+
+```bash
+roslaunch grasp_hexapod_bt_control full_mission.launch start_sequence:=true
+```
+
+串联节点的退出码：0 完成；1 某个模式失败（日志写明哪个模式和原因）；2 找不到 `switch_mode` 服务；3 控制节点参数不满足（日志写明缺哪个）；4 `stop_after` 写错。
+
+### 常见失败信息
+
+| 终端信息 | 含义与处理 |
+|---|---|
+| `call home first` | 上电后还没执行 `home`，先调用 `home` |
+| `visual search timeout` | 自转 60 s 没找到小蓝：检查 YOLO 窗口是否有框、相机朝向 |
+| `perception startup unavailable` / `perception stale/unusable` | 相机或 YOLO 没起来或掉帧：看 `rostopic hz /xiaolan/target` |
+| `visual target lost or approach timeout` | 粗接近途中丢目标或超时 |
+| `coarse stop reached without tag handoff` | 走到 0.20 m 仍没稳定识别 tag：检查 tag 窗口、tag id、光照、tag 尺寸 |
+| `tag lost` | 精对准中 tag 丢失超过 1 s |
+| `tag alignment timeout` | 精对准 60 s 未进容差：检查示教值、相机是否朝机身正前方 |
+| `climb rejected: ...` | 攀爬入口被拒：确认已 HOLD、`enable_real_climb`、`allow_front_hardware` 为 true |
+| `dock rejected: ...` | 对接入口被拒：确认已 HOLD、`dock_system.yaml` 已标定 |
+
+### 已知限制
+
+- 正面攀爬在仿真里按 6 rad/s 排时，实机限 4 rad/s，推进会变慢，尚未在 Isaac 按实机速度复验。
+- 正面攀爬结束时机身离对接点约 13 cm，超出对接原地搜索范围，暂未处理。
+- C++ 行走步态与 Python 在金标第 75 帧差 0.085 rad（既有问题，未查）。
+- 以上代码只在无 ROS 环境做过单元测试和金标对比，`catkin_make` 和实机首次运行需要现场确认。
+
 ## 安全操作
 
 机器人必须架起后，先确认串口、舵机 ID、安装方向和机械零位，再进行行走测试。

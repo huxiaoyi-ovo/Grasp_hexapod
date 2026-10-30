@@ -129,6 +129,8 @@ camera, servo, collision, contact, load, or hardware validation.
 
 ### Full mission (front climb)
 
+Step-by-step bring-up, teach-in and debugging commands (Chinese) are in the root `README.md`, section "实机全流程（正面攀爬）调试".
+
 `launch/full_mission.launch` starts the phase-1 stack with climb and dock
 enabled, plus the standalone AprilTag detector (`tag_id`, default 0; output
 `/xiaolan/tag_detections`). It is **not certified for hardware**: front

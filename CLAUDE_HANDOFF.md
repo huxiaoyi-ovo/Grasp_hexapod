@@ -95,3 +95,16 @@
 - `full_mission.launch` 新增 `show_windows`（默认 true）：YOLO 标注窗口（框、中心、X/Z）、AprilTag 标注图 `/xiaolan/tag_detections_image` + 窗口、底部 dock 相机原图窗口；`mode_approach` tag 日志增加 tag_x/tag_z/tag_yaw；`package.xml` 加 `image_view`；README 说明。
 - 验证：xmllint、tag_guidance gtest 17/17。未运行 catkin/roslaunch/实机显示。
 - 未做：圆环对接感知无标注图（需改 ring_perception C++）；攀爬阶段无专门画面。
+
+## 2026-10-30 全流程默认行为与调试手册
+
+- execution_owner：Sol（文档 + 一处 launch 默认值）。
+- `full_mission.launch` 默认值（`75f53f5` 起）：`start_camera`、`start_perception`、`start_tag_detector`、`start_dock_perception`、`show_windows` 均为 true；`start_sequence` 保持 false（用户可先看画面再开跑）；`stop_after` 空；`home_before_dock` false；`tag_id` 0 / `tag_size_m` 0.060；`climb_foot_gate_m` 0.04。
+- 根 `README.md` 新增“实机全流程（正面攀爬）调试”：launch 默认表、窗口与终端输出说明、步骤 0–4（依赖与编译测试 → 只启动检查感知 → 贴 tag 与示教 → `rosservice call /grasp_hexapod/switch_mode` 单模式调试 → `stop_after` 分段串联）、串联节点退出码、常见失败信息对照、已知限制；`grasp_hexapod_bt_control/README.md` 指向该节。
+- 调试顺序（Codex 接手时照此执行）：
+  1. `catkin_make` + `run_tests_grasp_hexapod_bt_control run_tests_grasp_hexapod_control`；
+  2. `roslaunch grasp_hexapod_bt_control full_mission.launch`（架空，看 3 个窗口与 `rostopic hz`）；
+  3. 正面 P0（小蓝系 (−0.55, −0.038) m）示教：`rosrun grasp_hexapod_bt_control record_tag_reference.py _tag_id:=0 _samples:=30`，结果填 `phase1_visual.yaml`；
+  4. 单模式：先 `home`，再 spin_search / approach / climb / dock；中止用 `home` 抢占或手柄 B；
+  5. 分段：`start_sequence:=true stop_after:=spin_search|approach|climb`，最后完整流程。
+- 状态：以上全部未在实机或 ROS 环境运行过；首个现场结果应追加到本文件。

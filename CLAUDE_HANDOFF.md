@@ -46,4 +46,5 @@
 ### 下一步
 
 - 等待用户给出本轮目标。
+- 2026-10-30 追加：用户确认 Claude Code 主会话按 Sol 职能负责统筹、规划与审查；Luna 默认最轻档位，能力不足时升到中间档位，已写入 `CLAUDE.md`。
 - 待 Sol 决策：是否在 `AGENTS.md` 的 Active Worker Routing 中登记 Claude Code（Sol）/ Luna 路由并指向本文件（当前 `AGENTS.md` 仍写 Claude Code 非活跃路由）。

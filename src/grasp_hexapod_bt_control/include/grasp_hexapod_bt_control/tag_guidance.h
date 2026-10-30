@@ -79,6 +79,8 @@ class TagGuidance {
   int tagId() const { return config_.tag_id; }
   // Last servo errors [ex, ez, eyaw] (valid while Guiding).
   Eigen::Vector3d lastError() const { return error_; }
+  // Latest accepted tag measurement in the camera optical frame: x [m], z [m], yaw [rad].
+  Eigen::Vector3d lastMeasurement() const { return Eigen::Vector3d(accepted_.x, accepted_.z, accepted_yaw_); }
 
  private:
   struct Cached {

@@ -37,6 +37,9 @@
   <arg name="climb_foot_gate_m" default="0.04"/>
   <arg name="start_dock_perception" default="true"/>
   <arg name="start_sequence" default="false"/>
+  <!-- Desktop viewing on the robot computer (needs a local display / DISPLAY):
+       YOLO overlay window, AprilTag overlay window and bottom dock camera window. -->
+  <arg name="show_windows" default="true"/>
   <arg name="stop_after" default=""/>
   <arg name="home_before_dock" default="false"/>
 
@@ -71,6 +74,7 @@
     <arg name="model_path" value="$(arg model_path)"/>
     <arg name="engine_path" value="$(arg engine_path)"/>
     <arg name="config" value="$(arg perception_config)"/>
+    <arg name="show_window" value="$(arg show_windows)"/>
   </include>
 
   <!-- AprilTag detector for tag guidance. phase1_visual.launch does not provide
@@ -89,6 +93,7 @@
           name="xiaolan_apriltag_detector" clear_params="true" output="screen">
       <param name="tag_family" value="tag36h11"/>
       <param name="publish_tf" value="false"/>
+      <param name="publish_tag_detections_image" type="bool" value="true"/>
       <rosparam param="standalone_tags">
         - {id: $(arg tag_id), size: $(arg tag_size_m), name: xiaolan_tag}
       </rosparam>
@@ -96,8 +101,23 @@
       <remap from="image_rect" to="/camera/color/image_rect_color"/>
       <remap from="camera_info" to="/camera/color/camera_info"/>
       <remap from="tag_detections" to="/xiaolan/tag_detections"/>
+      <remap from="tag_detections_image" to="/xiaolan/tag_detections_image"/>
+    </node>
+    <node if="$(arg show_windows)" pkg="image_view" type="image_view"
+          name="tag_view" output="screen">
+      <remap from="image" to="/xiaolan/tag_detections_image"/>
+      <param name="window_name" value="AprilTag (approach alignment)"/>
+      <param name="autosize" value="true"/>
     </node>
   </group>
+
+  <!-- Bottom dock camera (raw image; the ring detector publishes no overlay yet). -->
+  <node if="$(eval arg('show_windows') and arg('start_dock_perception'))"
+        pkg="image_view" type="image_view" name="dock_view" output="screen">
+    <remap from="image" to="/dock_camera/image_raw"/>
+    <param name="window_name" value="Dock camera (bottom)"/>
+    <param name="autosize" value="true"/>
+  </node>
 
   <!-- Sequencer: only when explicitly requested. -->
   <node if="$(arg start_sequence)" pkg="grasp_hexapod_bt_control" type="full_mission_sequence"

@@ -167,10 +167,12 @@ std::optional<JointAngles> ApproachMode::step(const ModeStepInput& input) {
                    tag_.tagId());
         }
         const Eigen::Vector3d error = tag_.lastError();
+        const Eigen::Vector3d tag = tag_.lastMeasurement();
         ROS_INFO_THROTTLE(2.0,
-                          "tag mode=%s state=%d ex=%.3f ez=%.3f eyaw=%.3f cmd_right=%.3f cmd_forward=%.3f cmd_yaw=%.3f gait_stopped=%d",
-                          name().c_str(), static_cast<int>(tag_.state()), error[0],
-                          error[1], error[2], tag_command[0], tag_command[1],
+                          "tag mode=%s state=%d tag_x=%.3f tag_z=%.3f tag_yaw_deg=%.1f ex=%.3f ez=%.3f eyaw_deg=%.1f cmd_right=%.3f cmd_forward=%.3f cmd_yaw=%.3f gait_stopped=%d",
+                          name().c_str(), static_cast<int>(tag_.state()), tag[0], tag[1],
+                          tag[2] * 180.0 / M_PI, error[0], error[1],
+                          error[2] * 180.0 / M_PI, tag_command[0], tag_command[1],
                           tag_command[3], gait_stopped ? 1 : 0);
         return ctx().controller().update(input.q_cur, tag_command);
       }

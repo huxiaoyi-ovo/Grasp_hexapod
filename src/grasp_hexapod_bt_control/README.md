@@ -157,6 +157,8 @@ when climb is in the planned sequence and `enable_real_dock` when dock is in
 it. A failed mode stops the sequence with the robot in HOLD for operator
 takeover; nothing is retried.
 
+Desktop view (`show_windows:=true`, default; needs the robot computer's own display): the YOLO window shows the box, Xiaolan centre and `X_target`/`Z_target`; the AprilTag window shows the detected tag outline and id; the dock window shows the raw bottom camera (no ring overlay yet). The terminal prints the mode progress, the visual approach state with target x/z, bearing and commands, and during alignment the tag x/z/yaw, errors and commands every 2 s. Over ssh without a display, pass `show_windows:=false` and use `rqt_image_view` on `/xiaolan_visualizer/image`, `/xiaolan/tag_detections_image` or `/dock_camera/image_raw`.
+
 Teach-in reminder: `tag_ref_*` in `config/phase1_visual.yaml` are placeholders.
 Teach them with `scripts/record_tag_reference.py` before `approach` can
 succeed.

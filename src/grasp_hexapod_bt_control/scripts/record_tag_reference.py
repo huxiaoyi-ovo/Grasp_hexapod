@@ -1,9 +1,14 @@
 #!/usr/bin/env python3
 """Teach-in helper: average N fresh AprilTag detections and print yaml lines.
 
-Place the robot at the desired final climb-start pose in front of the tag, then
-run:  rosrun grasp_hexapod_bt_control record_tag_reference.py _tag_id:=0
-Prints tag_ref_x_m / tag_ref_z_m / tag_ref_yaw_rad for config/phase1_visual.yaml.
+The camera cannot image the tag at the climb start pose P0 (it is practically
+touching Xiaolan), so teach from a back-off pose: place the robot at P0, walk
+straight back along a heading line to where the tag is clearly visible, measure
+the back-off distance D with a tape, then run
+  rosrun grasp_hexapod_bt_control record_tag_reference.py _tag_id:=0 _samples:=30 _offset_from_p0_m:=<D>
+Prints tag_ref_x_m / tag_p0_z_m / tag_ref_yaw_rad for config/phase1_visual.yaml,
+with tag_p0_z_m = mean taught depth - D (virtual depth at P0; an error in D
+transfers 1:1 to the stopping position), and the sample standard deviations.
 
 Frame: camera optical (x right, y down, z forward).  yaw uses the same
 definition as the controller: yaw = atan2(R(2,0), R(0,0)) with R the rotation
@@ -42,6 +47,11 @@ def main():
     max_age = rospy.get_param("~max_age_s", 0.25)
     frame = rospy.get_param("~frame", "camera_color_optical_frame")
     timeout = rospy.get_param("~timeout_s", 30.0)
+    offset = rospy.get_param("~offset_from_p0_m", None)
+    if offset is None or isinstance(offset, bool) or not isinstance(offset, (int, float)) \
+            or not math.isfinite(offset) or not offset > 0.0:
+        rospy.logerr("~offset_from_p0_m is required and must be > 0 (measured back-off distance D from P0, metres)")
+        sys.exit(1)
     samples = []
     last_stamp = [0.0]
 
@@ -80,11 +90,17 @@ def main():
     mz = sum(s[1] for s in samples) / n
     myaw = math.atan2(sum(math.sin(s[2]) for s in samples) / n,
                       sum(math.cos(s[2]) for s in samples) / n)
-    sx = math.sqrt(sum((s[0] - mx) ** 2 for s in samples) / n)
-    sz = math.sqrt(sum((s[1] - mz) ** 2 for s in samples) / n)
-    print("# %d samples of tag id %d; std x=%.4f m z=%.4f m (camera optical frame)" % (len(samples), tag_id, sx, sz))
+    # Sample standard deviation (n - 1); yaw spread is measured around the circular mean.
+    def std(values):
+        return math.sqrt(sum(v * v for v in values) / (len(values) - 1)) if len(values) > 1 else 0.0
+
+    sx = std([s[0] - mx for s in samples])
+    sz = std([s[1] - mz for s in samples])
+    syaw = std([math.atan2(math.sin(s[2] - myaw), math.cos(s[2] - myaw)) for s in samples])
+    print("# %d samples of tag id %d at back-off D=%.4f m from P0 (camera optical frame)" % (len(samples), tag_id, offset))
+    print("# sample std: x=%.4f m  z=%.4f m  yaw=%.4f rad  (mean taught depth z=%.4f m)" % (sx, sz, syaw, mz))
     print("tag_ref_x_m: %.4f" % mx)
-    print("tag_ref_z_m: %.4f" % mz)
+    print("tag_p0_z_m: %.4f" % (mz - offset))
     print("tag_ref_yaw_rad: %.4f" % myaw)
 
 

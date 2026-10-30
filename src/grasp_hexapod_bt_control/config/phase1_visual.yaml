@@ -30,13 +30,20 @@ tag_guidance_enabled: true
 tag_guidance_id: 0
 tag_handoff_confirm_frames: 5
 tag_max_age_s: 0.25
-# Taught reference pose of the tag in camera_color_optical_frame
+# Taught reference of the tag in camera_color_optical_frame
 # (x right, y down, z forward). !!! PLACEHOLDERS, MUST BE TAUGHT on the rig:
-#   rosrun grasp_hexapod_bt_control record_tag_reference.py
+#   rosrun grasp_hexapod_bt_control record_tag_reference.py _tag_id:=0 _samples:=30 _offset_from_p0_m:=<D>
 # yaw = atan2(R(2,0), R(0,0)) of the tag frame in the camera frame (tag x axis).
+# The camera cannot image the tag at the climb start pose P0, so the tag is
+# taught from a back-off distance D behind P0 and the depth is converted to a
+# virtual depth at P0. After handoff: align (lateral + yaw), advance on the tag
+# toward z_target = tag_p0_z_m - tag_final_overshoot_m, and when the tag is lost
+# finish the remaining distance blind (leg odometry + IMU heading hold).
 tag_ref_x_m: 0.0
-tag_ref_z_m: 0.15
+# virtual tag depth at P0 = taught depth - offset D; computed by record_tag_reference.py
+tag_p0_z_m: 0.15
 tag_ref_yaw_rad: 0.0
+tag_final_overshoot_m: 0.01
 tag_lateral_gain: 0.5
 tag_forward_gain: 0.5
 tag_yaw_gain: 0.8
@@ -48,3 +55,22 @@ tag_yaw_tolerance_rad: 0.035
 tag_settle_s: 0.5
 tag_loss_timeout_s: 1.0
 tag_align_timeout_s: 60.0
+# Handover to the blind finish while advancing: no fresh valid tag for
+# tag_handover_loss_s, or last valid z < tag_min_reliable_z_m (0 = disabled).
+tag_handover_loss_s: 0.3
+tag_min_reliable_z_m: 0.0
+tag_max_blind_distance_m: 0.25
+# Blind finish: leg odometry (stance feet from joint feedback) + IMU yaw hold.
+# The remaining distance is the last valid tag depth minus z_target minus the
+# leg odometry travelled since that sample. The servo deadband is 0.5 x the
+# tolerances; the 2x advance gate, handover check and success stay at 1 x.
+tag_blind_speed_m_s: 0.015
+tag_heading_gain: 0.8
+tag_max_heading_error_rad: 0.087
+tag_odom_mismatch_m: 0.03
+tag_blind_timeout_s: 30
+# Sign of the raw IMU yaw axis relative to base_link +z (+1 or -1 only). Check on
+# the robot: with the launch running, turn the standing robot by hand
+# counter-clockwise (seen from above); the IMU yaw (rostopic echo
+# /grasp_hexapod/imu, quaternion yaw) must INCREASE; if it decreases set -1.
+tag_imu_yaw_sign: 1.0

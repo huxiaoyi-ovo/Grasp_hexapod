@@ -1,7 +1,8 @@
 // approach defaults to legacy fake/RTK navigation; opt-in visual guidance is
 // a coarse YOLO approach.  With ~tag_guidance_enabled it hands off to AprilTag
-// servo (tag_guidance.h) and sets ready_for_climb only after tag alignment;
-// without it the visual branch never sets ready_for_climb.
+// guidance (tag_guidance.h: align, advance, short blind finish) and sets
+// ready_for_climb only after it completes; without it the visual branch never
+// sets ready_for_climb.
 //
 // 双分支（~approach_fake 开关，默认 true）：
 // - 假实现（导航栈未就绪时用）：跳过 control_source 门控，Running 保持
@@ -44,6 +45,7 @@ class ApproachMode : public ModeBase {
   ros::Subscriber target_subscriber_;
   ros::Subscriber health_subscriber_;
   double failure_started_at_ = 0.0;
+  bool handover_logged_ = false;  // one log line per run at the tag handover
 };
 
 }  // namespace modes

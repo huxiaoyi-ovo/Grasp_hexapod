@@ -164,7 +164,7 @@ rostopic echo /lf_des
 入口是 `full_mission.launch`，流程为：
 
 ```text
-home → spin_search → approach（YOLO 粗接近 → AprilTag 精对准） → climb（正面） → dock（圆环对准 + 夹爪锁紧）
+home → spin_search → approach（YOLO 粗接近 → AprilTag 对准并推进 → 丢 tag 后短距离盲走收尾） → climb（正面） → dock（圆环对准 + 夹爪锁紧）
 ```
 
 任何一步失败，机器人停在 HOLD 等待人工接管，不会自动重试，也不会继续下一步。正面攀爬和对接**未经实机认证**：每次都要有吊架或保护绳，急停随手可及。
@@ -192,7 +192,7 @@ home → spin_search → approach（YOLO 粗接近 → AprilTag 精对准） →
 | AprilTag (approach alignment) | 矫正后的前置画面、tag 轮廓与 id |
 | Dock camera (bottom) | 底部相机原图（圆环识别暂无标注） |
 
-终端输出：串联节点打印每个模式的开始和结果；粗接近阶段每 2 s 打印状态、小蓝 x/z、方位角、前进与转向指令、帧率；精对准阶段每 2 s 打印 `tag_x/tag_z/tag_yaw_deg`、误差 `ex/ez/eyaw_deg` 和右移/前进/转向指令。
+终端输出：串联节点打印每个模式的开始和结果；粗接近阶段每 2 s 打印状态、小蓝 x/z、方位角、前进与转向指令、帧率；tag 阶段每 2 s 打印状态（aligning/advancing/blind/settling）、`tag_x/tag_z/tag_yaw_deg`、误差 `ex/ez/eyaw_deg`（`ez` 相对 `tag_p0_z_m - tag_final_overshoot_m`）和右移/前进/转向指令；盲走阶段还打印腿里程 `blind_odom`、指令积分 `blind_cmd_int` 和航向误差 `heading_err_deg`。接管瞬间打印一行 `tag handover`（最后一帧 z、ex、eyaw、最后一帧之后腿里程已走距离 travelled、剩余距离）。
 
 窗口需要在上位机自己的桌面终端里启动。经 ssh 远程启动时加 `show_windows:=false`，在有屏幕的电脑上用 `rqt_image_view` 查看 `/xiaolan_visualizer/image`、`/xiaolan/tag_detections_image`、`/dock_camera/image_raw`。
 
@@ -230,18 +230,30 @@ rostopic hz /xiaolan/target /xiaolan/tag_detections /dock_camera/image_raw /lb_p
 rostopic echo /grasp_hexapod/mode_status
 ```
 
+检查 IMU 偏航方向（只需做一次，换 IMU 或改安装后重做）：IMU 话题给的是传感器原始姿态，偏航轴不一定和机身 `base_link` 的 +z 同向，而盲走的航向保持依赖这个符号。机器人站立、launch 保持运行，用手把机器人从上往下看**逆时针**转一小角度，观察 IMU 偏航（四元数换算的 yaw）是否**变大**：
+
+```bash
+rostopic echo /grasp_hexapod/imu
+```
+
+变大就保持默认 `tag_imu_yaw_sign: 1`；变小就在 `phase1_visual.yaml` 里改成 `tag_imu_yaw_sign: -1`（只允许 +1 或 -1，别的值会被拒绝）。符号反了会导致盲走时航向误差越纠越大，触发 `blind heading error`。
+
 **第 2 步：贴 tag 并示教（只需做一次，tag 或相机挪动后重做）**
 
 1. 用 tag36h11、id 0、边长 60 mm 打印 tag，贴在小蓝正对机器人一侧的竖直面上，横向居中于机器人接近中线；不要贴在 0.14–0.17 m 的前足落脚斜面上。
-2. 把机器人人工摆到正面攀爬起点：机器人中心在小蓝坐标系 (−0.55, −0.038) m，正对小蓝 −x 侧面。
-3. 保持第 1 步的 launch 运行，另开终端记录参考位姿（取 30 帧平均）：
+2. 把机器人人工摆到正面攀爬起点 P0：机器人中心在小蓝坐标系 (−0.55, −0.038) m，正对小蓝 −x 侧面（用地面标记摆位）。在 P0 相机几乎贴着小蓝，**拍不到 tag**，所以不能在 P0 直接示教。做法：沿地上贴好的航向胶带线把机器人**笔直后退**到 tag 能被清楚看到的位置，用卷尺量出后退距离 D（P0 到当前位置，沿前进方向，单位 m），然后记录：
 
 ```bash
-rosrun grasp_hexapod_bt_control record_tag_reference.py _tag_id:=0 _samples:=30
+rosrun grasp_hexapod_bt_control record_tag_reference.py _tag_id:=0 _samples:=30 _offset_from_p0_m:=<D>
 ```
 
-4. 把输出的 `tag_ref_x_m`、`tag_ref_z_m`、`tag_ref_yaw_rad` 三行填进 `src/grasp_hexapod_bt_control/config/phase1_visual.yaml`，重启 launch 生效。
-5. 示教时顺带确认：tag 窗口里能稳定框出 tag；把机器人往后移约 1 m，tag 仍能被识别（这样才能在 0.20 m 停止距离之前完成接管）。
+   `_offset_from_p0_m` 必填且必须大于 0，缺省会报错退出。脚本取 30 帧平均，并打印 x、z、yaw 的样本标准差，用来判断示教是否稳定（标准差大就重录）。
+
+   原因：相机在 P0 看不到 tag，所以 tag 只负责把机器人对准并推进到离 P0 很近的地方（yaw 和横向用示教值，深度用 `tag_p0_z_m = 示教深度 − D` 这个虚拟深度，目标再多走 `tag_final_overshoot_m` = 1 cm）。tag 丢失后剩下的短距离（最后一帧深度减目标深度，再减去最后一帧之后腿里程已走的距离）由腿里程（用关节反馈算支撑腿足端位移）加 IMU 航向保持盲走完成。比目标更近是允许的（贴到小蓝可以接受）：tag 一直可见时，只要横向、yaw 在容差内且不比目标远超过容差即成功。D 的量取误差会 1:1 传到最终停车位置，所以 D 要量准、后退要走直线。
+
+3. 保持第 1 步的 launch 运行，把脚本打印的三行 `tag_ref_x_m`、`tag_p0_z_m`、`tag_ref_yaw_rad` 填进 `src/grasp_hexapod_bt_control/config/phase1_visual.yaml`，重启 launch 生效。
+4. 推进、盲走相关参数（`tag_final_overshoot_m` 0.01、`tag_handover_loss_s` 0.3、`tag_max_blind_distance_m` 0.25、`tag_blind_speed_m_s` 0.015、`tag_heading_gain` 0.8、`tag_max_heading_error_rad` 0.087、`tag_odom_mismatch_m` 0.03、`tag_blind_timeout_s` 30、`tag_min_reliable_z_m` 0 即关闭、`tag_imu_yaw_sign` 1，见第 1 步的 IMU 方向检查）见同一 yaml，先用默认值。
+5. 示教时顺带确认：tag 窗口里能稳定框出 tag；把机器人往后移约 1 m，tag 仍能被识别（这样才能在 0.20 m 停止距离之前完成接管）；再沿航向线慢慢前移，记下 tag 开始识别不到的大致深度，它与 `tag_p0_z_m - tag_final_overshoot_m` 之差就是盲走距离，必须小于 `tag_max_blind_distance_m`。
 
 **第 3 步：单模式手动调试（逐个验证）**
 
@@ -300,8 +312,14 @@ roslaunch grasp_hexapod_bt_control full_mission.launch start_sequence:=true
 | `perception startup unavailable` / `perception stale/unusable` | 相机或 YOLO 没起来或掉帧：看 `rostopic hz /xiaolan/target` |
 | `visual target lost or approach timeout` | 粗接近途中丢目标或超时 |
 | `coarse stop reached without tag handoff` | 走到 0.20 m 仍没稳定识别 tag：检查 tag 窗口、tag id、光照、tag 尺寸 |
-| `tag lost` | 精对准中 tag 丢失超过 1 s |
-| `tag alignment timeout` | 精对准 60 s 未进容差：检查示教值、相机是否朝机身正前方 |
+| `tag lost` | 对准阶段（还没开始推进）tag 丢失超过 1 s |
+| `tag lost before alignment` | 推进中 tag 丢失，但最后一帧横向或 yaw 误差超出 1 倍容差（或没有有效最后一帧）：不盲走，检查示教值、推进时是否一直在纠偏 |
+| `tag lost too far from P0 (remaining X m)` | 推进中 tag 丢失，最后一帧算出的剩余距离大于 `tag_max_blind_distance_m`：tag 在远处被挡或漏检，检查遮挡、光照，或核对 D 和 `tag_p0_z_m` |
+| `imu unavailable for blind finish` | 盲走开始时或盲走中 IMU 无效：检查 IMU 话题 |
+| `blind heading error` | 盲走中航向偏离接管时的航向超过 `tag_max_heading_error_rad`（0.087 rad，约 5°） |
+| `blind odometry mismatch (blocked or slipping legs?)` | 腿里程与指令积分相差超过 `tag_odom_mismatch_m`：腿被卡住、打滑或没跟上指令 |
+| `blind finish timeout` | 盲走超过 `tag_blind_timeout_s` 仍未走完 |
+| `tag alignment timeout` | 对准加推进 60 s 未完成：检查示教值、相机是否朝机身正前方 |
 | `climb rejected: ...` | 攀爬入口被拒：确认已 HOLD、`enable_real_climb`、`allow_front_hardware` 为 true |
 | `dock rejected: ...` | 对接入口被拒：确认已 HOLD、`dock_system.yaml` 已标定 |
 
@@ -310,6 +328,7 @@ roslaunch grasp_hexapod_bt_control full_mission.launch start_sequence:=true
 - 正面攀爬在仿真里按 6 rad/s 排时，实机限 4 rad/s，推进会变慢，尚未在 Isaac 按实机速度复验。
 - 正面攀爬结束时机身离对接点约 13 cm，超出对接原地搜索范围，暂未处理。
 - C++ 行走步态与 Python 在金标第 75 帧差 0.085 rad（既有问题，未查）。
+- 盲走收尾的停车精度取决于 D 的量取、最后一帧 tag 深度和腿里程；腿里程只测“支撑腿足端是否按指令后移”，不能证明机身真的前进（足端打滑时里程仍会累加），只有腿没跟上指令时才会触发里程不符。盲走不使用接触或力反馈，IMU 只保持航向。停止前进指令后步态收尾还会多走几毫米，这部分未计入剩余距离；这些都尚未在实机上测量。
 - 以上代码只在无 ROS 环境做过单元测试和金标对比，`catkin_make` 和实机首次运行需要现场确认。
 
 ## 安全操作

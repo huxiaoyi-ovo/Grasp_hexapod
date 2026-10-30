@@ -1,12 +1,15 @@
 // approach keeps its legacy fake/RTK branches by default.  Its opt-in visual
 // branch is a camera-guided coarse approach; without ~tag_guidance_enabled it
 // never sets ready_for_climb.  With it, an AprilTag handoff (tag_guidance.h)
-// takes over and ready_for_climb is set only after tag alignment completes.
+// takes over (align, advance, then a short IMU/leg-odometry blind finish when the
+// tag can no longer be seen) and ready_for_climb is set only after it completes.
 #include "grasp_hexapod_bt_control/modes/mode_approach.h"
 #include "grasp_hexapod_bt_control/mode_registry.h"
 #include <xiaolan_yolo_detection/XiaolanTarget.h>
 #include <xiaolan_yolo_detection/PerceptionStatus.h>
 #include <apriltag_ros/AprilTagDetectionArray.h>
+
+#include <cmath>
 
 namespace grasp_hexapod_bt_control {
 namespace modes {
@@ -24,7 +27,7 @@ TagGuidanceConfig loadTagGuidanceConfig(ros::NodeHandle& p, bool enabled) {
   c.max_age_s = p.param("tag_max_age_s", .25);
   c.expected_frame = p.param<std::string>("visual_expected_target_frame", "camera_color_optical_frame");
   c.ref_x_m = p.param("tag_ref_x_m", 0.0);
-  c.ref_z_m = p.param("tag_ref_z_m", 0.15);
+  c.p0_z_m = p.param("tag_p0_z_m", 0.15);
   c.ref_yaw_rad = p.param("tag_ref_yaw_rad", 0.0);
   c.lateral_gain = p.param("tag_lateral_gain", .5);
   c.forward_gain = p.param("tag_forward_gain", .5);
@@ -37,7 +40,30 @@ TagGuidanceConfig loadTagGuidanceConfig(ros::NodeHandle& p, bool enabled) {
   c.settle_s = p.param("tag_settle_s", .5);
   c.loss_timeout_s = p.param("tag_loss_timeout_s", 1.);
   c.align_timeout_s = p.param("tag_align_timeout_s", 60.);
+  c.final_overshoot_m = p.param("tag_final_overshoot_m", .01);
+  c.handover_loss_s = p.param("tag_handover_loss_s", .3);
+  c.min_reliable_z_m = p.param("tag_min_reliable_z_m", 0.);
+  c.max_blind_distance_m = p.param("tag_max_blind_distance_m", .25);
+  c.blind_speed_m_s = p.param("tag_blind_speed_m_s", .015);
+  c.heading_gain = p.param("tag_heading_gain", .8);
+  c.max_heading_error_rad = p.param("tag_max_heading_error_rad", .087);
+  c.odom_mismatch_m = p.param("tag_odom_mismatch_m", .03);
+  c.blind_timeout_s = p.param("tag_blind_timeout_s", 30.);
+  c.imu_yaw_sign = p.param("tag_imu_yaw_sign", 1.0);
   return c;
+}
+
+const char* tagStateName(TagState state) {
+  switch (state) {
+    case TagState::Coarse: return "coarse";
+    case TagState::Aligning: return "aligning";
+    case TagState::Advancing: return "advancing";
+    case TagState::Blind: return "blind";
+    case TagState::Settling: return "settling";
+    case TagState::Success: return "success";
+    case TagState::Failed: return "failed";
+  }
+  return "?";
 }
 }  // namespace
 
@@ -114,6 +140,7 @@ bool ApproachMode::start(const JointAngles& q_cur, std::string& reason) {
     controller.approach_mode.cancelAutonomousApproach("BT visual approach");
     controller.approach_mode.approach_plan.ready_for_climb = false;
     failure_started_at_ = 0.0;
+    handover_logged_ = false;
     visual_.begin(VisualState::Approaching, nowSeconds());
     if (tag_enabled_) {
       tag_.begin(nowSeconds());
@@ -159,21 +186,44 @@ std::optional<JointAngles> ApproachMode::step(const ModeStepInput& input) {
         !approach.gait_started && !approach.transfer_active_;
     if (tag_enabled_) {
       const bool was_handed_off = tag_.handedOff();
-      const Eigen::Vector4d tag_command = tag_.update(input.now, gait_stopped);
+      // Inputs for the (ROS-free) blind finish: feet from joint FEEDBACK,
+      // the gait's own stance mask, raw IMU yaw (tag_imu_yaw_sign is applied in
+      // TagGuidance).  All decisions live in TagGuidance.
+      GraspController& controller = ctx().controller();
+      TagGuidanceInput tag_input;
+      tag_input.gait_started = approach.gait_started;
+      tag_input.transfer_active = approach.transfer_active_;
+      tag_input.stance_mask = approach.stanceMask();
+      tag_input.feet_base = controller.kinematic.forwardBase(input.q_cur);
+      tag_input.feet_valid = true;
+      const ImuSnapshot imu = ctx().inputs().imu();
+      tag_input.imu_valid = imu.valid && imu.rotation.allFinite();
+      tag_input.imu_yaw = tag_input.imu_valid
+          ? std::atan2(imu.rotation(1, 0), imu.rotation(0, 0)) : 0.0;
+      const Eigen::Vector4d tag_command = tag_.update(input.now, tag_input);
       if (tag_.handedOff()) {
         // After handoff YOLO observations are ignored for control.
         if (!was_handed_off) {
           ROS_INFO("approach: AprilTag handoff (id %d), coarse YOLO guidance ignored",
                    tag_.tagId());
         }
+        if (!handover_logged_ && tag_.handover().occurred) {
+          handover_logged_ = true;
+          const TagHandover& h = tag_.handover();
+          ROS_INFO("approach: tag handover to %s: z_last=%.3f ex=%.3f eyaw_deg=%.1f travelled=%.3f remaining=%.3f m heading_target_offset_deg=%.1f",
+                   tagStateName(tag_.state()), h.z_last, h.ex, h.eyaw * 180.0 / M_PI,
+                   h.travelled, h.remaining, h.heading_target_offset * 180.0 / M_PI);
+        }
         const Eigen::Vector3d error = tag_.lastError();
         const Eigen::Vector3d tag = tag_.lastMeasurement();
         ROS_INFO_THROTTLE(2.0,
-                          "tag mode=%s state=%d tag_x=%.3f tag_z=%.3f tag_yaw_deg=%.1f ex=%.3f ez=%.3f eyaw_deg=%.1f cmd_right=%.3f cmd_forward=%.3f cmd_yaw=%.3f gait_stopped=%d",
-                          name().c_str(), static_cast<int>(tag_.state()), tag[0], tag[1],
+                          "tag mode=%s state=%s tag_x=%.3f tag_z=%.3f tag_yaw_deg=%.1f ex=%.3f ez=%.3f eyaw_deg=%.1f cmd_right=%.3f cmd_forward=%.3f cmd_yaw=%.3f gait_stopped=%d blind_odom=%.3f blind_cmd_int=%.3f heading_err_deg=%.1f",
+                          name().c_str(), tagStateName(tag_.state()), tag[0], tag[1],
                           tag[2] * 180.0 / M_PI, error[0], error[1],
                           error[2] * 180.0 / M_PI, tag_command[0], tag_command[1],
-                          tag_command[3], gait_stopped ? 1 : 0);
+                          tag_command[3], gait_stopped ? 1 : 0, tag_.odometry(),
+                          tag_.commandIntegral(),
+                          tag_.headingError() * 180.0 / M_PI);
         return ctx().controller().update(input.q_cur, tag_command);
       }
     }

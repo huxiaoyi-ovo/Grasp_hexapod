@@ -72,6 +72,8 @@ class ApproachMode {
   double position_tolerance_ = 0.03;
   double yaw_tolerance_ = 5.0 * M_PI / 180.0;
   bool transfer_active_ = false;
+  // Read-only: true = stance; stale during transfer/stopped, callers treat those as all-stance.
+  const std::array<bool, 6>& stanceMask() const { return gaits_; }
 
  private:
   ApproachPlan failApproach(const std::string& reason);

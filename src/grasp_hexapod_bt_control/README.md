@@ -161,9 +161,10 @@ takeover; nothing is retried.
 
 Desktop view (`show_windows:=true`, default; needs the robot computer's own display): the YOLO window shows the box, Xiaolan centre and `X_target`/`Z_target`; the AprilTag window shows the detected tag outline and id; the dock window shows the raw bottom camera (no ring overlay yet). The terminal prints the mode progress, the visual approach state with target x/z, bearing and commands, and during alignment the tag x/z/yaw, errors and commands every 2 s. Over ssh without a display, pass `show_windows:=false` and use `rqt_image_view` on `/xiaolan_visualizer/image`, `/xiaolan/tag_detections_image` or `/dock_camera/image_raw`.
 
-Teach-in reminder: `tag_ref_*` in `config/phase1_visual.yaml` are placeholders.
-Teach them with `scripts/record_tag_reference.py` before `approach` can
-succeed.
+Teach-in reminder: `tag_ref_x_m`, `tag_p0_z_m` and `tag_ref_yaw_rad` in
+`config/phase1_visual.yaml` are placeholders. Teach them with
+`scripts/record_tag_reference.py` (needs the measured back-off distance
+`_offset_from_p0_m`) before `approach` can succeed.
 
 The launch sets `climb_config_file:=climb_front_direct.json`,
 `allow_front_hardware:=true` (explicit hardware opt-in for the front route; the
@@ -183,30 +184,106 @@ now stops at the coarse `visual_stop_distance_m: 0.20` and hands off to the tag:
   `tag_guidance_id` (0) with a finite pose in front of the camera, age
   `<= tag_max_age_s` (0.25), frame `visual_expected_target_frame`, the run
   switches permanently to TagGuidance; YOLO is then ignored for control.
-- Servo (camera optical frame, camera axis assumed along body +y, pitch
-  ignored): `right = k_lat*ex`, `forward = k_fwd*ez`, `yaw = +k_yaw*eyaw`,
-  with `ex = x - tag_ref_x_m`, `ez = z - tag_ref_z_m`,
+- The camera cannot image the tag at the climb start pose P0 (it is practically
+  touching Xiaolan). The tag therefore guides alignment and the advance, and a
+  short blind finish (leg odometry + IMU heading hold) covers the rest.
+  `tag_p0_z_m` is a VIRTUAL depth: taught depth minus the measured back-off
+  distance D; an error in D transfers 1:1 to the stopping position.
+  `z_target = tag_p0_z_m - tag_final_overshoot_m` (default 0.01, i.e. aim 1 cm
+  closer than P0).
+- Tag geometry (camera optical frame, camera axis assumed along body +y, pitch
+  ignored): `ex = x - tag_ref_x_m`, `ez = z - z_target`,
   `eyaw = wrap(yaw - tag_ref_yaw_rad)`, `yaw = atan2(R(2,0), R(0,0))`
   (R = tag frame in camera frame; tag x axis, independent of the tag z
   convention). A CCW body yaw
-  lowers the observed tag yaw, so positive `eyaw` commands positive (CCW) yaw;
+  lowers the observed tag yaw, so positive `eyaw` commands positive (CCW) yaw
+  (`yaw = +k_yaw*eyaw`, `right = k_lat*ex`; the servo deadband is
+  `kServoDeadbandFraction = 0.5` x tolerance on lateral, forward and yaw, so the
+  pose parks well inside the 1x tolerance used by the handover check and the
+  success check, and the 2x advance gate);
   the closed-loop sign is checked in `test/test_tag_guidance.cpp`. A pose with
   non-finite values or `|R(1,0)| > 0.5` (bogus / heavily rolled) is rejected.
+- State machine (all in ROS-free `TagGuidance`, unit-tested):
+  1. ALIGNING: lateral + yaw servo; forward is 0 until `|ex| <= 2*tol` and
+     `|eyaw| <= 2*yaw_tol`. Tag loss here keeps `tag_loss_timeout_s` -> `"tag lost"`.
+  2. ADVANCING: lateral/yaw keep correcting; `forward = clamp(tag_forward_gain *
+     (z - z_target), 0, tag_max_forward_speed_m_s)` (0 inside the servo
+     deadband; never backward), set to 0 again whenever the pose leaves the 2x
+     gate. If the tag stays reliable and `|ex| <= tol`, `|eyaw| <= yaw_tol`,
+     `ez <= tol` (one-sided: closer than `z_target` is accepted) with the gait
+     stopped for `tag_settle_s` -> SUCCESS.
+  3. HANDOVER while ADVANCING when no fresh valid detection for
+     `tag_handover_loss_s` (0.3) or the last valid `z < tag_min_reliable_z_m`
+     (0 = off). The LAST valid sample must have `|ex| <= tol` and
+     `|eyaw| <= yaw_tol`, else `"tag lost before alignment"`.
+     `remaining = z_last - z_target - travelled`, where `travelled` is the leg
+     odometry since that last valid sample (odometry accumulates continuously
+     from the handoff and is reset only when BLIND starts): `<= 0` goes straight
+     to settling;
+     `> tag_max_blind_distance_m` (0.25) fails with
+     `"tag lost too far from P0 (remaining X m)"`; otherwise BLIND (one log line
+     with z_last, ex, eyaw, travelled, remaining).
+  4. BLIND: lateral 0, forward `tag_blind_speed_m_s` (0.015), yaw
+     `clamp(tag_heading_gain*(yaw_hold - imu_yaw), +-tag_max_yaw_rate)` where
+     `yaw_hold` is a tag-aligned target: the IMU heading when the last valid
+     tag sample was accepted plus that sample's `eyaw` (positive `eyaw` needs CCW
+     rotation), so the residual tag yaw error and any rotation during the loss
+     window are corrected instead of frozen (current IMU heading if none was
+     valid then); `imu_yaw = tag_imu_yaw_sign * atan2(R(1,0), R(0,0))` of the IMU
+     rotation. The handover log line prints `heading_target_offset_deg` (target
+     minus current heading). Travelled distance = leg odometry: per frame the body
+     forward increment is `-mean(delta foot_y)` of the stance legs (feet in
+     base_link from the joint FEEDBACK via the kinematic model, legs on the
+     ground in both frames; the stance mask is `ApproachMode::stanceMask()`,
+     treated as all-stance during transfer and when the gait is stopped).
+     Forward stops when odometry >= remaining, then the gait must stop and stay
+     stopped for `tag_settle_s` -> SUCCESS. Failures: `"imu unavailable for
+     blind finish"` (at handover or during blind), `"blind heading error"`
+     (`|yaw_hold - imu_yaw| > tag_max_heading_error_rad`, 0.087), `"blind
+     odometry mismatch (blocked or slipping legs?)"` (`|odometry - integrated
+     forward command| > tag_odom_mismatch_m`, 0.03), `"blind finish timeout"`
+     (`tag_blind_timeout_s`, 30). The 2 s tag log line also prints odometry, the
+     command integral and the heading error.
+  `tag_align_timeout_s` covers ALIGNING + ADVANCING. Pause/resume discards
+  pre-pause detections and restarts the loss clock; during BLIND it also freezes
+  odometry/command accumulation (new foot baseline) and keeps `yaw_hold`.
 - Params (defaults): `tag_lateral_gain/forward_gain/yaw_gain` 0.5/0.5/0.8,
   `tag_max_lateral_speed_m_s` 0.02, `tag_max_forward_speed_m_s` 0.02,
   `tag_max_yaw_rate` 0.10, `tag_position_tolerance_m` 0.01,
   `tag_yaw_tolerance_rad` 0.035, `tag_settle_s` 0.5, `tag_loss_timeout_s` 1.0,
-  `tag_align_timeout_s` 60.
-- Success: inside tolerance continuously for `tag_settle_s` with the gait
-  stopped -> `approach_plan.ready_for_climb = true`, HOLD, outcome
+  `tag_align_timeout_s` 60, `tag_final_overshoot_m` 0.01,
+  `tag_handover_loss_s` 0.3, `tag_min_reliable_z_m` 0.0,
+  `tag_max_blind_distance_m` 0.25, `tag_blind_speed_m_s` 0.015,
+  `tag_heading_gain` 0.8, `tag_max_heading_error_rad` 0.087,
+  `tag_odom_mismatch_m` 0.03, `tag_blind_timeout_s` 30, `tag_imu_yaw_sign` +1
+  (+1 or -1 only; anything else is rejected). `tag_p0_z_m` is the
+  former z reference parameter, now a virtual depth at P0.
+- IMU yaw sign check (on the robot, once): the IMU snapshot is the raw sensor
+  orientation, so its yaw axis may point along -z of base_link. With the launch
+  running and the robot standing, turn it by hand counter-clockwise (seen from
+  above) and confirm the IMU yaw increases (`rostopic echo /grasp_hexapod/imu`,
+  quaternion yaw); if it decreases set `tag_imu_yaw_sign: -1`.
+- Success (tag settle or blind finish): gait stopped for `tag_settle_s` ->
+  `approach_plan.ready_for_climb = true`, HOLD, outcome
   `"tag alignment complete: ready for climb"`. Failures (HOLD): `"tag lost"`,
-  `"tag alignment timeout"`, and `"coarse stop reached without tag handoff"`.
-  Pause/resume discards pre-pause detections and restarts the loss clock.
-- `tag_ref_x_m / tag_ref_z_m / tag_ref_yaw_rad` (defaults 0.0 / 0.15 / 0.0) are
-  PLACEHOLDERS and must be taught. Teach-in: put the robot at the desired final
-  pose, then
-  `rosrun grasp_hexapod_bt_control record_tag_reference.py _tag_id:=0`
-  (optional `_samples:=30 _topic:= _frame:=`); paste the printed yaml lines.
+  `"tag lost before alignment"`, `"tag lost too far from P0 (remaining X m)"`,
+  `"imu unavailable for blind finish"`, `"blind heading error"`,
+  `"blind odometry mismatch (blocked or slipping legs?)"`,
+  `"blind finish timeout"`, `"tag alignment timeout"`, and
+  `"coarse stop reached without tag handoff"`.
+- `tag_ref_x_m / tag_p0_z_m / tag_ref_yaw_rad` (defaults 0.0 / 0.15 / 0.0) are
+  PLACEHOLDERS and must be taught. Teach-in: put the robot at P0, walk straight
+  back along a taped heading line until the tag is clearly visible, measure the
+  back-off distance D with a tape, then
+  `rosrun grasp_hexapod_bt_control record_tag_reference.py _tag_id:=0 _samples:=30 _offset_from_p0_m:=<D>`
+  (`_offset_from_p0_m` required, > 0; optional `_topic:= _frame:=`). It prints
+  the three yaml lines (`tag_p0_z_m = mean z - D`) and the sample standard
+  deviation of x, z and yaw.
+- Leg odometry only shows that the stance feet moved back as commanded (it
+  cannot prove the body advanced when feet slip). The remaining distance is the
+  last valid sample minus the leg-odometry travel since it; the gait's
+  stopping step after the forward command ends is not compensated (a few mm).
+  The blind finish uses no contact or force sensing.
 - The 0.20 m stop and the taught reference are camera-frame diagnostics, not
   body clearance, contact, or hardware-safety evidence. Not yet verified on
   hardware or with catkin/e2e (the legacy visual e2e scripts assume the old

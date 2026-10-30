@@ -127,6 +127,47 @@ Final synthetic receipts are `/tmp/grasp_phase1_startup_e2e_20261030T010110`,
 `/tmp/grasp_phase1_perception_e2e_20261030T010148`; they are not physical
 camera, servo, collision, contact, load, or hardware validation.
 
+### AprilTag handoff inside visual `approach`
+
+With `tag_guidance_enabled: true` (set in `config/phase1_visual.yaml`; code
+default false, and false leaves the visual branch unchanged) the YOLO approach
+now stops at the coarse `visual_stop_distance_m: 0.20` and hands off to the tag:
+
+- Input: `apriltag_ros/AprilTagDetectionArray` on `approach.tag_detections` of
+  `config/mode_topics.yaml` (default `/xiaolan/tag_detections`). After
+  `tag_handoff_confirm_frames` (5) consecutive NEW detections of
+  `tag_guidance_id` (0) with a finite pose in front of the camera, age
+  `<= tag_max_age_s` (0.25), frame `visual_expected_target_frame`, the run
+  switches permanently to TagGuidance; YOLO is then ignored for control.
+- Servo (camera optical frame, camera axis assumed along body +y, pitch
+  ignored): `right = k_lat*ex`, `forward = k_fwd*ez`, `yaw = +k_yaw*eyaw`,
+  with `ex = x - tag_ref_x_m`, `ez = z - tag_ref_z_m`,
+  `eyaw = wrap(yaw - tag_ref_yaw_rad)`, `yaw = atan2(R(2,0), R(0,0))`
+  (R = tag frame in camera frame; tag x axis, independent of the tag z
+  convention). A CCW body yaw
+  lowers the observed tag yaw, so positive `eyaw` commands positive (CCW) yaw;
+  the closed-loop sign is checked in `test/test_tag_guidance.cpp`. A pose with
+  non-finite values or `|R(1,0)| > 0.5` (bogus / heavily rolled) is rejected.
+- Params (defaults): `tag_lateral_gain/forward_gain/yaw_gain` 0.5/0.5/0.8,
+  `tag_max_lateral_speed_m_s` 0.02, `tag_max_forward_speed_m_s` 0.02,
+  `tag_max_yaw_rate` 0.10, `tag_position_tolerance_m` 0.01,
+  `tag_yaw_tolerance_rad` 0.035, `tag_settle_s` 0.5, `tag_loss_timeout_s` 1.0,
+  `tag_align_timeout_s` 60.
+- Success: inside tolerance continuously for `tag_settle_s` with the gait
+  stopped -> `approach_plan.ready_for_climb = true`, HOLD, outcome
+  `"tag alignment complete: ready for climb"`. Failures (HOLD): `"tag lost"`,
+  `"tag alignment timeout"`, and `"coarse stop reached without tag handoff"`.
+  Pause/resume discards pre-pause detections and restarts the loss clock.
+- `tag_ref_x_m / tag_ref_z_m / tag_ref_yaw_rad` (defaults 0.0 / 0.15 / 0.0) are
+  PLACEHOLDERS and must be taught. Teach-in: put the robot at the desired final
+  pose, then
+  `rosrun grasp_hexapod_bt_control record_tag_reference.py _tag_id:=0`
+  (optional `_samples:=30 _topic:= _frame:=`); paste the printed yaml lines.
+- The 0.20 m stop and the taught reference are camera-frame diagnostics, not
+  body clearance, contact, or hardware-safety evidence. Not yet verified on
+  hardware or with catkin/e2e (the legacy visual e2e scripts assume the old
+  0.60 m stop and Success outcome).
+
 ### Hardware-free Phase-1 bench
 
 For offline integration, use the bench launch on an isolated ROS master.  It

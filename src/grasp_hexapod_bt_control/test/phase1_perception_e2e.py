@@ -15,6 +15,7 @@ from pathlib import Path
 import numpy as np
 import rosgraph
 import rospy
+import yaml
 from cv_bridge import CvBridge
 from grasp_hexapod_msgs.msg import ModeStatus
 from grasp_hexapod_msgs.srv import SwitchMode
@@ -102,9 +103,16 @@ def main():
     log_dir = Path(os.environ.get("PHASE1_PERCEPTION_E2E_LOG_DIR",
                                   "/tmp/grasp_phase1_perception_e2e"))
     log_dir.mkdir(parents=True, exist_ok=True)
+    # This bench covers the coarse-only path: disable the tag handoff and keep
+    # the 0.60 m stop that the depth sweep below asserts.
+    config = yaml.safe_load((Path(__file__).resolve().parents[1] / "config"
+                             / "phase1_visual.yaml").read_text())
+    config.update(tag_guidance_enabled=False, visual_stop_distance_m=0.60)
+    config_path = log_dir / "phase1_visual_coarse_only.yaml"
+    config_path.write_text(yaml.safe_dump(config))
     bench = subprocess.Popen(
         ["roslaunch", "grasp_hexapod_bt_control", "phase1_visual_bench.launch",
-         "start_depth:=true"],
+         "start_depth:=true", f"config:={config_path}"],
         stdout=(log_dir / "bench.log").open("w"), stderr=subprocess.STDOUT,
         env=os.environ.copy())
     try:

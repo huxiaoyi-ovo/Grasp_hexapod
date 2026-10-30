@@ -8,7 +8,7 @@ visual_yaw_gain: 0.8
 visual_max_yaw_rate: 0.15
 visual_max_forward_speed_m_s: 0.03
 visual_distance_gain: 0.3
-visual_stop_distance_m: 0.60
+visual_stop_distance_m: 0.20
 visual_stop_tolerance_m: 0.02
 visual_expected_target_frame: camera_color_optical_frame
 visual_input_startup_timeout_s: 2.0
@@ -18,3 +18,33 @@ visual_settle_s: 0.25
 visual_loss_timeout_s: 1.0
 visual_search_timeout_s: 60.0
 visual_approach_timeout_s: 60.0
+
+# --- AprilTag handoff + servo inside the visual approach mode ---------------
+# While the coarse YOLO approach runs, fresh detections of tag_guidance_id are
+# counted; after tag_handoff_confirm_frames consecutive NEW valid detections
+# the run switches permanently to tag servo (YOLO ignored). Detection topic:
+# mode_topics.yaml approach.tag_detections. Frame must equal
+# visual_expected_target_frame. Camera-frame diagnostics only: neither the
+# 0.20 m coarse stop nor the reference below is a body-clearance claim.
+tag_guidance_enabled: true
+tag_guidance_id: 0
+tag_handoff_confirm_frames: 5
+tag_max_age_s: 0.25
+# Taught reference pose of the tag in camera_color_optical_frame
+# (x right, y down, z forward). !!! PLACEHOLDERS, MUST BE TAUGHT on the rig:
+#   rosrun grasp_hexapod_bt_control record_tag_reference.py
+# yaw = atan2(R(2,0), R(0,0)) of the tag frame in the camera frame (tag x axis).
+tag_ref_x_m: 0.0
+tag_ref_z_m: 0.15
+tag_ref_yaw_rad: 0.0
+tag_lateral_gain: 0.5
+tag_forward_gain: 0.5
+tag_yaw_gain: 0.8
+tag_max_lateral_speed_m_s: 0.02
+tag_max_forward_speed_m_s: 0.02
+tag_max_yaw_rate: 0.10
+tag_position_tolerance_m: 0.01
+tag_yaw_tolerance_rad: 0.035
+tag_settle_s: 0.5
+tag_loss_timeout_s: 1.0
+tag_align_timeout_s: 60.0

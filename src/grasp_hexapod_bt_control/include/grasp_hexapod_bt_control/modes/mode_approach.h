@@ -1,5 +1,7 @@
 // approach defaults to legacy fake/RTK navigation; opt-in visual guidance is
-// coarse-only and never sets ready_for_climb.
+// a coarse YOLO approach.  With ~tag_guidance_enabled it hands off to AprilTag
+// servo (tag_guidance.h) and sets ready_for_climb only after tag alignment;
+// without it the visual branch never sets ready_for_climb.
 //
 // 双分支（~approach_fake 开关，默认 true）：
 // - 假实现（导航栈未就绪时用）：跳过 control_source 门控，Running 保持
@@ -9,6 +11,7 @@
 #pragma once
 
 #include "grasp_hexapod_bt_control/mode_base.h"
+#include "grasp_hexapod_bt_control/tag_guidance.h"
 #include "grasp_hexapod_bt_control/visual_guidance.h"
 
 #include <ros/ros.h>
@@ -35,6 +38,9 @@ class ApproachMode : public ModeBase {
   std::string control_source_;  // ~control_source（真实分支用）
   bool visual_enabled_ = false;
   VisualGuidance visual_{VisualGuidanceConfig()};
+  bool tag_enabled_ = false;   // ~tag_guidance_enabled（仅在视觉分支内有效）
+  TagGuidance tag_{TagGuidanceConfig()};
+  ros::Subscriber tag_subscriber_;
   ros::Subscriber target_subscriber_;
   ros::Subscriber health_subscriber_;
   double failure_started_at_ = 0.0;

@@ -40,6 +40,8 @@ spin_search:
 approach:
   target: /xiaolan/target
   perception_status: /xiaolan/perception_status
+  # apriltag_ros/AprilTagDetectionArray；仅 ~tag_guidance_enabled 时订阅。
+  tag_detections: /xiaolan/tag_detections
 
 dock:
   lock_confirmed: /grasp_hexapod/dock/lock_confirmed

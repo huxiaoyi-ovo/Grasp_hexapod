@@ -47,4 +47,12 @@
 
 - 等待用户给出本轮目标。
 - 2026-10-30 追加：用户确认 Claude Code 主会话按 Sol 职能负责统筹、规划与审查；Luna 默认最轻档位，能力不足时升到中间档位，已写入 `CLAUDE.md`。
-- 待 Sol 决策：是否在 `AGENTS.md` 的 Active Worker Routing 中登记 Claude Code（Sol）/ Luna 路由并指向本文件（当前 `AGENTS.md` 仍写 Claude Code 非活跃路由）。
+- ~~待 Sol 决策：是否在 `AGENTS.md` 登记 Claude Code 路由~~ → 已完成，见下条。
+
+## 2026-10-30 在 AGENTS.md 登记 Claude Code 路由
+
+- 基线：`test`，起始 `b01853f`。
+- execution_owner：Sol，用户明确同意修改治理规则；2 个文档文件。
+- 修改：`AGENTS.md` Active Worker Routing —— 活跃路由改为 Codex（Sol+Terra）与 Claude Code（Sol+Luna，Luna 沿用全部 Terra 规则）；新增“同一时刻只有一条路由写仓库，切换前 pull 并读 `HANDOFF.md`/`CLAUDE_HANDOFF.md`”；`CLAUDE.md`/`CLAUDE_HANDOFF.md` 定位改为入口与交接日志，`CLAUDE_CODE_HANDOFF.md` 仍为历史文件。DeepSeek 仍非活跃路由。
+- 验证：纯文档，无代码验证。
+- 下一步：等待用户给出本轮目标。

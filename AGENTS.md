@@ -101,7 +101,8 @@ Active SHA `5f8edbc7ba46e5776e800cdfb7b786234ea50e844cf617aaf20e6bbd5489fcce`; t
 
 ## Active Worker Routing
 
-- The only active routing is **Sol + Terra**. Luna, Claude Code, and DeepSeek are neither active routes nor fallbacks in this repository.
+- Active routes are **Codex: Sol + Terra** and **Claude Code: Sol + Luna** (user-approved 2026-10-30). In the Claude Code route the main session acts as Sol and a newly spawned sub-agent acts as Luna; Luna follows every Terra rule below, with "Terra" read as "Luna". DeepSeek is neither an active route nor a fallback.
+- Only one route writes to the repository at a time. Before switching routes, `git pull origin test` and read `HANDOFF.md` (if present) and `CLAUDE_HANDOFF.md`; the Claude Code route appends its work, base/end commits, and open items to `CLAUDE_HANDOFF.md` before handing back.
 - Sol owns requirements, architecture, physical/safety reasoning, the frozen task contract, and final acceptance. Sol works directly on tightly coupled tasks when delegation overhead would exceed the saved work.
 - Terra is the single bounded execution worker for repetitive inspection, changes across more than three files, mechanical refactors, tests, and evidence collection when the task can be specified completely in advance.
 - Before the first repository write in every user turn, Sol MUST record `execution_owner: Sol` or `execution_owner: Terra` in the frozen contract with a one-line reason. A continuation such as “继续” does not inherit the previous owner when its objective, approved files, or validation scope changes.
@@ -112,7 +113,7 @@ Active SHA `5f8edbc7ba46e5776e800cdfb7b786234ea50e844cf617aaf20e6bbd5489fcce`; t
 - Sol MUST set Terra reasoning from the frozen contract: `low` for read-only scans or obvious repetitive edits; `medium` for routine implementation and targeted tests; `high` for coupled multi-file refactors or difficult diagnosis; `xhigh` only for exceptional bounded implementation where extra reasoning is justified. Omitted effort defaults to `medium`. Architecture, physical/safety decisions, and open-ended design remain in Sol.
 - Sol reviews the approved-path diff, safety boundaries, and returned evidence. Do not repeat Terra's successful mechanical validation unless relevant inputs changed or the evidence is incomplete.
 - Long tasks report at least every 60 seconds. Optimize in order: correctness and real-robot safety, execution efficiency, minimum Sol usage, then total computation.
-- `CLAUDE.md` and `CLAUDE_CODE_HANDOFF.md` are historical compatibility artifacts only. They grant no authority, define no active routing, and do not override this section.
+- `CLAUDE.md` is only the Claude Code entry that routes to this file and records the Luna tier rule; `CLAUDE_HANDOFF.md` is the Claude Code handoff log. Neither overrides this file, safety rules, or stable facts. `CLAUDE_CODE_HANDOFF.md` remains a historical artifact with no authority.
 
 ## Hardware, Sensors, and Evidence Boundaries
 

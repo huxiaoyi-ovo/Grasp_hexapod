@@ -808,7 +808,18 @@ JointAngles GraspController::calJointPoses(const JointAngles& q_cur) {
 
   const JointAngles lower = jointLower();
   const JointAngles upper = jointUpper();
-  const JointAngles velocity_limit = jointVelocityLimit();
+  JointAngles velocity_limit = jointVelocityLimit();
+  // 仅仿真的 front 候选可请求受限的更高目标步进上限；侧向、非攀爬与
+  // 任何 hardware_execution 路径一律保持共享 4 rad/s（对应 Python cal_joint_poses）。
+  if (mode == kClimb && climb_mode.currentConfig().isFront() &&
+      !climb_mode.hardware_execution &&
+      climb_mode.currentConfig().simulation_joint_velocity_limit_rad_s.has_value()) {
+    const double requested_cap =
+        *climb_mode.currentConfig().simulation_joint_velocity_limit_rad_s;
+    for (int leg = 0; leg < kLegCount; ++leg) {
+      velocity_limit[leg] = Eigen::Vector3d::Constant(requested_cap);
+    }
+  }
   for (int leg = 0; leg < kLegCount; ++leg) {
     for (int joint = 0; joint < kJointCount; ++joint) {
       double value = std::max(lower[leg][joint],

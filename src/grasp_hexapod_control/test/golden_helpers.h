@@ -36,6 +36,11 @@ inline ControlPaths goldenPaths() {
   };
 }
 
+// front compact（config/climb_front_direct.json）；金标 front 用例的唯一配置源。
+inline std::string frontDirectConfigPath() {
+  return std::string(GRASP_CONTROL_CONFIG_DIR) + "/climb_front_direct.json";
+}
+
 inline JointAngles toJoints(const std::vector<double>& flat) {
   JointAngles q{};
   for (int leg = 0; leg < kLegCount; ++leg) {

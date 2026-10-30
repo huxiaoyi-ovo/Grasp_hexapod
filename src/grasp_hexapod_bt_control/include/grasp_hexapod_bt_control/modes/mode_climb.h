@@ -60,6 +60,10 @@ class ClimbMode : public ModeBase {
   // ── ~ 参数（原 loadParameters 的攀爬段）。──
   bool enable_real_climb_ = false;
   std::string climb_side_ = "left";
+  // ~climb_config_file：控制 config 目录内的 compact 配置文件名。
+  std::string climb_config_file_ = "climb_compact.json";
+  // ~allow_front_hardware：显式授权 front compact 的 hardware_execution（默认 false）。
+  bool allow_front_hardware_ = false;
   double climb_foot_gate_m_ = 0.02;
   int persistence_frames_ = 3;
   double max_position_error_ = 0.05;

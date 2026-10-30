@@ -39,6 +39,18 @@ class ClimbMode {
 
   // 读取 compact 攀爬配置（每次进入攀爬重新读盘，与 Python 语义一致）。
   ClimbCompactConfig loadConfig() const;
+  // 读取与默认 compact 同目录（控制 config 目录）下的指定配置文件；
+  // 仅接受不含路径分隔符的文件名。
+  ClimbCompactConfig loadConfig(const std::string& file_name) const;
+
+  // 规划支撑/空中角色（仅诊断：绝不是接触、载荷或稳定性观测）。
+  // 与 Python planned_support_legs / planned_airborne_legs 对应。
+  static std::vector<int> plannedSupportLegs(
+      const ClimbCompactConfig& config, int stage_index,
+      std::optional<double> phase_time = std::nullopt);
+  static std::vector<int> plannedAirborneLegs(const ClimbCompactConfig& config,
+                                              int stage_index,
+                                              const std::string& boundary);
 
   // 返回配置中明确保存的攀爬末帧关节姿态。
   JointAngles terminalJoints(const std::optional<ClimbCompactConfig>& config) const;
@@ -46,6 +58,9 @@ class ClimbMode {
   void validateConfig(const ClimbCompactConfig& config) const;
 
   // 进入 compact 攀爬预览；参数与 Python enter() 一一对应。
+  // front compact + hardware_execution：仅当 config.allow_front_hardware 为 true 时
+  // 接受（项目所有者决定的与 Python 的有意差异），否则以同一消息拒绝；
+  // 实机模式始终使用共享 4 rad/s 关节步进上限。
   void enter(const JointAngles& q_current,
              const std::optional<ClimbCompactConfig>& config, int start_stage_index,
              std::optional<int> end_stage_index, bool hardware_execution);
@@ -70,7 +85,7 @@ class ClimbMode {
   double settle_time = 0.0;
   std::string failure_reason;
   std::optional<std::array<Vector3d, 6>> anchors_world;
-  std::optional<std::array<double, 5>> base_pose;
+  std::optional<BasePose> base_pose;
   std::optional<int> stage_index;
   std::optional<int> end_stage_index;
   std::vector<std::string> stage_names;
@@ -107,17 +122,18 @@ class ClimbMode {
   static double smoothstep(double value);
 
   void updateHardwareStageElapsedTime();
-  void applyReference(const std::array<double, 5>& base,
+  void applyReference(const BasePose& base,
                       const std::array<Vector3d, 6>& anchors,
                       bool sync_previous = false);
   // 返回 {pose, anchors, total}。
-  std::tuple<std::array<double, 5>, std::array<Vector3d, 6>, double>
-  stageReference() const;
+  std::tuple<BasePose, std::array<Vector3d, 6>, double> stageReference() const;
   std::array<Vector3d, 6> relativeBaseHighStep(const CompactStage& stage,
-                                               const std::array<double, 5>& pose,
+                                               const BasePose& pose,
                                                double pose_weight, double phase) const;
   std::array<Vector3d, 6> piecewiseBase(const CompactStage& stage,
-                                        const std::array<double, 5>& pose) const;
+                                        const BasePose& pose) const;
+  static BasePose piecewisePose(const std::vector<BasePose>& knots,
+                                const std::vector<double>& durations, double elapsed);
   static std::array<Vector3d, 6> piecewiseAnchors(
       const std::vector<std::array<Vector3d, 6>>& knots,
       const std::vector<double>& durations, double elapsed);

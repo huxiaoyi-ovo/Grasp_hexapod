@@ -37,6 +37,19 @@ std::string formatXyz(const Vector3d& vector) {
   return buffer;
 }
 
+// np.searchsorted(cumsum(durations), phase_time, side="right") 夹到最后一段。
+std::size_t segmentIndexAt(const CompactStage& stage, double phase_time) {
+  double cumulative = 0.0;
+  std::size_t index = 0;
+  for (; index < stage.segment_durations_s.size(); ++index) {
+    cumulative += stage.segment_durations_s[index];
+    if (!(cumulative <= phase_time)) {
+      break;
+    }
+  }
+  return std::min(index, stage.segment_durations_s.size() - 1);
+}
+
 }  // namespace
 
 ClimbMode::ClimbMode(GraspController* controller) : controller_(controller) {
@@ -47,6 +60,54 @@ ClimbMode::ClimbMode(GraspController* controller) : controller_(controller) {
 
 ClimbCompactConfig ClimbMode::loadConfig() const {
   return loadClimbCompact(controller_->paths().climb_compact_json);
+}
+
+ClimbCompactConfig ClimbMode::loadConfig(const std::string& file_name) const {
+  if (file_name.empty() || file_name.find('/') != std::string::npos ||
+      file_name.find('\\') != std::string::npos || file_name == "." ||
+      file_name == "..") {
+    throw ConfigError("climb config file must be a plain file name in the control "
+                      "config directory: " + file_name);
+  }
+  const std::string& default_path = controller_->paths().climb_compact_json;
+  const std::size_t slash = default_path.find_last_of('/');
+  const std::string directory =
+      slash == std::string::npos ? std::string(".") : default_path.substr(0, slash);
+  return loadClimbCompact(directory + "/" + file_name);
+}
+
+std::vector<int> ClimbMode::plannedSupportLegs(const ClimbCompactConfig& config,
+                                               int stage_index,
+                                               std::optional<double> phase_time) {
+  const CompactStage& stage = config.stages.at(static_cast<std::size_t>(stage_index));
+  if (config.contact_plan_version_is_one) {
+    if (phase_time.has_value() && stage.hasSegmentSupportLegs()) {
+      const std::size_t segment = segmentIndexAt(stage, *phase_time);
+      return stage.segmentSupportLegs(segment);
+    }
+    return stage.roleLegs("support_legs");
+  }
+  std::vector<int> support;
+  for (int leg = 0; leg < kLegCount; ++leg) {
+    if (std::find(stage.active_legs.begin(), stage.active_legs.end(), leg) ==
+        stage.active_legs.end()) {
+      support.push_back(leg);
+    }
+  }
+  return support;
+}
+
+std::vector<int> ClimbMode::plannedAirborneLegs(const ClimbCompactConfig& config,
+                                                int stage_index,
+                                                const std::string& boundary) {
+  if (boundary != "start" && boundary != "end") {
+    throw ConfigError("planned airborne boundary must be start or end");
+  }
+  if (!config.contact_plan_version_is_one) {
+    return {};
+  }
+  return config.stages.at(static_cast<std::size_t>(stage_index))
+      .roleLegs("airborne_legs_" + boundary);
 }
 
 JointAngles ClimbMode::terminalJoints(
@@ -70,14 +131,16 @@ void ClimbMode::enter(const JointAngles& q_current,
                       const std::optional<ClimbCompactConfig>& config,
                       int start_stage_index, std::optional<int> end_stage_index,
                       bool hardware_execution) {
-  config_ = config ? *config : loadConfig();
-  validateConfig(config_);
+  // 先在局部副本上完成全部检查，任何拒绝都不得改动已有会话状态
+  // （与 Python 一致：失败的 front+hardware 尝试不能破坏正在进行的侧向会话）。
+  ClimbCompactConfig candidate = config ? *config : loadConfig();
+  validateConfig(candidate);
   for (int leg = 0; leg < kLegCount; ++leg) {
     if (!q_current[leg].allFinite()) {
       throw ConfigError("q_current must be finite");
     }
   }
-  const int stage_count = static_cast<int>(config_.stages.size());
+  const int stage_count = static_cast<int>(candidate.stages.size());
   if (start_stage_index < 0 || start_stage_index >= stage_count) {
     throw ConfigError("compact start stage index is out of range");
   }
@@ -89,12 +152,18 @@ void ClimbMode::enter(const JointAngles& q_current,
     double entry_error = 0.0;
     for (int leg = 0; leg < kLegCount; ++leg) {
       entry_error = std::max(entry_error,
-                             (q_current[leg] - config_.p0.q_rad[leg]).cwiseAbs().maxCoeff());
+                             (q_current[leg] - candidate.p0.q_rad[leg]).cwiseAbs().maxCoeff());
     }
-    if (entry_error > config_.settle_gate.entry_max_joint_error_rad) {
+    if (entry_error > candidate.settle_gate.entry_max_joint_error_rad) {
       throw ConfigError("compact entry joint error exceeds simulation gate");
     }
   }
+  // front compact 默认仅仿真；仅当调用方显式授权（ROS 参数 ~allow_front_hardware）
+  // 才允许 hardware_execution。这是与 Python 的有意差异，由项目所有者决定。
+  if (hardware_execution && candidate.isFront() && !candidate.allow_front_hardware) {
+    throw ConfigError("front compact climbing is simulation-only");
+  }
+  config_ = std::move(candidate);
   this->hardware_execution = hardware_execution;
   stage_index = start_stage_index;
   this->end_stage_index = end_index;
@@ -118,8 +187,7 @@ void ClimbMode::enter(const JointAngles& q_current,
 
   if (start_stage_index == 0) {
     anchors_world = config_.p0.anchors_world_m;
-    base_pose = std::array<double, 5>{config_.p0.base[0], config_.p0.base[1],
-                                      config_.p0.base[2], 0.0, config_.p0.base[3]};
+    base_pose = config_.p0.pose;
   } else {
     const CompactStage& stage = config_.stages[start_stage_index];
     base_pose = stage.pose_start;
@@ -164,7 +232,7 @@ void ClimbMode::updateHardwareStageElapsedTime() {
   hardware_stage_last_monotonic_ = now;
 }
 
-void ClimbMode::applyReference(const std::array<double, 5>& base,
+void ClimbMode::applyReference(const BasePose& base,
                                const std::array<Vector3d, 6>& anchors,
                                bool sync_previous) {
   base_pose = base;
@@ -247,20 +315,41 @@ std::vector<Vector3d> ClimbMode::piecewiseSlots(
   return result;
 }
 
-std::tuple<std::array<double, 5>, std::array<Vector3d, 6>, double>
-ClimbMode::stageReference() const {
+BasePose ClimbMode::piecewisePose(const std::vector<BasePose>& knots,
+                                  const std::vector<double>& durations, double elapsed) {
+  const auto located = locateSegment(durations, elapsed);
+  if (!located) {
+    return knots.back();
+  }
+  const auto [index, u, duration] = *located;
+  (void)duration;
+  const double weight = smoothstep(u);
+  BasePose result{};
+  for (int i = 0; i < 6; ++i) {
+    result[i] = knots[index][i] * (1.0 - weight) + knots[index + 1][i] * weight;
+  }
+  return result;
+}
+
+std::tuple<BasePose, std::array<Vector3d, 6>, double> ClimbMode::stageReference() const {
   const CompactStage& stage = config_.stages[*stage_index];
   const std::vector<double>& durations = stage.segment_durations_s;
   const double total = std::accumulate(durations.begin(), durations.end(), 0.0);
   double phase_value = std::max(0.0, std::min(1.0, phase_time / total));
   double pose_phase = phase_value;
-  if (stage.pose_curve == "quintic_first_segment") {
-    pose_phase = std::max(0.0, std::min(1.0, phase_time / durations[0]));
-  }
-  const double pose_weight = smoothstep(pose_phase);
-  std::array<double, 5> pose{};
-  for (int i = 0; i < 5; ++i) {
-    pose[i] = stage.pose_start[i] * (1.0 - pose_weight) + stage.pose_end[i] * pose_weight;
+  double pose_weight = 0.0;
+  BasePose pose{};
+  if (stage.pose_curve == "piecewise_quintic") {
+    pose = piecewisePose(stage.pose_knots, durations, phase_time);
+    pose_weight = smoothstep(phase_value);
+  } else {
+    if (stage.pose_curve == "quintic_first_segment") {
+      pose_phase = std::max(0.0, std::min(1.0, phase_time / durations[0]));
+    }
+    pose_weight = smoothstep(pose_phase);
+    for (int i = 0; i < 6; ++i) {
+      pose[i] = stage.pose_start[i] * (1.0 - pose_weight) + stage.pose_end[i] * pose_weight;
+    }
   }
 
   std::array<Vector3d, 6> anchors{};
@@ -279,7 +368,7 @@ ClimbMode::stageReference() const {
 }
 
 std::array<Vector3d, 6> ClimbMode::relativeBaseHighStep(
-    const CompactStage& stage, const std::array<double, 5>& pose, double pose_weight,
+    const CompactStage& stage, const BasePose& pose, double pose_weight,
     double phase) const {
   const std::vector<std::array<Vector3d, 6>>& knots = stage.anchor_knots;
   const Matrix4d start_inverse = worldFromBase(stage.pose_start).inverse();
@@ -317,7 +406,7 @@ std::array<Vector3d, 6> ClimbMode::relativeBaseHighStep(
 }
 
 std::array<Vector3d, 6> ClimbMode::piecewiseBase(const CompactStage& stage,
-                                                 const std::array<double, 5>& pose) const {
+                                                 const BasePose& pose) const {
   const std::vector<std::vector<Vector3d>>* velocities =
       stage.has_active_base_velocities ? &stage.active_base_velocities_m_s : nullptr;
   const std::vector<Vector3d> active_base =
@@ -331,6 +420,13 @@ std::array<Vector3d, 6> ClimbMode::piecewiseBase(const CompactStage& stage,
     const Eigen::Vector4d homogeneous(active_base[slot].x(), active_base[slot].y(),
                                       active_base[slot].z(), 1.0);
     anchors[leg] = (world * homogeneous).head<3>();
+  }
+  // contact_plan_version=1: 当前段声明的支撑腿固定在该段起点锚点（世界系）。
+  if (stage.hasSegmentSupportLegs()) {
+    const std::size_t segment = segmentIndexAt(stage, phase_time);
+    for (int leg : stage.segmentSupportLegs(segment)) {
+      anchors[leg] = stage.anchor_knots[segment][leg];
+    }
   }
   return anchors;
 }
@@ -549,12 +645,20 @@ void ClimbMode::update(const Eigen::Vector4d& command, const JointAngles& q_curr
     return;
   }
 
-  if (hardware_execution) {
+  // 实机，或仿真中 preview_time_only_stage_advance=false，都走反馈检查点逻辑。
+  const bool feedback_checkpoint_execution =
+      hardware_execution || !config_.settle_gate.preview_time_only_stage_advance;
+  if (feedback_checkpoint_execution) {
     const CompactSettleGate& gate = config_.settle_gate;
     const CompactStage& stage = config_.stages[*stage_index];
     const double duration = std::accumulate(stage.segment_durations_s.begin(),
                                             stage.segment_durations_s.end(), 0.0);
-    updateHardwareStageElapsedTime();
+    if (hardware_execution) {
+      updateHardwareStageElapsedTime();
+    } else {
+      // 非 hardware 仿真的超时只按控制 dt 推进，绝不用墙钟。
+      stage_elapsed_time += controller_->dt;
+    }
 
     // 先检查上一控制帧已经下发的目标。实机跟不上或公共碰撞守卫保持时冻结
     // 当前轨迹相位，继续追踪同一目标，避免摆动腿尚未到达最高点，规划时钟

@@ -49,6 +49,11 @@ ClimbMode::ClimbMode(ModeContext& ctx, const ModeTopics& topics)
   enable_real_climb_ = pnh.param("enable_real_climb", false);
   climb_side_ = pnh.param<std::string>("climb_side", "left");
   validateCompactClimbSide(climb_side_);
+  // 配置文件名（在控制 config 目录内解析）；front compact 默认仍仅仿真，
+  // 实机运行 front 必须显式设置 ~allow_front_hardware:=true。
+  climb_config_file_ =
+      pnh.param<std::string>("climb_config_file", "climb_compact.json");
+  allow_front_hardware_ = pnh.param("allow_front_hardware", false);
   climb_foot_gate_m_ = pnh.param("climb_foot_gate_m", 0.02);
   if (!std::isfinite(climb_foot_gate_m_) || climb_foot_gate_m_ <= 0.0 ||
       climb_foot_gate_m_ > 0.10) {
@@ -66,6 +71,7 @@ ClimbMode::ClimbMode(ModeContext& ctx, const ModeTopics& topics)
 bool ClimbMode::start(const JointAngles& q_cur, std::string& reason) {
   GraspController& controller = ctx().controller();
   reason = "climb entry rejected";
+  bool front_config = false;
   if (!enable_real_climb_) {
     ROS_WARN_THROTTLE(2.0, "climb rejected: enable_real_climb is false");
     return false;
@@ -77,15 +83,27 @@ bool ClimbMode::start(const JointAngles& q_cur, std::string& reason) {
     return false;
   }
   try {
-    ClimbCompactConfig config = controller.climb_mode.loadConfig();
+    ClimbCompactConfig config =
+        controller.climb_mode.loadConfig(climb_config_file_);
+    // front compact 没有右侧镜像：left 原样返回，right 抛 ConfigError 并在此拒绝。
     config = selectCompactClimbSide(config, climb_side_);
     config.settle_gate.max_foot_target_error_m = climb_foot_gate_m_;
+    // 仅由本 ROS 参数授权；缺省 false 时 front + hardware 在 enter 中被拒绝。
+    config.allow_front_hardware = allow_front_hardware_;
+    front_config = config.isFront();
     controller.enterClimb(q_cur, config, 0, std::nullopt, true);
   } catch (const ConfigError& error) {
     ROS_WARN("climb rejected: compact entry gate failed: %s", error.what());
     return false;
   }
-  ROS_INFO("Compact climb side selected: %s", climb_side_.c_str());
+  ROS_INFO("Compact climb config=%s side selected: %s", climb_config_file_.c_str(),
+           climb_side_.c_str());
+  if (front_config) {
+    ROS_WARN(
+        "FRONT compact climb accepted for hardware execution only because "
+        "~allow_front_hardware is true; the shared 4 rad/s joint step cap "
+        "applies and simulation_joint_velocity_limit_rad_s is ignored");
+  }
 
   // 可选相对运动监控：起点参考（RTK/IMU/计划位姿）。
   const NavigationState navigation = ctx().inputs().navigationMotionSnapshot();

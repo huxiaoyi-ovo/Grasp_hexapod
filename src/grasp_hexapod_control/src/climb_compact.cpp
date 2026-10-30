@@ -2,6 +2,7 @@
 
 #include <nlohmann/json.hpp>
 
+#include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <fstream>
@@ -13,9 +14,9 @@ namespace grasp_hexapod_control_cpp {
 
 using nlohmann::json;
 
-Matrix4d worldFromBase(const std::array<double, 5>& base) {
+Matrix4d worldFromBase(const BasePose& base) {
   const double x = base[0], y = base[1], z = base[2];
-  const double roll = base[3], pitch = base[4];
+  const double roll = base[3], pitch = base[4], yaw = base[5];
   const double cosine_r = std::cos(roll), sine_r = std::sin(roll);
   const double cosine_p = std::cos(pitch), sine_p = std::sin(pitch);
   Matrix3d rotation_x;
@@ -23,11 +24,24 @@ Matrix4d worldFromBase(const std::array<double, 5>& base) {
   Matrix3d rotation_y;
   rotation_y << cosine_p, 0.0, sine_p, 0.0, 1.0, 0.0, -sine_p, 0.0, cosine_p;
   Matrix4d output = Matrix4d::Identity();
-  output.block<3, 3>(0, 0) = rotation_y * rotation_x;
+  if (yaw == 0.0) {
+    // 与历史 5 元素实现逐位一致（Rz(0) 是精确单位阵）。
+    output.block<3, 3>(0, 0) = rotation_y * rotation_x;
+  } else {
+    const double cosine_y = std::cos(yaw), sine_y = std::sin(yaw);
+    Matrix3d rotation_z;
+    rotation_z << cosine_y, -sine_y, 0.0, sine_y, cosine_y, 0.0, 0.0, 0.0, 1.0;
+    // Python: rotation_z @ rotation_y @ rotation_x（自左向右结合）。
+    output.block<3, 3>(0, 0) = (rotation_z * rotation_y) * rotation_x;
+  }
   output(0, 3) = x;
   output(1, 3) = y;
   output(2, 3) = z;
   return output;
+}
+
+Matrix4d worldFromBase(const std::array<double, 5>& base) {
+  return worldFromBase(BasePose{base[0], base[1], base[2], base[3], base[4], 0.0});
 }
 
 namespace {
@@ -75,13 +89,15 @@ double finiteNumberAt(const json& config, const std::string& path) {
   return number;
 }
 
-std::array<double, 5> array5At(const json& config, const std::string& path) {
+// 读取机身位姿：front 为 6 元素，侧向为 5 元素（yaw 存 0）。
+BasePose poseAt(const json& config, const std::string& path, bool front) {
   const json& value = atPath(config, path);
-  if (!value.is_array() || value.size() != 5) {
+  const std::size_t expected = front ? 6 : 5;
+  if (!value.is_array() || value.size() != expected) {
     throwInvalidField(path);
   }
-  std::array<double, 5> result{};
-  for (int i = 0; i < 5; ++i) {
+  BasePose result{};
+  for (std::size_t i = 0; i < expected; ++i) {
     if (!value[i].is_number() || !std::isfinite(value[i].get<double>())) {
       throwInvalidField(path);
     }
@@ -184,7 +200,7 @@ bool readLoosePointRows(const json& value, std::vector<std::vector<Vector3d>>& r
 }
 
 // 解析一个阶段；类型级非法抛 "invalid compact stage fields: name"。
-CompactStage parseStage(const json& stage, int index) {
+CompactStage parseStage(const json& stage, int index, bool front) {
   if (!stage.is_object()) {
     throw ConfigError("compact stage is invalid");
   }
@@ -195,8 +211,8 @@ CompactStage parseStage(const json& stage, int index) {
   if (parsed.name.empty()) {
     throw ConfigError("compact stage is invalid");
   }
-  parsed.pose_start = array5At(stage, "pose_start");
-  parsed.pose_end = array5At(stage, "pose_end");
+  parsed.pose_start = poseAt(stage, "pose_start", front);
+  parsed.pose_end = poseAt(stage, "pose_end", front);
 
   const std::string prefix = "stages." + std::to_string(index) + ".";
   const json& knots = stage.contains("anchor_knots") ? stage["anchor_knots"] : json();
@@ -268,6 +284,41 @@ CompactStage parseStage(const json& stage, int index) {
     }
     parsed.has_active_base_velocities = true;
   }
+  if (stage.contains("pose_knots") && !stage["pose_knots"].is_null()) {
+    parsed.has_pose_knots = true;
+    const json& rows = stage["pose_knots"];
+    bool wellformed = rows.is_array();
+    if (wellformed) {
+      for (const json& row : rows) {
+        if (!row.is_array() || row.size() != 6) {
+          wellformed = false;
+          break;
+        }
+        BasePose pose{};
+        for (int i = 0; i < 6; ++i) {
+          if (!row[i].is_number() || !std::isfinite(row[i].get<double>())) {
+            wellformed = false;
+            break;
+          }
+          pose[i] = row[i].get<double>();
+        }
+        if (!wellformed) {
+          break;
+        }
+        parsed.pose_knots.push_back(pose);
+      }
+    }
+    parsed.pose_knots_wellformed = wellformed;
+    if (!wellformed) {
+      parsed.pose_knots.clear();
+    }
+  }
+  for (const char* key : {"support_legs", "airborne_legs_start", "airborne_legs_end",
+                          "segment_support_legs"}) {
+    if (stage.contains(key)) {
+      parsed.contact_roles[key] = stage[key];
+    }
+  }
   if (stage.contains("continuous_air_transition")) {
     if (!stage["continuous_air_transition"].is_boolean()) {
       throw ConfigError("continuous air transition marker must be bool");
@@ -278,6 +329,34 @@ CompactStage parseStage(const json& stage, int index) {
 }
 
 }  // namespace
+
+std::vector<int> CompactStage::roleLegs(const std::string& key) const {
+  std::vector<int> legs;
+  const auto found = contact_roles.find(key);
+  if (found != contact_roles.end() && found->second.is_array()) {
+    for (const json& item : found->second) {
+      legs.push_back(item.get<int>());
+    }
+  }
+  return legs;
+}
+
+bool CompactStage::hasSegmentSupportLegs() const {
+  const auto found = contact_roles.find("segment_support_legs");
+  return found != contact_roles.end() && !found->second.is_null();
+}
+
+std::vector<int> CompactStage::segmentSupportLegs(std::size_t segment) const {
+  std::vector<int> legs;
+  const auto found = contact_roles.find("segment_support_legs");
+  if (found != contact_roles.end() && found->second.is_array() &&
+      segment < found->second.size() && found->second[segment].is_array()) {
+    for (const json& item : found->second[segment]) {
+      legs.push_back(item.get<int>());
+    }
+  }
+  return legs;
+}
 
 ClimbCompactConfig climbCompactFromJson(const json& document) {
   if (!document.is_object()) {
@@ -305,19 +384,52 @@ ClimbCompactConfig climbCompactFromJson(const json& document) {
         value[0].get<double>(), value[1].get<double>(), value[2].get<double>());
   }
   config.p0.q_rad = joints63At(document, "p0.q_rad");
-  config.p0.base = [] (const json& value) {
-    if (!value.is_array() || value.size() != 4) {
+  if (document.contains("climb_orientation") && document["climb_orientation"].is_string()) {
+    config.climb_orientation = document["climb_orientation"].get<std::string>();
+  }
+  const bool front = config.isFront();
+  if (document.contains("contact_plan_version") &&
+      !document["contact_plan_version"].is_null()) {
+    const json& version = document["contact_plan_version"];
+    config.contact_plan_version_present = true;
+    // Python: True == 1 与 1.0 == 1 均成立，其余（字符串/列表/其他数值）不等于 1。
+    if (version.is_boolean()) {
+      config.contact_plan_version_is_one = version.get<bool>();
+    } else if (version.is_number()) {
+      config.contact_plan_version_is_one = version.get<double>() == 1.0;
+    }
+  }
+  if (document.contains("simulation_joint_velocity_limit_rad_s") &&
+      !document["simulation_joint_velocity_limit_rad_s"].is_null()) {
+    const json& cap = document["simulation_joint_velocity_limit_rad_s"];
+    if (cap.is_number() && !cap.is_boolean()) {
+      config.simulation_joint_velocity_limit_rad_s = cap.get<double>();
+    } else {
+      config.simulation_joint_velocity_limit_malformed = true;
+    }
+  }
+  {
+    const json& value = atPath(document, "p0.base");
+    const std::size_t expected = front ? 6 : 4;
+    if (!value.is_array() || value.size() != expected) {
       throwInvalidField("p0.base");
     }
-    std::array<double, 4> result{};
-    for (int i = 0; i < 4; ++i) {
+    std::array<double, 6> parsed{};
+    for (std::size_t i = 0; i < expected; ++i) {
       if (!value[i].is_number() || !std::isfinite(value[i].get<double>())) {
         throwInvalidField("p0.base");
       }
-      result[i] = value[i].get<double>();
+      parsed[i] = value[i].get<double>();
     }
-    return result;
-  }(atPath(document, "p0.base"));
+    if (front) {
+      config.p0.pose = parsed;
+    } else {
+      for (int i = 0; i < 4; ++i) {
+        config.p0.base[i] = parsed[i];
+      }
+      config.p0.pose = BasePose{parsed[0], parsed[1], parsed[2], 0.0, parsed[3], 0.0};
+    }
+  }
   config.p0.anchors_world_m = anchors6At(atPath(document, "p0.anchors_world_m"),
                                          "p0.anchors_world_m");
   config.terminal_q_rad = joints63At(document, "terminal_q_rad");
@@ -335,7 +447,7 @@ ClimbCompactConfig climbCompactFromJson(const json& document) {
   const json& stages = document.contains("stages") ? document["stages"] : json();
   if (stages.is_array()) {
     for (int i = 0; i < static_cast<int>(stages.size()); ++i) {
-      config.stages.push_back(parseStage(stages[i], i));
+      config.stages.push_back(parseStage(stages[i], i, front));
     }
   }
   config.stage_count = document.contains("stage_count") &&
@@ -385,6 +497,60 @@ ClimbCompactConfig loadClimbCompact(const std::string& path) {
   return climbCompactFromJson(document);
 }
 
+namespace {
+
+bool allClosePose(const BasePose& a, const BasePose& b, double atol) {
+  for (std::size_t i = 0; i < a.size(); ++i) {
+    if (!allCloseAbs(a[i], b[i], atol)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+// Python: 非负整数腿号、范围 [0, 6)、无重复。
+bool parseLegList(const json& value, std::vector<int>& legs) {
+  legs.clear();
+  if (!value.is_array()) {
+    return false;
+  }
+  std::set<int> unique;
+  for (const json& item : value) {
+    if (!item.is_number_integer()) {
+      return false;
+    }
+    const long long leg = item.get<long long>();
+    if (leg < 0 || leg >= kLegCount) {
+      return false;
+    }
+    legs.push_back(static_cast<int>(leg));
+    unique.insert(static_cast<int>(leg));
+  }
+  return unique.size() == legs.size();
+}
+
+std::set<int> toSet(const std::vector<int>& legs) {
+  return std::set<int>(legs.begin(), legs.end());
+}
+
+bool isSubset(const std::set<int>& small, const std::set<int>& large) {
+  return std::includes(large.begin(), large.end(), small.begin(), small.end());
+}
+
+bool intersects(const std::set<int>& a, const std::set<int>& b) {
+  for (int value : a) {
+    if (b.count(value) != 0) {
+      return true;
+    }
+  }
+  return false;
+}
+
+constexpr const char* kRoleKeys[3] = {"support_legs", "airborne_legs_start",
+                                      "airborne_legs_end"};
+
+}  // namespace
+
 void validateClimbCompact(const ClimbCompactConfig& config) {
   if (config.schema != kCompactSchema || !config.simulation_only ||
       !config.simulation_candidate_only) {
@@ -396,16 +562,50 @@ void validateClimbCompact(const ClimbCompactConfig& config) {
       throw ConfigError("compact P0 must be Q_STAND");
     }
   }
+  const bool is_front = config.isFront();
+  const bool contact_plan_v1 = config.contact_plan_version_is_one;
+  bool has_role_metadata = false;
+  for (const CompactStage& stage : config.stages) {
+    if (!stage.contact_roles.empty()) {
+      has_role_metadata = true;
+    }
+  }
+  if (config.contact_plan_version_present && !contact_plan_v1) {
+    throw ConfigError("unsupported contact plan version");
+  }
+  if (contact_plan_v1 && !is_front) {
+    throw ConfigError("planned contact roles are front-only");
+  }
+  if (!contact_plan_v1 && has_role_metadata) {
+    throw ConfigError("planned contact roles require contact_plan_version=1");
+  }
+  if (config.simulation_joint_velocity_limit_rad_s.has_value() ||
+      config.simulation_joint_velocity_limit_malformed) {
+    const double cap = config.simulation_joint_velocity_limit_rad_s.value_or(0.0);
+    if (!is_front || config.simulation_joint_velocity_limit_malformed ||
+        !std::isfinite(cap) || !(cap > 0.0 && cap <= 8.0)) {
+      throw ConfigError("invalid front simulation joint velocity cap");
+    }
+  }
+  if (is_front) {
+    // np.isclose(yaw, -pi/2): |a-b| <= 1e-8 + 1e-5*|b|。
+    const double target_yaw = -M_PI / 2.0;
+    if (!(std::abs(config.p0.pose[5] - target_yaw) <=
+          1e-8 + 1e-5 * std::abs(target_yaw))) {
+      throw ConfigError("front compact P0 must face Xiaolan along +x");
+    }
+  }
   if (config.stages.empty() || config.stage_count != static_cast<int>(config.stages.size())) {
     throw ConfigError("compact stage list is invalid");
   }
 
-  std::array<double, 5> previous_pose = {
-      config.p0.base[0], config.p0.base[1], config.p0.base[2], 0.0, config.p0.base[3]};
+  BasePose previous_pose = config.p0.pose;
   std::array<Vector3d, 6> previous_anchors = config.p0.anchors_world_m;
+  std::vector<int> previous_airborne_end;
 
   std::set<std::string> names;
-  for (const CompactStage& stage : config.stages) {
+  for (std::size_t stage_ordinal = 0; stage_ordinal < config.stages.size(); ++stage_ordinal) {
+    const CompactStage& stage = config.stages[stage_ordinal];
     names.insert(stage.name);
 
     const std::size_t knot_count = stage.anchor_knots.size();
@@ -432,9 +632,18 @@ void validateClimbCompact(const ClimbCompactConfig& config) {
       }
       return true;
     }();
-    const bool poseCurveValid =
-        stage.pose_curve == "quintic_full_stage" ||
-        stage.pose_curve == "quintic_first_segment";
+    const bool poseCurveValid = stage.pose_curve == "quintic_full_stage" ||
+                                stage.pose_curve == "quintic_first_segment" ||
+                                stage.pose_curve == "piecewise_quintic";
+
+    const bool piecewise_pose_curve =
+        stage.pose_curve == "piecewise_quintic" && is_front &&
+        (stage.anchor_curve == "piecewise_quintic" ||
+         stage.anchor_curve == "piecewise_base_quintic") &&
+        stage.has_pose_knots && stage.pose_knots_wellformed &&
+        stage.pose_knots.size() == knot_count &&
+        allClosePose(stage.pose_knots.front(), stage.pose_start, 1e-12) &&
+        allClosePose(stage.pose_knots.back(), stage.pose_end, 1e-12);
 
     const bool base_piecewise_curve = [&]() {
       if (stage.anchor_curve != "piecewise_base_quintic" ||
@@ -475,27 +684,111 @@ void validateClimbCompact(const ClimbCompactConfig& config) {
 
     const bool first_segment_pose_curve =
         stage.pose_curve == "quintic_first_segment" && base_piecewise_curve &&
-        stage.active_legs.size() == 1 && stage.segment_durations_s.size() > 1;
+        (stage.active_legs.size() == 1 ||
+         (is_front && (stage.active_legs == std::vector<int>{0, 3} ||
+                       stage.active_legs == std::vector<int>{1, 4} ||
+                       stage.active_legs == std::vector<int>{2, 5}))) &&
+        stage.segment_durations_s.size() > 1;
 
     const bool settle_persistence_valid =
         !stage.has_settle_persistence ||
         (std::isfinite(stage.settle_persistence_s) && stage.settle_persistence_s > 0.0);
 
     const bool anchor_curve_ok =
-        (stage.anchor_curve == "piecewise_quintic" && stage.active_legs.empty()) ||
+        (stage.anchor_curve == "piecewise_quintic" &&
+         (stage.active_legs.empty() || is_front)) ||
         base_piecewise_curve || relative_curve;
 
     if (!knotsShapeValid() || !durationsValid || !activeValid || !poseCurveValid ||
+        (stage.has_pose_knots && !piecewise_pose_curve) ||
+        (stage.pose_curve == "piecewise_quintic" && !piecewise_pose_curve) ||
         (stage.pose_curve == "quintic_first_segment" && !first_segment_pose_curve) ||
         !anchor_curve_ok || !std::isfinite(stage.settle_s) || stage.settle_s <= 0.0 ||
         !settle_persistence_valid) {
       throw ConfigError("invalid compact stage fields: " + stage.name);
     }
 
-    for (int i = 0; i < 5; ++i) {
-      if (!allCloseAbs(stage.pose_start[i], previous_pose[i], 1e-12)) {
-        throw ConfigError("compact stage boundary mismatch: " + stage.name);
+    if (contact_plan_v1) {
+      for (const char* key : kRoleKeys) {
+        if (stage.contact_roles.find(key) == stage.contact_roles.end()) {
+          throw ConfigError("planned contact roles are incomplete: " + stage.name);
+        }
       }
+      std::vector<int> support_legs;
+      std::vector<int> air_start_legs;
+      std::vector<int> air_end_legs;
+      std::vector<int>* const role_targets[3] = {&support_legs, &air_start_legs,
+                                                 &air_end_legs};
+      for (int k = 0; k < 3; ++k) {
+        if (!parseLegList(stage.contact_roles.at(kRoleKeys[k]), *role_targets[k])) {
+          throw ConfigError("invalid planned role list: " + stage.name);
+        }
+      }
+      const std::set<int> active_set = toSet(stage.active_legs);
+      const std::set<int> support_set = toSet(support_legs);
+      const std::set<int> air_start_set = toSet(air_start_legs);
+      const std::set<int> air_end_set = toSet(air_end_legs);
+      std::set<int> expected_support;
+      for (int leg = 0; leg < kLegCount; ++leg) {
+        if (active_set.count(leg) == 0) {
+          expected_support.insert(leg);
+        }
+      }
+      if (support_set != expected_support || support_set.size() < 3 ||
+          !isSubset(air_start_set, active_set) || !isSubset(air_end_set, active_set) ||
+          (stage_ordinal == 0 && !air_start_set.empty()) ||
+          (stage_ordinal > 0 && air_start_set != toSet(previous_airborne_end))) {
+        throw ConfigError("invalid planned contact roles: " + stage.name);
+      }
+      if (intersects(air_start_set, air_end_set) &&
+          stage.anchor_curve != "piecewise_base_quintic") {
+        throw ConfigError("planned carried air requires base-piecewise curve: " + stage.name);
+      }
+      for (const std::array<Vector3d, 6>& knot : stage.anchor_knots) {
+        for (int leg : support_legs) {
+          for (int i = 0; i < 3; ++i) {
+            if (!allCloseAbs(knot[leg][i], stage.anchor_knots.front()[leg][i], 1e-12)) {
+              throw ConfigError("planned support anchors must remain world-fixed: " +
+                                stage.name);
+            }
+          }
+        }
+      }
+      if (stage.hasSegmentSupportLegs()) {
+        const json& table = stage.contact_roles.at("segment_support_legs");
+        if (!table.is_array() || table.size() != stage.segment_durations_s.size()) {
+          throw ConfigError("invalid segment support table: " + stage.name);
+        }
+        for (std::size_t segment = 0; segment < table.size(); ++segment) {
+          std::vector<int> declared;
+          bool valid = parseLegList(table[segment], declared) && declared.size() >= 3 &&
+                       isSubset(support_set, toSet(declared));
+          if (valid) {
+            for (int leg : declared) {
+              for (int i = 0; i < 3; ++i) {
+                if (!allCloseAbs(stage.anchor_knots[segment][leg][i],
+                                 stage.anchor_knots[segment + 1][leg][i], 1e-12)) {
+                  valid = false;
+                }
+              }
+            }
+          }
+          if (!valid) {
+            throw ConfigError("invalid segment support table: " + stage.name);
+          }
+        }
+        if (intersects(toSet(stage.segmentSupportLegs(0)), air_start_set)) {
+          throw ConfigError("segment support overlaps start air: " + stage.name);
+        }
+        if (intersects(toSet(stage.segmentSupportLegs(table.size() - 1)), air_end_set)) {
+          throw ConfigError("segment support overlaps end air: " + stage.name);
+        }
+      }
+      previous_airborne_end = air_end_legs;
+    }
+
+    if (!allClosePose(stage.pose_start, previous_pose, 1e-12)) {
+      throw ConfigError("compact stage boundary mismatch: " + stage.name);
     }
     for (int leg = 0; leg < kLegCount; ++leg) {
       for (int i = 0; i < 3; ++i) {
@@ -508,7 +801,7 @@ void validateClimbCompact(const ClimbCompactConfig& config) {
     if (base_piecewise_curve) {
       const std::vector<int> active = stage.active_legs;
       const auto checkEndpoint = [&](const std::array<Vector3d, 6>& endpoint,
-                                     const std::array<double, 5>& endpoint_pose, int knot_index) {
+                                     const BasePose& endpoint_pose, int knot_index) {
         const Matrix4d world = worldFromBase(endpoint_pose);
         const std::vector<Vector3d>& base_row =
             stage.active_base_knots_m[knot_index < 0
@@ -535,8 +828,11 @@ void validateClimbCompact(const ClimbCompactConfig& config) {
   if (names.size() != config.stages.size()) {
     throw ConfigError("compact stage names must be unique");
   }
+  if (contact_plan_v1 && !previous_airborne_end.empty()) {
+    throw ConfigError("planned airborne legs require a following stage");
+  }
 
-  // 连续腾空过渡（frozen LM 对）校验。
+  // 连续腾空过渡校验：侧向为冻结的 LM 对；front 按 contact_plan 角色逐腿校验。
   for (std::size_t index = 0; index < config.stages.size(); ++index) {
     const CompactStage& stage = config.stages[index];
     if (!stage.continuous_air_transition) {
@@ -546,46 +842,98 @@ void validateClimbCompact(const ClimbCompactConfig& config) {
       throw ConfigError("continuous air transition requires next stage");
     }
     const CompactStage& next_stage = config.stages[index + 1];
-    const std::vector<int> frozen = {2};
-    const std::string pair_a = stage.name;
-    const std::string pair_b = next_stage.name;
-    const bool pair_ok =
-        (pair_a == "LM_LIFT" && pair_b == "BODY_ADVANCE_LM_AIR") ||
-        (pair_a == "BODY_ADVANCE_LM_AIR" && pair_b == "LM_LEFT_FINAL_LAND");
-    if (stage.active_legs != frozen || next_stage.active_legs != frozen || !pair_ok) {
-      throw ConfigError("continuous air transition requires frozen LM pair");
-    }
-    for (int i = 0; i < 5; ++i) {
-      if (!allCloseAbs(stage.pose_end[i], next_stage.pose_start[i], 1e-12)) {
-        throw ConfigError("continuous air transition boundary mismatch");
+    if (!is_front) {
+      const std::vector<int> frozen = {2};
+      const std::string pair_a = stage.name;
+      const std::string pair_b = next_stage.name;
+      const bool pair_ok =
+          (pair_a == "LM_LIFT" && pair_b == "BODY_ADVANCE_LM_AIR") ||
+          (pair_a == "BODY_ADVANCE_LM_AIR" && pair_b == "LM_LEFT_FINAL_LAND");
+      if (stage.active_legs != frozen || next_stage.active_legs != frozen || !pair_ok) {
+        throw ConfigError("continuous air transition requires frozen LM pair");
       }
-    }
-    const std::array<int, 5> non_lm = {0, 1, 3, 4, 5};
-    for (int leg : non_lm) {
-      for (int i = 0; i < 3; ++i) {
-        if (!allCloseAbs(stage.anchor_knots.back()[leg][i],
-                         next_stage.anchor_knots.front()[leg][i], 1e-12)) {
+      for (int i = 0; i < 6; ++i) {
+        if (!allCloseAbs(stage.pose_end[i], next_stage.pose_start[i], 1e-12)) {
           throw ConfigError("continuous air transition boundary mismatch");
         }
       }
+      const std::array<int, 5> non_lm = {0, 1, 3, 4, 5};
+      for (int leg : non_lm) {
+        for (int i = 0; i < 3; ++i) {
+          if (!allCloseAbs(stage.anchor_knots.back()[leg][i],
+                           next_stage.anchor_knots.front()[leg][i], 1e-12)) {
+            throw ConfigError("continuous air transition boundary mismatch");
+          }
+        }
+      }
+      if (!stage.has_active_base_velocities || !next_stage.has_active_base_velocities) {
+        throw ConfigError("continuous air transition requires base velocities");
+      }
+      const Vector3d current_world_velocity =
+          worldFromBase(stage.pose_end).block<3, 3>(0, 0) *
+          stage.active_base_velocities_m_s.back()[0];
+      const Vector3d next_world_velocity =
+          worldFromBase(next_stage.pose_start).block<3, 3>(0, 0) *
+          next_stage.active_base_velocities_m_s.front()[0];
+      if (current_world_velocity.norm() <= 1e-9) {
+        throw ConfigError("continuous air transition velocity mismatch");
+      }
+      for (int i = 0; i < 3; ++i) {
+        if (!allCloseAbs(current_world_velocity[i], next_world_velocity[i], 1e-9)) {
+          throw ConfigError("continuous air transition velocity mismatch");
+        }
+      }
+      continue;
     }
-    if (!stage.has_active_base_velocities || !next_stage.has_active_base_velocities) {
-      throw ConfigError("continuous air transition requires base velocities");
+
+    bool roles_present = contact_plan_v1;
+    for (const char* key : kRoleKeys) {
+      roles_present = roles_present &&
+                      stage.contact_roles.find(key) != stage.contact_roles.end() &&
+                      next_stage.contact_roles.find(key) != next_stage.contact_roles.end();
     }
-    const auto slotVector = [](const std::vector<Vector3d>& row, std::size_t slot) {
-      return row[slot];
-    };
-    const Vector3d current_world_velocity =
-        worldFromBase(stage.pose_end).block<3, 3>(0, 0) *
-        slotVector(stage.active_base_velocities_m_s.back(), 0);
-    const Vector3d next_world_velocity =
-        worldFromBase(next_stage.pose_start).block<3, 3>(0, 0) *
-        slotVector(next_stage.active_base_velocities_m_s.front(), 0);
-    if (current_world_velocity.norm() <= 1e-9) {
-      throw ConfigError("continuous air transition velocity mismatch");
+    if (!roles_present) {
+      throw ConfigError("invalid front continuous air transition");
     }
-    for (int i = 0; i < 3; ++i) {
-      if (!allCloseAbs(current_world_velocity[i], next_world_velocity[i], 1e-9)) {
+    const std::set<int> carried = toSet(stage.roleLegs("airborne_legs_end"));
+    const std::set<int> next_carried = toSet(next_stage.roleLegs("airborne_legs_start"));
+    bool knots_equal = true;
+    for (int leg = 0; leg < kLegCount; ++leg) {
+      for (int i = 0; i < 3; ++i) {
+        if (!allCloseAbs(stage.anchor_knots.back()[leg][i],
+                         next_stage.anchor_knots.front()[leg][i], 1e-12)) {
+          knots_equal = false;
+        }
+      }
+    }
+    if (carried.empty() || carried != toSet(stage.active_legs) ||
+        next_carried != carried || !isSubset(carried, toSet(next_stage.active_legs)) ||
+        stage.anchor_curve != "piecewise_base_quintic" ||
+        next_stage.anchor_curve != "piecewise_base_quintic" ||
+        !allClosePose(stage.pose_end, next_stage.pose_start, 1e-12) || !knots_equal ||
+        !stage.has_active_base_velocities || !next_stage.has_active_base_velocities) {
+      throw ConfigError("invalid front continuous air transition");
+    }
+    for (int leg : carried) {
+      const std::size_t current_index = static_cast<std::size_t>(
+          std::find(stage.active_legs.begin(), stage.active_legs.end(), leg) -
+          stage.active_legs.begin());
+      const std::size_t next_index = static_cast<std::size_t>(
+          std::find(next_stage.active_legs.begin(), next_stage.active_legs.end(), leg) -
+          next_stage.active_legs.begin());
+      const Vector3d current_world_velocity =
+          worldFromBase(stage.pose_end).block<3, 3>(0, 0) *
+          stage.active_base_velocities_m_s.back()[current_index];
+      const Vector3d next_world_velocity =
+          worldFromBase(next_stage.pose_start).block<3, 3>(0, 0) *
+          next_stage.active_base_velocities_m_s.front()[next_index];
+      bool velocity_ok = current_world_velocity.norm() > 1e-9;
+      for (int i = 0; i < 3; ++i) {
+        if (!allCloseAbs(current_world_velocity[i], next_world_velocity[i], 1e-9)) {
+          velocity_ok = false;
+        }
+      }
+      if (!velocity_ok) {
         throw ConfigError("continuous air transition velocity mismatch");
       }
     }
@@ -656,6 +1004,9 @@ std::array<Vector3d, 6> mirrorWorldAnchorRows(
 ClimbCompactConfig selectCompactClimbSide(const ClimbCompactConfig& config,
                                           const std::string& side) {
   validateCompactClimbSide(side);
+  if (config.isFront() && side == "right") {
+    throw ConfigError("front compact climbing has no right-side mirror");
+  }
   ClimbCompactConfig selected = config;
   if (side == "left") {
     return selected;
@@ -664,6 +1015,8 @@ ClimbCompactConfig selectCompactClimbSide(const ClimbCompactConfig& config,
   const double center_x = selected.xiaolan_translation.x();
   selected.p0.base[0] = 2.0 * center_x - selected.p0.base[0];
   selected.p0.base[3] = -selected.p0.base[3];
+  selected.p0.pose[0] = 2.0 * center_x - selected.p0.pose[0];
+  selected.p0.pose[4] = -selected.p0.pose[4];
   selected.p0.anchors_world_m =
       mirrorWorldAnchorRows(selected.p0.anchors_world_m, center_x);
   {
@@ -675,7 +1028,7 @@ ClimbCompactConfig selectCompactClimbSide(const ClimbCompactConfig& config,
   }
 
   for (CompactStage& stage : selected.stages) {
-    for (std::array<double, 5>* pose : {&stage.pose_start, &stage.pose_end}) {
+    for (BasePose* pose : {&stage.pose_start, &stage.pose_end}) {
       (*pose)[0] = 2.0 * center_x - (*pose)[0];
       (*pose)[4] = -(*pose)[4];
     }

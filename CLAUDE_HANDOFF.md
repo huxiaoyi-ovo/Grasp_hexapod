@@ -88,3 +88,10 @@
 - 修改：`launch_real_cpp.sh` 改为启动 `run_real_cpp.launch`；README/文档中 C1–C35→C1–C27、删除不存在的开机自启小节、`BT_INTERFACES.md`→`BT_INTERFACE_GUIDE.md`、servo C++ 链接与目录说明；`mode_topics.yaml`、两份 `MODE_DEV_GUIDE.md`、`bt_control_node.cpp` 报错字符串的腿序改为 `lb,lf,lm,rb,rf,rm`（仅字符串）；`MODE_DEV_GUIDE` 的 spin_search 描述更新；`AGENTS.md` 测试套件描述与 compact 字节 SHA 说明。
 - 验证：`py_compile`、`bash -n`；在临时副本中重生成圆环 fixtures，PNG 逐字节一致，`expected.json` 仅浮点差 ≤1.8e-11（未覆盖提交文件）；两份 MODE_DEV_GUIDE `cmp` 一致。未运行 catkin/ROS。
 - 剩余（未改，非本批范围）：`grasp_hexapod_bt` 脚本与 `hexapod_mission.xml`、`BT_INTERFACE_GUIDE.md`、`run_sim_ros_climb.launch`、`climb_retime.py` 仍有 `BT_INTERFACES.md` / C1–C35 字样；`CLIMB_ENGINEERING_RULES.md` 中为历史记录，保留。
+
+## 2026-10-30 全流程桌面可视化
+
+- execution_owner：Sol（5 个小文件、纯显示与日志，不改控制逻辑）。
+- `full_mission.launch` 新增 `show_windows`（默认 true）：YOLO 标注窗口（框、中心、X/Z）、AprilTag 标注图 `/xiaolan/tag_detections_image` + 窗口、底部 dock 相机原图窗口；`mode_approach` tag 日志增加 tag_x/tag_z/tag_yaw；`package.xml` 加 `image_view`；README 说明。
+- 验证：xmllint、tag_guidance gtest 17/17。未运行 catkin/roslaunch/实机显示。
+- 未做：圆环对接感知无标注图（需改 ring_perception C++）；攀爬阶段无专门画面。

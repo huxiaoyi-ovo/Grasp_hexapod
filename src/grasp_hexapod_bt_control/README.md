@@ -167,8 +167,7 @@ The launch sets `climb_config_file:=climb_front_direct.json`,
 `allow_front_hardware:=true` (explicit hardware opt-in for the front route; the
 shared 4 rad/s joint step cap applies) and `climb_foot_gate_m:=0.04`. The tag
 id is `tag_guidance_id` in `config/phase1_visual.yaml`; the detector `tag_id`
-arg must match it. Camera and YOLO stay off unless `start_camera:=true
-start_perception:=true` are passed, as in `phase1_visual.launch`.
+arg must match it. Camera, YOLO, the AprilTag detector, the dock camera and the viewer windows all start by default in this launch.
 
 ### AprilTag handoff inside visual `approach`
 

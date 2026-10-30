@@ -15,8 +15,8 @@
 
   <!-- Same camera/perception args as phase1_visual.launch. -->
   <arg name="config" default="$(find grasp_hexapod_bt_control)/config/phase1_visual.yaml"/>
-  <arg name="start_camera" default="false"/>
-  <arg name="start_perception" default="false"/>
+  <arg name="start_camera" default="true"/>
+  <arg name="start_perception" default="true"/>
   <arg name="backend" default="tensorrt"/>
   <arg name="yolo_python" default="$(find xiaolan_yolo_detection)/../../.venv/jetson-gpu/bin/python3"/>
   <arg name="model_path" default="$(find xiaolan_yolo_detection)/models/best.onnx"/>

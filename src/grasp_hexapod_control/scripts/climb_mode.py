@@ -149,6 +149,37 @@ class ClimbMode:
         with path.open() as file:
             return json.load(file)
 
+    @staticmethod
+    def planned_support_legs(config, stage_index, phase_time=None):
+        """返回规划支撑角色；它不是接触、载荷或稳定性观测。"""
+
+        stage = config["stages"][stage_index]
+        if config.get("contact_plan_version") == 1:
+            if phase_time is not None and "segment_support_legs" in stage:
+                cumulative = np.cumsum(
+                    np.asarray(stage["segment_durations_s"], dtype=np.float64)
+                )
+                segment = min(
+                    int(np.searchsorted(cumulative, float(phase_time), side="right")),
+                    len(cumulative) - 1,
+                )
+                return tuple(stage["segment_support_legs"][segment])
+            return tuple(stage["support_legs"])
+        active = set(stage["active_legs"])
+        return tuple(leg for leg in range(6) if leg not in active)
+
+    @staticmethod
+    def planned_airborne_legs(config, stage_index, boundary):
+        """返回规划空中保持角色；绝不据此制造接触或载荷观测。"""
+
+        if boundary not in ("start", "end"):
+            raise ValueError("planned airborne boundary must be start or end")
+        if config.get("contact_plan_version") != 1:
+            return ()
+        return tuple(config["stages"][stage_index][
+            "airborne_legs_" + boundary
+        ])
+
     def terminal_joints(self, config=None):
         """返回配置中明确保存的攀爬末帧关节姿态。"""
 
@@ -172,6 +203,23 @@ class ClimbMode:
         if not np.array_equal(p0_q, Q_STAND):
             raise ValueError("compact P0 must be Q_STAND")
         is_front = config.get("climb_orientation") == "front"
+        contact_plan_version = config.get("contact_plan_version")
+        role_keys = (
+            "support_legs",
+            "airborne_legs_start",
+            "airborne_legs_end",
+        )
+        has_role_metadata = any(
+            any(key in stage for key in (*role_keys, "segment_support_legs"))
+            for stage in config.get("stages", ())
+            if isinstance(stage, dict)
+        )
+        if contact_plan_version is not None and contact_plan_version != 1:
+            raise ValueError("unsupported contact plan version")
+        if contact_plan_version == 1 and not is_front:
+            raise ValueError("planned contact roles are front-only")
+        if contact_plan_version != 1 and has_role_metadata:
+            raise ValueError("planned contact roles require contact_plan_version=1")
         simulation_velocity_cap = config.get("simulation_joint_velocity_limit_rad_s")
         if simulation_velocity_cap is not None:
             if (
@@ -203,6 +251,7 @@ class ClimbMode:
         previous_anchors = self._array(
             config, ("p0", "anchors_world_m"), (6, 3)
         )
+        previous_airborne_end = ()
         names = []
         for index, stage in enumerate(stages):
             if not isinstance(stage, dict) or not isinstance(stage.get("name"), str):
@@ -231,7 +280,9 @@ class ClimbMode:
             piecewise_pose_curve = bool(
                 pose_curve == "piecewise_quintic"
                 and is_front
-                and anchor_curve == "piecewise_quintic"
+                and anchor_curve in (
+                    "piecewise_quintic", "piecewise_base_quintic",
+                )
                 and pose_knots is not None
                 and pose_knots.shape == (len(knots), 6)
                 and np.all(np.isfinite(pose_knots))
@@ -316,6 +367,77 @@ class ClimbMode:
                 )
             ):
                 raise ValueError("invalid compact stage fields: " + stage["name"])
+            if contact_plan_version == 1:
+                if any(key not in stage for key in role_keys):
+                    raise ValueError("planned contact roles are incomplete: " + stage["name"])
+                roles = {}
+                for key in role_keys:
+                    value = stage[key]
+                    if (
+                        not isinstance(value, list)
+                        or any(
+                            not isinstance(leg, int) or leg < 0 or leg >= 6
+                            for leg in value
+                        )
+                        or len(set(value)) != len(value)
+                    ):
+                        raise ValueError("invalid planned role list: " + stage["name"])
+                    roles[key] = tuple(value)
+                active_set = set(active)
+                support_set = set(roles["support_legs"])
+                air_start_set = set(roles["airborne_legs_start"])
+                air_end_set = set(roles["airborne_legs_end"])
+                if (
+                    support_set != set(range(6)) - active_set
+                    or len(support_set) < 3
+                    or not air_start_set <= active_set
+                    or not air_end_set <= active_set
+                    or (index == 0 and air_start_set)
+                    or (index > 0 and air_start_set != set(previous_airborne_end))
+                ):
+                    raise ValueError("invalid planned contact roles: " + stage["name"])
+                if (
+                    air_start_set & air_end_set
+                    and anchor_curve != "piecewise_base_quintic"
+                ):
+                    raise ValueError(
+                        "planned carried air requires base-piecewise curve: "
+                        + stage["name"]
+                    )
+                support_index = np.asarray(roles["support_legs"], dtype=np.int64)
+                if not np.allclose(
+                    knots[:, support_index], knots[0, support_index],
+                    rtol=0.0, atol=1e-12,
+                ):
+                    raise ValueError("planned support anchors must remain world-fixed: " + stage["name"])
+                segment_support = stage.get("segment_support_legs")
+                if segment_support is not None:
+                    if (
+                        not isinstance(segment_support, list)
+                        or len(segment_support) != len(durations)
+                    ):
+                        raise ValueError("invalid segment support table: " + stage["name"])
+                    for segment, declared in enumerate(segment_support):
+                        if (
+                            not isinstance(declared, list)
+                            or any(
+                                not isinstance(leg, int) or leg < 0 or leg >= 6
+                                for leg in declared
+                            )
+                            or len(set(declared)) != len(declared)
+                            or len(declared) < 3
+                            or not support_set <= set(declared)
+                            or not np.allclose(
+                                knots[segment, declared], knots[segment + 1, declared],
+                                rtol=0.0, atol=1e-12,
+                            )
+                        ):
+                            raise ValueError("invalid segment support table: " + stage["name"])
+                    if set(segment_support[0]) & air_start_set:
+                        raise ValueError("segment support overlaps start air: " + stage["name"])
+                    if set(segment_support[-1]) & air_end_set:
+                        raise ValueError("segment support overlaps end air: " + stage["name"])
+                previous_airborne_end = roles["airborne_legs_end"]
             if (
                 not np.allclose(pose_start, previous_pose, rtol=0.0, atol=1e-12)
                 or not np.allclose(
@@ -352,6 +474,8 @@ class ClimbMode:
             previous_anchors = knots[-1]
         if len(set(names)) != len(names):
             raise ValueError("compact stage names must be unique")
+        if contact_plan_version == 1 and previous_airborne_end:
+            raise ValueError("planned airborne legs require a following stage")
         for index, stage in enumerate(stages):
             marker = stage.get("continuous_air_transition")
             if marker is not None and not isinstance(marker, bool):
@@ -361,34 +485,74 @@ class ClimbMode:
             if index + 1 >= len(stages):
                 raise ValueError("continuous air transition requires next stage")
             next_stage = stages[index + 1]
-            if (stage["active_legs"] != [2] or next_stage["active_legs"] != [2]
-                    or (stage["name"], next_stage["name"]) not in (
-                        ("LM_LIFT", "BODY_ADVANCE_LM_AIR"),
-                        ("BODY_ADVANCE_LM_AIR", "LM_LEFT_FINAL_LAND"),
-                    )):
-                raise ValueError("continuous air transition requires frozen LM pair")
             pose_end = np.asarray(stage["pose_end"], dtype=np.float64)
             pose_start = np.asarray(next_stage["pose_start"], dtype=np.float64)
             knots_end = np.asarray(stage["anchor_knots"], dtype=np.float64)[-1]
             knots_start = np.asarray(next_stage["anchor_knots"], dtype=np.float64)[0]
-            if (not np.allclose(pose_end, pose_start, rtol=0.0, atol=1e-12)
-                    or not np.allclose(knots_end, knots_start, rtol=0.0, atol=1e-12)
-                    or not np.allclose(knots_end[[0, 1, 3, 4, 5]],
-                                       knots_start[[0, 1, 3, 4, 5]],
-                                       rtol=0.0, atol=1e-12)):
-                raise ValueError("continuous air transition boundary mismatch")
             current_velocity = stage.get("active_base_velocities_m_s")
             next_velocity = next_stage.get("active_base_velocities_m_s")
-            if current_velocity is None or next_velocity is None:
-                raise ValueError("continuous air transition requires base velocities")
+            if not is_front:
+                if (stage["active_legs"] != [2] or next_stage["active_legs"] != [2]
+                        or (stage["name"], next_stage["name"]) not in (
+                            ("LM_LIFT", "BODY_ADVANCE_LM_AIR"),
+                            ("BODY_ADVANCE_LM_AIR", "LM_LEFT_FINAL_LAND"),
+                        )):
+                    raise ValueError("continuous air transition requires frozen LM pair")
+                if (not np.allclose(pose_end, pose_start, rtol=0.0, atol=1e-12)
+                        or not np.allclose(knots_end, knots_start, rtol=0.0, atol=1e-12)
+                        or not np.allclose(knots_end[[0, 1, 3, 4, 5]],
+                                           knots_start[[0, 1, 3, 4, 5]],
+                                           rtol=0.0, atol=1e-12)):
+                    raise ValueError("continuous air transition boundary mismatch")
+                if current_velocity is None or next_velocity is None:
+                    raise ValueError("continuous air transition requires base velocities")
+                current_velocity = np.asarray(current_velocity, dtype=np.float64)
+                next_velocity = np.asarray(next_velocity, dtype=np.float64)
+                current_world = self._world_from_base(pose_end)[:3, :3] @ current_velocity[-1, 0]
+                next_world = self._world_from_base(pose_start)[:3, :3] @ next_velocity[0, 0]
+                if (np.linalg.norm(current_world) <= 1e-9
+                        or not np.allclose(current_world, next_world,
+                                           rtol=0.0, atol=1e-9)):
+                    raise ValueError("continuous air transition velocity mismatch")
+                continue
+            if (
+                contact_plan_version != 1
+                or any(key not in stage for key in role_keys)
+                or any(key not in next_stage for key in role_keys)
+            ):
+                raise ValueError("invalid front continuous air transition")
+            carried = set(stage["airborne_legs_end"])
+            next_carried = set(next_stage["airborne_legs_start"])
+            if (
+                not carried
+                or carried != set(stage["active_legs"])
+                or next_carried != carried
+                or not carried <= set(next_stage["active_legs"])
+                or stage["anchor_curve"] != "piecewise_base_quintic"
+                or next_stage["anchor_curve"] != "piecewise_base_quintic"
+                or not np.allclose(pose_end, pose_start, rtol=0.0, atol=1e-12)
+                or not np.allclose(knots_end, knots_start, rtol=0.0, atol=1e-12)
+                or current_velocity is None
+                or next_velocity is None
+            ):
+                raise ValueError("invalid front continuous air transition")
             current_velocity = np.asarray(current_velocity, dtype=np.float64)
             next_velocity = np.asarray(next_velocity, dtype=np.float64)
-            current_world = self._world_from_base(pose_end)[:3, :3] @ current_velocity[-1, 0]
-            next_world = self._world_from_base(pose_start)[:3, :3] @ next_velocity[0, 0]
-            if (np.linalg.norm(current_world) <= 1e-9
-                    or not np.allclose(current_world, next_world,
-                                       rtol=0.0, atol=1e-9)):
-                raise ValueError("continuous air transition velocity mismatch")
+            for leg in carried:
+                current_index = stage["active_legs"].index(leg)
+                next_index = next_stage["active_legs"].index(leg)
+                current_world = (
+                    self._world_from_base(pose_end)[:3, :3]
+                    @ current_velocity[-1, current_index]
+                )
+                next_world = (
+                    self._world_from_base(pose_start)[:3, :3]
+                    @ next_velocity[0, next_index]
+                )
+                if (np.linalg.norm(current_world) <= 1e-9
+                        or not np.allclose(current_world, next_world,
+                                           rtol=0.0, atol=1e-9)):
+                    raise ValueError("continuous air transition velocity mismatch")
         gate = config["settle_gate"]
         gate_values = (
             gate["max_joint_tracking_error_rad"],
@@ -631,6 +795,15 @@ class ClimbMode:
         )
         anchors = self._piecewise(knots, durations)
         anchors[active] = current_world[:, :3]
+        segment_support = stage.get("segment_support_legs")
+        if segment_support is not None:
+            cumulative = np.cumsum(np.asarray(durations, dtype=np.float64))
+            segment = min(
+                int(np.searchsorted(cumulative, self.phase_time, side="right")),
+                len(cumulative) - 1,
+            )
+            declared = np.asarray(segment_support[segment], dtype=np.int64)
+            anchors[declared] = knots[segment, declared]
         return anchors
 
     def _piecewise(self, knots, durations, velocities=None):
@@ -910,11 +1083,21 @@ class ClimbMode:
             self._update_tracking_diagnostics(q_current)
             return None
 
-        if self.hardware_execution:
+        feedback_checkpoint_execution = (
+            self.hardware_execution
+            or not self.config["settle_gate"]["preview_time_only_stage_advance"]
+        )
+        if feedback_checkpoint_execution:
             gate = self.config["settle_gate"]
             stage = self.config["stages"][self.stage_index]
             duration = float(sum(stage["segment_durations_s"]))
-            self._update_hardware_stage_elapsed_time()
+            if self.hardware_execution:
+                self._update_hardware_stage_elapsed_time()
+            else:
+                # False-flag simulation must advance its timeout by control dt,
+                # never by wall time.  This composes the hardware-style FK
+                # checkpoint logic without enabling a front hardware route.
+                self.stage_elapsed_time += self.controller.dt
 
             # 先检查上一控制帧已经下发的目标。实机跟不上或公共碰撞守卫
             # 保持时冻结当前轨迹相位，继续追踪同一目标，避免摆动腿尚未

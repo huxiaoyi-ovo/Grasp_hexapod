@@ -592,6 +592,64 @@ def _new_climb_metric(index, name):
     }
 
 
+def _metric_planned_roles(compact, stage_index, phase_time=None):
+    """Return planned role labels only; they are not simulator contact truth."""
+
+    support = ClimbMode.planned_support_legs(compact, stage_index, phase_time)
+    air_start = ClimbMode.planned_airborne_legs(
+        compact, stage_index, "start"
+    )
+    air_end = ClimbMode.planned_airborne_legs(compact, stage_index, "end")
+    return support, air_start, air_end
+
+
+def _metric_stationary_support_mask(compact, stage_index, stationary, phase_time=None):
+    """Exclude planned carried-air feet from support-drift diagnostics only."""
+
+    stationary = np.asarray(stationary, dtype=bool).reshape(6)
+    if compact.get("contact_plan_version") != 1:
+        return stationary
+    support, _, _ = _metric_planned_roles(compact, stage_index, phase_time)
+    mask = np.zeros(6, dtype=bool)
+    mask[list(support)] = True
+    return stationary & mask
+
+
+def _segment_support_drift_baselines(
+    metric, compact, stage_index, phase_time, actual_world
+):
+    """Return role-onset diagnostic references for optional segment supports.
+
+    This uses planned-role changes only; it neither observes contact nor feeds a
+    controller or transition. Legacy stages deliberately retain stage-start
+    drift references.
+    """
+
+    stage = compact["stages"][stage_index]
+    if (
+        compact.get("contact_plan_version") != 1
+        or "segment_support_legs" not in stage
+    ):
+        return None
+    actual_world = np.asarray(actual_world, dtype=np.float64).reshape(6, 3)
+    baseline = metric.setdefault(
+        "planned_support_drift_baselines_world_m", [None] * 6
+    )
+    support = set(ClimbMode.planned_support_legs(
+        compact, stage_index, phase_time
+    ))
+    for leg in range(6):
+        if leg in support:
+            if baseline[leg] is None:
+                baseline[leg] = actual_world[leg].tolist()
+        else:
+            baseline[leg] = None
+    return support, np.asarray([
+        actual_world[leg] if value is None else value
+        for leg, value in enumerate(baseline)
+    ], dtype=np.float64)
+
+
 def _update_climb_command_metric(
     metric, q_target, previous_target, velocity_clips, dt
 ):
@@ -642,6 +700,18 @@ def _update_climb_metric(
     """更新不反馈到控制器的关节、根部和足端漂移诊断。"""
 
     metric["simulated_duration_s"] += dt
+    compact = controller.climb_mode.config
+    support, air_start, air_end = _metric_planned_roles(
+        compact, metric["stage_index"], controller.climb_mode.phase_time
+    )
+    metric["planned_support_leg_names"] = [LEG_NAMES[leg] for leg in support]
+    metric["planned_carried_air_start_leg_names"] = [
+        LEG_NAMES[leg] for leg in air_start
+    ]
+    metric["planned_carried_air_end_leg_names"] = [
+        LEG_NAMES[leg] for leg in air_end
+    ]
+    metric["planned_roles_diagnostic_only_not_contact_or_load_proof"] = True
     joint_errors = np.abs(q_current - controller.q_des)
     joint_index = np.unravel_index(np.argmax(joint_errors), joint_errors.shape)
     joint_error = float(joint_errors[joint_index])
@@ -709,11 +779,25 @@ def _update_climb_metric(
     if metric["stage_start_anchor_world_xyz_m"] is None:
         metric["stage_start_anchor_world_xyz_m"] = anchors_world.tolist()
         metric["stage_start_actual_world_foot_xyz_m"] = actual_world.tolist()
-    start_anchors = np.asarray(metric["stage_start_anchor_world_xyz_m"])
-    start_actual_world = np.asarray(metric["stage_start_actual_world_foot_xyz_m"])
-    stationary = np.linalg.norm(anchors_world - start_anchors, axis=1) <= 1e-12
+    segment_baselines = _segment_support_drift_baselines(
+        metric, compact, metric["stage_index"], controller.climb_mode.phase_time,
+        actual_world,
+    )
+    if segment_baselines is None:
+        start_anchors = np.asarray(metric["stage_start_anchor_world_xyz_m"])
+        start_actual_world = np.asarray(metric["stage_start_actual_world_foot_xyz_m"])
+        stationary = np.linalg.norm(anchors_world - start_anchors, axis=1) <= 1e-12
+        stationary = _metric_stationary_support_mask(
+            compact, metric["stage_index"], stationary,
+            controller.climb_mode.phase_time
+        )
+        support_reference_world = start_actual_world
+    else:
+        support, support_reference_world = segment_baselines
+        stationary = np.zeros(6, dtype=bool)
+        stationary[list(support)] = True
     if stationary.any():
-        drifts = np.linalg.norm(actual_world - start_actual_world, axis=1)
+        drifts = np.linalg.norm(actual_world - support_reference_world, axis=1)
         drifts[~stationary] = -np.inf
         drift_index = int(np.argmax(drifts))
         drift = float(drifts[drift_index])
@@ -723,7 +807,7 @@ def _update_climb_metric(
             metric["worst_support_foot_drift_leg"] = LEG_NAMES[drift_index]
             metric["worst_support_foot_drift_time_s"] = metric["simulated_duration_s"]
             metric["worst_support_foot_start_world_xyz_m"] = (
-                start_actual_world[drift_index].tolist()
+                support_reference_world[drift_index].tolist()
             )
             metric["worst_support_foot_current_world_xyz_m"] = (
                 actual_world[drift_index].tolist()

@@ -56,3 +56,26 @@
 - 修改：`AGENTS.md` Active Worker Routing —— 活跃路由改为 Codex（Sol+Terra）与 Claude Code（Sol+Luna，Luna 沿用全部 Terra 规则）；新增“同一时刻只有一条路由写仓库，切换前 pull 并读 `HANDOFF.md`/`CLAUDE_HANDOFF.md`”；`CLAUDE.md`/`CLAUDE_HANDOFF.md` 定位改为入口与交接日志，`CLAUDE_CODE_HANDOFF.md` 仍为历史文件。DeepSeek 仍非活跃路由。
 - 验证：纯文档，无代码验证。
 - 下一步：等待用户给出本轮目标。
+
+## 2026-10-30 实机全流程：正面攀爬 + tag 精对准 + 串联（W1–W3）
+
+- 基线：`test`，起始 `b075cd8` → 结束 `807e428`（本条随后单独提交）。
+- 用户决定：正面攀爬（默认步态已完成）；YOLO 粗接近停止 0.20 m，稳定识别侧面 AprilTag 后自动切 tag 引导、不再用 YOLO；tag 尚未粘贴；用简单串联节点，不用完整行为树；dock 前的 ~13 cm 位置缺口用户要求暂不处理。
+- 路由：Sol 冻结合同并审查；Luna 三个合同。W1、W2 用中间档位、effort high（相机/机身符号推导与闭环测试；数值移植与金标等价，判定最轻档位不足）；W3 用最轻档位、effort medium（机械性节点与 launch）。W1 与 W2 应用户要求并行，W2 在独立 worktree，文件不重叠，由 Sol 合并。
+- 提交：
+  - `f124673` W1：`approach` 视觉分支加 AprilTag 接管（`tag_guidance.h/.cpp` 无 ROS 策略 + `mode_approach` 胶水 + `record_tag_reference.py` 示教脚本）；yaw 用 tag x 轴，不依赖 z 轴约定；`phase1_visual.yaml` 停止 0.20 m、开启接管；`phase1_perception_e2e.py` 固定为仅粗接近配置（Sol 修改）。
+  - `fc4f441` W2：C++ 支持 front compact（6 维位姿、active base knots、contact roles/segment 支撑钉、front 校验、无右镜像、非硬件 feedback-checkpoint 路径）；front+hardware 仅在 `allow_front_hardware` 时接受，硬件强制 4 rad/s；`mode_climb` 新参数 `~climb_config_file`、`~allow_front_hardware`；金标重录。
+  - `807e428` W3：`full_mission_sequence` 节点（home→spin_search→approach→climb→[home]→dock，失败即停 HOLD，`stop_after` 分段）+ `full_mission.launch`（AprilTag 检测、front_direct、foot gate 0.04、dock 开启）；Sol 删去过时说明和被 YAML 覆盖的 tag_id 参数。
+- 实际运行的验证（本容器无 ROS/GPU/硬件，g++ 独立编译）：
+  - tag_guidance gtest 17/17，无警告（Sol 复跑）。
+  - C++ 金标 12 通过；front_direct 873 帧与 Python 误差 ≤1e-6；front+hardware 开关与 4 rad/s 限速单测通过；侧向回放与旧 C++ 逐字节一致（Luna 报告，Sol 未重跑）。
+  - launch xmllint 通过；sequencer 仅用桩头文件做语法检查。
+- 证据层级：CPU 单元/金标等价。未运行：catkin_make、roslaunch、现有 gtest/e2e、Isaac、实机。
+- 未决与风险：
+  1. 既有问题未修：C++ `reset_then_walk` 与 Python 在第 75 帧差 0.085 rad（行走步态不一致，影响自转/接近/tag 伺服）；FK ~1e-17 为本机 numpy 末位差。
+  2. tag 参考位姿 `tag_ref_*` 为占位值，必须在正面 P0 示教；相机光轴沿机身 +y、忽略俯仰的假设未在实机确认。
+  3. 0.20 m 停止距离贴近 YOLO 感知深度门限 (0.2, 1.0) m；tag 应在更远处完成接管。
+  4. front_direct 仿真按 6 rad/s / 1.8 倍速排时，实机 4 rad/s，未在 Isaac 按 1.2 倍复验。
+  5. 正面攀爬终态机身中心距对接点约 13 cm（小蓝系 x≈−0.132 m），超出 dock 约 20 mm 搜索；用户要求暂不处理。
+  6. 正面攀爬与 dock 实机未认证，需吊架/保护与急停。
+- 下一步（用户机器）：`catkin_make` 与 `run_tests_grasp_hexapod_bt_control`、`run_tests_grasp_hexapod_control`；贴 tag 并示教；`stop_after:=approach` 分段实机测试。

@@ -1,0 +1,7 @@
+.../home/artrc/Grasp_hexapod/src/xiaolan_yolo_detection/src/xiaolan_yolo_detection/yolo_core.py:71: RuntimeWarning: invalid value encountered in greater
+  positive = values[np.isfinite(values) & (values > 0)]
+.sss........
+----------------------------------------------------------------------
+Ran 15 tests in 0.016s
+
+OK (skipped=3)

@@ -1,0 +1,4 @@
+[WARN] [1793341236.894729]: wait_for_service(/grasp_hexapod/switch_mode): failed to contact, will keep trying
+[INFO] [1793341237.196758]: wait_for_service(/grasp_hexapod/switch_mode): finally were able to contact [rosrpc://artrc:56923]
+[INFO] [1793341238.731264]: wait_for_service(/grasp_hexapod/switch_mode): finally were able to contact [rosrpc://artrc:42677]
+no_feedback_s=0.317 home_feedback_loss_s=0.515 statuses=7

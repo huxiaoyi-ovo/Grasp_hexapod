@@ -1,0 +1,47 @@
+Phase-1 visual offline evidence manifest
+branch: codex/phase1-visual-pipeline
+HEAD at archive: 03c90aa
+No commit/push/real camera/serial servo/joy/hardware action occurred.
+
+Copied original receipts (not rerun during archive):
+- C2 narrow build (workspace root): `catkin_make --pkg grasp_hexapod_bt_control --make-args bt_control_node phase1_visual_sequence test_bt_control_routing`; exit 0.
+- visual_e2e.log <- /tmp/grasp_phase1_visual_e2e_20261030T010126/e2e.log
+  command (package root): isolated roscore + `python3 test/phase1_visual_e2e.py`; exit 0.
+- perception_e2e.log <- /tmp/grasp_phase1_perception_e2e_20261030T010148/e2e.log
+  command (package root): isolated roscore + `python3 test/phase1_perception_e2e.py`; exit 0.
+- startup_e2e.log <- /tmp/grasp_phase1_startup_e2e_20261030T010110/e2e.log
+  command (package root): isolated roscore + `python3 test/phase1_startup_e2e.py`; exit 0.
+- visual_guidance_gtest.log <- /tmp/grasp_phase1_batch_a/test_visual_guidance.log
+  command: devel/lib/grasp_hexapod_bt_control/test_visual_guidance --gtest_color=no; 9/9.
+- mode_framework_gtest.log <- /tmp/grasp_phase1_batch_a/test_mode_framework.log
+  command: devel/lib/grasp_hexapod_bt_control/test_mode_framework --gtest_color=no; 13/13.
+- routing_gtest.log <- /tmp/grasp_phase1_c2_routing.log
+  command: devel/lib/grasp_hexapod_bt_control/test_bt_control_routing --gtest_color=no; 7/7.
+- perception_unittest.log <- /tmp/grasp_phase1_perception_e2e_20261029T182035/xiaolan_unittest.log
+  command: PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s
+  src/xiaolan_yolo_detection/tests -p 'test_*.py' (workspace root); Ran 15, OK (skipped=3): 12 pass + 3 skip.
+
+CPU model smoke (executed once after isolated runtime setup):
+- yolo_smoke.log <- /tmp/grasp_phase1_yolo_smoke_20261030T010636/yolo_smoke.log; exit 0.
+- command (workspace root): isolated roscore + `python3 src/grasp_hexapod_bt_control/test/phase1_yolo_smoke.py --python .venv/xiaolan-ort/bin/python3 --model src/xiaolan_yolo_detection/models/best.onnx`.
+- runtime: Python 3.8 venv, numpy 1.24.4, onnxruntime 1.16.3, onnx 1.15.0,
+  providers ['AzureExecutionProvider', 'CPUExecutionProvider']; requested model session provider CPUExecutionProvider.
+- system Python numpy before/after: 1.17.4 unchanged.
+- model SHA-256: ee628ba04254f7dbdad92ee8b75130433166094329d7e05d30f26c3205055419.
+- blank synthetic RGB only: 15 fresh NO_DETECTION outputs, 14.996 Hz,
+  inference 23.066--29.447 ms; stale RGB rejected with inference_ms=0.
+
+Known failed diagnostic receipts retained outside this archive:
+- /tmp/grasp_phase1_perception_e2e_20261030T005744 and ...005841:
+  pre-C2 external readiness race, home failed phase1 joint feedback unavailable.
+- /tmp/grasp_phase1_yolo_smoke_20261030T010557: venv Python symlink was resolved
+  to system Python; smoke launcher corrected to preserve the venv path, then 010636 passed.
+
+Scope: host-only transport/runtime evidence. It does not validate positive recognition,
+GPU/TensorRT, real camera timing/calibration, loaded servo behavior, clearance, contact,
+load, stability, AprilTag alignment, or climbing authorization.
+
+Final D Tier 0 (archive-only, no runtime retest): from workspace root,
+`PYTHONDONTWRITEBYTECODE=1 python3 -c "import ast; ast.parse(open('src/grasp_hexapod_bt_control/test/phase1_yolo_smoke.py', encoding='utf-8').read())"`,
+`sha256sum -c src/docs/evidence/phase1_visual_20261030/manifest.sha256`, and
+`git diff --check`; all exit 0.

@@ -1,0 +1,1 @@
+fresh=15 rate_hz=14.996 inference_ms_min=23.066 inference_ms_max=29.447 provider=CPUExecutionProvider stale_reason=STALE_OR_INVALID_RGB_TIMESTAMP age_s=1.019 local_wait_s=0.019

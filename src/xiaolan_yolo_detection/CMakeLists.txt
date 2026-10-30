@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.0.2)
 project(xiaolan_yolo_detection)
 find_package(catkin REQUIRED COMPONENTS rospy std_msgs sensor_msgs cv_bridge message_generation)
 catkin_python_setup()
-add_message_files(FILES XiaolanDetection.msg XiaolanTarget.msg)
+add_message_files(FILES XiaolanDetection.msg XiaolanTarget.msg PerceptionStatus.msg)
 generate_messages(DEPENDENCIES std_msgs)
 catkin_package(CATKIN_DEPENDS rospy std_msgs sensor_msgs cv_bridge message_runtime)
 catkin_install_python(
@@ -15,7 +15,8 @@ catkin_install_python(
     scripts/build_trt_engine.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
-install(DIRECTORY config launch models docs requirements DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION})
+install(DIRECTORY config launch models requirements DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION})
+install(FILES README.md DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION})
 if(CATKIN_ENABLE_TESTING)
   catkin_add_nosetests(tests)
 endif()

@@ -14,6 +14,7 @@
 #include <cctype>
 #include <cmath>
 #include <cstdio>
+#include <limits>
 
 namespace grasp_hexapod_bt_control {
 
@@ -159,6 +160,18 @@ void BtControlNode::loadParameters(ros::NodeHandle& pnh) {
         "~bt_hold_lease_s must exceed one 30 Hz BT tick interval");
   }
   max_linear_speed_ = pnh.param("max_linear_speed", 0.20);
+  visual_guidance_enabled_ =
+      pnh.param("visual_guidance_enabled", false);
+  if (visual_guidance_enabled_ &&
+      (!std::isfinite(rate_hz_) || std::abs(rate_hz_ - 30.0) > 1e-9)) {
+    throw ConfigError("visual guidance requires ~controller_rate_hz:=30.0");
+  }
+  visual_diagnostics_period_s_ =
+      pnh.param("visual_diagnostics_period_s", 2.0);
+  if (!std::isfinite(visual_diagnostics_period_s_) ||
+      visual_diagnostics_period_s_ < 1.0) {
+    throw ConfigError("~visual_diagnostics_period_s must be finite and >= 1.0");
+  }
   double foot_radius_sum = 0.0;
   for (int leg = 0; leg < kLegCount; ++leg) {
     foot_radius_sum += controller_->foot_init_base[leg].head<2>().norm();
@@ -327,6 +340,7 @@ BtControlNode::BtControlNode(ros::NodeHandle& nh, ros::NodeHandle& pnh)
   createInterfaces(nh, pnh);
   createModes();
   tick_stats_window_start_ = ros::Time::now();
+  visual_stats_window_start_ = ros::WallTime::now().toSec();
 }
 
 // ---------------------------------------------------------------------------
@@ -548,15 +562,22 @@ bool BtControlNode::btHoldBridge(double now, const ActiveCall& call) {
   // HOLD 租约只冻结现有模式的推进：不取消模式、服务继续等待。
   // 上升沿 pause()、下降沿 resume()（climb 经覆写保留内部阶段状态）。
   bool active;
+  bool pause_mode = false;
+  bool resume_mode = false;
   {
     std::lock_guard<std::mutex> guard(bt_mutex_);
     active = now < bt_hold_deadline_;
+    if (active && !bt_hold_active_) {
+      bt_hold_active_ = true;
+      pause_mode = true;
+    } else if (!active && bt_hold_active_) {
+      bt_hold_active_ = false;
+      resume_mode = true;
+    }
   }
-  if (active && !bt_hold_active_) {
-    bt_hold_active_ = true;
+  if (pause_mode) {
     call.mode->pause("bt hold lease");
-  } else if (!active && bt_hold_active_) {
-    bt_hold_active_ = false;
+  } else if (resume_mode) {
     call.mode->resume();
   }
   return active;
@@ -590,14 +611,29 @@ void BtControlNode::publishModeStatus() {
   std::string status = "idle";
   std::string message;
   uint64_t run = 0;
-  if (const std::shared_ptr<ActiveCall> call = activeCallSnapshot()) {
+  std::shared_ptr<ActiveCall> call;
+  std::string finished_mode;
+  ModeOutcome finished_outcome;
+  uint64_t finished_run = 0;
+  {
+    std::lock_guard<std::mutex> guard(bt_mutex_);
+    if (active_call_ != nullptr &&
+        active_call_->mode->status().result == ModeResult::Running &&
+        active_call_->run == active_call_->mode->currentRun()) {
+      call = active_call_;
+    }
+    finished_mode = last_finished_mode_;
+    finished_outcome = last_finished_outcome_;
+    finished_run = last_finished_run_;
+  }
+  if (call != nullptr) {
     mode_name = call->mode->name();
     run = call->run;
     status = call->mode->isPaused() ? "paused" : "running";
-  } else if (!last_finished_mode_.empty()) {
+  } else if (!finished_mode.empty()) {
     // 无活动调用：上报最近一次调用的终态。
-    mode_name = last_finished_mode_;
-    switch (last_finished_outcome_.result) {
+    mode_name = finished_mode;
+    switch (finished_outcome.result) {
       case ModeResult::Success:
         status = "success";
         break;
@@ -608,8 +644,12 @@ void BtControlNode::publishModeStatus() {
         status = "failed";
         break;
     }
-    message = last_finished_outcome_.message;
-    run = last_finished_run_;
+    message = finished_outcome.message;
+    run = finished_run;
+  } else if (visual_guidance_enabled_) {
+    message = phase1_feedback_ready_
+                  ? "phase1 joint feedback ready"
+                  : "phase1 waiting for joint feedback";
   }
   const std::string key = mode_name + "|" + status + "|" + message;
   const double now = nowSeconds();
@@ -695,6 +735,55 @@ void BtControlNode::publishTargets(const JointAngles& q_des) {
     }
     des_publishers_[static_cast<std::size_t>(leg)].publish(message);
   }
+  ++published_target_frames_;
+}
+
+void BtControlNode::reportVisualLoop(
+    double now, const std::array<double, 6>& feedback_stamp) {
+  if (!visual_guidance_enabled_ ||
+      now - visual_stats_window_start_ < visual_diagnostics_period_s_) {
+    return;
+  }
+  const double elapsed = now - visual_stats_window_start_;
+  double feedback_max_age_ms = -1.0;
+  double feedback_skew_ms = -1.0;
+  bool all_stamps_positive = true;
+  double min_stamp = std::numeric_limits<double>::infinity();
+  double max_stamp = -std::numeric_limits<double>::infinity();
+  for (double stamp : feedback_stamp) {
+    all_stamps_positive = all_stamps_positive && stamp > 0.0;
+    if (stamp > 0.0) {
+      min_stamp = std::min(min_stamp, stamp);
+      max_stamp = std::max(max_stamp, stamp);
+    }
+  }
+  if (all_stamps_positive) {
+    feedback_max_age_ms = 1000.0 * (nowSeconds() - min_stamp);
+    feedback_skew_ms = 1000.0 * (max_stamp - min_stamp);
+  }
+  const char* machine = "WAIT_B";
+  switch (state_) {
+    case MachineState::WaitB: machine = "WAIT_B"; break;
+    case MachineState::Resetting: machine = "RESETTING"; break;
+    case MachineState::Running: machine = "RUNNING"; break;
+    case MachineState::Hold: machine = "HOLD"; break;
+  }
+  const double actual_control_hz =
+      elapsed > 0.0 ? static_cast<double>(tick_compute_count_) / elapsed : 0.0;
+  const double actual_target_hz = elapsed > 0.0
+      ? static_cast<double>(published_target_frames_ - visual_report_target_frames_) / elapsed
+      : 0.0;
+  const double mean_compute_ms = tick_compute_count_ > 0
+      ? 1000.0 * tick_compute_sum_ / tick_compute_count_ : 0.0;
+  ROS_INFO("phase1 control_loop configured_nominal_hz=%.1f poll_hz=%.1f actual_control_hz=%.2f actual_target_frame_hz=%.2f mean_compute_ms=%.3f max_compute_ms=%.3f feedback_max_age_ms=%.1f feedback_skew_ms=%.1f machine_state=%s",
+           rate_hz_, poll_rate_hz_, actual_control_hz, actual_target_hz,
+           mean_compute_ms, 1000.0 * tick_compute_max_,
+           feedback_max_age_ms, feedback_skew_ms, machine);
+  tick_compute_sum_ = 0.0;
+  tick_compute_max_ = 0.0;
+  tick_compute_count_ = 0;
+  visual_report_target_frames_ = published_target_frames_;
+  visual_stats_window_start_ = now;
 }
 
 void BtControlNode::step() {
@@ -721,8 +810,22 @@ void BtControlNode::step() {
   }
 
   const double now = nowSeconds();
+  reportVisualLoop(ros::WallTime::now().toSec(), feedback_stamp_snapshot);
+  phase1_feedback_ready_ = feedback_ready;
   if (!feedback_ready) {
     holdMotion("joint feedback lost");
+    if (visual_guidance_enabled_) {
+      {
+        std::lock_guard<std::mutex> guard(bt_mutex_);
+        if (active_call_ != nullptr &&
+            active_call_->run == active_call_->mode->currentRun() &&
+            active_call_->mode->status().result == ModeResult::Running) {
+          active_call_->mode->finish(
+              ModeResult::Failure, "phase1 joint feedback unavailable");
+        }
+      }
+      publishModeStatus();
+    }
     ROS_WARN_THROTTLE(
         1.0, "Waiting for valid 18-DOF feedback: %s",
         feedbackIssue(q_cur_snapshot, feedback_stamp_snapshot, now,
@@ -758,7 +861,7 @@ void BtControlNode::step() {
   tick_compute_max_ = std::max(tick_compute_max_, elapsed);
   ++tick_compute_count_;
   const double window = (ros::Time::now() - tick_stats_window_start_).toSec();
-  if (window >= 1.0 && tick_compute_count_ > 0) {
+  if (!visual_guidance_enabled_ && window >= 1.0 && tick_compute_count_ > 0) {
     ROS_INFO_THROTTLE(
         1.0, "control tick: n=%d mean=%.3fms max=%.3fms last=%.3fms",
         tick_compute_count_, 1000.0 * tick_compute_sum_ / tick_compute_count_,

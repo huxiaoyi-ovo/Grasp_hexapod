@@ -9,7 +9,7 @@ input_size: 416
 conf_threshold: 0.5
 max_det: 1
 max_fps: 15.0
-max_input_age: 0.5
+max_input_age: 0.25
 
 intra_op_num_threads: 2
 inter_op_num_threads: 1
@@ -35,7 +35,11 @@ ema_alpha: 0.4
 
 target_timeout: 0.5
 # RGB capture through CPU inference and depth localization, separate from stream timeout.
-max_result_age: 0.8
+max_result_age: 0.25
+
+# Current-source health publication; never rewrites sensor source stamps.
+health_publish_hz: 10.0
+diagnostics_period_s: 2.0
 
 rgb_sync_tolerance: 0.05
 visualization_max_dt: 0.25

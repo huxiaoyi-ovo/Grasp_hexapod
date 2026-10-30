@@ -1,6 +1,9 @@
-// approach 模式实现：假实现（定时成功）与真实自动接近的双分支。
+// approach keeps its legacy fake/RTK branches by default.  Its opt-in visual
+// branch is camera-guided coarse approach only and never sets ready_for_climb.
 #include "grasp_hexapod_bt_control/modes/mode_approach.h"
 #include "grasp_hexapod_bt_control/mode_registry.h"
+#include <xiaolan_yolo_detection/XiaolanTarget.h>
+#include <xiaolan_yolo_detection/PerceptionStatus.h>
 
 namespace grasp_hexapod_bt_control {
 namespace modes {
@@ -14,9 +17,55 @@ ApproachMode::ApproachMode(ModeContext& ctx, const ModeTopics& topics)
           ctx.privateNodeHandle().param("approach_fake_duration_s", 5.0)),
       control_source_(
           ctx.privateNodeHandle().param<std::string>("control_source",
-                                                     "teleop")) {}
+                                                     "teleop")),
+      visual_enabled_(
+          ctx.privateNodeHandle().param("visual_guidance_enabled", false)),
+      visual_(loadVisualGuidanceConfig(ctx.privateNodeHandle())) {
+  if (visual_enabled_) {
+    target_subscriber_ = ctx.nodeHandle().subscribe<xiaolan_yolo_detection::XiaolanTarget>(
+        topics.get("target", "/xiaolan/target"), 1,
+        [this](const xiaolan_yolo_detection::XiaolanTarget::ConstPtr& message) {
+          visual_.cache({static_cast<bool>(message->detected),
+                         message->x_target,
+                         message->z_target,
+                         message->header.stamp.toSec(),
+                         message->header.frame_id});
+        });
+    health_subscriber_ = ctx.nodeHandle().subscribe<xiaolan_yolo_detection::PerceptionStatus>(
+        topics.get("perception_status", "/xiaolan/perception_status"), 1,
+        [this](const xiaolan_yolo_detection::PerceptionStatus::ConstPtr& message) {
+          VisualHealth health;
+          health.state = message->state;
+          health.reason = message->reason;
+          health.frame = message->header.frame_id;
+          health.stamp = message->header.stamp.toSec();
+          health.rgb_stamp = message->rgb_stamp.toSec();
+          health.depth_stamp = message->depth_stamp.toSec();
+          health.detection_hz = message->detection_hz;
+          health.depth_hz = message->depth_hz;
+          health.target_hz = message->target_hz;
+          health.inference_ms = message->inference_ms;
+          visual_.cacheHealth(health);
+        });
+  }
+}
 
 bool ApproachMode::start(const JointAngles& q_cur, std::string& reason) {
+  if (visual_enabled_) {
+    GraspController& controller = ctx().controller();
+    controller.mission.cancel("BT visual approach");
+    controller.abortClimb();
+    controller.exitDock(q_cur);
+    controller.setMode(GraspController::kApproach);
+    controller.approach_mode.cancelAutonomousApproach("BT visual approach");
+    controller.approach_mode.approach_plan.ready_for_climb = false;
+    failure_started_at_ = 0.0;
+    visual_.begin(VisualState::Approaching, nowSeconds());
+    ROS_INFO("visual approach waiting for fresh perception status");
+    ctx().setMachineState(MachineState::Running);
+    reason.clear();
+    return true;
+  }
   if (fake_) {
     // 假实现：不动机器、不看导航，保持当前目标定时返回成功。
     fake_started_at_ = nowSeconds();
@@ -47,6 +96,14 @@ bool ApproachMode::start(const JointAngles& q_cur, std::string& reason) {
 }
 
 std::optional<JointAngles> ApproachMode::step(const ModeStepInput& input) {
+  if (visual_enabled_) {
+    const auto& approach = ctx().controller().approach_mode;
+    const bool gait_stopped =
+        !approach.gait_started && !approach.transfer_active_;
+    const Eigen::Vector4d command = visual_.update(input.now, gait_stopped);
+    visual_.report(input.now, name(), command, gait_stopped);
+    return ctx().controller().update(input.q_cur, command);
+  }
   if (fake_) {
     // 假实现：零速保持（不下发任何步态推进）。
     return ctx().controller().update(input.q_cur, Eigen::Vector4d::Zero());
@@ -59,6 +116,26 @@ std::optional<JointAngles> ApproachMode::step(const ModeStepInput& input) {
 }
 
 std::optional<ModeOutcome> ApproachMode::checkTerminal() {
+  if (visual_enabled_) {
+    const auto& approach = ctx().controller().approach_mode;
+    const bool drained = !approach.gait_started && !approach.transfer_active_;
+    if (visual_.state() == VisualState::Failed) {
+      if (!failure_started_at_) {
+        failure_started_at_ = nowSeconds();
+      }
+      if (drained || nowSeconds() - failure_started_at_ >= 3.0) {
+        ctx().setMachineState(MachineState::Hold);
+        return ModeOutcome{
+            ModeResult::Failure,
+            visual_.reason() + (drained ? "" : " (zero-drain timeout)")};
+      }
+    } else if (visual_.state() == VisualState::Success && drained) {
+      ctx().setMachineState(MachineState::Hold);
+      return ModeOutcome{ModeResult::Success,
+                         "coarse approach completed (AprilTag alignment pending)"};
+    }
+    return std::nullopt;
+  }
   if (fake_) {
     const double elapsed = nowSeconds() - fake_started_at_;
     if (elapsed >= fake_duration_s_) {
@@ -80,6 +157,22 @@ std::optional<ModeOutcome> ApproachMode::checkTerminal() {
     return ModeOutcome{ModeResult::Success, "ready for climb"};
   }
   return std::nullopt;
+}
+
+void ApproachMode::resume() {
+  ModeBase::resume();
+  if (visual_enabled_) {
+    visual_.resume(nowSeconds());
+  }
+}
+
+bool ApproachMode::onNodeHold(const std::string& reason) {
+  if (!visual_enabled_) {
+    return false;
+  }
+  ROS_WARN("visual approach stopped: %s", reason.c_str());
+  finish(ModeResult::Failure, "visual approach stopped: " + reason);
+  return false;
 }
 
 REGISTER_MODE("approach", ApproachMode)

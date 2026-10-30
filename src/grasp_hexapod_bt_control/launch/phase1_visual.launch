@@ -1,0 +1,40 @@
+<launch>
+  <arg name="config" default="$(find grasp_hexapod_bt_control)/config/phase1_visual.yaml"/>
+  <arg name="start_camera" default="false"/>
+  <arg name="start_perception" default="false"/>
+  <arg name="start_sequence" default="false"/>
+  <arg name="backend" default="tensorrt"/>
+  <arg name="yolo_python" default="$(find xiaolan_yolo_detection)/../../.venv/jetson-gpu/bin/python3"/>
+  <arg name="model_path" default="$(find xiaolan_yolo_detection)/models/best.onnx"/>
+  <arg name="engine_path" default="$(find xiaolan_yolo_detection)/models/best.engine"/>
+  <arg name="left_port" default="/dev/ttyTHS0"/>
+  <arg name="right_port" default="/dev/ttyACM0"/>
+  <arg name="baudrate" default="115200"/>
+  <arg name="servo_diagnostics" default="true"/>
+  <arg name="camera_fps" default="15"/>
+  <arg name="perception_config" default="$(find xiaolan_yolo_detection)/config/xiaolan_yolo.yaml"/>
+  <include file="$(find grasp_hexapod_bt_control)/launch/control_only.launch">
+    <arg name="visual_guidance_enabled" value="true"/>
+    <arg name="visual_guidance_config" value="$(arg config)"/>
+    <arg name="enable_real_climb" value="false"/>
+    <arg name="enable_real_dock" value="false"/>
+    <arg name="start_dock_perception" value="false"/>
+    <arg name="left_port" value="$(arg left_port)"/>
+    <arg name="right_port" value="$(arg right_port)"/>
+    <arg name="baudrate" value="$(arg baudrate)"/>
+    <arg name="servo_diagnostics" value="$(arg servo_diagnostics)"/>
+    <arg name="controller_rate_hz" value="30.0"/>
+    <arg name="servo_rate_hz" value="30.0"/>
+  </include>
+  <include if="$(arg start_camera)" file="$(find xiaolan_yolo_detection)/launch/xiaolan_orbbec_camera.launch">
+    <arg name="camera_fps" value="$(arg camera_fps)"/>
+  </include>
+  <include if="$(arg start_perception)" file="$(find xiaolan_yolo_detection)/launch/xiaolan_yolo.launch">
+    <arg name="backend" value="$(arg backend)"/>
+    <arg name="yolo_python" value="$(arg yolo_python)"/>
+    <arg name="model_path" value="$(arg model_path)"/>
+    <arg name="engine_path" value="$(arg engine_path)"/>
+    <arg name="config" value="$(arg perception_config)"/>
+  </include>
+  <node if="$(arg start_sequence)" pkg="grasp_hexapod_bt_control" type="phase1_visual_sequence" name="phase1_visual_sequence" output="screen"/>
+</launch>

@@ -92,6 +92,83 @@ roslaunch grasp_hexapod_bt_control full_chain.launch remote_test:=walk
 roslaunch grasp_hexapod_bt_control control_only.launch
 ```
 
+### Phase-1 visual coarse approach
+
+The diagnostic path is `/xiaolan/target` → C++ `spin_search` / coarse
+`approach` → existing `/<leg>_des` joint-target path. Bring it up with:
+
+```bash
+roslaunch grasp_hexapod_bt_control phase1_visual.launch
+```
+
+This production entry does not start a sequence automatically, but includes
+`control_only.launch` and therefore servo/joy nodes; do not use it for PC
+offline checks. Camera and YOLO are optional and off by default; request them
+explicitly with `start_camera:=true` and `start_perception:=true`. Override
+`yolo_python:=/absolute/path/to/python3` when the TensorRT runtime lives
+outside the default package-relative launcher. After the controller reports
+feedback-ready, start only the bounded sequence manually:
+
+```bash
+rosrun grasp_hexapod_bt_control phase1_visual_sequence
+```
+
+It executes `home -> spin_search -> approach -> HOLD`; it never requests climb
+or dock. Its deployment-start limits are `.03 m/s` maximum forward motion and
+`.60 m` camera-optical stopping depth. Existing perception accepts depth only
+in `(0.2, 1.0) m`. This batch adds no camera-to-body extrinsic transform, hot
+extrinsic update, or AprilTag alignment. `visual_guidance_enabled` stays false
+in the legacy launch, so its default fake/RTK behavior remains unchanged.
+
+Validation is limited to the current code path: 9 visual-guidance gtests, 13
+mode-framework gtests, 7 routing gtests, and isolated fake-feedback ROS E2E.
+Final synthetic receipts are `/tmp/grasp_phase1_startup_e2e_20261030T010110`,
+`/tmp/grasp_phase1_visual_e2e_20261030T010126`, and
+`/tmp/grasp_phase1_perception_e2e_20261030T010148`; they are not physical
+camera, servo, collision, contact, load, or hardware validation.
+
+### Hardware-free Phase-1 bench
+
+For offline integration, use the bench launch on an isolated ROS master.  It
+starts only `bt_control_node`, a guarded fake joint-feedback/gripper fixture,
+and—when requested—the existing Python `Target3DNode`; it never starts serial,
+servo, joy, camera, or a synthetic `/xiaolan/target` publisher.
+
+```bash
+source devel/setup.bash
+export ROS_MASTER_URI=http://127.0.0.1:11331
+roscore -p 11331
+# Terminal A runs one selected bench launch; terminal B uses the same ROS_MASTER_URI.
+# Choose one bench command; do not run both simultaneously.
+roslaunch grasp_hexapod_bt_control phase1_visual_bench.launch
+# Or add only depth localization for a replay/external detection-depth source:
+roslaunch grasp_hexapod_bt_control phase1_visual_bench.launch start_depth:=true
+# Terminal B, after the controller reports feedback-ready:
+rosrun grasp_hexapod_bt_control phase1_visual_sequence _controller_node:=/bt_control_node
+```
+
+`start_depth:=true` runs `xiaolan_target_3d_node.py` only (`start_yolo=false`,
+`start_visualizer=false`).  By default the bench has no target publisher:
+an external replay or perception process must supply `/xiaolan/detection`,
+`/camera/depth/image_raw`, and matching depth/color `CameraInfo`; Target3DNode
+then remains the sole `/xiaolan/target` publisher.  The fake fixture refuses a
+graph that already publishes a joint-feedback topic or offers the gripper
+service, and requires its explicit private `allow_fake_feedback` launch
+parameter.  This is integration evidence only, not authorization for camera,
+servo, motion, or hardware operation.
+
+The CPU-only model smoke test uses the isolated runtime and actual `best.onnx`:
+
+```bash
+python3 src/grasp_hexapod_bt_control/test/phase1_yolo_smoke.py \
+  --python "$PWD/.venv/xiaolan-ort/bin/python3" \
+  --model "$PWD/src/xiaolan_yolo_detection/models/best.onnx"
+```
+
+It requires an isolated ROS master and tests blank synthetic RGB only. See
+[`PHASE1_VISUAL_PIPELINE_AUDIT.md`](../docs/PHASE1_VISUAL_PIPELINE_AUDIT.md)
+for timing, frames, limits, and non-hardware boundaries.
+
 服务切换状态机与原按键语义对照：
 
 | 原按键 | 服务调用 | 行为 |

@@ -31,7 +31,7 @@ class TargetTimingTest(unittest.TestCase):
 
     def frame(self, interval=.32, age=.35, detected=True, x=0):
         self.now += interval
-        det = XiaolanDetection(detected=detected, confidence=.95,
+        det = XiaolanDetection(detected=detected, reason='DETECTED' if detected else 'NO_DETECTION', confidence=.95,
                                bbox_x=4, bbox_y=4, bbox_width=9, bbox_height=9,
                                center_u=8+x, center_v=8, image_width=32, image_height=32)
         det.header.stamp = rospy.Time.from_sec(self.now-age)

@@ -18,6 +18,8 @@
 
   <!-- 控制核心参数（与 grasp_hexapod_control/launch/control_stack_cpp.launch 同名同默认）。 -->
   <arg name="control_source" default="teleop"/>
+  <arg name="visual_guidance_enabled" default="false"/>
+  <arg name="visual_guidance_config" default="$(find grasp_hexapod_bt_control)/config/phase1_visual.yaml"/>
   <arg name="controller_rate_hz" default="30.0"/>
   <arg name="enable_link_collision_check" default="false"/>
   <arg name="max_feedback_age" default="0.30"/>
@@ -117,6 +119,8 @@
   <!-- 行为树控制节点：不订阅 /joy，服务切换状态机，walk 由 /cmd_vel 驱动。 -->
   <node pkg="grasp_hexapod_bt_control" type="bt_control_node"
         name="grasp_hexapod_bt_control" output="screen" required="true">
+    <rosparam if="$(arg visual_guidance_enabled)" command="load" file="$(arg visual_guidance_config)"/>
+    <param name="visual_guidance_enabled" value="$(arg visual_guidance_enabled)"/>
     <param name="control_config_dir" value="$(find grasp_hexapod_control)/config"/>
     <param name="control_source" value="$(arg control_source)"/>
     <param name="controller_rate_hz" value="$(arg controller_rate_hz)"/>

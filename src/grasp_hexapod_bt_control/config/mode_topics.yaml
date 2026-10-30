@@ -33,6 +33,14 @@ bt:
 walk:
   cmd_vel: /cmd_vel
 
+spin_search:
+  target: /xiaolan/target
+  perception_status: /xiaolan/perception_status
+
+approach:
+  target: /xiaolan/target
+  perception_status: /xiaolan/perception_status
+
 dock:
   lock_confirmed: /grasp_hexapod/dock/lock_confirmed
   # 圆环感知输入（RingPerceptionRos 订阅）；launch 不再设置话题参数。

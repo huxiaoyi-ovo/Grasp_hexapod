@@ -8,6 +8,7 @@ find_package(catkin REQUIRED COMPONENTS
   geometry_msgs
   grasp_hexapod_control
   grasp_hexapod_msgs
+  xiaolan_yolo_detection
   roscpp
   sensor_msgs
   std_msgs
@@ -21,7 +22,7 @@ pkg_check_modules(YAML_CPP REQUIRED yaml-cpp)
 
 catkin_package(
   INCLUDE_DIRS include
-  CATKIN_DEPENDS geometry_msgs grasp_hexapod_control grasp_hexapod_msgs roscpp sensor_msgs std_msgs tf2 tf2_ros roslib
+  CATKIN_DEPENDS geometry_msgs grasp_hexapod_control grasp_hexapod_msgs xiaolan_yolo_detection roscpp sensor_msgs std_msgs tf2 tf2_ros roslib
   DEPENDS EIGEN3
 )
 
@@ -41,6 +42,7 @@ link_directories(${catkin_LIBRARY_DIRS})
 # 模式框架公共源（接口契约/注册表/YAML 加载/订阅输入封装）。
 # ---------------------------------------------------------------------------
 set(MODE_FRAMEWORK_SOURCES
+  src/visual_guidance.cpp
   src/io_inputs.cpp
   src/mode_base.cpp
   src/mode_topic_config.cpp
@@ -79,6 +81,9 @@ target_link_libraries(bt_control_node
   ${YAML_CPP_LIBRARIES}
 )
 add_dependencies(bt_control_node ${catkin_EXPORTED_TARGETS})
+add_executable(phase1_visual_sequence node/phase1_visual_sequence.cpp)
+target_link_libraries(phase1_visual_sequence ${catkin_LIBRARIES})
+add_dependencies(phase1_visual_sequence ${catkin_EXPORTED_TARGETS})
 
 # ---------------------------------------------------------------------------
 # remote_control_node：手柄 → 服务调用 + /cmd_vel（原 /joy 直连链路的替代）。
@@ -103,6 +108,8 @@ if(CATKIN_ENABLE_TESTING)
   target_link_libraries(test_bt_control_routing grasp_hexapod_control_core grasp_hexapod_ring_core ${catkin_LIBRARIES} ${YAML_CPP_LIBRARIES})
   target_compile_definitions(test_bt_control_routing PRIVATE
     GRASP_CONTROL_CONFIG_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../grasp_hexapod_control/config")
+  catkin_add_gtest(test_visual_guidance test/test_visual_guidance.cpp src/visual_guidance.cpp ${GTEST_MAIN_SRC})
+  target_link_libraries(test_visual_guidance ${catkin_LIBRARIES})
 
   catkin_add_gtest(test_mode_framework
     test/test_mode_framework.cpp
@@ -112,8 +119,12 @@ if(CATKIN_ENABLE_TESTING)
   target_link_libraries(test_mode_framework ${catkin_LIBRARIES} ${YAML_CPP_LIBRARIES})
 endif()
 
-install(TARGETS bt_control_node remote_control_node
+install(TARGETS bt_control_node remote_control_node phase1_visual_sequence
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
+
+catkin_install_python(PROGRAMS test/fake_hardware_e2e.py
+  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
 install(DIRECTORY launch/

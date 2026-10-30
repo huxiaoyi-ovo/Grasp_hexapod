@@ -57,6 +57,25 @@ roslaunch grasp_hexapod_control run_sim_ros.launch
 
 ## 实机部署
 
+### 阶段一视觉粗接近（诊断入口）
+
+`phase1_visual.launch`把顶部前向相机的`/xiaolan/target`接入独立的`spin_search`
+和`approach`模式；默认不启动相机、检测或动作序列。显式启动序列时只执行
+`home -> spin_search -> approach`，完成后保持在 HOLD，绝不会启动 climb 或 dock：
+
+```bash
+roslaunch grasp_hexapod_bt_control phase1_visual.launch start_sequence:=true
+```
+
+相机和 YOLO 均默认关闭；需要时显式传入 `start_camera:=true`
+和 `start_perception:=true`。`start_sequence` 默认也是 `false`，也可在完成
+`home` 后手动运行 `rosrun grasp_hexapod_bt_control phase1_visual_sequence`。
+配置默认最大前进速度为 `.03 m/s`，相机光学深度停止值为 `.60 m`。
+
+目标的 `x/z` 是相机光学坐标（右/前），`0.60 m` 停止距离只是未标定的相机深度
+诊断起点，不是机体、足端或小蓝净空。该流程不替代外参、碰撞、接触、载荷或实机安全验证；
+`control_only.launch` 默认仍关闭视觉引导，原有假模式和 RTK 路径不变。
+
 APPROACH、CLIMB与DOCK可分别调试：普通Isaac/ROS仿真使用`run_sim.py`或
 `run_sim_ros.launch`，联合底部相机对接仿真使用`run_sim_dock.py`，实机统一从
 `run_real.launch`进入。DOCK只使用底部USB相机；顶部Orbbec和小蓝标签链不参与

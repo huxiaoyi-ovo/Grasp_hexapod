@@ -20,8 +20,9 @@ class YoloNode:
         self.conf = float(rospy.get_param('~conf_threshold', .5))
         self.hz = float(rospy.get_param('~max_fps', 15.))
         self.max_age = float(rospy.get_param('~max_input_age', .5))
+        self.diagnostics_period = float(rospy.get_param('~diagnostics_period_s', 2.))
         size = int(rospy.get_param('~input_size', 416))
-        if not 0 < self.conf <= 1 or self.hz <= 0 or self.max_age <= 0 or size <= 0:
+        if not 0 < self.conf <= 1 or self.hz <= 0 or self.max_age <= 0 or size <= 0 or self.diagnostics_period <= 0:
             raise ValueError('Invalid inference parameters')
         if int(rospy.get_param('~max_det', 1)) != 1:
             raise ValueError('This single-target node requires max_det=1')
@@ -63,6 +64,9 @@ class YoloNode:
         self.lock = threading.Lock()
         self.latest = None
         self.counter = 0
+        self.consumed_counter = 0
+        self.received = 0
+        self.overwritten = 0
         self.pub = rospy.Publisher(rospy.get_param('~detection_topic', '/xiaolan/detection'), XiaolanDetection, queue_size=1)
         self.sub = rospy.Subscriber(rospy.get_param('~rgb_topic', '/camera/color/image_raw'), Image,
                                     self.callback, queue_size=1, buff_size=2**24)
@@ -70,15 +74,20 @@ class YoloNode:
     def callback(self, msg):
         with self.lock:
             self.counter += 1
+            self.received += 1
+            if self.latest is not None and self.latest[0] > self.consumed_counter:
+                self.overwritten += 1
             self.latest = (self.counter, msg, time.monotonic())
 
     def run(self):
         last = -1
-        count, dropped, log_time = 0, 0, time.monotonic()
+        count, invalid, received_start, overwritten_start, infer_total, log_time = 0, 0, 0, 0, 0., time.monotonic()
         while not rospy.is_shutdown():
             started = time.monotonic()
             with self.lock:
                 current = self.latest
+                if current is not None and current[0] != last:
+                    self.consumed_counter = current[0]
             if current is None or current[0] == last:
                 time.sleep(.005)
                 continue
@@ -94,6 +103,7 @@ class YoloNode:
                 t0 = time.monotonic()
                 raw = self.infer(tensor)
                 out.inference_ms = (time.monotonic()-t0)*1000
+                infer_total += out.inference_ms
                 box = best_box(raw, mapping, self.conf)
                 out.reason = 'NO_DETECTION'
                 if box:
@@ -108,12 +118,16 @@ class YoloNode:
             if out.inference_ms > 0:
                 count += 1
             else:
-                dropped += 1
+                invalid += 1
             elapsed = time.monotonic()-log_time
-            if elapsed >= 2.:
-                rospy.loginfo('YOLO inference_ms=%.1f FPS=%.1f dropped=%d confidence=%.3f detected=%s reason=%s',
-                              out.inference_ms, count/elapsed, dropped, out.confidence, out.detected, out.reason)
-                count, dropped, log_time = 0, 0, time.monotonic()
+            if elapsed >= self.diagnostics_period:
+                with self.lock:
+                    received_now = self.received
+                    overwritten_now = self.overwritten
+                rospy.loginfo('YOLO rgb_hz=%.1f infer_hz=%.1f publish_hz=%.1f inference_ms_last=%.1f avg=%.1f invalid_outputs=%d overwritten=%d reason=%s',
+                              (received_now-received_start)/elapsed, count/elapsed, (count+invalid)/elapsed,
+                              out.inference_ms, infer_total/max(count, 1), invalid, overwritten_now-overwritten_start, out.reason)
+                count, invalid, received_start, overwritten_start, infer_total, log_time = 0, 0, received_now, overwritten_now, 0., time.monotonic()
             time.sleep(max(0., 1/self.hz-(time.monotonic()-started)))
 
 

@@ -1,0 +1,12 @@
+Traceback (most recent call last):
+  File "/tmp/grasp_front_v8_sdRyAI/c17_c18_cad.py", line 141, in <module>
+    main()
+  File "/tmp/grasp_front_v8_sdRyAI/c17_c18_cad.py", line 127, in main
+    _, item, row = min(candidates, key=lambda value: value[0])
+ValueError: min() arg is an empty sequence
+ERROR conda.cli.main_run:execute(148): `conda run python /tmp/grasp_front_v8_sdRyAI/c17_c18_cad.py` failed. (See above for error)
+{
+  "status": "CLEAR",
+  "queries": 16,
+  "output": "/tmp/grasp_front_v8_sdRyAI/c17_c18_cad_report.json"
+}

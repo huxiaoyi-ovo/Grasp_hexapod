@@ -1,0 +1,19 @@
+Excluded baseline mismatch, recorded without changing SIDE semantics or its test.
+
+Requested command result: 8 passed, 1 failed.
+Failing test: test_hardware_climb_endpoint_requires_configured_persistence
+
+Observed failure:
+  current checked-in SIDE C1 reaches DONE on the first settled frame, while
+  the test computes eight frames from settle_gate.persistence_s=.25.
+
+Baseline witness from git show HEAD:
+  climb_compact.json C1 has:
+    "settle_s": 0.03333333333333333,
+    "settle_persistence_s": 0.03333333333333333
+  climb_mode.py _effective_settle_required reads the stage override before
+  the global settle_gate.persistence_s.  It therefore returns .03333333333333333.
+
+v5 did not change this helper's override semantics or the SIDE configuration.
+Sol classified it as a baseline test/config contract mismatch; it is excluded
+from the v5 acceptance gate.  The remaining eight selected shared checks passed.

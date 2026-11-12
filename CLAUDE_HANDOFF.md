@@ -119,3 +119,113 @@
 - 控制包仅新增只读 `ApproachMode::stanceMask()`。
 - 验证：tag gtest 50/50（Sol 复跑）；平面闭环（0.5 m 起点、±5 cm、±8°、航向漂移 ≤0.02 rad/s）最终前后误差 <1 mm、横向 ≤7.5 mm、yaw ≤1.82°；金标与基线一致。理想化模型，不含真实步态跳变、打滑、相机延迟噪声。未运行 catkin/ROS/实机。
 - 实机待确认：`tag_imu_yaw_sign`（README 第 1 步手转检查）；步态在 0.015 m/s 低速与停/启时的实际响应；腿里程在真实打滑下的误差；tag 实际丢失距离（看 handover 日志的 z_last）。
+
+## 2026-11-03 正面攀爬：direct 终态后接“走到中心”尾段（原型，暂停中）
+
+- 基线：`test` 快进 `f161d6e → 84a3bc8`（拉取 14 个远端提交，无冲突）；本条之前未改任何源码/配置。
+- execution_owner：Sol（几何与支撑推理紧耦合，原型在仓库外）。
+- 用户决定：(1) 不重做 platform 路线，从 `climb_front_direct.json`（SHA `4421aff…`，终态机身 x .318）向后接尾段；(2) 13 cm 缺口通过“六足上小蓝后自行前走尽量接近中心”解决；(3) Claude 自行工作（非导师模式）。
+- 关键事实（模型/CAD 诊断）：
+  - direct CPU 回放复现 873 tick DONE。
+  - 终态 LM/RM thigh .651，限位 .698：六足固定时机身前移约 1 cm 即触限，尾段第一步必须先迈中腿。
+  - 机身底面 base z −.0097、前后 ±.086 m；小蓝中心凸台顶 .248 m（世界 x .43–.47）。必须先抬身再前移，否则底面撞凸台。
+  - x≈.45 横向中缝；顶面 (≈.375,.03) 有小孔（platform 的 LB 终点正落在孔上）。
+- 原型位置（仓库外）：`/home/artrc/grasp_sync_backups/claude_front_tail_20261103/`（`build_tail.py` 生成器、`run.sh` 生成+CPU 回放、`plan_v*.json`、地形与可达探针、`safe.png` 安全落脚图）。
+- 候选序列：BODY_RAISE z .28 → MID_PAIR_UP (.385) → BODY_ADVANCE x .42 → REAR_PAIR_UP (.35) → LF_STEP (.55) → RF_STEP (.55) → BODY_CENTRE (.45, z .30)。静态关键状态与机身路径全部通过。
+- 连续 CPU 回放（复用 `docs/evidence/climb_front_direct_20260924/cpu_direct_audit.py`）：v1 中腿抬腿速度截断；v2 中腿跨越时踝触限（机身过低）；v3（先抬身）前三个尾段通过，失败在 REAR_PAIR_UP 跨越段 joint_limit。v4a（后腿净空 .022）与 v4b（前移时机身升到 .30）已发起，结果未读取。
+- 证据层级：CPU/CAD 模型诊断；未运行 GPU、未写入仓库配置、无实机授权。
+- 下一步：读 v4a/v4b 结果并定位后腿触限关节；全链 CPU 通过后，把生成器放入 `scripts/tools/`、配置放入 `config/`，再做一次 GPU 预览，并检查实际足端落面、承载与中缝净空。
+- 追加（暂停后后台结果）：v3 的后腿触限是 LB/RB 踝关节（ankle 余量 0）。**v4b（BODY_ADVANCE 终点 z .30）全链 CPU DONE：1257 tick、28 阶段、0 截断**，终态机身 (.45,−.0677,.30)；尾段最差：FK 9.15 mm（MID_PAIR_UP，<15 mm 硬门但 >2 mm 优选）、关节余量 .047 rad（BODY_RAISE/MID）、摆腿 COM 余量 23.7 mm、活动足球隙 ≥ −.1 mm。v4a 在 LF_STEP 触限。BODY_ADVANCE 之后各尾段有控制器胶囊 proxy 警告（仅提示，非 STL 自碰撞结论），下一步须先用指定连杆 STL 查询确认。`tail_v4b.json`、`cpu_v4b.json` 已存入上述备份目录。
+
+## 2026-11-04 正面攀爬：用户否决 v4b 尾段，改为"姿态优先"重新规划（原型，暂停中）
+
+- 基线：`test` @ `84a3bc8`；仓库源码/配置未改。execution_owner：Sol（物理推理紧耦合，原型在仓库外）。
+- 用户反馈：v4b（direct+尾段）虽上去但姿态怪异——只追落点不顾姿态与稳定，六足上台后尤甚。要求从头优化；成对迈腿；在稳定基础上越快越好。用户确认机身离支撑面 ~85–90 mm。
+- 姿态量化（相对 Q_STAND）：direct 前缀前腿前伸 93–152 mm、机身相对足平面倾 17–26°；v4b 终态六足内收 65–68 mm、机身高出自然 42 mm（"高跷"）。
+- 原型：`/home/artrc/grasp_sync_backups/claude_front_gait_20261104/`。主程序 `build_gait3.py`（束搜索、姿态优先、对角/对称成对），`workspace.py`（髋系舒适工作空间，支撑 0.10 rad、摆动 0.05 rad 余量），`screen.py`（运行时参考逐帧 IK、限速重定时、机身底净空），`probe_*.py` 诊断脚本。最新命令：`python3 build_gait3.py --output cfg.json --beam 6 --max-depth 70 --free-y --mid-reach 0.13`。
+- 已确认的物理约束（均为模型诊断）：
+  1. 舒适工作空间呈月牙形，髋旁有不可达空洞；脚靠近髋（径向 <~0.11–0.16 m、髋下 <0.07 m）时不可达。固定步幅波浪步态会让前脚在台阶边落入空洞。
+  2. 中腿 thigh 限位 ±0.698 rad 是前倾攀爬的主约束；名义足迹应沿机身法向而非世界竖直投影（后腿反之），落点候选同时围绕三种投影。
+  3. 双前腿同时抬起需质心在中腿线后 ≥20 mm，需机身先后移；前脚未离地前机身不可先抬头（前腿会过伸）。
+  4. 上台阶只能左右对称成对；对角成对仅用于同层行走，否则出现左右错位死锁。
+  5. 机身 y=-0.0677 相对小蓝偏右 3.8 cm，小蓝左缘 y≈0.14，左中腿无横向空间；机身 y 需在拟合中优化（±2 cm）。右侧台阶比左侧高约 24 mm。
+  6. 束搜索评分需奖励爬升高度（5×平均足高），否则会冲到墙边陷入死角。
+- 进度：最后一次搜索（b16，`--free-y`）在 depth 9 已推进到机身 x=0.18（越过此前 x≈0.07/0.14 的所有卡点），被用户暂停；beam 状态已存 `cfg_b16.json.beam.npy`。尚未生成完整配置，未跑 CPU 连续回放/GPU。
+- 下一步：续跑 b16 到终点 → screen 重定时 → `cpu_direct_audit` CPU 回放 → `posture.py` 姿态对比图 → GPU 可视回放给用户看。之后才考虑入库（`scripts/tools/` 与 `config/`）。
+
+## 2026-11-10 正面攀爬：改为"模板 + 连续优化"（原型，进行中）
+
+- 基线：`test` @ `84a3bc8`（与 origin 一致）；仓库源码/配置未改。execution_owner：Sol（目标函数/约束与物理推理不可分，原型在仓库外）。
+- 用户决定：(1) 放弃 11-04 离散束搜索，改为固定模板 + 连续参数优化，连续轨迹检查放进优化回路，复用 SIDE 机身相对摆腿结构；(2) 落足确认将来由**足端接触传感器硬件**解决（尚未安装；装上后需更新 `PROJECT_MEMORY.md`/`AGENTS.md` 硬件边界）；(3) 仿真接触检测可作为**离线设计轨迹的测量工具**（记录触地瞬间足端相对机身坐标，修正规划），不作运行时输入；(4) 要求泛化：实机起点不一定精准，按小蓝坐标系规划、PREP 与首步吸收起点误差，鲁棒优化默认 x/y ±3 cm、yaw ±3°（待用户确认范围，尚未实现）。
+- 原型：`/home/artrc/grasp_sync_backups/claude_front_opt_20261110/`：`geom.py`（闭式腿 IK、精确向量化 COM/连杆点/支撑余量，均已对照仓库 kinematics 验证；地形高度图、平整安全掩膜、带符号内缩、连通落脚区域）、`plan.py`（模板、与运行时 `_stage_reference` 同式的 Hermite/五次曲线、逐采样约束）、`opt.py`（CMA-ES、逐阶段顺序优化+一步前瞻）、`refine.py`（全链并行 CMA-ES）、`itinerary.py`（冻结接触区域表）、`export.py`（导出 COMPACT_V2 + contact_plan_version 1 配置并调用 `cpu_direct_audit`）。
+- 关键发现（模型诊断）：
+  1. 对称成对波浪步态下，抬前对时 COM 须在中腿线后 ≥20 mm，抬后对时须在其前 ≥20 mm，所以 F 与 R 摆动之间必须有中腿摆动或六足机身平移；模板定为 F→M→(B)→R→M。
+  2. 斜面 G5 有 ≤5 mm 内部凹槽；按 AGENTS.md"首个落脚斜面忽略内部小特征"填平（≤8 mm），仍保留外缘/台阶边界。
+  3. 原 18 mm 内缩与 15 mm 平整圆盘重复计边距（约 33 mm），改为 5 mm 额外内缩（总计约 20 mm）。
+  4. 落脚连通区域：1 地面、2 斜面（x .194–.290）、6 顶面（含孔、中缝、凸台）；左中腿名义 y .126 超出顶面左界 y≈.10，需内收或机身右移。
+  5. 修复 bug：`FINAL` 曾被误判为前对摆动阶段。
+  6. 导出配置通过运行时校验；CPU 回放与模型 COM 指标逐毫米一致；参考限速 3.0 rad/s 时跟踪误差达 13.4 mm（硬门 15 mm），已降到 2.5 rad/s。
+- 状态：尚无全约束可行链；瓶颈在坡道段后对抬腿 COM 与中腿过渡。未运行 GPU；无实机授权。
+- 2026-11-10 追加（用户叫停）：在此方法下又做了三轮。
+  1. 第一轮全链 CPU 回放 DONE（`cfg_t_s0.json`，21 s）。GPU 中机身俯仰在 −15°～+33° 来回摆、腿间穿模，F11 后翻摔倒。原因：目标函数没有约束机身姿态幅度/变化，也没有腿间连杆碰撞约束；CPU 已报胶囊碰撞警告，我当成"仅提示"放过去了。
+  2. 补上腿间碰撞（与控制器 `_link_collision_free` 逐样本一致）、俯仰 ±20°/每阶段 ≤8°、机身 x 单调前进三条约束后，四组模板全部不可行，最好的 `cfg_m5b.json` 在 CPU R08 停住。
+  3. 用户看 GPU：前 5 个阶段都是在小蓝前方地面上原地倒腿，脚根本没有搭上小蓝。用户判断思路从一开始就错了，**已叫停**。所有优化进程已停止；仓库源码/配置未改。
+- 根因复盘（Sol）：让通用优化器在抽象模板上"发明"攀爬策略，而不是先按物理推理冻结关键接触状态（准则"接触状态表先于轨迹""终端优先"）；P0 前脚离斜面仅约 13 cm，一个循环就应搭上小蓝，模板却均匀分配了 5 个循环；每次 GPU 暴露的问题都靠事后补约束追，花了数小时却没有早期可视验证。
+- 原型保留在 `/home/artrc/grasp_sync_backups/claude_front_opt_20261110/`，仅作工具参考（闭式 IK、向量化 COM/胶囊碰撞、地形区域、导出、`viz.py` 姿态图）。下一步方向等用户决定。
+
+## 2026-11-10 正面攀爬：以 v10（optimized）为基线逐段提鲁棒性（原型，进行中）
+
+- 用户决定：不再从零规划，在 v10 `climb_front_optimized.json`（de855ddf…，GPU DONE 39.3 s）上逐段优化；目标是实机起点误差下的泛化（设计范围 前后/左右 ±2 cm、yaw ±3°）。execution_owner：Sol（物理推理紧耦合；原型在仓库外，仓库配置未改）。
+- 原型目录：`/home/artrc/grasp_sync_backups/claude_front_v10_stagewise_20261110/`。工具：`landing_tolerance.py`（每次落脚到台阶/边缘距离）、`chain.py`（阶段链锚点/位姿顺延重建，未改阶段字节不变，含 pose_knots）、`edit_*.py`（各步修改）、`retime.py`（预接触点+限加速度下降、空中按参考关节速度压缩）、`cpu.sh`（cpu_direct_audit 汇总）、`gpu_check.sh`/`envelope.sh`/`yaw_sim.py`（GPU 起点偏移扫描；yaw 用运行时替换小蓝放置函数旋转三角面，不改仓库）、`slip.py`（逐阶段支撑脚打滑）。
+- v10 基线扫描：仅"偏后"不鲁棒——偏后 1 cm C14 RB 上台翻倒、偏后 2 cm C2 前脚从斜面下沿滑下；偏前 ±2 cm、左右 ±1.5 cm 通过。
+- 已做修改（均 CPU DONE、零截断、零胶囊警告）：
+  1. C2/C3 对调（中腿先前移），前对落斜面平整区中部 LF(.242,.100)/RF(.212,−.165)：抬前对 COM 21→33 mm、关节余量 .047→.117。
+  2. C4 只迈 RF 到翼面 (.30,−.165) 并带机身前移（原 LF 落点在台阶边，偏前容差 5 mm）；C5 延长到 .7 s、C8×1.5。
+  3. 用户要求"最后一对腿上台前中腿前移"：几何上后腿在地面时中腿无法上顶面（髋下不足 7 cm 时需水平 ≥15 cm）；改为 RM 沿翼面前移到 .315 + 机身预移到 (.28,z .22,pitch .40)，LB 接力 .148：抬 RB COM 18.6→53.8 mm。C14/C15 高弧降 30 mm 外移 10 mm（消除机身胶囊警告）。
+  4. C16 LM 终点 .425→.40（大腿贴限位、离平整区边 11 mm）：关节余量 .005→.052。
+  5. 用户要求"后两腿上台不往里收、小腿垂直落面"：RB→(.212,−.225) 轴角 31°→6°，LB→(.225,.105) 31°→13°；末段机身前移拆成两段避免 RB 拉直。
+  6. 用户要求"空中快、落地慢"：`retime.py`（8 mm 预接触点、下降加速度 ≤1.5 m/s²、触地 .2–.3 s；空中 2.5–3.0 rad/s 参考上限）。
+- GPU 鲁棒性结果（仿真诊断）：`v11_rear2b`（步骤 1–3，未重定时）名义/−1/−2/+2 cm 全过；`v11_rt`（+C16+2.5 rad/s 重定时）名义、±2 cm、±1.5 cm、−2±1.5 cm、yaw±3° 全过；`v11_rt3/rt4`（+后腿外放+更快重定时）偏后 1–2 cm 与组合失败。
+- 关键发现：名义下支撑脚累计后滑约 30 mm（v10 同），偏后起点误差叠加后超出落点余量，是剩余鲁棒性瓶颈；放慢机身加速度（≤.25 m/s²）未减少总打滑（PREP 放慢后反而多滑），更像持续受载蠕滑，根因待查（可能含仿真接触参数伪影）。提速会降低偏差容忍度。
+- 下一步待用户决定：以 `v11_rt` 为鲁棒基线重新逐项加入后腿外放并单项扫描验证；单独排查打滑根因；接近阶段把 P0 目标前移约 1 cm 让误差窗口居中。均未运行实机；仓库配置未写入。
+
+## 2026-11-12 追加：速度/流畅性优化与鲁棒性现状（原型，未入库）
+
+- 用户认可 v11_rt4 整体动作，要求"每步再优化速度和衔接流畅性"。
+- 新增工具（同原型目录）：`smooth.py`（摆腿改机身相对 Hermite，中间节点带通过速度，越台阶后节点不允许提前向下切）、`merge_body.py`（机身阶段并入相邻摆腿）、`edit_c13.py`（C13 前对中间落点避开顶面横向中缝）、`edit_rear_out.py` 可传 LB x。
+- 结论：
+  1. 每步结束约 0.3 s 的到位确认（settle_gate persistence .25 s）累计约 6 s，是主要"顿挫"来源；属于实机安全门，未改，待足端接触传感器后改为触地即进入。
+  2. 摆腿连续化提高流畅性，但会吃掉跨台阶净空 → 只用于不跨台阶的摆腿（跨台阶的 7 步保持原分段路径）。
+  3. 合并 PREP 进中腿前移会在 4 足支撑下后滑约 3 cm → 撤回；C5、C9 机身阶段因 COM 约束必须单独存在。
+  4. v10 遗留：C13 前对中间落点 x=.48 离顶面横向中缝（x≈.43–.47）只有 8 mm → 改为 LF(.491,.029)/RF(.52,−.165)，C17 关节余量 .034→.112。
+  5. LB 上台落点 .225→.24（.25 触发 LB–LM 胶囊警告）。
+- 当前最好候选 `v11_c13_rt.json`：CPU DONE；GPU 名义 38.5 s（v10 39.3 s），11 组起点偏差扫描 7 组通过（名义、+2 cm、±1.5 cm、yaw ±3°、−2/−1.5/+3° 组合）；偏后 1/2 cm 在 C18 三脚支撑时翻倒（RB 停在右侧仅约 36 mm 宽的窄斜面上，累计后滑 27–34 mm + 起点偏后后滑出边沿），另两组组合在 C13、LB 地面接力超时。
+- 单次仿真结果对小改动敏感（同一条件在相邻版本间翻转），说明多处处于临界状态；结论均为仿真诊断，无实机授权，仓库配置未写入。
+- 待用户决定的下一步：(a) 查累计后滑根因（PD 刚度/摩擦/接触参数对比，区分仿真伪影）；(b) 改 RB 停靠：缩短 RB 在右窄斜面的停留（顺序调整或直接上翼面）；(c) 攀爬中途用反馈重新对齐剩余计划（需可部署的位姿估计）；(d) 接近阶段 P0 目标前移约 1 cm 使误差窗口居中。
+
+## 2026-11-12 冻结 front v11 部署版本并推送 test（实机部署前交接）
+
+- execution_owner：Sol 写部署配置 `config/climb_front_v11.json`、`full_mission.launch`、`PROJECT_MEMORY.md`（实机关键文件，必须 Sol 审定）；Luna（最轻档位，effort medium：机械性归档/清理/编译/测试）负责证据归档、清理未提交文件、文档同步、编译与全部测试。Sol 审查 diff 后提交并推送。
+- 部署配置：`src/grasp_hexapod_control/config/climb_front_v11.json`，SHA-256 `1683c12cf8f36626d789267f6258c1cac6628940916e84ba3f3820078797c6a8`，20 阶段，计划动作 32.7 s，`simulation_joint_velocity_limit_rad_s=4.0`（与实机 4 rad/s 一致），`terminal_q_rad` 已按最终锚点重算。`full_mission.launch` 的 `climb_config_file` 已改为它（`allow_front_hardware=true`、`climb_foot_gate_m=0.04` 不变）。
+- 冻结验证（均已通过）：C++ 核心库按当前源码重编译（旧库缺 10-30 的 front 移植）；C++ 与 Python 逐帧一致（1179 帧，≤5e-6 rad）；C++ 实机模式（反馈检查点、门限 0.04 m、4 rad/s）理想舵机下 DONE，39.3 s，指令峰值 3.57 rad/s；Python 4 rad/s 回放零截断；Isaac（4.8 rad/s）名义 39.3 s DONE。
+- 起点误差鲁棒性（Isaac 4.8 rad/s，仿真诊断）：通过 名义、+2 cm、−1 cm、±1.5 cm 横向、−3° yaw；失败 +3° yaw（C13）、−2 cm（后段 RB 窄斜面，累计后滑约 3 cm）；三组组合结果见证据目录 `sweep_summary`。
+- 清理：Codex 10-26/27 未提交的 v10 optimized 路线（配置、生成器、落脚审计工具、测试与 `climb_front_rework_20261026` 证据）作为 v11 来源入库；已否决的 platform 路线（47 MB 证据、配置、生成器、测试）移到仓库外 `/home/artrc/grasp_sync_backups/uncommitted_platform_route_20261027/`（保留原相对路径，未删除）。`src/grasp_hexapod_mujoco/` 非本次产物，未改动、未提交。
+- 全链路审查结论（ROS1/C++）：编排 home→spin_search→approach→climb→[home]→dock，每步阻塞 switch_mode，失败即 HOLD 不重试；tag 示教 P0（小蓝系 −0.55,−0.038）与攀爬 P0 一致；攀爬相位按控制帧推进（反馈慢只会变慢）；段内节点为反馈检查点（0.04 m / 0.08 rad，超计划时长 5 s 失败）；舵机每帧 33 ms；对接从当前关节姿态开始、底部相机 tag 驱动、dock_system 已标定；攀爬入口要求 18 关节距 Q_STAND ≤0.08 rad，接近结束无显式回站。
+
+### 实机上线前必须做（顺序执行，任一级不过就停）
+
+0. **机器人端**：`git pull origin test` → `catkin_make` → `catkin_make run_tests_grasp_hexapod_control run_tests_grasp_hexapod_bt_control && catkin_test_results`；`roslaunch --nodes grasp_hexapod_bt_control full_mission.launch`；确认参数 `climb_config_file=climb_front_v11.json`、`allow_front_hardware=true`、`climb_foot_gate_m=0.04`。
+1. **tag 示教（阻断项）**：`config/phase1_visual.yaml` 的 `tag_ref_x_m/tag_p0_z_m/tag_ref_yaw_rad` 仍是占位值。按根 README 步骤：P0 地面标记 → 沿朝向线后退量 D → `rosrun grasp_hexapod_bt_control record_tag_reference.py _tag_id:=0 _samples:=30 _offset_from_p0_m:=D`，写回 yaml；同时手转确认 `tag_imu_yaw_sign`。
+2. **悬空空跑攀爬**：机器人吊起、脚离地，`home` 后单独 `switch_mode climb`（P0 处、Q_STAND 姿态）。看终端 climb 速度诊断与检查点停顿：记录每阶段跟踪误差，确认无超时。若带载跟踪 >0.08 rad，先放慢对应阶段再继续。
+3. **只跑接近**：`full_mission.launch start_sequence:=true stop_after:=approach` 重复 5–10 次，测量停车误差（前后/左右/yaw）与进入攀爬时关节偏差（需 ≤0.08 rad）。仿真可容忍：前后 −1~+2 cm、横向 ±1.5 cm、yaw −3°~+2°；若系统性偏后，把示教 P0 前移约 1 cm；yaw >2° 收紧 `tag_yaw_tolerance_rad`。
+4. **实攀**：安全绳 + 急停，`stop_after:=climb`。观察 RTK/IMU 相对运动监控（位置 5 cm / 姿态 10° / 角速度 30°/s 持续超限会 HOLD）。
+5. **对接**：完整流程。
+- 未关闭：累计后滑根因；RB 停靠右侧窄斜面；步间到位确认约 6 s（待足端接触传感器）；+3° yaw。均为仿真诊断，不是实机安全证明。
+- 冻结批次测试结果（本机 x86_64；Orbbec SDK 只带 arm64 库，本机只能按包编译 `grasp_hexapod_control`/`grasp_hexapod_bt_control`，机器人 arm64 不受影响）：
+  - gtest 250 项，6 项失败，**均为本批之前就存在**（本批未改任何 C++/测试代码）：
+    1. `KinematicsGolden`：FK 与 Python 差 2.8e-17，测试要求逐位相等——浮点舍入，无害。
+    2. **`GoldenTrajectory.ResetAndWalkMatchPython`：C++ 步态在回站后开始行走的第 75 帧与 Python 差 0.085 rad**。已核实 Python 与金标逐帧一致（6.7e-15），即 **C++ 接近步态与 Python 参考不一致**；10-30 之后 C++ 仅加了只读 `stanceMask()`，问题更早存在。climb 金标（ClimbLeft/ClimbFrontDirect）通过。实机接近阶段运行的是 C++ 步态 → 上线第 3 级（只跑接近）必须实测停车精度；待单独排查。
+    3. **`RingNative.MiddleFirstThenFourLegBodyRaise`：对接抬身时中腿关节速度 31–45 °/s，超过测试规定 30 °/s**（对接代码最后修改 9-18）。仍远低于 4 rad/s 硬件上限，但与设计意图不符 → 上线第 5 级（对接）重点观察；待单独排查。
+  - bt_control gtest 全过（含 tag_guidance 50/50）；pytest：`test_climb_front_optimized.py`、`test_climb_front_direct.py` 全过；`test_real_mode_routing.py` 8 项失败与改动前 HEAD 完全相同（侧向 run_real/Isaac 旧断言），非本批引入。
+  - `roslaunch --nodes full_mission.launch` 通过；v11 配置校验通过；catkin 白名单已复位。
+- 分支：本工作区 2026-11-10 02:32 被切到 `codex/mujoco-interface`（非本会话操作；未提交的 `src/grasp_hexapod_mujoco/` 属于该工作）。本批通过独立 worktree 提交到 `test`，未切换本工作区分支、未动 mujoco 目录。

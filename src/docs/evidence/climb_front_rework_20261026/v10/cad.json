@@ -1,0 +1,134 @@
+{
+  "status": "CLEAR",
+  "queries": [
+    {
+      "stage": "TRIPOD_LB_LF_RM_ADVANCE",
+      "leg": 0,
+      "link": "knee",
+      "t": 0.65,
+      "hit": false,
+      "tri": null
+    },
+    {
+      "stage": "TRIPOD_LB_LF_RM_ADVANCE",
+      "leg": 0,
+      "link": "ankle",
+      "t": 0.65,
+      "hit": false,
+      "tri": null
+    },
+    {
+      "stage": "TRIPOD_LB_LF_RM_ADVANCE",
+      "leg": 0,
+      "link": "knee",
+      "t": 1.75,
+      "hit": false,
+      "tri": null
+    },
+    {
+      "stage": "TRIPOD_LB_LF_RM_ADVANCE",
+      "leg": 0,
+      "link": "ankle",
+      "t": 1.75,
+      "hit": false,
+      "tri": null
+    },
+    {
+      "stage": "TRIPOD_LB_LF_RM_ADVANCE",
+      "leg": 1,
+      "link": "knee",
+      "t": 0.65,
+      "hit": false,
+      "tri": null
+    },
+    {
+      "stage": "TRIPOD_LB_LF_RM_ADVANCE",
+      "leg": 1,
+      "link": "ankle",
+      "t": 0.65,
+      "hit": false,
+      "tri": null
+    },
+    {
+      "stage": "TRIPOD_LB_LF_RM_ADVANCE",
+      "leg": 1,
+      "link": "knee",
+      "t": 1.75,
+      "hit": false,
+      "tri": null
+    },
+    {
+      "stage": "TRIPOD_LB_LF_RM_ADVANCE",
+      "leg": 1,
+      "link": "ankle",
+      "t": 1.75,
+      "hit": false,
+      "tri": null
+    },
+    {
+      "stage": "TRIPOD_LB_LF_RM_ADVANCE",
+      "leg": 5,
+      "link": "knee",
+      "t": 0.65,
+      "hit": false,
+      "tri": null
+    },
+    {
+      "stage": "TRIPOD_LB_LF_RM_ADVANCE",
+      "leg": 5,
+      "link": "ankle",
+      "t": 0.65,
+      "hit": false,
+      "tri": null
+    },
+    {
+      "stage": "TRIPOD_LB_LF_RM_ADVANCE",
+      "leg": 5,
+      "link": "knee",
+      "t": 1.75,
+      "hit": false,
+      "tri": null
+    },
+    {
+      "stage": "TRIPOD_LB_LF_RM_ADVANCE",
+      "leg": 5,
+      "link": "ankle",
+      "t": 1.75,
+      "hit": false,
+      "tri": null
+    },
+    {
+      "stage": "RB_FINAL_ADVANCE",
+      "leg": 3,
+      "link": "knee",
+      "t": 0.65,
+      "hit": false,
+      "tri": null
+    },
+    {
+      "stage": "RB_FINAL_ADVANCE",
+      "leg": 3,
+      "link": "ankle",
+      "t": 0.65,
+      "hit": false,
+      "tri": null
+    },
+    {
+      "stage": "RB_FINAL_ADVANCE",
+      "leg": 3,
+      "link": "knee",
+      "t": 1.75,
+      "hit": false,
+      "tri": null
+    },
+    {
+      "stage": "RB_FINAL_ADVANCE",
+      "leg": 3,
+      "link": "ankle",
+      "t": 1.75,
+      "hit": false,
+      "tri": null
+    }
+  ],
+  "note": "16 active-air exact queries; remaining neighbor budget omitted only because no additional changed-leg collision selector was needed"
+}

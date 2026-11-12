@@ -135,8 +135,9 @@ Step-by-step bring-up, teach-in and debugging commands (Chinese) are in the root
 enabled, plus the standalone AprilTag detector (`tag_id`, default 0; output
 `/xiaolan/tag_detections`). It is **not certified for hardware**: front
 climbing and docking are not certified. Run only with harness/support and the
-e-stop within reach. `climb_front_direct` timing was previewed at 6 rad/s in
-simulation, while hardware is capped at 4 rad/s.
+e-stop within reach. `climb_front_v11` is timed for the shared 4 rad/s hardware
+step cap (zero clips in CPU/C++ replay); follow the staged bring-up in
+`CLAUDE_HANDOFF.md` (tag teach-in, suspended dry run) before a full run.
 
 ```bash
 roslaunch grasp_hexapod_bt_control full_mission.launch
@@ -166,7 +167,7 @@ Teach-in reminder: `tag_ref_x_m`, `tag_p0_z_m` and `tag_ref_yaw_rad` in
 `scripts/record_tag_reference.py` (needs the measured back-off distance
 `_offset_from_p0_m`) before `approach` can succeed.
 
-The launch sets `climb_config_file:=climb_front_direct.json`,
+The launch sets `climb_config_file:=climb_front_v11.json`,
 `allow_front_hardware:=true` (explicit hardware opt-in for the front route; the
 shared 4 rad/s joint step cap applies) and `climb_foot_gate_m:=0.04`. The tag
 id is `tag_guidance_id` in `config/phase1_visual.yaml`; the detector `tag_id`

@@ -1,0 +1,9 @@
+{
+  "output": "/tmp/grasp_front_v9_wpNdZp/c16_suffix_cpu.json",
+  "state": "DONE",
+  "ticks": 251,
+  "completed_stage_count": 4,
+  "first_failure": null,
+  "config_sha256": "8c5113a79c975cd1f72c10dc7b191f125e86bbfbaeef861508c11bf42dbf9bc3"
+}
+{"state": "DONE", "first_failure": null, "ticks": 251}

@@ -1,0 +1,611 @@
+[
+  {
+    "sweep": "gpu_v11_c13_rt_sweep",
+    "case": "dx-10_dy0_yaw0",
+    "verdict": "FAILED",
+    "done_at_s": null,
+    "failed_stage": "TRIPOD_LB_LF_RM_ADVANCE"
+  },
+  {
+    "sweep": "gpu_v11_c13_rt_sweep",
+    "case": "dx-20_dy-15_yaw3",
+    "verdict": "SUCCESS",
+    "done_at_s": 38.5,
+    "failed_stage": null
+  },
+  {
+    "sweep": "gpu_v11_c13_rt_sweep",
+    "case": "dx-20_dy0_yaw0",
+    "verdict": "FAILED",
+    "done_at_s": 38.7,
+    "failed_stage": null
+  },
+  {
+    "sweep": "gpu_v11_c13_rt_sweep",
+    "case": "dx-20_dy15_yaw-3",
+    "verdict": "FAILED",
+    "done_at_s": null,
+    "failed_stage": "FRONT_DIRECT_FINAL_480"
+  },
+  {
+    "sweep": "gpu_v11_c13_rt_sweep",
+    "case": "dx0_dy-15_yaw0",
+    "verdict": "SUCCESS",
+    "done_at_s": 38.5,
+    "failed_stage": null
+  },
+  {
+    "sweep": "gpu_v11_c13_rt_sweep",
+    "case": "dx0_dy0_yaw-3",
+    "verdict": "SUCCESS",
+    "done_at_s": 38.5,
+    "failed_stage": null
+  },
+  {
+    "sweep": "gpu_v11_c13_rt_sweep",
+    "case": "dx0_dy0_yaw0",
+    "verdict": "SUCCESS",
+    "done_at_s": 38.5,
+    "failed_stage": null
+  },
+  {
+    "sweep": "gpu_v11_c13_rt_sweep",
+    "case": "dx0_dy0_yaw3",
+    "verdict": "SUCCESS",
+    "done_at_s": 38.5,
+    "failed_stage": null
+  },
+  {
+    "sweep": "gpu_v11_c13_rt_sweep",
+    "case": "dx0_dy15_yaw0",
+    "verdict": "SUCCESS",
+    "done_at_s": 38.5,
+    "failed_stage": null
+  },
+  {
+    "sweep": "gpu_v11_c13_rt_sweep",
+    "case": "dx20_dy0_yaw0",
+    "verdict": "SUCCESS",
+    "done_at_s": 38.5,
+    "failed_stage": null
+  },
+  {
+    "sweep": "gpu_v11_c13_rt_sweep",
+    "case": "dx20_dy15_yaw3",
+    "verdict": "FAILED",
+    "done_at_s": null,
+    "failed_stage": "LB_GROUND_RELAY"
+  },
+  {
+    "sweep": "gpu_v11_hw4_sweep",
+    "case": "dx-10_dy0_yaw0",
+    "verdict": "SUCCESS",
+    "done_at_s": 39.3,
+    "failed_stage": null
+  },
+  {
+    "sweep": "gpu_v11_hw4_sweep",
+    "case": "dx-20_dy-15_yaw3",
+    "verdict": "SUCCESS",
+    "done_at_s": 39.3,
+    "failed_stage": null
+  },
+  {
+    "sweep": "gpu_v11_hw4_sweep",
+    "case": "dx-20_dy0_yaw0",
+    "verdict": "FAILED",
+    "done_at_s": null,
+    "failed_stage": "TRIPOD_LB_LF_RM_ADVANCE"
+  },
+  {
+    "sweep": "gpu_v11_hw4_sweep",
+    "case": "dx-20_dy15_yaw-3",
+    "verdict": "FAILED",
+    "done_at_s": null,
+    "failed_stage": "TRIPOD_LB_LF_RM_ADVANCE"
+  },
+  {
+    "sweep": "gpu_v11_hw4_sweep",
+    "case": "dx0_dy-15_yaw0",
+    "verdict": "SUCCESS",
+    "done_at_s": 39.3,
+    "failed_stage": null
+  },
+  {
+    "sweep": "gpu_v11_hw4_sweep",
+    "case": "dx0_dy0_yaw-3",
+    "verdict": "SUCCESS",
+    "done_at_s": 39.3,
+    "failed_stage": null
+  },
+  {
+    "sweep": "gpu_v11_hw4_sweep",
+    "case": "dx0_dy0_yaw0",
+    "verdict": "SUCCESS",
+    "done_at_s": 39.3,
+    "failed_stage": null
+  },
+  {
+    "sweep": "gpu_v11_hw4_sweep",
+    "case": "dx0_dy0_yaw3",
+    "verdict": "FAILED",
+    "done_at_s": null,
+    "failed_stage": "FRONT_DIRECT_FINAL_480"
+  },
+  {
+    "sweep": "gpu_v11_hw4_sweep",
+    "case": "dx0_dy15_yaw0",
+    "verdict": "SUCCESS",
+    "done_at_s": 39.3,
+    "failed_stage": null
+  },
+  {
+    "sweep": "gpu_v11_hw4_sweep",
+    "case": "dx20_dy0_yaw0",
+    "verdict": "SUCCESS",
+    "done_at_s": 39.3,
+    "failed_stage": null
+  },
+  {
+    "sweep": "gpu_v11_hw4_sweep",
+    "case": "dx20_dy15_yaw3",
+    "verdict": "FAILED",
+    "done_at_s": null,
+    "failed_stage": "FRONT_DIRECT_FINAL_480"
+  },
+  {
+    "sweep": "gpu_v11_lb24_sweep",
+    "case": "dx0_dy0_yaw0",
+    "verdict": "MISSING",
+    "done_at_s": null,
+    "failed_stage": null
+  },
+  {
+    "sweep": "gpu_v11_mg_rt2_sweep",
+    "case": "dx-10_dy0_yaw0",
+    "verdict": "SUCCESS",
+    "done_at_s": 37.7,
+    "failed_stage": null
+  },
+  {
+    "sweep": "gpu_v11_mg_rt2_sweep",
+    "case": "dx-20_dy-15_yaw3",
+    "verdict": "SUCCESS",
+    "done_at_s": 37.7,
+    "failed_stage": null
+  },
+  {
+    "sweep": "gpu_v11_mg_rt2_sweep",
+    "case": "dx-20_dy0_yaw0",
+    "verdict": "SUCCESS",
+    "done_at_s": 37.7,
+    "failed_stage": null
+  },
+  {
+    "sweep": "gpu_v11_mg_rt2_sweep",
+    "case": "dx-20_dy15_yaw-3",
+    "verdict": "SUCCESS",
+    "done_at_s": 37.7,
+    "failed_stage": null
+  },
+  {
+    "sweep": "gpu_v11_mg_rt2_sweep",
+    "case": "dx0_dy-15_yaw0",
+    "verdict": "FAILED",
+    "done_at_s": 38.5,
+    "failed_stage": null
+  },
+  {
+    "sweep": "gpu_v11_mg_rt2_sweep",
+    "case": "dx0_dy0_yaw-3",
+    "verdict": "FAILED",
+    "done_at_s": null,
+    "failed_stage": "LB_PLATFORM_225"
+  },
+  {
+    "sweep": "gpu_v11_mg_rt2_sweep",
+    "case": "dx0_dy0_yaw0",
+    "verdict": "SUCCESS",
+    "done_at_s": 37.7,
+    "failed_stage": null
+  },
+  {
+    "sweep": "gpu_v11_mg_rt2_sweep",
+    "case": "dx0_dy0_yaw3",
+    "verdict": "FAILED",
+    "done_at_s": null,
+    "failed_stage": "FRONT_TO_FACE_CENTRE"
+  },
+  {
+    "sweep": "gpu_v11_mg_rt2_sweep",
+    "case": "dx0_dy15_yaw0",
+    "verdict": "FAILED",
+    "done_at_s": null,
+    "failed_stage": "FRONT_DIRECT_FINAL_480"
+  },
+  {
+    "sweep": "gpu_v11_mg_rt2_sweep",
+    "case": "dx20_dy0_yaw0",
+    "verdict": "FAILED",
+    "done_at_s": null,
+    "failed_stage": "FRONT_TO_FACE_CENTRE"
+  },
+  {
+    "sweep": "gpu_v11_mg_rt2_sweep",
+    "case": "dx20_dy15_yaw3",
+    "verdict": "FAILED",
+    "done_at_s": null,
+    "failed_stage": "FRONT_TO_FACE_CENTRE"
+  },
+  {
+    "sweep": "gpu_v11_mg_rt3_sweep",
+    "case": "dx-10_dy0_yaw0",
+    "verdict": "SUCCESS",
+    "done_at_s": 37.8,
+    "failed_stage": null
+  },
+  {
+    "sweep": "gpu_v11_mg_rt3_sweep",
+    "case": "dx-20_dy-15_yaw3",
+    "verdict": "SUCCESS",
+    "done_at_s": 37.8,
+    "failed_stage": null
+  },
+  {
+    "sweep": "gpu_v11_mg_rt3_sweep",
+    "case": "dx-20_dy0_yaw0",
+    "verdict": "SUCCESS",
+    "done_at_s": 37.8,
+    "failed_stage": null
+  },
+  {
+    "sweep": "gpu_v11_mg_rt3_sweep",
+    "case": "dx-20_dy15_yaw-3",
+    "verdict": "SUCCESS",
+    "done_at_s": 37.8,
+    "failed_stage": null
+  },
+  {
+    "sweep": "gpu_v11_mg_rt3_sweep",
+    "case": "dx0_dy-15_yaw0",
+    "verdict": "FAILED",
+    "done_at_s": null,
+    "failed_stage": "FRONT_TO_FACE_CENTRE"
+  },
+  {
+    "sweep": "gpu_v11_mg_rt3_sweep",
+    "case": "dx0_dy0_yaw-3",
+    "verdict": "FAILED",
+    "done_at_s": null,
+    "failed_stage": "RB_DIRECT_PLATFORM_225"
+  },
+  {
+    "sweep": "gpu_v11_mg_rt3_sweep",
+    "case": "dx0_dy0_yaw0",
+    "verdict": "FAILED",
+    "done_at_s": null,
+    "failed_stage": "FRONT_TO_FACE_CENTRE"
+  },
+  {
+    "sweep": "gpu_v11_mg_rt3_sweep",
+    "case": "dx0_dy0_yaw3",
+    "verdict": "FAILED",
+    "done_at_s": null,
+    "failed_stage": "FRONT_TO_FACE_CENTRE"
+  },
+  {
+    "sweep": "gpu_v11_mg_rt3_sweep",
+    "case": "dx0_dy15_yaw0",
+    "verdict": "FAILED",
+    "done_at_s": null,
+    "failed_stage": "FRONT_TO_FACE_CENTRE"
+  },
+  {
+    "sweep": "gpu_v11_mg_rt3_sweep",
+    "case": "dx20_dy0_yaw0",
+    "verdict": "FAILED",
+    "done_at_s": null,
+    "failed_stage": "FRONT_TO_FACE_CENTRE"
+  },
+  {
+    "sweep": "gpu_v11_mg_rt3_sweep",
+    "case": "dx20_dy15_yaw3",
+    "verdict": "FAILED",
+    "done_at_s": 38.1,
+    "failed_stage": null
+  },
+  {
+    "sweep": "gpu_v11_mg_rt_sweep",
+    "case": "dx-10_dy0_yaw0",
+    "verdict": "SUCCESS",
+    "done_at_s": 37.6,
+    "failed_stage": null
+  },
+  {
+    "sweep": "gpu_v11_mg_rt_sweep",
+    "case": "dx-20_dy0_yaw0",
+    "verdict": "SUCCESS",
+    "done_at_s": 37.6,
+    "failed_stage": null
+  },
+  {
+    "sweep": "gpu_v11_mg_rt_sweep",
+    "case": "dx0_dy-15_yaw0",
+    "verdict": "MISSING",
+    "done_at_s": null,
+    "failed_stage": null
+  },
+  {
+    "sweep": "gpu_v11_mg_rt_sweep",
+    "case": "dx0_dy0_yaw-3",
+    "verdict": "MISSING",
+    "done_at_s": null,
+    "failed_stage": null
+  },
+  {
+    "sweep": "gpu_v11_mg_rt_sweep",
+    "case": "dx0_dy0_yaw3",
+    "verdict": "MISSING",
+    "done_at_s": null,
+    "failed_stage": null
+  },
+  {
+    "sweep": "gpu_v11_mg_rt_sweep",
+    "case": "dx0_dy15_yaw0",
+    "verdict": "MISSING",
+    "done_at_s": null,
+    "failed_stage": null
+  },
+  {
+    "sweep": "gpu_v11_mg_rt_sweep",
+    "case": "dx20_dy0_yaw0",
+    "verdict": "FAILED",
+    "done_at_s": null,
+    "failed_stage": "FRONT_TO_FACE_CENTRE"
+  },
+  {
+    "sweep": "gpu_v11_rt3_sweep",
+    "case": "dx-20_dy-15_yaw3",
+    "verdict": "FAILED",
+    "done_at_s": null,
+    "failed_stage": "DIAGONAL_RF_LM_ADVANCE"
+  },
+  {
+    "sweep": "gpu_v11_rt3_sweep",
+    "case": "dx-20_dy0_yaw0",
+    "verdict": "FAILED",
+    "done_at_s": null,
+    "failed_stage": "RB_FINAL_ADVANCE"
+  },
+  {
+    "sweep": "gpu_v11_rt3_sweep",
+    "case": "dx-20_dy15_yaw-3",
+    "verdict": "FAILED",
+    "done_at_s": null,
+    "failed_stage": "FRONT_DIRECT_FINAL_480"
+  },
+  {
+    "sweep": "gpu_v11_rt3_sweep",
+    "case": "dx0_dy-15_yaw0",
+    "verdict": "SUCCESS",
+    "done_at_s": 36.9,
+    "failed_stage": null
+  },
+  {
+    "sweep": "gpu_v11_rt3_sweep",
+    "case": "dx0_dy0_yaw-3",
+    "verdict": "SUCCESS",
+    "done_at_s": 36.9,
+    "failed_stage": null
+  },
+  {
+    "sweep": "gpu_v11_rt3_sweep",
+    "case": "dx0_dy0_yaw3",
+    "verdict": "FAILED",
+    "done_at_s": null,
+    "failed_stage": "FRONT_DIRECT_FINAL_480"
+  },
+  {
+    "sweep": "gpu_v11_rt3_sweep",
+    "case": "dx0_dy15_yaw0",
+    "verdict": "SUCCESS",
+    "done_at_s": 36.9,
+    "failed_stage": null
+  },
+  {
+    "sweep": "gpu_v11_rt3_sweep",
+    "case": "dx20_dy0_yaw0",
+    "verdict": "SUCCESS",
+    "done_at_s": 36.9,
+    "failed_stage": null
+  },
+  {
+    "sweep": "gpu_v11_rt3_sweep",
+    "case": "dx20_dy15_yaw3",
+    "verdict": "FAILED",
+    "done_at_s": null,
+    "failed_stage": "FRONT_DIRECT_FINAL_480"
+  },
+  {
+    "sweep": "gpu_v11_rt4_sweep",
+    "case": "dx-10_dy-15_yaw-3",
+    "verdict": "FAILED",
+    "done_at_s": null,
+    "failed_stage": "TRIPOD_LB_LF_RM_ADVANCE"
+  },
+  {
+    "sweep": "gpu_v11_rt4_sweep",
+    "case": "dx-10_dy0_yaw0",
+    "verdict": "FAILED",
+    "done_at_s": 40.0,
+    "failed_stage": null
+  },
+  {
+    "sweep": "gpu_v11_rt4_sweep",
+    "case": "dx-10_dy15_yaw3",
+    "verdict": "FAILED",
+    "done_at_s": null,
+    "failed_stage": "FRONT_DIRECT_FINAL_480"
+  },
+  {
+    "sweep": "gpu_v11_rt4_sweep",
+    "case": "dx-20_dy-15_yaw3",
+    "verdict": "FAILED",
+    "done_at_s": null,
+    "failed_stage": "DIAGONAL_RF_LM_ADVANCE"
+  },
+  {
+    "sweep": "gpu_v11_rt4_sweep",
+    "case": "dx-20_dy0_yaw0",
+    "verdict": "FAILED",
+    "done_at_s": null,
+    "failed_stage": "TRIPOD_LB_LF_RM_ADVANCE"
+  },
+  {
+    "sweep": "gpu_v11_rt4_sweep",
+    "case": "dx-20_dy15_yaw-3",
+    "verdict": "FAILED",
+    "done_at_s": null,
+    "failed_stage": "TRIPOD_LB_LF_RM_ADVANCE"
+  },
+  {
+    "sweep": "gpu_v11_rt4_sweep",
+    "case": "dx0_dy-15_yaw0",
+    "verdict": "SUCCESS",
+    "done_at_s": 38.9,
+    "failed_stage": null
+  },
+  {
+    "sweep": "gpu_v11_rt4_sweep",
+    "case": "dx0_dy0_yaw-3",
+    "verdict": "SUCCESS",
+    "done_at_s": 38.9,
+    "failed_stage": null
+  },
+  {
+    "sweep": "gpu_v11_rt4_sweep",
+    "case": "dx0_dy0_yaw0",
+    "verdict": "SUCCESS",
+    "done_at_s": 38.9,
+    "failed_stage": null
+  },
+  {
+    "sweep": "gpu_v11_rt4_sweep",
+    "case": "dx0_dy0_yaw3",
+    "verdict": "SUCCESS",
+    "done_at_s": 38.9,
+    "failed_stage": null
+  },
+  {
+    "sweep": "gpu_v11_rt4_sweep",
+    "case": "dx0_dy15_yaw0",
+    "verdict": "SUCCESS",
+    "done_at_s": 38.9,
+    "failed_stage": null
+  },
+  {
+    "sweep": "gpu_v11_rt4_sweep",
+    "case": "dx20_dy0_yaw0",
+    "verdict": "SUCCESS",
+    "done_at_s": 38.9,
+    "failed_stage": null
+  },
+  {
+    "sweep": "gpu_v11_rt4_sweep",
+    "case": "dx20_dy15_yaw3",
+    "verdict": "FAILED",
+    "done_at_s": null,
+    "failed_stage": "FRONT_DIRECT_FINAL_480"
+  },
+  {
+    "sweep": "gpu_v11_rt4_sweep",
+    "case": "dx30_dy0_yaw0",
+    "verdict": "SUCCESS",
+    "done_at_s": 38.9,
+    "failed_stage": null
+  },
+  {
+    "sweep": "gpu_v11_rt4_sweep",
+    "case": "dx30_dy15_yaw-3",
+    "verdict": "SUCCESS",
+    "done_at_s": 38.9,
+    "failed_stage": null
+  },
+  {
+    "sweep": "gpu_v11_sm4_rt_sweep",
+    "case": "dx-10_dy0_yaw0",
+    "verdict": "SUCCESS",
+    "done_at_s": 38.5,
+    "failed_stage": null
+  },
+  {
+    "sweep": "gpu_v11_sm4_rt_sweep",
+    "case": "dx-20_dy-15_yaw3",
+    "verdict": "FAILED",
+    "done_at_s": null,
+    "failed_stage": "DIAGONAL_RF_LM_ADVANCE"
+  },
+  {
+    "sweep": "gpu_v11_sm4_rt_sweep",
+    "case": "dx-20_dy0_yaw0",
+    "verdict": "FAILED",
+    "done_at_s": 38.5,
+    "failed_stage": null
+  },
+  {
+    "sweep": "gpu_v11_sm4_rt_sweep",
+    "case": "dx-20_dy15_yaw-3",
+    "verdict": "FAILED",
+    "done_at_s": null,
+    "failed_stage": "FRONT_DIRECT_FINAL_480"
+  },
+  {
+    "sweep": "gpu_v11_sm4_rt_sweep",
+    "case": "dx0_dy-15_yaw0",
+    "verdict": "SUCCESS",
+    "done_at_s": 38.5,
+    "failed_stage": null
+  },
+  {
+    "sweep": "gpu_v11_sm4_rt_sweep",
+    "case": "dx0_dy0_yaw-3",
+    "verdict": "SUCCESS",
+    "done_at_s": 38.5,
+    "failed_stage": null
+  },
+  {
+    "sweep": "gpu_v11_sm4_rt_sweep",
+    "case": "dx0_dy0_yaw0",
+    "verdict": "SUCCESS",
+    "done_at_s": 38.5,
+    "failed_stage": null
+  },
+  {
+    "sweep": "gpu_v11_sm4_rt_sweep",
+    "case": "dx0_dy0_yaw3",
+    "verdict": "FAILED",
+    "done_at_s": null,
+    "failed_stage": "FRONT_DIRECT_FINAL_480"
+  },
+  {
+    "sweep": "gpu_v11_sm4_rt_sweep",
+    "case": "dx0_dy15_yaw0",
+    "verdict": "SUCCESS",
+    "done_at_s": 38.5,
+    "failed_stage": null
+  },
+  {
+    "sweep": "gpu_v11_sm4_rt_sweep",
+    "case": "dx20_dy0_yaw0",
+    "verdict": "SUCCESS",
+    "done_at_s": 38.5,
+    "failed_stage": null
+  },
+  {
+    "sweep": "gpu_v11_sm4_rt_sweep",
+    "case": "dx20_dy15_yaw3",
+    "verdict": "FAILED",
+    "done_at_s": null,
+    "failed_stage": "FRONT_DIRECT_FINAL_480"
+  }
+]

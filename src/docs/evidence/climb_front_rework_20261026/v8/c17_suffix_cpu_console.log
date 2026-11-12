@@ -1,0 +1,14 @@
+{
+  "output": "/tmp/grasp_front_v8_sdRyAI/c17_suffix_cpu.json",
+  "state": "DONE",
+  "ticks": 176,
+  "completed_stage_count": 3,
+  "first_failure": null,
+  "config_sha256": "661def8c67353f2f58e23cde5f70aa9c34b780b53f017fac7c1cac247e7a99a0"
+}
+{
+  "state": "DONE",
+  "first_failure": null,
+  "ticks": 176,
+  "output": "/tmp/grasp_front_v8_sdRyAI/c17_suffix_cpu.json"
+}

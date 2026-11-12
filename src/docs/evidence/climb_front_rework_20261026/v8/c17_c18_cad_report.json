@@ -1,0 +1,1158 @@
+{
+  "method": "bounded exact C17/C18 visual triangle witnesses; proxies select samples only",
+  "status": "CLEAR",
+  "first_hit": null,
+  "queries": [
+    {
+      "kind": "active_air_object",
+      "stage": "DIAGONAL_LF_RM_ADVANCE",
+      "label": "LF_knee_lift",
+      "leg": "LF",
+      "link": "knee",
+      "active_leg_assertion": true,
+      "air_interval_s": [
+        0.65,
+        1.75
+      ],
+      "phase_time_s": 0.65,
+      "q_rad": [
+        [
+          0.11989012673687988,
+          0.4320469624894651,
+          0.8209858215825919
+        ],
+        [
+          -0.3536701970043016,
+          -0.39853615584200325,
+          1.7971935705268078
+        ],
+        [
+          0.5166924649416262,
+          -0.12884427453317757,
+          1.2963122858726908
+        ],
+        [
+          -0.20443836220991457,
+          -0.39492580760390933,
+          -0.8229662228452305
+        ],
+        [
+          -0.22872523890689545,
+          -0.1092216589738777,
+          -0.43596047308573327
+        ],
+        [
+          0.6132891952361829,
+          0.5643035411701675,
+          -1.382573168653032
+        ]
+      ],
+      "base_pose": [
+        0.365,
+        -0.063,
+        0.3,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "footpad_component_included": false,
+      "mesh_collision": false,
+      "triangle_hit": null,
+      "broad_phase_candidates": 0,
+      "triangle_test_count": 0
+    },
+    {
+      "kind": "active_air_object",
+      "stage": "DIAGONAL_LF_RM_ADVANCE",
+      "label": "LF_ankle_lift",
+      "leg": "LF",
+      "link": "ankle",
+      "active_leg_assertion": true,
+      "air_interval_s": [
+        0.65,
+        1.75
+      ],
+      "phase_time_s": 0.65,
+      "q_rad": [
+        [
+          0.11989012673687988,
+          0.4320469624894651,
+          0.8209858215825919
+        ],
+        [
+          -0.3536701970043016,
+          -0.39853615584200325,
+          1.7971935705268078
+        ],
+        [
+          0.5166924649416262,
+          -0.12884427453317757,
+          1.2963122858726908
+        ],
+        [
+          -0.20443836220991457,
+          -0.39492580760390933,
+          -0.8229662228452305
+        ],
+        [
+          -0.22872523890689545,
+          -0.1092216589738777,
+          -0.43596047308573327
+        ],
+        [
+          0.6132891952361829,
+          0.5643035411701675,
+          -1.382573168653032
+        ]
+      ],
+      "base_pose": [
+        0.365,
+        -0.063,
+        0.3,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "footpad_component_included": true,
+      "mesh_collision": false,
+      "triangle_hit": null,
+      "broad_phase_candidates": 0,
+      "triangle_test_count": 0
+    },
+    {
+      "kind": "active_air_object",
+      "stage": "DIAGONAL_LF_RM_ADVANCE",
+      "label": "LF_knee_cross",
+      "leg": "LF",
+      "link": "knee",
+      "active_leg_assertion": true,
+      "air_interval_s": [
+        0.65,
+        1.75
+      ],
+      "phase_time_s": 1.1833333333333338,
+      "q_rad": [
+        [
+          -0.10335122395848524,
+          0.35051170621064115,
+          0.6419891648302805
+        ],
+        [
+          -0.4326139120963609,
+          -0.33909610297691456,
+          1.8029418193882043
+        ],
+        [
+          0.06154313053039338,
+          -0.08375683275439133,
+          1.3510522821295323
+        ],
+        [
+          0.03528108450162729,
+          -0.33186164559700754,
+          -0.6349581584942203
+        ],
+        [
+          -0.13987960388507023,
+          0.04147399567841232,
+          -0.8999847812396212
+        ],
+        [
+          0.5213869067572419,
+          0.5738539414326355,
+          -1.6464539454891565
+        ]
+      ],
+      "base_pose": [
+        0.40508670514692424,
+        -0.063,
+        0.3,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "footpad_component_included": false,
+      "mesh_collision": false,
+      "triangle_hit": null,
+      "broad_phase_candidates": 0,
+      "triangle_test_count": 0
+    },
+    {
+      "kind": "active_air_object",
+      "stage": "DIAGONAL_LF_RM_ADVANCE",
+      "label": "LF_ankle_cross",
+      "leg": "LF",
+      "link": "ankle",
+      "active_leg_assertion": true,
+      "air_interval_s": [
+        0.65,
+        1.75
+      ],
+      "phase_time_s": 1.1833333333333338,
+      "q_rad": [
+        [
+          -0.10335122395848524,
+          0.35051170621064115,
+          0.6419891648302805
+        ],
+        [
+          -0.4326139120963609,
+          -0.33909610297691456,
+          1.8029418193882043
+        ],
+        [
+          0.06154313053039338,
+          -0.08375683275439133,
+          1.3510522821295323
+        ],
+        [
+          0.03528108450162729,
+          -0.33186164559700754,
+          -0.6349581584942203
+        ],
+        [
+          -0.13987960388507023,
+          0.04147399567841232,
+          -0.8999847812396212
+        ],
+        [
+          0.5213869067572419,
+          0.5738539414326355,
+          -1.6464539454891565
+        ]
+      ],
+      "base_pose": [
+        0.40508670514692424,
+        -0.063,
+        0.3,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "footpad_component_included": true,
+      "mesh_collision": false,
+      "triangle_hit": null,
+      "broad_phase_candidates": 0,
+      "triangle_test_count": 0
+    },
+    {
+      "kind": "active_air_object",
+      "stage": "DIAGONAL_LF_RM_ADVANCE",
+      "label": "LF_knee_approach",
+      "leg": "LF",
+      "link": "knee",
+      "active_leg_assertion": true,
+      "air_interval_s": [
+        0.65,
+        1.75
+      ],
+      "phase_time_s": 1.75,
+      "q_rad": [
+        [
+          -0.2062466799339231,
+          0.4191754112927768,
+          0.28882485090695303
+        ],
+        [
+          -0.5220937444895225,
+          -0.28502421107212195,
+          1.8049106151670782
+        ],
+        [
+          -0.38052913510444386,
+          -0.10935514450449041,
+          1.3247561238011487
+        ],
+        [
+          0.15140574511667362,
+          -0.41212894566428854,
+          -0.2741987706868325
+        ],
+        [
+          0.0008351157520667007,
+          0.03217761462292964,
+          -1.1494234248902062
+        ],
+        [
+          0.3559749267065473,
+          0.4437327994051322,
+          -1.780653097740215
+        ]
+      ],
+      "base_pose": [
+        0.45,
+        -0.063,
+        0.3,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "footpad_component_included": false,
+      "mesh_collision": false,
+      "triangle_hit": null,
+      "broad_phase_candidates": 0,
+      "triangle_test_count": 0
+    },
+    {
+      "kind": "active_air_object",
+      "stage": "DIAGONAL_LF_RM_ADVANCE",
+      "label": "LF_ankle_approach",
+      "leg": "LF",
+      "link": "ankle",
+      "active_leg_assertion": true,
+      "air_interval_s": [
+        0.65,
+        1.75
+      ],
+      "phase_time_s": 1.75,
+      "q_rad": [
+        [
+          -0.2062466799339231,
+          0.4191754112927768,
+          0.28882485090695303
+        ],
+        [
+          -0.5220937444895225,
+          -0.28502421107212195,
+          1.8049106151670782
+        ],
+        [
+          -0.38052913510444386,
+          -0.10935514450449041,
+          1.3247561238011487
+        ],
+        [
+          0.15140574511667362,
+          -0.41212894566428854,
+          -0.2741987706868325
+        ],
+        [
+          0.0008351157520667007,
+          0.03217761462292964,
+          -1.1494234248902062
+        ],
+        [
+          0.3559749267065473,
+          0.4437327994051322,
+          -1.780653097740215
+        ]
+      ],
+      "base_pose": [
+        0.45,
+        -0.063,
+        0.3,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "footpad_component_included": true,
+      "mesh_collision": false,
+      "triangle_hit": null,
+      "broad_phase_candidates": 0,
+      "triangle_test_count": 0
+    },
+    {
+      "kind": "interleg_exact",
+      "stage": "DIAGONAL_LF_RM_ADVANCE",
+      "label": "LF_knee_LM_knee",
+      "phase_time_s": 0.6,
+      "q_rad": [
+        [
+          0.11989012673661767,
+          0.432046962490006,
+          0.8209858215818024
+        ],
+        [
+          -0.3536702172786505,
+          -0.4052234827903354,
+          1.8024303251037264
+        ],
+        [
+          0.5166924649414011,
+          -0.12884427450122793,
+          1.2963122858425868
+        ],
+        [
+          -0.2044383622097133,
+          -0.3949258076044678,
+          -0.8229662228444121
+        ],
+        [
+          -0.2287252389068488,
+          -0.109221659048464,
+          -0.4359604729881047
+        ],
+        [
+          0.6132891800222328,
+          0.572233723649359,
+          -1.3880994715395498
+        ]
+      ],
+      "base_pose": [
+        0.365,
+        -0.063,
+        0.3,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "proxy_selector_knee_segment_distance_m": 0.09421682176398787,
+      "mesh_collision": false,
+      "triangle_hit": null,
+      "pair_result": {
+        "pair": [
+          {
+            "leg": 1,
+            "link": "knee"
+          },
+          {
+            "leg": 2,
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "conservative_triangle_AABB_prefilter_excluded_all_pairs",
+        "filtered_triangle_counts": {
+          "left": 0,
+          "right": 0
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": true
+      }
+    },
+    {
+      "kind": "interleg_exact",
+      "stage": "DIAGONAL_LF_RM_ADVANCE",
+      "label": "LF_ankle_LM_knee",
+      "phase_time_s": 0.6,
+      "q_rad": [
+        [
+          0.11989012673661767,
+          0.432046962490006,
+          0.8209858215818024
+        ],
+        [
+          -0.3536702172786505,
+          -0.4052234827903354,
+          1.8024303251037264
+        ],
+        [
+          0.5166924649414011,
+          -0.12884427450122793,
+          1.2963122858425868
+        ],
+        [
+          -0.2044383622097133,
+          -0.3949258076044678,
+          -0.8229662228444121
+        ],
+        [
+          -0.2287252389068488,
+          -0.109221659048464,
+          -0.4359604729881047
+        ],
+        [
+          0.6132891800222328,
+          0.572233723649359,
+          -1.3880994715395498
+        ]
+      ],
+      "base_pose": [
+        0.365,
+        -0.063,
+        0.3,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "proxy_selector_knee_segment_distance_m": 0.09421682176398787,
+      "mesh_collision": false,
+      "triangle_hit": null,
+      "pair_result": {
+        "pair": [
+          {
+            "leg": 1,
+            "link": "ankle"
+          },
+          {
+            "leg": 2,
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 13,
+          "right": 1
+        },
+        "pair_status": "conservative_triangle_AABB_prefilter_excluded_all_pairs",
+        "filtered_triangle_counts": {
+          "left": 0,
+          "right": 0
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": true
+      }
+    },
+    {
+      "kind": "interleg_exact",
+      "stage": "DIAGONAL_LF_RM_ADVANCE",
+      "label": "RF_knee_RM_knee",
+      "phase_time_s": 1.6833333333333353,
+      "q_rad": [
+        [
+          -0.20687137536148398,
+          0.4200479100947688,
+          0.2856192883608398
+        ],
+        [
+          -0.5228040912626668,
+          -0.2846332037593618,
+          1.8049336862211263
+        ],
+        [
+          -0.3835993787809984,
+          -0.10975154459490473,
+          1.3242790211015665
+        ],
+        [
+          0.15211961507854413,
+          -0.41307081104675736,
+          -0.27094822689490683
+        ],
+        [
+          0.002269022731270812,
+          0.03162000989234609,
+          -1.1508438463061708
+        ],
+        [
+          0.35421245071050456,
+          0.4422437902443083,
+          -1.7813158554222346
+        ]
+      ],
+      "base_pose": [
+        0.4498275647825997,
+        -0.063,
+        0.3,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "proxy_selector_knee_segment_distance_m": 0.151829355346571,
+      "mesh_collision": false,
+      "triangle_hit": null,
+      "pair_result": {
+        "pair": [
+          {
+            "leg": 4,
+            "link": "knee"
+          },
+          {
+            "leg": 5,
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "conservative_triangle_AABB_prefilter_excluded_all_pairs",
+        "filtered_triangle_counts": {
+          "left": 0,
+          "right": 0
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": true
+      }
+    },
+    {
+      "kind": "interleg_exact",
+      "stage": "DIAGONAL_LF_RM_ADVANCE",
+      "label": "RF_ankle_RM_knee",
+      "phase_time_s": 1.6833333333333353,
+      "q_rad": [
+        [
+          -0.20687137536148398,
+          0.4200479100947688,
+          0.2856192883608398
+        ],
+        [
+          -0.5228040912626668,
+          -0.2846332037593618,
+          1.8049336862211263
+        ],
+        [
+          -0.3835993787809984,
+          -0.10975154459490473,
+          1.3242790211015665
+        ],
+        [
+          0.15211961507854413,
+          -0.41307081104675736,
+          -0.27094822689490683
+        ],
+        [
+          0.002269022731270812,
+          0.03162000989234609,
+          -1.1508438463061708
+        ],
+        [
+          0.35421245071050456,
+          0.4422437902443083,
+          -1.7813158554222346
+        ]
+      ],
+      "base_pose": [
+        0.4498275647825997,
+        -0.063,
+        0.3,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "proxy_selector_knee_segment_distance_m": 0.151829355346571,
+      "mesh_collision": false,
+      "triangle_hit": null,
+      "pair_result": {
+        "pair": [
+          {
+            "leg": 4,
+            "link": "ankle"
+          },
+          {
+            "leg": 5,
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 13,
+          "right": 1
+        },
+        "pair_status": "conservative_triangle_AABB_prefilter_excluded_all_pairs",
+        "filtered_triangle_counts": {
+          "left": 0,
+          "right": 0
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": true
+      }
+    },
+    {
+      "kind": "interleg_exact",
+      "stage": "BACK_PAIR_CENTER",
+      "label": "LF_knee_LM_knee",
+      "phase_time_s": 0.95,
+      "q_rad": [
+        [
+          -0.18277340346755944,
+          -0.41531425401671224,
+          1.1854159856622208
+        ],
+        [
+          -0.5215998689388736,
+          0.12663455292975373,
+          1.4139440869275897
+        ],
+        [
+          -0.37854794804510505,
+          -0.10910673857984268,
+          1.3250585464050597
+        ],
+        [
+          0.13428950472218193,
+          0.4075908405166137,
+          -1.1589840093441226
+        ],
+        [
+          -8.285529892295885e-05,
+          0.03250343440493564,
+          -1.14850161378972
+        ],
+        [
+          0.3571406237269756,
+          0.002225444342565819,
+          -1.395481946954473
+        ]
+      ],
+      "base_pose": [
+        0.45000000000000007,
+        -0.063,
+        0.3,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "proxy_selector_knee_segment_distance_m": 0.1277464384920001,
+      "mesh_collision": false,
+      "triangle_hit": null,
+      "pair_result": {
+        "pair": [
+          {
+            "leg": 1,
+            "link": "knee"
+          },
+          {
+            "leg": 2,
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "conservative_triangle_AABB_prefilter_excluded_all_pairs",
+        "filtered_triangle_counts": {
+          "left": 0,
+          "right": 0
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": true
+      }
+    },
+    {
+      "kind": "interleg_exact",
+      "stage": "BACK_PAIR_CENTER",
+      "label": "LF_ankle_LM_knee",
+      "phase_time_s": 0.95,
+      "q_rad": [
+        [
+          -0.18277340346755944,
+          -0.41531425401671224,
+          1.1854159856622208
+        ],
+        [
+          -0.5215998689388736,
+          0.12663455292975373,
+          1.4139440869275897
+        ],
+        [
+          -0.37854794804510505,
+          -0.10910673857984268,
+          1.3250585464050597
+        ],
+        [
+          0.13428950472218193,
+          0.4075908405166137,
+          -1.1589840093441226
+        ],
+        [
+          -8.285529892295885e-05,
+          0.03250343440493564,
+          -1.14850161378972
+        ],
+        [
+          0.3571406237269756,
+          0.002225444342565819,
+          -1.395481946954473
+        ]
+      ],
+      "base_pose": [
+        0.45000000000000007,
+        -0.063,
+        0.3,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "proxy_selector_knee_segment_distance_m": 0.1277464384920001,
+      "mesh_collision": false,
+      "triangle_hit": null,
+      "pair_result": {
+        "pair": [
+          {
+            "leg": 1,
+            "link": "ankle"
+          },
+          {
+            "leg": 2,
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 13,
+          "right": 1
+        },
+        "pair_status": "conservative_triangle_AABB_prefilter_excluded_all_pairs",
+        "filtered_triangle_counts": {
+          "left": 0,
+          "right": 0
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": true
+      }
+    },
+    {
+      "kind": "interleg_exact",
+      "stage": "BACK_PAIR_CENTER",
+      "label": "RF_knee_RM_knee",
+      "phase_time_s": 0.03333333333333333,
+      "q_rad": [
+        [
+          -0.20585169882115284,
+          0.4166085151187606,
+          0.29335460248196243
+        ],
+        [
+          -0.5215998688914607,
+          0.12664341272992774,
+          1.4139350676259848
+        ],
+        [
+          -0.37854794810964976,
+          -0.10910673858574509,
+          1.325058546396606
+        ],
+        [
+          0.15095457360025674,
+          -0.40953265990517884,
+          -0.27873885798032855
+        ],
+        [
+          -8.28552711640496e-05,
+          0.03250343440593089,
+          -1.1485016138238144
+        ],
+        [
+          0.3571406237271778,
+          0.0022160607121245782,
+          -1.3954729136691328
+        ]
+      ],
+      "base_pose": [
+        0.45,
+        -0.063,
+        0.3,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "proxy_selector_knee_segment_distance_m": 0.15203767171204444,
+      "mesh_collision": false,
+      "triangle_hit": null,
+      "pair_result": {
+        "pair": [
+          {
+            "leg": 4,
+            "link": "knee"
+          },
+          {
+            "leg": 5,
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "conservative_triangle_AABB_prefilter_excluded_all_pairs",
+        "filtered_triangle_counts": {
+          "left": 0,
+          "right": 0
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": true
+      }
+    },
+    {
+      "kind": "interleg_exact",
+      "stage": "BACK_PAIR_CENTER",
+      "label": "RF_ankle_RM_knee",
+      "phase_time_s": 0.03333333333333333,
+      "q_rad": [
+        [
+          -0.20585169882115284,
+          0.4166085151187606,
+          0.29335460248196243
+        ],
+        [
+          -0.5215998688914607,
+          0.12664341272992774,
+          1.4139350676259848
+        ],
+        [
+          -0.37854794810964976,
+          -0.10910673858574509,
+          1.325058546396606
+        ],
+        [
+          0.15095457360025674,
+          -0.40953265990517884,
+          -0.27873885798032855
+        ],
+        [
+          -8.28552711640496e-05,
+          0.03250343440593089,
+          -1.1485016138238144
+        ],
+        [
+          0.3571406237271778,
+          0.0022160607121245782,
+          -1.3954729136691328
+        ]
+      ],
+      "base_pose": [
+        0.45,
+        -0.063,
+        0.3,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "proxy_selector_knee_segment_distance_m": 0.15203767171204444,
+      "mesh_collision": false,
+      "triangle_hit": null,
+      "pair_result": {
+        "pair": [
+          {
+            "leg": 4,
+            "link": "ankle"
+          },
+          {
+            "leg": 5,
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 13,
+          "right": 1
+        },
+        "pair_status": "conservative_triangle_AABB_prefilter_excluded_all_pairs",
+        "filtered_triangle_counts": {
+          "left": 0,
+          "right": 0
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": true
+      }
+    },
+    {
+      "kind": "body_exact",
+      "stage": "DIAGONAL_LF_RM_ADVANCE",
+      "label": "body_LF_knee",
+      "phase_time_s": 1.6833333333333353,
+      "q_rad": [
+        [
+          -0.20687137536148398,
+          0.4200479100947688,
+          0.2856192883608398
+        ],
+        [
+          -0.5228040912626668,
+          -0.2846332037593618,
+          1.8049336862211263
+        ],
+        [
+          -0.3835993787809984,
+          -0.10975154459490473,
+          1.3242790211015665
+        ],
+        [
+          0.15211961507854413,
+          -0.41307081104675736,
+          -0.27094822689490683
+        ],
+        [
+          0.002269022731270812,
+          0.03162000989234609,
+          -1.1508438463061708
+        ],
+        [
+          0.35421245071050456,
+          0.4422437902443083,
+          -1.7813158554222346
+        ]
+      ],
+      "base_pose": [
+        0.4498275647825997,
+        -0.063,
+        0.3,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "proxy_selector_gap_m": 0.01740348094207625,
+      "mesh_collision": false,
+      "triangle_hit": null,
+      "pair_result": {
+        "pair": [
+          {
+            "leg": null,
+            "link": "body"
+          },
+          {
+            "leg": 1,
+            "link": "knee"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 1
+        },
+        "pair_status": "broadphase_excluded_all_triangle_pairs; collision result is clear",
+        "filtered_triangle_counts": {
+          "left": 4,
+          "right": 1919
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 1,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": false
+      }
+    },
+    {
+      "kind": "body_exact",
+      "stage": "DIAGONAL_LF_RM_ADVANCE",
+      "label": "body_LF_ankle",
+      "phase_time_s": 1.6833333333333353,
+      "q_rad": [
+        [
+          -0.20687137536148398,
+          0.4200479100947688,
+          0.2856192883608398
+        ],
+        [
+          -0.5228040912626668,
+          -0.2846332037593618,
+          1.8049336862211263
+        ],
+        [
+          -0.3835993787809984,
+          -0.10975154459490473,
+          1.3242790211015665
+        ],
+        [
+          0.15211961507854413,
+          -0.41307081104675736,
+          -0.27094822689490683
+        ],
+        [
+          0.002269022731270812,
+          0.03162000989234609,
+          -1.1508438463061708
+        ],
+        [
+          0.35421245071050456,
+          0.4422437902443083,
+          -1.7813158554222346
+        ]
+      ],
+      "base_pose": [
+        0.4498275647825997,
+        -0.063,
+        0.3,
+        0.0,
+        0.0,
+        -1.5707963267948966
+      ],
+      "proxy_selector_gap_m": 0.01740348094207625,
+      "mesh_collision": false,
+      "triangle_hit": null,
+      "pair_result": {
+        "pair": [
+          {
+            "leg": null,
+            "link": "body"
+          },
+          {
+            "leg": 1,
+            "link": "ankle"
+          }
+        ],
+        "mesh_checked": true,
+        "pair_query_count": 1,
+        "components_nonempty": {
+          "left": 1,
+          "right": 13
+        },
+        "pair_status": "conservative_triangle_AABB_prefilter_excluded_all_pairs",
+        "filtered_triangle_counts": {
+          "left": 0,
+          "right": 0
+        },
+        "triangle_test_count": 0,
+        "broad_phase_candidates": 0,
+        "mesh_collision": false,
+        "triangle_hit": null,
+        "cache_reused": false
+      }
+    }
+  ],
+  "query_budget": 16,
+  "config_sha256": "661def8c67353f2f58e23cde5f70aa9c34b780b53f017fac7c1cac247e7a99a0",
+  "cpu_sha256": "7259e88854f8dc4751a48034d9f16e4cabf56b4a8e84168009baed03286edbb9",
+  "prior_clear54_sha256": "887bc4b75399aee6a4615e4318b8cb012358c2b9524ab3358c26f30f0e49a5d1",
+  "prior_clear54_config_sha256": "b2351359bd492dd40c04d30f5bfd365084730b4802543cf64ff2de4befd3ec7e",
+  "world_from_xiaolan": [
+    [
+      1.0,
+      0.0,
+      0.0,
+      0.45
+    ],
+    [
+      0.0,
+      1.0,
+      0.0,
+      -0.03
+    ],
+    [
+      0.0,
+      0.0,
+      1.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0,
+      0.0,
+      1.0
+    ]
+  ],
+  "scene_frame_gate": "explicit T plus translated vertices/bounds passed",
+  "boundary": "Selected exact visual-mesh samples are geometry diagnostics only; no continuous clearance, contact, load, friction, stability, or hardware claim."
+}

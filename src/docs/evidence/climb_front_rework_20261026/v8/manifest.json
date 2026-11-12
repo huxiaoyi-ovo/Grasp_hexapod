@@ -1,0 +1,48 @@
+{
+  "contract": "v8 single-LF flat-upper allocation; one CPU suffix, bounded CAD, one visible GPU, then actual-foot diagnostics",
+  "result": "REJECTED_BY_FINAL_ACTUAL_FOOT_GEOMETRY_DIAGNOSTIC",
+  "source": {
+    "config_sha256": "661def8c67353f2f58e23cde5f70aa9c34b780b53f017fac7c1cac247e7a99a0",
+    "builder_sha256": "77b77f55837095ea924f85a14b5b9d06da3057491606168e43e3eb19e8f2b670",
+    "runtime_sha256_unchanged": "4a3ec853a8868e911e8e6d6b4b80845afef53b4b24207ce2859882bb03035db1",
+    "focused_test_sha256": "d28d9666425653a52c892fed78b69123b79c20bc6eff32502157db8570b1fb4e"
+  },
+  "validation": {
+    "tier0_exit_code": 0,
+    "focused_pytest": "8 passed, exit 0",
+    "cached_c17_cpu": "DONE 176 ticks, no first_failure, exit 0",
+    "changed_c17_c18_cad": "CLEAR 16 exact selected queries, exit 0",
+    "visible_gpu": "DONE, process exit 0, GPU PhysX, 240 Hz physics, 30 Hz controller/actuator, viewer render frames recorded",
+    "gpu_argv": ["--climb-start", "--climb-config", "src/grasp_hexapod_control/config/climb_front_optimized.json", "--climb-speed", "1", "--climb-joint-speed", "1.8"],
+    "gpu_note": "joint speed 1.8 is diagnostic-only; no gains, timestep, effort, cap, or controller mutation"
+  },
+  "gpu_preview_gates": {
+    "hold_q_drift_lt_20mrad": "PASS 0.00858307 mrad",
+    "end_foot_target_error_le_0.015m": "PASS 0.0014827 m",
+    "end_root_position_error_le_0.05m": "PASS 0.0353926 m",
+    "global_max_root_position_error_le_0.20m": "PASS 0.0364901 m",
+    "global_min_joint_limit_margin_ge_0rad": "PASS 0.0419236 rad"
+  },
+  "actual_geometry": {
+    "status": "FAIL_DIAGNOSTIC",
+    "all_final_actual_gaps_ge_minus_0p5mm": true,
+    "all_final_actual_insets_ge_15mm": false,
+    "all_final_actual_faces_upward": false,
+    "final_root_xy_offset_from_cad_center_m": [-0.03532807230949403, 0.0020259683132171635],
+    "boundary": "Exact STL/root/q classifications are simulator diagnostics only, not contact, load, friction, stability, or hardware evidence."
+  },
+  "artifacts_sha256": {
+    "run_cached_c17_cpu.py": "f0791aa26bc7918fe385ae7d89241f4be46adb704372e84f348c02b620763486",
+    "c17_suffix_cpu.json": "7259e88854f8dc4751a48034d9f16e4cabf56b4a8e84168009baed03286edbb9",
+    "c17_suffix_cpu_console.log": "1a074ae72d48f41a03f28724369676725965f8d6c97616d3a76c9da0eb3e6da2",
+    "c17_c18_cad.py": "26132dc811f8b698bbb0ac9741a9b582774f337692027ac17790acbd2d8046d9",
+    "c17_c18_cad_report.json": "b951955c7a82686ff0075a9cdaef6a10a2ea780ed963883617613328ccd50a23",
+    "c17_c18_cad_console.log": "6ea5f888cadd01ce323c6772dab1d623c2745ca8883080d168ace62de441d5e6",
+    "observer_runner.py": "b7eb64489590711f755d1d87d27a9991c3e24b0ccbfb5c87f0f825c5d1b8adcf",
+    "metrics.json": "e4e02a77a90c2157cfbcd35b4fa091779dd4d043e84e833a82a717d22d70d473",
+    "actual_samples.jsonl": "9877efa3f55408c1aa36fd34d5489799990108ee32d1c261ef90e8f2611a98c1",
+    "gpu_console.log": "9d2eb6113a2a667b6a135ce3a2f6d502344f62008ffea542d99e52148c0c3c67",
+    "postprocess_actual_feet.py": "60c9f342150bce99838a159e8e85fcca1f7d721b90b6c1f44c60f859c8139912",
+    "actual_foot_geometry_report.json": "3ccad88ea1742f2e197c3f3de0ac36581786775cff4fdd3a6a775c92729ada0c"
+  }
+}

@@ -18,6 +18,11 @@ This file stores stable physical facts and the accepted current simulation snaps
 - Ignore internal small features in the first model. Erode only outer edges and the step boundary to the 0.18–0.19 m upper surfaces. Upper support components are penalized late-stage fallbacks, not normal targets.
 - The observed 50–60 mm side protrusion is the `rm` thigh-motor/hip region. Model hip-origin difference is 42.5 mm; nominal Q_STAND foot-center difference is about 96.99 mm. Keep motor-envelope and foot-center geometry distinct.
 
+## Site
+
+- The photovoltaic panel under Xiaolan is level (no tilt; user-confirmed 2026-11-12), so gravity is normal to the Xiaolan base plane assumed by all climb planning.
+- Foot-tip contact sensors are planned hardware for touchdown confirmation but are not installed yet; current climbing still advances on joint-feedback checkpoints only.
+
 ## Deployability Boundary
 
 - Current climbing assumes a known fixed start pose and known Xiaolan geometry/relative pose. Cameras, visual perception, SLAM, and mapping are out of scope.
@@ -25,6 +30,8 @@ This file stores stable physical facts and the accepted current simulation snaps
 - Simulation truth is diagnostic only. It must not be a primary controller input or sole phase gate. Real motion decisions require support/load-path, friction/slip, impact/compliance, backlash/tracking, saturation, and sensor-failure reasoning.
 
 ## Current Simulation Preview Snapshot
+
+- 2026-11-12 front deployment route: `config/climb_front_v11.json` (SHA-256 `1683c12c…97c6a8`, 20 stages, 32.7 s planned motion) derived stage-wise from `climb_front_optimized.json` (v10). It is timed for the 4 rad/s hardware step cap (zero clips, peak 3.6 rad/s) and the C++ controller reproduces the Python reference per frame (≤5e-6 rad). Isaac at 4.8 rad/s, 11 start-error cases: 7 reach DONE (nominal, +2 cm, −1 cm, ±1.5 cm lateral, −3° yaw, −2 cm/−1.5 cm/+3°); 4 fail — +3° yaw alone or with +2 cm/+1.5 cm (C13), and −2 cm alone or with +1.5 cm/−3° (C18 tripod: RB on the ~36 mm right face after ~3 cm accumulated support slip). `full_mission.launch` selects it. Simulation diagnostics only; hardware bring-up must be staged. Evidence: `src/docs/evidence/climb_front_v11_20261112/`.
 
 - 2026-10-27 planning directive: experimental front-route planning may explicitly retain intentionally airborne feet until a support is needed or available; it must declare a conservative planned support set rather than require all six feet to land in every phase. These roles are not contact, load, stability, or hardware evidence. The user has fixed the coarse high/low boundary criterion as the external step/riser, so no semantic-choice question remains; exact planning polygon, conservative height, and tolerance remain a geometry task. This planning abstraction does not alter the real Xiaolan CAD facts above. Future simulation diagnostics must include initial-pose/landing-offset robustness and a normal-tripod-walk tail; deployable sensing and hardware rejection remain unchanged.
 

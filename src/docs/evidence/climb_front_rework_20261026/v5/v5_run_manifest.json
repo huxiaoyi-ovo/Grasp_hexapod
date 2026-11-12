@@ -1,0 +1,44 @@
+{
+  "contract": "front v5 body-relative candidate; one continuous 30 Hz CPU audit",
+  "repo_root": "/home/artrc/Grasp_hexapod",
+  "v4_backup": {
+    "builder_sha256": "7fa6af3e88fd20e8a453aa81a7fb2365f0c0a7464b01d118715b51f992d9fcd4",
+    "config_sha256": "7ae2970e1f4ee6ec5044b5b9eee877e04b00ac40afb997222fad885ceca1cea5"
+  },
+  "inputs": {
+    "v5_config_sha256": "a34966ea02ea3a0ddfd0de45280256bc33a8b9e792f8808aeba2cad9b6185f11",
+    "builder_sha256": "5a8fa75835f954a8d03a01ee7bd2750efc5d421fe7f91c7fcf823064f0e1fd10",
+    "runtime_sha256": "4a3ec853a8868e911e8e6d6b4b80845afef53b4b24207ce2859882bb03035db1",
+    "new_test_sha256": "f56873dae12547a2153899a9c254154fffc262233b882c682e2bb097def079b4",
+    "source_space_sha256": "321a1b762d99659be988defa5bfdc27ae9672fc215bb351db9260a8cfd9bc333",
+    "chosen_c1e_stance_baseline_sha256": "c1e5860618fbef4a3cc71cd7bcbfbf35c6602ce91f6673a546b815c827c8ccc2",
+    "cpu_audit_sha256": "08d6c562fbaa58c6900ad508033b316134e1b1e35772dcb808d3971383a6a44c"
+  },
+  "validation": {
+    "tier0": "compile, generate, config load, 19-stage continuity passed",
+    "focused_v5_pytest": "5 passed",
+    "requested_shared_runtime": "8 passed, 1 failed; excluded baseline SIDE stage-persistence/test mismatch; command exit 1",
+    "baseline_witness": "tier1_shared_baseline_mismatch.txt"
+  },
+  "cpu": {
+    "command": "import cpu_direct_audit.run(config, output) with Q_STAND, start_stage_index=0",
+    "process_exit_code": 0,
+    "audit_state": "RUNNING",
+    "ticks": 461,
+    "first_failure": {
+      "reason": "actual_active_foot_sphere_gap",
+      "stage": "MID_PLATFORM_285",
+      "stage_index": 10,
+      "tick": 461,
+      "phase_before_s": 0.4,
+      "active_sphere_gap_m": -0.0011482761123294766,
+      "fk_error_m": 0.00687655368022613,
+      "joint_margin_rad": 0.26156837509774633,
+      "com_margin_m": 0.07368454843846826,
+      "velocity_clips": 0
+    },
+    "config_unchanged_during_audit": true,
+    "receipt_sha256": "243c12968ff8fb45af1b321044ebd73cf3fe4859f32d7ca1193171b316512702",
+    "console_sha256": "1f76b5f8793f543bde19a1fb16d3b8b453d0733a653737412d9d1824a1302c37"
+  }
+}

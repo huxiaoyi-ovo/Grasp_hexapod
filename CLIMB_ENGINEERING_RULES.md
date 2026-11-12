@@ -1078,3 +1078,57 @@
 - **Evidence boundary:** this is CAD-region evidence only; it proves neither a vertical riser/gap nor collision, physical contact, load, stability, controller behavior, or hardware climbing success.
 - **Technique, benefit, adoption:** cache vector top-visible queries and inspect only the two candidate components/boundaries. It found the LF usable region before GPU and prevented an unqualified RF route/controller run; automation remains evidence-only, and the physical route is OPEN.
 
+
+## 2026-11-12 closure cards: front v11 stage-wise robustness and hardware freeze
+
+### 2026-11-12：C13 前对中间落点贴顶面横向中缝 — CLOSED
+
+- 现象：v10 起点 yaw +3° 时 C13 `FRONT_DIRECT_FINAL_480` 超时；RF 相对小蓝落到 (.474,−.195)。
+- 根因：C13 前对中间落点 x=.48 距顶面横向中缝（x≈.43–.47）仅 8 mm；只核对了终端可达与名义 patch，没有核对到台阶/边缘/缝的距离。
+- 最小修复：LF→(.491,.029)（平整区 .472–.51 中心），RF→(.52,−.165)；后续阶段从新锚点出发。
+- 抽象准则：每个落脚点在设计起点误差（前后/左右 ±20 mm、yaw ±3°）内必须仍落在同一平整面；用"到台阶/边缘/缝/凹槽的距离"衡量，不用 bbox 或名义 patch。
+- 回归检查：`landing_tolerance.py <config>` 列出每次落脚四个方向的容差，<20 mm 标红；改落点后必须重跑 GPU 起点偏差扫描。
+- 证据边界：CAD 高度图 + Isaac 仿真诊断；不证明真实接触、载荷或摩擦。
+- 提炼技巧：落点优先取平整区中心（二维平整图），几何上限不足 20 mm 的地方（右侧窄斜面约 36 mm 宽）如实标注而不是硬塞。
+- 固化位置：工具（`landing_tolerance.py`）+ 规划顺序（落点先过容差表再生成轨迹）。状态：已关闭。
+
+### 2026-11-12：改终点落脚后未重算 terminal_q_rad — CLOSED
+
+- 现象：v11 C16 把 LM 终点 .425→.40 后，配置 `terminal_q_rad` 仍为 v10 值，LM 差 0.26 rad；仿真攀爬不读该字段，未被任何仿真测试发现。
+- 根因：终态关节角是派生量，编辑工具只改阶段，没有重算派生字段。
+- 修复：冻结时由最终机身位姿与最终锚点 IK 重算（与 C++ 回放末帧差 2.4e-6 rad）。
+- 准则：任何改动终态的编辑，必须重算并核对所有派生字段（terminal_q_rad、阶段数、来源 SHA）。
+- 回归：冻结检查要求 `|terminal_q_rad − 回放末帧 q| ≤ 1e-5 rad`。
+- 状态：已关闭。
+
+### 2026-11-12：仿真按 6 rad/s 预览，实机共享 4 rad/s 步进上限 — CLOSED
+
+- 现象：v10/v11 仿真候选在 4 rad/s 上限下第一阶段 PREP 即速度截断。
+- 根因：front 配置的 `simulation_joint_velocity_limit_rad_s=6.0` 只用于仿真；C++ 实机忽略它，统一 4 rad/s。
+- 修复：`hw_retime.py` 以 4 rad/s 回放全链，仅拉长原始峰值 >3.6 rad/s 的阶段（5 段），零截断；部署配置把仿真上限也设为 4.0，GPU 以 `--climb-joint-speed 1.2` 验证。
+- 准则：可部署配置必须在 4 rad/s 上限下零截断（峰值 ≤ 上限 90%）。
+- 回归：冻结检查中 Python 与 C++ 实机模式回放均零截断。状态：已关闭。
+
+### 2026-11-12：摆腿连续化吃掉跨台阶净空 — CLOSED
+
+- 现象：中间节点给通过速度后，平地流畅性提高，但 +2 cm/±1.5 cm/yaw 下跨台阶阶段（C3/C13/C15）擦边失败。
+- 根因：Hermite 通过速度让下降段提前切下，路径净空小于分段零速版本。
+- 修复：连续化只用于不跨台阶的摆腿；越过抬腿节点后不允许向下的通过速度。
+- 准则：跨台阶的摆腿保持已验证净空的分段路径；任何曲线平滑都要重跑起点偏差扫描。状态：已关闭。
+
+### 2026-11-12：机身阶段并入 4 足摆腿导致后滑 — CLOSED
+
+- 现象：PREP（抬身 8 cm、调俯仰）并入"中腿先前移"后，整机后滑约 3 cm，C3 落点偏移超时。
+- 准则：机身大幅抬升/前移在六足支撑下单独完成；C5、C9 机身阶段因 COM 约束不可并入相邻抬腿阶段。状态：已关闭。
+
+### 2026-11-12：用过期 C++ 库做验证 — CLOSED
+
+- 现象：本地 `libgrasp_hexapod_control_core.so` 编译于 10-29，缺 10-30 的 front 攀爬 C++ 移植。
+- 准则：部署前必须用当前源码重新编译，并对部署配置做 C++ 与 Python 逐帧对比（`cpp_replay.cpp`，≤1e-5 rad）和 C++ 实机模式回放。状态：已关闭。
+
+### 2026-11-12：累计支撑脚后滑限制"起点偏后"鲁棒性 — OPEN
+
+- 现象：名义起点下支撑脚累计后滑约 27–34 mm（v10 同）；起点偏后 2 cm 时后段（RB 停靠右侧约 36 mm 宽的窄斜面）滑出边沿翻倒。
+- 已排除：仅限制机身加速度（≤.25 m/s²）总滑移只从 30 降到 29 mm。
+- 待查：PD 刚度/摩擦/接触参数对比，区分仿真伪影与真实物理；缩短 RB 在窄斜面停留；实机 RTK 相对运动监控门限 5 cm 可能被触发。
+- 状态：未关闭。

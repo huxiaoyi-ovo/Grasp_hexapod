@@ -1,0 +1,297 @@
+{
+  "geometry_flags": {
+    "gap": false,
+    "area": true,
+    "up": true,
+    "inset": true
+  },
+  "geometry": {
+    "LB": {
+      "actual": {
+        "nearest_triangle_index": 17155,
+        "nearest_point_world_xyz_m": [
+          0.24920429843652664,
+          0.1100065904169022,
+          0.1568353932591931
+        ],
+        "face_normal_world": [
+          -0.2079115978100824,
+          -7.87609733529284e-08,
+          0.9781476205031898
+        ],
+        "face_normal_z": 0.9781476205031898,
+        "distance_to_stl_m": 0.008709188604154367,
+        "component_hash": "bb20e47cacd2382542a0b160025715ac3b0ca1032b596cfbb73d8b42a941fa21",
+        "component_triangle_count": 43,
+        "component_area_m2": 0.04115123498940288,
+        "center_in_component_xy": true,
+        "sphere_gap_m": 0.002209188604154367,
+        "rectangle_xy_min_m": [
+          0.24739355711820754,
+          0.11000658973095803
+        ],
+        "rectangle_xy_max_m": [
+          0.24739355711820754,
+          0.11000658973095803
+        ],
+        "rectangle_boundary_distance_m": 0.03332116962724488,
+        "positive_up_normal": true,
+        "large_planar_component": true,
+        "robust_rectangle": true,
+        "safe_patch": true
+      },
+      "component_match": true,
+      "axis_deg": 20.80688731549423
+    },
+    "LF": {
+      "actual": {
+        "nearest_triangle_index": 15568,
+        "nearest_point_world_xyz_m": [
+          0.5216434525581306,
+          0.09125617625188945,
+          0.1899999976158142
+        ],
+        "face_normal_world": [
+          0.0,
+          0.0,
+          1.0
+        ],
+        "face_normal_z": 1.0,
+        "distance_to_stl_m": 0.007482079690637744,
+        "component_hash": "ac2c8195a32417286e93cfdd52f3885ebdb13b8e52480a2941bb2950a5a9e706",
+        "component_triangle_count": 171,
+        "component_area_m2": 0.0748856461587181,
+        "center_in_component_xy": true,
+        "sphere_gap_m": 0.0009820796906377443,
+        "rectangle_xy_min_m": [
+          0.5216434525581306,
+          0.09125617625188945
+        ],
+        "rectangle_xy_max_m": [
+          0.5216434525581306,
+          0.09125617625188945
+        ],
+        "rectangle_boundary_distance_m": 0.03804924018985733,
+        "positive_up_normal": true,
+        "large_planar_component": true,
+        "robust_rectangle": true,
+        "safe_patch": true
+      },
+      "component_match": true,
+      "axis_deg": 7.412371301140117
+    },
+    "LM": {
+      "actual": {
+        "nearest_triangle_index": 15610,
+        "nearest_point_world_xyz_m": [
+          0.39240338433478794,
+          0.10397199036380006,
+          0.1899999976158142
+        ],
+        "face_normal_world": [
+          0.0,
+          0.0,
+          1.0
+        ],
+        "face_normal_z": 1.0,
+        "distance_to_stl_m": 0.006493599724230276,
+        "component_hash": "ac2c8195a32417286e93cfdd52f3885ebdb13b8e52480a2941bb2950a5a9e706",
+        "component_triangle_count": 171,
+        "component_area_m2": 0.0748856461587181,
+        "center_in_component_xy": true,
+        "sphere_gap_m": -6.400275769724052e-06,
+        "rectangle_xy_min_m": [
+          0.39240338433478794,
+          0.10397199036380006
+        ],
+        "rectangle_xy_max_m": [
+          0.39240338433478794,
+          0.10397199036380006
+        ],
+        "rectangle_boundary_distance_m": 0.02629147678243667,
+        "positive_up_normal": true,
+        "large_planar_component": true,
+        "robust_rectangle": true,
+        "safe_patch": true
+      },
+      "component_match": true,
+      "axis_deg": 20.88985619103837
+    },
+    "RB": {
+      "actual": {
+        "nearest_triangle_index": 18028,
+        "nearest_point_world_xyz_m": [
+          0.30390930227324653,
+          -0.15869959414184032,
+          0.18327286699896972
+        ],
+        "face_normal_world": [
+          -0.0871026354861882,
+          -0.034899478772949986,
+          0.9955878450808532
+        ],
+        "face_normal_z": 0.9955878450808532,
+        "distance_to_stl_m": 0.006494400850675454,
+        "component_hash": "222d684cd3421eb85b0403c5c691c99f7e72d66e2ef0bf7473ef9d586b3e4ca2",
+        "component_triangle_count": 23,
+        "component_area_m2": 0.0420846432089445,
+        "center_in_component_xy": true,
+        "sphere_gap_m": -5.599149324546013e-06,
+        "rectangle_xy_min_m": [
+          0.303343622843249,
+          -0.15892624534647148
+        ],
+        "rectangle_xy_max_m": [
+          0.303343622843249,
+          -0.15892624534647148
+        ],
+        "rectangle_boundary_distance_m": 0.051715303902663004,
+        "positive_up_normal": true,
+        "large_planar_component": true,
+        "robust_rectangle": true,
+        "safe_patch": true
+      },
+      "component_match": true,
+      "axis_deg": 20.54077021118667
+    },
+    "RF": {
+      "actual": {
+        "nearest_triangle_index": 18001,
+        "nearest_point_world_xyz_m": [
+          0.5859485793415322,
+          -0.15314094275789147,
+          0.18435503944031778
+        ],
+        "face_normal_world": [
+          0.08710268584196197,
+          -0.03489950926243405,
+          0.99558783960651
+        ],
+        "face_normal_z": 0.99558783960651,
+        "distance_to_stl_m": 0.006496645099329266,
+        "component_hash": "00d4f06b9b661d34988182ebaf4b681bb52a2ea9b278bdebc59e9aa7562e3a56",
+        "component_triangle_count": 24,
+        "component_area_m2": 0.04208627687569186,
+        "center_in_component_xy": true,
+        "sphere_gap_m": -3.3549006707338583e-06,
+        "rectangle_xy_min_m": [
+          0.5865144545786458,
+          -0.15336767248371025
+        ],
+        "rectangle_xy_max_m": [
+          0.5865144545786458,
+          -0.15336767248371025
+        ],
+        "rectangle_boundary_distance_m": 0.05495762379070474,
+        "positive_up_normal": true,
+        "large_planar_component": true,
+        "robust_rectangle": true,
+        "safe_patch": true
+      },
+      "component_match": true,
+      "axis_deg": 2.402178983941264
+    },
+    "RM": {
+      "actual": {
+        "nearest_triangle_index": 18029,
+        "nearest_point_world_xyz_m": [
+          0.3689641929182218,
+          -0.2689214202463434,
+          0.18510069867086548
+        ],
+        "face_normal_world": [
+          -0.08710268465015705,
+          -0.034899524571651235,
+          0.9955878391741273
+        ],
+        "face_normal_z": 0.9955878391741273,
+        "distance_to_stl_m": 0.0064999715408502814,
+        "component_hash": "222d684cd3421eb85b0403c5c691c99f7e72d66e2ef0bf7473ef9d586b3e4ca2",
+        "component_triangle_count": 23,
+        "component_area_m2": 0.0420846432089445,
+        "center_in_component_xy": true,
+        "sphere_gap_m": -2.8459149718253196e-08,
+        "rectangle_xy_min_m": [
+          0.3683980279468641,
+          -0.26914826616284837
+        ],
+        "rectangle_xy_max_m": [
+          0.3683980279468641,
+          -0.26914826616284837
+        ],
+        "rectangle_boundary_distance_m": 0.05235787454531451,
+        "positive_up_normal": true,
+        "large_planar_component": true,
+        "robust_rectangle": true,
+        "safe_patch": true
+      },
+      "component_match": true,
+      "axis_deg": 6.719178712367314
+    }
+  },
+  "hold_force_stats": {
+    "LB": {
+      "normal_mean_min_max_N": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "fraction_normal_gt1N": 0.0,
+      "friction_ratio_mean": 0.0
+    },
+    "LF": {
+      "normal_mean_min_max_N": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "fraction_normal_gt1N": 0.0,
+      "friction_ratio_mean": 0.0
+    },
+    "LM": {
+      "normal_mean_min_max_N": [
+        17.76930990219116,
+        17.763975143432617,
+        17.775638580322266
+      ],
+      "fraction_normal_gt1N": 1.0,
+      "friction_ratio_mean": 7.525191805305393e-08
+    },
+    "RB": {
+      "normal_mean_min_max_N": [
+        13.529323751372107,
+        13.52472260552841,
+        13.534031488728571
+      ],
+      "fraction_normal_gt1N": 1.0,
+      "friction_ratio_mean": 3.7123909614072667e-07
+    },
+    "RF": {
+      "normal_mean_min_max_N": [
+        11.13978738238509,
+        11.134940802075345,
+        11.145927923513824
+      ],
+      "fraction_normal_gt1N": 1.0,
+      "friction_ratio_mean": 7.404370531098703e-08
+    },
+    "RM": {
+      "normal_mean_min_max_N": [
+        1.6335019815273775,
+        1.6284386264686925,
+        1.6392830201839357
+      ],
+      "fraction_normal_gt1N": 1.0,
+      "friction_ratio_mean": 4.6092422268802484e-07
+    }
+  },
+  "force_sum_mean_world_N": [
+    -0.35041090144074344,
+    -0.9179515023298223,
+    43.955872046947476
+  ],
+  "gravity_N": 43.96842,
+  "hold_samples": 60,
+  "missing_independent_foot_body_pose": true,
+  "boundary": "GPU truth/forces diagnostic only; no real contact/load claim."
+}

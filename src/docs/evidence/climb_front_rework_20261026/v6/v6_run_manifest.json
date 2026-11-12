@@ -1,0 +1,38 @@
+{
+  "contract": "v6 C11 departure-order correction; one cached-entry local CPU replay",
+  "inputs": {
+    "v6_config_sha256": "582a331cb4ea331ffd2d37fc7866a44c32437a9870ae8684a712014bc77c9106",
+    "builder_sha256": "2ef248dc723027f00e484bc6682f785cb875495a757f06a62a66e6519ddfb180",
+    "runtime_sha256": "4a3ec853a8868e911e8e6d6b4b80845afef53b4b24207ce2859882bb03035db1",
+    "v5_prefix_config_sha256": "a34966ea02ea3a0ddfd0de45280256bc33a8b9e792f8808aeba2cad9b6185f11",
+    "cached_entry_stage": "MID_PLATFORM_285"
+  },
+  "validation": {
+    "tier0": "compile, deterministic generation, schema/load passed",
+    "focused_pytest": "6 passed",
+    "c11_planned_first_1_2_s": {
+      "samples": 37,
+      "min_sphere_gap_m": 0.015439223637916253,
+      "max_sphere_gap_m": 0.07001909633356582
+    }
+  },
+  "cpu": {
+    "process_exit_code": 0,
+    "audit_state": "RUNNING",
+    "ticks": 409,
+    "receipt_sha256": "c9590228565300802e0b7ccef071b806a41bcbaaccf018949cfbea1fd4dd292d",
+    "console_sha256": "9771e8e43aaaa95bd615f077fc6a83c9f7f853386f21a811b525926e38911deb",
+    "first_failure": {
+      "reason": "joint_limit",
+      "stage": "LB_PLATFORM_225",
+      "stage_index": 14,
+      "tick": 409,
+      "phase_before_s": 1.400000000000001,
+      "lb_ankle_rad": 2.094,
+      "fk_error_m": 0.0028793300320441306,
+      "com_margin_m": 0.074403155288142,
+      "velocity_clips": 0
+    },
+    "boundary": "original CPU gates retained; exit code 0 is not a passing physical result"
+  }
+}

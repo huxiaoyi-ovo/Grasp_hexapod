@@ -1,0 +1,14 @@
+Not connected to PVD
++++ Using GPU PhysX
+Physics Engine: PhysX
+Physics Device: cuda:0
+GPU Pipeline: disabled
+Importing module 'gym_38' (/home/artrc/isaacgym/python/isaacgym/_bindings/linux-x86_64/gym_38.so)
+Setting GYM_USD_PLUG_INFO_PATH to /home/artrc/isaacgym/python/isaacgym/_bindings/linux-x86_64/usd/plugInfo.json
+PhysX contact scales: rest_offset=0m contact_offset=20mm friction_offset_threshold=1mm friction_correlation_distance=0.5mm robot_thickness=1mm
+Traceback (most recent call last):
+  File "/tmp/grasp_front_v7_gpu_20261026T141838Z/observer_runner.py", line 56, in <module>
+    run_sim.main()
+  File "/home/artrc/Grasp_hexapod/src/grasp_hexapod_control/scripts/run_sim.py", line 1136, in main
+    raise ValueError(
+ValueError: front simulation joint velocity cap 6 rad/s exceeds the selected Isaac DOF limit 4.8 rad/s; increase --climb-joint-speed (fast candidate recommends 1.8)

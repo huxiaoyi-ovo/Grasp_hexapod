@@ -1,0 +1,13 @@
+{
+  "schema": "climb-front-v10-observability-v1",
+  "provenance": {
+    "external_analysis_dir": "/tmp/grasp_front_v10_observability_C0rI5U",
+    "valid_gpu_samples_sha256": "111d3c20ced1e92e2d768acdfd497f066318179e0477b08139f5de4265c78c5a",
+    "config_sha256": "de855ddfd3ac8df9f25f32d5c497601ffc0f452fb44e2bdeec9e9931bbe5e725"
+  },
+  "files_sha256": {
+    "report.md": "6248a74c02efacbf7548bc1c048e51fff262722ad08e56b929053c368c1e1de7",
+    "analysis.json": "76e21e4ed434a772dc1330a282b83e33d3ebadc4158a4105974dd49ac9122677"
+  },
+  "boundary": "Recorded simulator truth diagnostics only; no deployable contact threshold or IMU/RTK calibration is inferred."
+}

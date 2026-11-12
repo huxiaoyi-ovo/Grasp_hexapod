@@ -1,0 +1,16 @@
+{
+  "files": {
+    "actual_samples.jsonl": "38c5bc303149004cfc40c933764e13620eccbf25a84cbc5ffd60228930bb88fa",
+    "cad_corrected_report.json": "bca001adf95db8bbf8339475131e5acac47862405795e34e1e913d9da15119a7",
+    "cad_raw_support_witness.json": "e86a4362ecf6237ad54c6f71516c964f0d9a90deb521775efaadabb8fad6a1e6",
+    "console.log": "cb5f8eb535a60ab9c567db3fdadefb50b9602712cfb8403d6b0dfc8a28e93f7a",
+    "current_v4_builder.py": "7fa6af3e88fd20e8a453aa81a7fb2365f0c0a7464b01d118715b51f992d9fcd4",
+    "current_v4_config.json": "7ae2970e1f4ee6ec5044b5b9eee877e04b00ac40afb997222fad885ceca1cea5",
+    "manifest.json": "1b6eca72e6c7ce2303555f9be20981dd0e6c2516634537b1ca452b670c288260",
+    "metrics.json": "284108a3fcd1e68b39a01eea045079c30f1f51c82efe90c4b78edf273149b3d1",
+    "observer_runner.py": "b0a0879710675edc049f9b85f8220a6e26a0c553442ae0c5b32f76c6738a06b5",
+    "v2_cpu.json": "02374ab2ab98495a7629fb85143837017fa5e54815684e00a103d76e41b06c71",
+    "v3_local_cpu.json": "20ab88872b7eccb0cda6986aaf43d47f88e1a5c453370fb1241901769eb2e500",
+    "v4_local_cpu.json": "05c6b152bbaad21c718551b36472d5bb9953030dff1c717aa35626b2b4c07881"
+  }
+}

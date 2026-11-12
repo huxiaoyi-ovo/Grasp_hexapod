@@ -1,0 +1,10 @@
+{
+  "contract": "bounded v7 exact visual mesh witnesses before GPU",
+  "config_sha256": "b2351359bd492dd40c04d30f5bfd365084730b4802543cf64ff2de4befd3ec7e",
+  "runtime_sha256": "4a3ec853a8868e911e8e6d6b4b80845afef53b4b24207ce2859882bb03035db1",
+  "report_sha256": "887bc4b75399aee6a4615e4318b8cb012358c2b9524ab3358c26f30f0e49a5d1",
+  "status": "CLEAR",
+  "exact_query_count": 54,
+  "frame_gate": "explicit Xiaolan T and translated vertices/bounds passed",
+  "boundary": "selected discrete triangle witnesses only; no continuous clearance/contact/load/stability claim"
+}

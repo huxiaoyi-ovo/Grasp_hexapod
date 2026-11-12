@@ -1,0 +1,13 @@
+{
+  "archive": "immutable rejected v5 inputs and raw CPU receipt",
+  "v5_config_sha256": "a34966ea02ea3a0ddfd0de45280256bc33a8b9e792f8808aeba2cad9b6185f11",
+  "files": {
+    "build_climb_front_optimized_v5.py": "5a8fa75835f954a8d03a01ee7bd2750efc5d421fe7f91c7fcf823064f0e1fd10",
+    "climb_front_optimized_v5.json": "a34966ea02ea3a0ddfd0de45280256bc33a8b9e792f8808aeba2cad9b6185f11",
+    "cpu.json": "243c12968ff8fb45af1b321044ebd73cf3fe4859f32d7ca1193171b316512702",
+    "cpu_console.log": "1f76b5f8793f543bde19a1fb16d3b8b453d0733a653737412d9d1824a1302c37",
+    "tier1_shared_baseline_mismatch.txt": "84564078ff4eec9199ffb7431d53c37e9dc18e663a48971f16b3b8b67d54c6af",
+    "v5_run_manifest.json": "cd99a5cee465f4a1ef8784ef92369edcb11bc56527c6480acf655079390e4bd9"
+  },
+  "boundary": "CPU/model diagnostics only; v5 is rejected and does not authorize hardware."
+}

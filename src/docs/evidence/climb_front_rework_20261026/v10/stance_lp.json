@@ -1,0 +1,32 @@
+[
+  {
+    "fraction": 0.0,
+    "success": false,
+    "t": null,
+    "forces": null
+  },
+  {
+    "fraction": 0.25,
+    "success": false,
+    "t": null,
+    "forces": null
+  },
+  {
+    "fraction": 0.5,
+    "success": false,
+    "t": null,
+    "forces": null
+  },
+  {
+    "fraction": 0.75,
+    "success": false,
+    "t": null,
+    "forces": null
+  },
+  {
+    "fraction": 1.0,
+    "success": false,
+    "t": null,
+    "forces": null
+  }
+]

@@ -5,7 +5,7 @@
 1. `AGENTS.md`：工作流、阶段表、硬件与证据边界（最高权威，本文件不覆盖它）。
 2. `AGENT_HARNESS.md`：决策优先级、实现与验证原则、输出结构。
 3. `PROJECT_MEMORY.md`：稳定物理事实与当前仿真快照。
-4. `CLIMB_ENGINEERING_RULES.md`：任何攀爬阶段规划或修改前必须先读并执行。
+4. `CLIMB_ENGINEERING_RULES.md`：任何攀爬阶段规划或修改前必须先读并执行。正面攀爬开发流程（尺寸变更后继续开发）按 `CLIMB_FRONT_SOP.md`。
 5. `HANDOFF.md`（若存在，未入库）→ `CLAUDE_HANDOFF.md`：跨会话状态，不得覆盖上述规则。
 
 ## Claude Code 的角色映射（用户 2026-10-30 指定）

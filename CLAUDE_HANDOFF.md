@@ -238,3 +238,10 @@
 - 验证：worktree 内 `catkin_make --only-pkg-with-deps grasp_hexapod_bt_control`（需 `-DPYTHON_EXECUTABLE=/usr/bin/python3`，conda python 缺 empy）通过；`run_tests_grasp_hexapod_bt_control` 180 项 0 失败。假舵机 ROS e2e（节点不设任何攀爬参数）：日志 `Compact climb config=climb_front_v11.json`，`switch_mode climb` → `climb complete`，40.17 s，指令峰值 3.57 rad/s，与冻结时一致。未在实机运行。
 - 仍未修的阻断项：攀爬/对接中任何新 switch_mode（含手柄 B/A/Y）触发 2 s 全腿关节空间回正，挂在小蓝上会摔落；暂停只能用 `/grasp_hexapod/hold_motion` 租约（20 Hz 持续发布）。
 - 另记：接近/行走步态 C++（实机，c3f6c81：`phase_duration 0.25`、`max_linear_acceleration 0.60`、`max_foot_planar_speed 0.30`、比例 2.5）与 Python（仿真：0.70/0.40/0.12/1.5）分叉，即 `ResetAndWalkMatchPython` 失败的来源；攀爬不受影响。待用户决定是否把 Python 对齐到实机值并重生成金标。
+
+## 2026-11-13 Claude Code（Sol）：正面攀爬开发 SOP
+
+- 新增根目录 `CLIMB_FRONT_SOP.md`：把 v10→v11 的逐阶段开发、检查阶梯、冻结、实机上线流程整理成 SOP，含尺寸变更时需同步的几何来源清单（kinematics.py / types.h / URDF×4 / workspace_bounds.csv / 金标）、P0 重算、v11 20 阶段接触序列模板、落脚/机身/时序规则、验收标准、`cpp_replay` 编译命令、踩坑表、工具现状与未解决项。
+- 路由：`CLIMB_ENGINEERING_RULES.md` 开头和 `CLAUDE.md` 第 4 条指向该 SOP。`AGENTS.md` 未改。
+- 只是文档整理，无代码/配置改动；数值均取自 v11 证据目录 README、`CLIMB_ENGINEERING_RULES.md` 11-12 关闭卡和本会话验证记录。
+- 建议后续：把 v11 原型工具（chain、landing_tolerance、retime、hw_retime、cpp_replay、起点误差扫描）提升为 `scripts/tools/` 维护工具，参数化路径与阶段名。

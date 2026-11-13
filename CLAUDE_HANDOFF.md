@@ -229,3 +229,12 @@
   - bt_control gtest 全过（含 tag_guidance 50/50）；pytest：`test_climb_front_optimized.py`、`test_climb_front_direct.py` 全过；`test_real_mode_routing.py` 8 项失败与改动前 HEAD 完全相同（侧向 run_real/Isaac 旧断言），非本批引入。
   - `roslaunch --nodes full_mission.launch` 通过；v11 配置校验通过；catkin 白名单已复位。
 - 分支：本工作区 2026-11-10 02:32 被切到 `codex/mujoco-interface`（非本会话操作；未提交的 `src/grasp_hexapod_mujoco/` 属于该工作）。本批通过独立 worktree 提交到 `test`，未切换本工作区分支、未动 mujoco 目录。
+
+## 2026-11-13 Claude Code（Sol）：攀爬默认改为正面 v11
+
+- 用户指定：实机手动入口是现有 `grasp_hexapod_bt_control/control_only.launch`（只按手柄才动）；直接把攀爬模式默认改成最新正面攀爬。
+- 修改：`src/grasp_hexapod_bt_control/src/modes/mode_climb.cpp` 默认 `~climb_config_file` `climb_compact.json`→`climb_front_v11.json`、`~allow_front_hardware` false→true、`~climb_foot_gate_m` 0.02→0.04；`control_only.launch` 的 `climb_foot_gate_m` 默认 0.02→0.04（它显式传参，会覆盖节点默认）。`full_mission.launch` 未改（仍显式设同样的值）。侧面旧配置需显式 `climb_config_file:=climb_compact.json`。bt_control README 补手动攀爬用法与安全提醒。
+- 影响：所有 include `control_only.launch` 的入口（full_chain、phase1_visual、full_mission）攀爬默认均为 v11 + 0.04；phase1_visual 仍 `enable_real_climb=false`。旧 `grasp_hexapod_control/run_real*.launch`（`run_real_cpp`）不读这些参数，不能用于正面攀爬。
+- 验证：worktree 内 `catkin_make --only-pkg-with-deps grasp_hexapod_bt_control`（需 `-DPYTHON_EXECUTABLE=/usr/bin/python3`，conda python 缺 empy）通过；`run_tests_grasp_hexapod_bt_control` 180 项 0 失败。假舵机 ROS e2e（节点不设任何攀爬参数）：日志 `Compact climb config=climb_front_v11.json`，`switch_mode climb` → `climb complete`，40.17 s，指令峰值 3.57 rad/s，与冻结时一致。未在实机运行。
+- 仍未修的阻断项：攀爬/对接中任何新 switch_mode（含手柄 B/A/Y）触发 2 s 全腿关节空间回正，挂在小蓝上会摔落；暂停只能用 `/grasp_hexapod/hold_motion` 租约（20 Hz 持续发布）。
+- 另记：接近/行走步态 C++（实机，c3f6c81：`phase_duration 0.25`、`max_linear_acceleration 0.60`、`max_foot_planar_speed 0.30`、比例 2.5）与 Python（仿真：0.70/0.40/0.12/1.5）分叉，即 `ResetAndWalkMatchPython` 失败的来源；攀爬不受影响。待用户决定是否把 Python 对齐到实机值并重生成金标。

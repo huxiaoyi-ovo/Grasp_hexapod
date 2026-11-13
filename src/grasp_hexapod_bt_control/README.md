@@ -88,9 +88,18 @@ bt_control_node（模式调度器：ModeContext 注入各模式实例）
 # 全链路（含现有 Python 行为树；remote_test 为空则跑主链，默认 walk 测试链）
 roslaunch grasp_hexapod_bt_control full_chain.launch remote_test:=walk
 
-# 仅控制栈 + 遥控器（无行为树，联调/排查用）
+# 仅控制栈 + 遥控器（无行为树，联调/排查用；也是实机手动攀爬入口）
 roslaunch grasp_hexapod_bt_control control_only.launch
 ```
+
+攀爬默认即正面 v11：`bt_control_node` 的 `~climb_config_file` 默认
+`climb_front_v11.json`、`~allow_front_hardware` 默认 true、`~climb_foot_gate_m`
+默认 0.04（`control_only.launch` 同为 0.04）。侧面旧配置需显式
+`climb_config_file:=climb_compact.json`。手动攀爬：不按手柄不动；脚离地按 B 回正 →
+放到 P0（Q_STAND）→ 按 X 攀爬 → 完成后按 Y 对接。暂停用
+`rostopic pub -r 20 /grasp_hexapod/hold_motion std_msgs/String "data: 'hold'"`。
+**攀爬/对接进行中不要再按任何键**：任何新的 `switch_mode` 请求都会触发 2 s 全腿
+关节空间回正，挂在小蓝上会摔落。
 
 ### Phase-1 visual coarse approach
 

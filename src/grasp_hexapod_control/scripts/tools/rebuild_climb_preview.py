@@ -82,16 +82,24 @@ def repo_path(path):
 def stl_vertices(path):
     """Read STL triangle vertices for a file/geometry summary only."""
     data = Path(path).read_bytes()
+    vertices = None
     if len(data) >= 84:
         count = struct.unpack("<I", data[80:84])[0]
         if 84 + count * 50 == len(data):
-            return np.frombuffer(data, dtype=np.dtype([("n", "<f4", 3), ("v", "<f4", (3, 3)), ("a", "<u2")]), offset=84)["v"].astype(float)
-    points = []
-    for line in data.decode("utf-8", errors="ignore").splitlines():
-        words = line.split()
-        if len(words) == 4 and words[0].lower() == "vertex": points.append([float(x) for x in words[1:]])
-    vertices = np.asarray(points, dtype=float).reshape(-1, 3, 3)
-    if not len(vertices) or not np.all(np.isfinite(vertices)): raise ValueError("model is not a finite STL triangle mesh")
+            triangle_dtype = np.dtype([
+                ("n", "<f4", 3), ("v", "<f4", (3, 3)), ("a", "<u2"),
+            ])
+            triangles = np.frombuffer(data, dtype=triangle_dtype, offset=84)
+            vertices = triangles["v"].astype(float)
+    if vertices is None:
+        points = []
+        for line in data.decode("utf-8", errors="ignore").splitlines():
+            words = line.split()
+            if len(words) == 4 and words[0].lower() == "vertex":
+                points.append([float(x) for x in words[1:]])
+        vertices = np.asarray(points, dtype=float).reshape(-1, 3, 3)
+    if not len(vertices) or not np.all(np.isfinite(vertices)):
+        raise ValueError("model is not a finite STL triangle mesh")
     return vertices
 
 

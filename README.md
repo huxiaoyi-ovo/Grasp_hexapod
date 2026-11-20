@@ -33,11 +33,10 @@
 
 ## 构建
 
-在工作空间根目录使用构建脚本。脚本固定采用 Release 编译，并检查构建缓存。
+打开新的终端，进入工作空间根目录并加载 ROS Noetic。构建脚本使用 Release 配置，并检查 CMake 缓存。
 
 ```bash
-./build_release.sh
-source devel/setup.bash
+source /opt/ros/noetic/setup.bash && ./build_release.sh && source devel/setup.bash
 ```
 
 Isaac Gym 需要安装在它支持的独立 Python 环境中。日常仿真可直接使用该环境运行入口脚本。
@@ -206,8 +205,13 @@ sudo apt install ros-noetic-apriltag-ros ros-noetic-image-proc ros-noetic-image-
 ```
 
 ```bash
-cd ~/Grasp_hexapod && ./build_release.sh && source devel/setup.bash
+cd ~/Grasp_hexapod &&
+  source /opt/ros/noetic/setup.bash &&
+  ./build_release.sh &&
+  source devel/setup.bash
 ```
+
+在同一终端运行测试。
 
 ```bash
 ./build_release.sh run_tests_grasp_hexapod_bt_control run_tests_grasp_hexapod_control

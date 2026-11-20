@@ -33,9 +33,10 @@
 
 ## 构建
 
+在工作空间根目录使用构建脚本。脚本固定采用 Release 编译，并检查构建缓存。
+
 ```bash
-source /opt/ros/noetic/setup.bash
-catkin_make
+./build_release.sh
 source devel/setup.bash
 ```
 
@@ -205,11 +206,11 @@ sudo apt install ros-noetic-apriltag-ros ros-noetic-image-proc ros-noetic-image-
 ```
 
 ```bash
-cd ~/Grasp_hexapod && catkin_make && source devel/setup.bash
+cd ~/Grasp_hexapod && ./build_release.sh && source devel/setup.bash
 ```
 
 ```bash
-catkin_make run_tests_grasp_hexapod_bt_control run_tests_grasp_hexapod_control
+./build_release.sh run_tests_grasp_hexapod_bt_control run_tests_grasp_hexapod_control
 ```
 
 **第 1 步：只启动、不动作，检查感知和反馈**
@@ -329,7 +330,7 @@ roslaunch grasp_hexapod_bt_control full_mission.launch start_sequence:=true
 - 正面攀爬结束时机身离对接点约 13 cm，超出对接原地搜索范围，暂未处理。
 - C++ 行走步态与 Python 在金标第 75 帧差 0.085 rad（既有问题，未查）。
 - 盲走收尾的停车精度取决于 D 的量取、最后一帧 tag 深度和腿里程；腿里程只测“支撑腿足端是否按指令后移”，不能证明机身真的前进（足端打滑时里程仍会累加），只有腿没跟上指令时才会触发里程不符。盲走不使用接触或力反馈，IMU 只保持航向。停止前进指令后步态收尾还会多走几毫米，这部分未计入剩余距离；这些都尚未在实机上测量。
-- 以上代码只在无 ROS 环境做过单元测试和金标对比，`catkin_make` 和实机首次运行需要现场确认。
+- 以上代码只在无 ROS 环境做过单元测试和金标对比，`./build_release.sh` 和实机首次运行需要现场确认。
 
 ## 安全操作
 

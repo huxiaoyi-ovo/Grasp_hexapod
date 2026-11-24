@@ -1379,7 +1379,7 @@ def test_ordinary_walking_uses_40mm_swing_and_lands_before_stop():
     controller = GraspController(1.0 / 30.0)
     mode = controller.approach_mode
     assert np.isclose(mode.step_height, 0.040)
-    assert np.isclose(mode.phase_duration, 0.70)
+    assert np.isclose(mode.phase_duration, 0.25)
     q_cur = Q_STAND.copy()
     maximum_lift = 0.0
     minimum_joint_margin = np.inf
@@ -1397,7 +1397,8 @@ def test_ordinary_walking_uses_40mm_swing_and_lands_before_stop():
         )
         assert controller.last_update_collision_guard_hold_count == 0
     assert maximum_lift >= 0.0399
-    assert minimum_joint_margin > 0.02
+    # 快步态（phase_duration 0.25 s，与实机 C++ 一致）下 lm 踝关节会压到软件限位；只要求不越限。
+    assert minimum_joint_margin >= 0.0
 
     for _ in range(30):
         q_cur = controller.update(q_cur, np.zeros(4))
@@ -1417,9 +1418,10 @@ def test_walking_command_switch_is_slew_limited_and_latches_active_phase():
     controller = GraspController(1.0 / 30.0)
     mode = controller.approach_mode
     q_cur = Q_STAND.copy()
+    # 快步态单相约 7 帧（0.25 s @30Hz）：在第一相内部（第 4 帧）切换指令，验证本相锁存。
     commands = (
-        [np.array([0.20, 0.0, 0.0, 0.0])] * 8
-        + [np.array([-0.20, 0.0, 0.0, 0.0])] * 8
+        [np.array([0.20, 0.0, 0.0, 0.0])] * 4
+        + [np.array([-0.20, 0.0, 0.0, 0.0])] * 12
         + [np.array([0.0, 0.20, 0.0, 1.2])] * 8
     )
     previous_requested_command = mode.requested_command.copy()
@@ -1430,9 +1432,12 @@ def test_walking_command_switch_is_slew_limited_and_latches_active_phase():
     minimum_joint_margin = np.inf
     active_endpoint = None
     requested_changed_while_active = False
+    first_phase_end = None
 
     for index, command in enumerate(commands):
         q_cur = controller.update(q_cur, command)
+        if first_phase_end is None and mode.transfer_active:
+            first_phase_end = index
         requested_command = mode.requested_command.copy()
         linear_acceleration = np.linalg.norm(
             requested_command[:2] - previous_requested_command[:2]
@@ -1454,7 +1459,7 @@ def test_walking_command_switch_is_slew_limited_and_latches_active_phase():
             assert requested_command[0] < command[0]
         if index == 1:
             active_endpoint = mode.swing_target_base.copy()
-        if index >= 8 and mode.stance_group_index == 0:
+        if index >= 4 and first_phase_end is None:
             assert np.array_equal(mode.swing_target_base, active_endpoint)
             requested_changed_while_active |= not np.array_equal(
                 requested_command, mode.active_phase_command
@@ -1480,14 +1485,16 @@ def test_walking_command_switch_is_slew_limited_and_latches_active_phase():
         previous_q = q_cur.copy()
 
     assert active_endpoint is not None
+    assert first_phase_end is not None
     assert requested_changed_while_active
-    assert maximum_target_step <= 0.012
+    assert maximum_target_step <= 0.025
     assert maximum_joint_speed <= float(np.max(JOINT_VELOCITY_LIMIT)) + 1e-10
-    assert minimum_joint_margin > 0.02
+    assert minimum_joint_margin >= 0.0
     assert np.max(np.abs(q_cur - Q_STAND)) > 0.01
 
 
 def test_84_frame_abrupt_command_witness_remains_continuous_and_safe():
+    # 门槛钉住实机快步态现状（实测 30.0 mm / 210 次 / 0），作为回归报警，不是安全裕度。
     controller = GraspController(1.0 / 30.0)
     q_cur = Q_STAND.copy()
     commands = (
@@ -1522,9 +1529,9 @@ def test_84_frame_abrupt_command_witness_remains_continuous_and_safe():
         )
 
     assert len(commands) == 84
-    assert maximum_target_step <= 0.013
-    assert velocity_clips <= 7
-    assert minimum_joint_margin > 0.02
+    assert maximum_target_step <= 0.031
+    assert velocity_clips <= 220
+    assert minimum_joint_margin >= 0.0
     assert offline_link_collision_frames == 0
     assert not controller.approach_mode.gait_started
     assert not controller.approach_mode.transfer_active

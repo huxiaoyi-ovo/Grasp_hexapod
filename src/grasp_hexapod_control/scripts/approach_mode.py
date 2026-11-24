@@ -85,7 +85,8 @@ class ApproachMode:
         self.stance_group_index = 0
 
         # 实机优先保持足端轨迹和舵机跟踪平滑，不追求极限步频。
-        self.phase_duration = 0.70
+        # 0.3 m/s 下缩短周期控制步距约 15.5cm（步距 = v*(T+τ)），避免落点超出工作空间。
+        self.phase_duration = 0.25
         self.phase_time = 0.0
 
         # 共同支撑目标为50 ms，并量化到最接近的整数控制帧：
@@ -103,10 +104,11 @@ class ApproachMode:
         self.swing_lift_fraction = 0.45
         # 梯形剖面加减速段占比，峰值速度由单程抬腿时间决定。
         self.lift_accel_fraction = 0.15
-        self.max_linear_acceleration = 0.40
+        self.max_linear_acceleration = 0.60
         self.max_yaw_acceleration = 2.0
         # 合并平移和偏航后，限制标准足端的平面速度预算。
-        self.max_foot_planar_speed = 0.12
+        # 这是实际限速瓶颈：navigation_linear_speed 配 0.20 也被这里砍回限幅值。
+        self.max_foot_planar_speed = 0.30
         self.nominal_foot_radius = float(np.mean(
             np.linalg.norm(controller.foot_init_base[:, :2], axis=1)
         ))
@@ -496,9 +498,10 @@ class ApproachMode:
             position_error_pv = target_xy - current_xy
             position_error = np.linalg.norm(position_error_pv)
             if position_error > self.position_tolerance:
+                # 比例项 2.5：满速保持到误差 8cm 以内才减速，缩短末段蠕行；过冲风险换来的提速，位置容差只有 3cm，不宜再放大。
                 speed = min(
                     self.auto_linear_speed,
-                    1.5 * position_error,
+                    2.5 * position_error,
                 )
                 velocity_pv = (
                     speed * position_error_pv / position_error

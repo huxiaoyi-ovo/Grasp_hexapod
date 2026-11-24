@@ -125,7 +125,7 @@ rosrun grasp_hexapod_bt_control phase1_visual_sequence
 It executes `home -> spin_search -> approach -> HOLD`; it never requests climb
 or dock. Its deployment-start limits are `.03 m/s` maximum forward motion and
 `.60 m` camera-optical stopping depth. Existing perception accepts depth only
-in `(0.2, 1.0) m`. This batch adds no camera-to-body extrinsic transform, hot
+in `(0.2, 2.5) m`. Beyond visual_far_distance_m (1.0 m) the coarse forward limit ramps over visual_far_ramp_m (0.3 m) to visual_far_max_forward_speed_m_s (0.08 m/s); within 1 m it stays 0.03 m/s. This batch adds no camera-to-body extrinsic transform, hot
 extrinsic update, or AprilTag alignment. `visual_guidance_enabled` stays false
 in the legacy launch, so its default fake/RTK behavior remains unchanged.
 

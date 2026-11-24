@@ -266,5 +266,49 @@ TEST(VisualGuidance, LateFirstNoTargetHealthStartsThenTargetLossTimesOut) {
   EXPECT_EQ(guidance.state(), VisualState::Failed);
 }
 
+VisualGuidanceConfig farConfig() {
+  VisualGuidanceConfig config;
+  config.far_max_forward_speed_m_s = .08;
+  return config;
+}
+
+Eigen::Vector4d approachAt(const VisualGuidanceConfig& config, double x, double z) {
+  VisualGuidance guidance(config);
+  guidance.begin(VisualState::Approaching, 1.0);
+  cacheTarget(guidance, observation(x, z, 1.01));
+  return guidance.update(1.02, true);
+}
+
+TEST(VisualGuidance, FarTargetUsesFarSpeedLimit) {
+  EXPECT_NEAR(approachAt(farConfig(), 0., 2.0)[1], .08, 1e-9);
+}
+
+TEST(VisualGuidance, NearTargetKeepsNearSpeedLimit) {
+  EXPECT_NEAR(approachAt(farConfig(), 0., 0.95)[1], .03, 1e-9);
+}
+
+TEST(VisualGuidance, RampInterpolatesSpeedLimit) {
+  EXPECT_NEAR(approachAt(farConfig(), 0., 1.15)[1], .055, 1e-9);
+}
+
+TEST(VisualGuidance, FarTargetStillTurnsInPlaceWhenMisaligned) {
+  const Eigen::Vector4d command = approachAt(farConfig(), 0.4, 2.0);
+  EXPECT_EQ(command[1], 0.0);
+  EXPECT_NE(command[3], 0.0);
+}
+
+TEST(VisualGuidance, DefaultConfigFarSpeedEqualsNear) {
+  EXPECT_NEAR(approachAt(VisualGuidanceConfig{}, 0., 2.0)[1], .03, 1e-9);
+}
+
+TEST(VisualGuidance, InvalidFarConfigThrows) {
+  VisualGuidanceConfig slow;
+  slow.far_max_forward_speed_m_s = .02;
+  EXPECT_THROW(VisualGuidance guidance(slow), std::invalid_argument);
+  VisualGuidanceConfig close;
+  close.far_distance_m = close.stop_distance_m + close.stop_tolerance_m;
+  EXPECT_THROW(VisualGuidance guidance(close), std::invalid_argument);
+}
+
 }  // namespace
 }  // namespace grasp_hexapod_bt_control

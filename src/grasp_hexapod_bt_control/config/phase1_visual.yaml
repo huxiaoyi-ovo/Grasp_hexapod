@@ -7,6 +7,10 @@ visual_search_yaw_rate: 0.15
 visual_yaw_gain: 0.8
 visual_max_yaw_rate: 0.15
 visual_max_forward_speed_m_s: 0.03
+# z > visual_far_distance_m 时前进上限在 visual_far_ramp_m 内线性升到远距离上限；1 m 内保持 0.03 m/s。
+visual_far_distance_m: 1.0
+visual_far_ramp_m: 0.3
+visual_far_max_forward_speed_m_s: 0.08
 visual_distance_gain: 0.3
 visual_stop_distance_m: 0.20
 visual_stop_tolerance_m: 0.02
@@ -17,7 +21,7 @@ visual_diagnostics_period_s: 2.0
 visual_settle_s: 0.25
 visual_loss_timeout_s: 1.0
 visual_search_timeout_s: 60.0
-visual_approach_timeout_s: 60.0
+visual_approach_timeout_s: 120.0
 
 # --- AprilTag handoff + servo inside the visual approach mode ---------------
 # While the coarse YOLO approach runs, fresh detections of tag_guidance_id are

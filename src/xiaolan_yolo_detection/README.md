@@ -247,7 +247,7 @@ rosrun rqt_image_view rqt_image_view /xiaolan_visualizer/image
 | `depth_sync_tolerance` | `0.025` | RGB 与深度时间戳容差，秒 |
 | `roi_size` | `9` | 检测框中心深度采样区域边长，像素 |
 | `min_valid_depth_pixels` | `5` | 深度区域最少有效像素数 |
-| `min_depth` / `max_depth` | `0.20` / `1.00` | 有效深度范围，严格排除边界，米 |
+| `min_depth` / `max_depth` | `0.20` / `2.50` | 有效深度范围，严格排除边界，米 |
 | `center_tolerance_m` | `0.03` | 居中判断的横向偏移容差，米 |
 | `confirm_frames` | `2` | 目标确认所需连续有效帧数 |
 | `lost_tolerance_frames` | `3` | 短时丢失容忍帧数 |
@@ -323,7 +323,7 @@ YOLO 日志中的 `FPS` 只统计实际执行推理的帧，`dropped` 是该日�
 
 若有检测框但定位失败，查看 `/xiaolan/target_debug` 中的 `depth_stats`：
 `NO_VALID_DEPTH` 表示中心 ROI 无正数有限深度；`DEPTH_OUT_OF_RANGE` 表示深度全部
-超出配置的严格范围 `(0.20, 1.00)` 米；`INSUFFICIENT_DEPTH_PIXELS` 表示范围内像素
+超出配置的严格范围 `(0.20, 2.50)` 米；`INSUFFICIENT_DEPTH_PIXELS` 表示范围内像素
 不足。`observed_median_m` 给出筛选前的正数深度中值，`valid_pixels` 给出范围内像素数。
 应根据实际距离和测量结果调整范围，或检查相机深度空洞，不要仅凭检测置信度判断定位有效。
 

@@ -13,6 +13,12 @@ bool positive(double value) {
 double bounded(double value, double limit) {
   return std::max(-limit, std::min(limit, value));
 }
+
+double forwardLimit(const VisualGuidanceConfig& c, double z) {
+  if (z <= c.far_distance_m) return c.max_forward_speed_m_s;
+  if (z >= c.far_distance_m + c.far_ramp_m) return c.far_max_forward_speed_m_s;
+  return c.max_forward_speed_m_s + (c.far_max_forward_speed_m_s - c.max_forward_speed_m_s) * (z - c.far_distance_m) / c.far_ramp_m;
+}
 }  // namespace
 
 VisualGuidanceConfig loadVisualGuidanceConfig(ros::NodeHandle& p) {
@@ -25,6 +31,9 @@ VisualGuidanceConfig loadVisualGuidanceConfig(ros::NodeHandle& p) {
   c.yaw_gain = p.param("visual_yaw_gain", .8);
   c.max_yaw_rate = p.param("visual_max_yaw_rate", .15);
   c.max_forward_speed_m_s = p.param("visual_max_forward_speed_m_s", .03);
+  c.far_distance_m = p.param("visual_far_distance_m", 1.0);
+  c.far_ramp_m = p.param("visual_far_ramp_m", .3);
+  c.far_max_forward_speed_m_s = p.param("visual_far_max_forward_speed_m_s", .03);
   c.distance_gain = p.param("visual_distance_gain", .3);
   c.stop_distance_m = p.param("visual_stop_distance_m", .60);
   c.settle_s = p.param("visual_settle_s", .25);
@@ -46,7 +55,10 @@ VisualGuidance::VisualGuidance(VisualGuidanceConfig c) : config_(c) {
       !positive(c.search_yaw_rate) || !positive(c.yaw_gain) || !positive(c.max_yaw_rate) ||
       !positive(c.max_forward_speed_m_s) || !positive(c.distance_gain) ||
       !positive(c.stop_distance_m) || !positive(c.stop_tolerance_m) || c.stop_tolerance_m >= c.stop_distance_m || !positive(c.settle_s) || !positive(c.loss_timeout_s) || !positive(c.input_startup_timeout_s) || !positive(c.input_loss_timeout_s) || c.input_loss_timeout_s <= c.max_age_s || !std::isfinite(c.diagnostics_period_s) || c.diagnostics_period_s < 1. || c.expected_frame.empty() ||
-      !positive(c.search_timeout_s) || !positive(c.approach_timeout_s)) {
+      !positive(c.search_timeout_s) || !positive(c.approach_timeout_s) ||
+      !positive(c.far_distance_m) || !positive(c.far_ramp_m) || !positive(c.far_max_forward_speed_m_s) ||
+      c.far_max_forward_speed_m_s < c.max_forward_speed_m_s ||
+      c.far_distance_m <= c.stop_distance_m + c.stop_tolerance_m) {
     throw std::invalid_argument("invalid visual guidance configuration");
   }
 }
@@ -287,7 +299,7 @@ Eigen::Vector4d VisualGuidance::update(double now, bool gait_stopped) {
     state_ = VisualState::Approaching;
     settle_started_ = 0.;
     const double yaw = bounded(-config_.yaw_gain * theta, config_.max_yaw_rate);
-    const double forward = std::abs(theta) > config_.align_angle_rad ? 0. : std::min(config_.max_forward_speed_m_s, config_.distance_gain * std::max(0., v.z - config_.stop_distance_m));
+    const double forward = std::abs(theta) > config_.align_angle_rad ? 0. : std::min(forwardLimit(config_, v.z), config_.distance_gain * std::max(0., v.z - config_.stop_distance_m));
     return Eigen::Vector4d(0., forward, 0., yaw);
   }
   return zero;

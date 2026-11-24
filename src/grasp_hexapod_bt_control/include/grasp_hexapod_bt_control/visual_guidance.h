@@ -12,6 +12,7 @@ struct VisualGuidanceConfig {
   double max_age_s = .25, confirm_frames = 3, lock_angle_rad = .10;
   double align_angle_rad = .15, search_yaw_rate = .15, yaw_gain = .8;
   double max_yaw_rate = .15, max_forward_speed_m_s = .03;
+  double far_distance_m = 1.0, far_ramp_m = .3, far_max_forward_speed_m_s = .03;
   double distance_gain = .3, stop_distance_m = .60, settle_s = .25;
   double loss_timeout_s = 1., search_timeout_s = 60., approach_timeout_s = 60.;
   double stop_tolerance_m = .02, input_startup_timeout_s = 2., input_loss_timeout_s = .5;

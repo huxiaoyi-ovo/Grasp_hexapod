@@ -245,3 +245,14 @@
 - 路由：`CLIMB_ENGINEERING_RULES.md` 开头和 `CLAUDE.md` 第 4 条指向该 SOP。`AGENTS.md` 未改。
 - 只是文档整理，无代码/配置改动；数值均取自 v11 证据目录 README、`CLIMB_ENGINEERING_RULES.md` 11-12 关闭卡和本会话验证记录。
 - 建议后续：把 v11 原型工具（chain、landing_tolerance、retime、hw_retime、cpp_replay、起点误差扫描）提升为 `scripts/tools/` 维护工具，参数化路径与阶段名。
+
+## 2026-11-24 非攀爬：BT 遗留清理 + Python 行走步态对齐实机 C++
+
+- 基线：`origin/test` `43d6444`（主目录 detached；`test` 分支被攀爬 worktree `/home/artrc/grasp_wt_test` 占用，故以 `git push origin HEAD:test` 推送）。用户要求本对话不动攀爬；MuJoCo 放弃（未入库的 `src/grasp_hexapod_mujoco/` 保留不动）；dock 不管。
+- `7519524` BT 遗留清理（execution_owner：Sol）：`hexapod_mission.xml`、`hexapod_bt.py`、`run_real_bt.py`、`sim_manual.py`、`bt_mock_world.py` 的 `BT_INTERFACES.md`→`BT_INTERFACE_GUIDE.md`；`bt_mock_world.py` 与 `BT_INTERFACE_GUIDE.md` 的 C1→C35 改为 compact 阶段序列（默认正面 v11）。验证 py_compile + xmllint。**流程偏差**：该批 6 个文件按 AGENTS.md 应交 Luna，Sol 直接改了（纯文本替换），在此记录。有意未改：`run_sim_ros_climb.launch`、`climb_retime.py`（攀爬）、`CLIMB_ENGINEERING_RULES.md` 与 `src/docs/evidence/`（历史）。
+- 第 1 项诊断：C++ `reset_then_walk` 金标第 75 帧差 0.085 rad 的根因是 `c3f6c81`（2026-09-14 “修改移动速度”）只改了 C++ `ApproachMode`：`phase_duration` 0.70→0.25、`max_foot_planar_speed` 0.12→0.30、`max_linear_acceleration` 0.40→0.60、自动接近比例项 1.5→2.5（另 `run_real_ring_cpp.launch` max_linear_speed 0.30）。C++ 副本改回三参数后 6/6 金标通过，算法本身一致。
+- 用户决定：实机（C++，所有实机入口 `control_stack_cpp`/`bt_control_node` 都用它）不改，实机快步态走过没问题；Python 默认跟 C++。
+- `920f129`（execution_owner：Luna，最轻档位，effort medium；测试更新 + 金标重录）：Python `approach_mode.py` 四个值同步；`test_real_mode_routing.py` 三个行走测试按快步态实测重设门槛（关节余量 ≥0、足端单帧步长 ≤25/31 mm、限速截断 ≤220、锁存检查移到第一相内部）——这些是回归报警，不是安全裕度；金标只替换 `reset_then_walk`，其余键逐字节不变。
+- 验证：pytest `test_real_mode_routing.py`+`test_approach_navigation.py` 83 通过 / 9 失败（与基线相同，均为本机无 isaacgym）；C++ `test_golden_trajectory` 6/6、`test_golden_config` 7/7；`test_kinematics_golden` 1 失败为既有 2.8e-17 FK 末位差（改前构建同样失败）。未运行 catkin/ROS/Isaac/实机。
+- 风险记录（理想伺服 CPU 回放，非实机证据）：快步态 T=0.25 s 下 lm 踝关节起步第 2 帧压到 2.094 rad 软件限位，每帧 3–5 个关节被 4 rad/s 指令限速截断，足端跟踪误差峰值 44–67 mm（T=0.70 时 14 mm）。用户实机经验优先；若实机出现抬腿不足、落脚错乱或踝关节撞限位，从这里查。
+- 待办：Isaac 仿真快步态未跑（本机无 isaacgym），需在用户机器上看一次行走；`run_real.py`（Python 实机入口）行走也随之变快。

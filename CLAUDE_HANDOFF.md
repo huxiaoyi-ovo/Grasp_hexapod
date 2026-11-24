@@ -351,3 +351,17 @@
 - 2026-11-24 v18 落点后移方案（用户同意 LM .255 / RB .28）结果：**不可行**。`v18searchA/B/C.py`（Q=C15 终止且 LB 起脚、去掉 SIX_BODY_LB；LB 斜面中间落点 T；站姿 T0；STEP_A/B COM；LB 两段路径；全部按 SDF 稳健检查）。小腿问题可解（Q≈(.31,−.06,.215,.32,−.05,yaw+10°)，knee 稳健 +5.7–8.5 mm），但 LB 落到斜面时对 LM 最好 9.5 mm、对机身 5.9 mm（v16b 用户采纳 21.9/12.4，认为 12 mm 已过小）；LM .265/.27 + RB .275/.28、LM 内收 y .09–.10 均无解；左侧（y≥.14）全为 75–109 mm 结构。搜索器对拍：v17 落点 + 去掉小腿约束能找回 v17 类解（knee −17.6 mm），说明无解为真。
 - 结论：在“LB 在墙前地面中继、RB 先上翼面、机身前移后 LB 抬起”的接触顺序下，LB 小腿碰墙顶与 LB 抬起 COM、LB 落斜面空间三者冲突。下一步需用户决定是否做后腿接触顺序级搜索（例如 LB 在机身前移前、RB 仍在地面时先上斜面；之前同类换序被 RB 抬起 COM −8~−11 mm 否决，需在新约束下重查）。
 - 搜索资源：均在 systemd-run MemoryMax 10–12G、pool_map safe_procs=12 下运行，单次 20–45 s，无内存问题。
+
+### 2026-11-24 补记（Sol）：v16 已推送为默认（`8b0374a`），推送后补验
+- 用户要求立即上实机，Luna 合同中途停止，Sol 直接提交推送（Luna 已完成：同步 dbf00ab、生成 `climb_front_v16.json`（阶段与 v16_bhw 逐字相同，`terminal_q_rad` 重算——原值是 v11 残留，最大差 1.11 rad）、改 `mode_climb.cpp` / `full_mission.launch` / `control_only.launch` 默认）。
+- 推送后补验：Python 校验器 OK；CPU 30 Hz 回放 DONE 1200 帧 0 截断；worktree `catkin_make --only-pkg-with-deps grasp_hexapod_bt_control`（全量编译因 OrbbecSDK 扩展文件缺失失败，与攀爬无关）；C++ `cpp_replay` 仿真/实机模式均 DONE 1200 帧，峰值 3.60 rad/s，末帧对 terminal_q 5.4e-6 rad。
+- 未做：catkin 测试、假舵机 ROS e2e、Isaac 名义复跑（扫描 9/11 为 v16_bhw 原值）、证据目录（说明稿在 scratchpad `v16_candidate_README.md`）。
+- 实机注意：C16 LB knee_link 压墙顶边（模型 ~20 mm）；C19 RF / C20 LF 抬脚 ~22 mm（用户决定不改）。
+
+## 2026-11-24 Claude Code（Sol）：v16 实机反馈 → 正面攀爬默认改为 v16.1（后腿落点推深）
+- 用户实机反馈（v16）：①行走步子小、频率高、机身晃；②恢复站立时腿在地上硬拧，要改为抬腿回正；③C11 右中腿上台时小腿几乎水平，可能撞右侧黑色立柱（地形中 x .200–.225、y −.355…−.330、高 224 mm）；④**最优先**：左右后腿落点尽量往小蓝里面（实机多次因后腿踩空摔倒）。
+- ④ 已做：`climb_front_v16_1.json`（来源 `v161ahw.json`，原型目录 `claude_front_v18_20261124/`，`edit_v161.py`）：C14 RM→(.38,−.29)、C15 RB→(.30,−.30)（C15 终止机身 (.32,−.088,.23,.36,−.15,yaw+15°)）、C17 LB→(.225,.10)、C20 LB 终点→(.26,−.07)。防落短余量：C15 RB 34→44 mm、C17 LB 32→38、C20 LB 24→70。CPU DONE 1173 帧 0 截断；C++ 仿真/实机模式 DONE，峰值 3.60 rad/s，末帧对 terminal_q 4.3e-6 rad；Isaac 11 组 **10/11**（v16 9/11，v11 7/11；失败 +2/+1.5/+3° 于 LB_SLOPE_BODY）。默认已切到 v16.1（mode_climb.cpp / full_mission.launch / control_only.launch 注释），v16、v11 保留回退。
+- ③ 尝试（未采用）：C11 RM 离地即翻成"小腿朝上"（踝关节反折，关节空间加密节点 `rmtuck.py`）。v16.1b 9/11 且 CPU 审计 C11 IK 跟踪误差 15.5 mm（翻转过直腿奇异点时 DLS 落后）；翻转放慢 ×1.6 的 v16.1c CPU 通过（13.4 mm）但 Isaac 8/11（C11 +2.35 s 后 C12/C17/C20 边缘工况失败）。下一步：不翻转、只整体抬高且小腿不朝外伸的方案。
+- ① Luna `b05b7f3`：phase 0.25→0.40 s、step_height 0.04→0.06（C++/Python/金标/测试同步）。Sol 复核（`/home/artrc/grasp_sync_backups/gait_20261124/gaitsweep.py`）：限速截断旧步态本就严重（0.12 m/s 180 帧 592 次，新 627 次）；根因是站姿踝关节 1.72 rad 离 ±2.094 限位仅 0.37 rad，行走时踝关节频繁顶限位（120 帧 49 帧），落点投影截短频繁（旧 90/200、新 139/200）。根治需调站立姿态，待用户决定；`b05b7f3` 可 `git revert` 回退。
+- ② 方案已定未实现：六足先只升降机身 → 三角组 A（LF/RM/LB）抬 4 cm→空中移到站位→放 → 组 B；仅六足着地时用，悬空等情况保留关节插值。
+- 遗留：C15/C16 LB knee_link 对墙顶边（模型 C15 名义 −1 mm、C16 −20 mm，被落后掩盖，用户 v16 实机未报此处卡腿）；C19 RF / C20 LF 抬脚 ~22 mm。

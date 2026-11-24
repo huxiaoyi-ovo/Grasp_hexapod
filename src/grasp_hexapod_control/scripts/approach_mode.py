@@ -85,8 +85,8 @@ class ApproachMode:
         self.stance_group_index = 0
 
         # 实机优先保持足端轨迹和舵机跟踪平滑，不追求极限步频。
-        # 0.3 m/s 下缩短周期控制步距约 15.5cm（步距 = v*(T+τ)），避免落点超出工作空间。
-        self.phase_duration = 0.25
+        # 步距 = v*(T+2τ)：0.30 m/s 约 14 cm，0.12 m/s 约 5.6 cm，避免落点超出工作空间。
+        self.phase_duration = 0.40
         self.phase_time = 0.0
 
         # 共同支撑目标为50 ms，并量化到最接近的整数控制帧：
@@ -99,7 +99,7 @@ class ApproachMode:
         self.transfer_time = 0.0
         self.transfer_active = False
 
-        self.step_height = 0.040
+        self.step_height = 0.060
         # 前45%平滑抬起、中间10%保持高位、后45%平滑落下。
         self.swing_lift_fraction = 0.45
         # 梯形剖面加减速段占比，峰值速度由单程抬腿时间决定。

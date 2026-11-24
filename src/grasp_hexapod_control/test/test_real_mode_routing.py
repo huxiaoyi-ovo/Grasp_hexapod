@@ -1375,11 +1375,11 @@ def test_dock_foot_target_uses_the_shared_dls_chain():
     assert dock.failed_reason == ""
 
 
-def test_ordinary_walking_uses_40mm_swing_and_lands_before_stop():
+def test_ordinary_walking_uses_60mm_swing_and_lands_before_stop():
     controller = GraspController(1.0 / 30.0)
     mode = controller.approach_mode
-    assert np.isclose(mode.step_height, 0.040)
-    assert np.isclose(mode.phase_duration, 0.25)
+    assert np.isclose(mode.step_height, 0.060)
+    assert np.isclose(mode.phase_duration, 0.40)
     q_cur = Q_STAND.copy()
     maximum_lift = 0.0
     minimum_joint_margin = np.inf
@@ -1396,8 +1396,9 @@ def test_ordinary_walking_uses_40mm_swing_and_lands_before_stop():
             float(np.min(JOINT_UPPER - q_cur)),
         )
         assert controller.last_update_collision_guard_hold_count == 0
-    assert maximum_lift >= 0.0399
-    # 快步态（phase_duration 0.25 s，与实机 C++ 一致）下 lm 踝关节会压到软件限位；只要求不越限。
+    assert maximum_lift >= 0.0599
+    # 长步态（phase_duration 0.40 s、抬腿 60 mm，与实机 C++ 一致）：实测最大抬腿 60.0 mm，
+    # 关节余量最小 0.0（踝关节压到软件限位）；只要求不越限。
     assert minimum_joint_margin >= 0.0
 
     for _ in range(30):
@@ -1418,7 +1419,8 @@ def test_walking_command_switch_is_slew_limited_and_latches_active_phase():
     controller = GraspController(1.0 / 30.0)
     mode = controller.approach_mode
     q_cur = Q_STAND.copy()
-    # 快步态单相约 7 帧（0.25 s @30Hz）：在第一相内部（第 4 帧）切换指令，验证本相锁存。
+    # 长步态单相约 12 帧（0.40 s @30Hz）：在第一相内部（第 4 帧）切换指令，验证本相锁存。
+    # 实测（phase 0.40 s、抬腿 60 mm）：足端单帧步长 19.9 mm，关节速度 4.0 rad/s，关节余量最小 0.0。
     commands = (
         [np.array([0.20, 0.0, 0.0, 0.0])] * 4
         + [np.array([-0.20, 0.0, 0.0, 0.0])] * 12
@@ -1487,14 +1489,14 @@ def test_walking_command_switch_is_slew_limited_and_latches_active_phase():
     assert active_endpoint is not None
     assert first_phase_end is not None
     assert requested_changed_while_active
-    assert maximum_target_step <= 0.025
+    assert maximum_target_step <= 0.021
     assert maximum_joint_speed <= float(np.max(JOINT_VELOCITY_LIMIT)) + 1e-10
     assert minimum_joint_margin >= 0.0
     assert np.max(np.abs(q_cur - Q_STAND)) > 0.01
 
 
 def test_84_frame_abrupt_command_witness_remains_continuous_and_safe():
-    # 门槛钉住实机快步态现状（实测 30.0 mm / 210 次 / 0），作为回归报警，不是安全裕度。
+    # 门槛钉住实机长步态现状（实测 21.2 mm / 191 次 / 0），作为回归报警，不是安全裕度。
     controller = GraspController(1.0 / 30.0)
     q_cur = Q_STAND.copy()
     commands = (
@@ -1529,8 +1531,8 @@ def test_84_frame_abrupt_command_witness_remains_continuous_and_safe():
         )
 
     assert len(commands) == 84
-    assert maximum_target_step <= 0.031
-    assert velocity_clips <= 220
+    assert maximum_target_step <= 0.022
+    assert velocity_clips <= 200
     assert minimum_joint_margin >= 0.0
     assert offline_link_collision_frames == 0
     assert not controller.approach_mode.gait_started

@@ -374,3 +374,19 @@
 - 文件：include/climb_compact.h、climb_mode.h、control.h；src/climb_compact.cpp、climb_mode.cpp、control.cpp；scripts/climb_mode.py、control.py、utils/climb.py；CMakeLists.txt；test/test_climb_joint_space.cpp/.py。
 - 验证：新 gtest 5/5（MID_PLATFORM_285 腿 5 knot 1→2，区间内 25 帧 max|q_des−q_ref|=6.7e-16，其余腿与去掉 joint_space 的回放差 0）；新 pytest 14/14（同样 0 / 0）；golden_trajectory 6/6、golden_config 7/7、KinematicsGolden 失败为已知项；pytest 集合 17 failed/146 passed（基线 17 failed/132 passed，失败列表相同，+14 新测试）；cpp_replay v16_1 sim/hw 与改前参考（`/home/artrc/grasp_sync_backups/joint_space_20261125/ref_{sim,hw}.csv`）逐字节相同，1173 帧，max diff 0；Python 与 C++ 对同一 joint_space 配置回放差 5.0e-6（与无 joint_space 基线的既有差异相同）。
 - 未做：config 中尚无使用 joint_space 的配置；未推送，待 Sol 审查。
+
+## 2026-11-24 非攀爬：approach / 小蓝 YOLO 审查与远距离起步
+
+- 基线 `8b0374a`（已含攀爬侧 v16 部署，本条未碰）。
+- 审查结论（CPU 单测 + 代码审读，无实机）：(1) 深度有效范围 (0.2,1.0) m 使 1 m 外看到小蓝即 TARGET_PENDING → VisualGuidance 0.5 s 失败；(2) 粗停 0.20 m 贴深度下限，tag 必须在 z≈0.22 m 前接管；(3) 模型仅有 6 张图 CPU/GPU 一致性记录，无 mAP/召回/误检证据，本机无数据集与 best.pt；(4) 深度只取 bbox 中心 9×9（斜看/镂空会量到背景）——用户决定暂不改；(5) 小问题：`depth_median` regions 残留循环、yolo 节点 max_input_age 默认 0.5 与 yaml 0.25 不一致。
+- 本次修改（execution_owner：Luna，中间档位 sonnet、effort medium：6+ 文件 C++/配置/测试耦合）：`xiaolan_yolo.yaml` max_depth 2.50；`phase1_visual.yaml` 接近超时 120 s，新增 `visual_far_distance_m 1.0`、`visual_far_ramp_m 0.3`、`visual_far_max_forward_speed_m_s 0.08`；`VisualGuidance` 前进上限按 z 分段线性（默认 far=near，行为不变）；+6 gtest；两份 README 同步。用户输入：开局距小蓝 1–2 m，远处 0.08 m/s。
+- 验证：visual gtest 26/26、tag 50/50（独立 g++ + /opt/ros/noetic 头文件），YOLO pytest 18 通过 / 3 GPU 跳过。未运行 catkin/roslaunch/实机。
+- 待办：用户提供小蓝实拍与“有光伏板无小蓝”负样本后，做遮挡敏感图 + 颜色反事实（担心模型主要靠蓝色，光伏板误检风险）。实机需确认 1–2.5 m 处 bbox 中心深度稳定性与 0.08 m/s 下 YOLO 跟踪。
+
+## 2026-11-25 Claude Code（Sol）：AprilTag 链路推理 + 合成图检测实测（无仓库代码改动）
+
+- execution_owner：Sol（只读推理 + scratchpad 测试 + 本文件追加）。基线 detached `ca59b7f`；本机工作区未编译（devel/ 仅 setup 脚本），控制器侧未运行。
+- `apriltag_ros` 3.2.1 / `apriltag` 3.2.0 为本机 apt 安装（2026-08-18，x86_64）；Jetson 是否安装未核实。
+- 合成图实测（scratchpad `tagtest/`，独立 roscore 端口，参数同 full_mission.launch，fx 690，无畸变）：位置 x/z 亚毫米准确；官方图案（libapriltag `apriltag_to_image`）正装 yaw≈0、+10° 偏转测得 +9.7…+12.3°，控制器 yaw 符号定义与 apriltag_ros 一致；OpenCV aruco 的 APRILTAG_36h11 图 = 官方图转 180°（yaw≈±180°，示教后 wrap 可处理）；平面内转 90° 安装 |R10|=1 → 全部拒收。
+- 风险（推理 + 合成证据，未实机）：(1) 近正对 yaw 病态：6 cm tag 在 0.5 m 约 0.35 px 边缘误差 ≈ 2°，合成图已出现随距离变化的 0.1–2.3° 偏差，与 tag_yaw_tolerance 0.035 rad 同量级；(2) z=0.8 m、偏 10° 时 40/40 帧 yaw 在 ±10.5° 间翻转（平面位姿二义性），而 Coarse→tag 交接无距离门；(3) 交接无距离门 + tag 前进上限 0.02 m/s + align_timeout 60 s（覆盖 Aligning+Advancing）→ 远处（约 >1.2 m）交接会超时；(4) 相机俯仰被忽略：p0_z=z_D−D 在俯仰 θ 时多走 D(1/cosθ−1)（θ20°/D0.3 m ≈19 mm），URDF 无相机外参，θ 未知；(5) odom_at_last_valid 用处理时刻而非图像时刻，约 2–3 mm 多走（次要）。
+- 待用户决定：交接距离门/近距离才交接、yaw 容差或改用多 tag/更大 tag、俯仰补偿（需相机外参）。

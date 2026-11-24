@@ -256,3 +256,5 @@
 - 验证：pytest `test_real_mode_routing.py`+`test_approach_navigation.py` 83 通过 / 9 失败（与基线相同，均为本机无 isaacgym）；C++ `test_golden_trajectory` 6/6、`test_golden_config` 7/7；`test_kinematics_golden` 1 失败为既有 2.8e-17 FK 末位差（改前构建同样失败）。未运行 catkin/ROS/Isaac/实机。
 - 风险记录（理想伺服 CPU 回放，非实机证据）：快步态 T=0.25 s 下 lm 踝关节起步第 2 帧压到 2.094 rad 软件限位，每帧 3–5 个关节被 4 rad/s 指令限速截断，足端跟踪误差峰值 44–67 mm（T=0.70 时 14 mm）。用户实机经验优先；若实机出现抬腿不足、落脚错乱或踝关节撞限位，从这里查。
 - 待办：Isaac 仿真快步态未跑（本机无 isaacgym），需在用户机器上看一次行走；`run_real.py`（Python 实机入口）行走也随之变快。
+- 补充（同日）Isaac 验证：isaacgym 在 conda 环境 `grasp_hexapod`（无 cv2）。该环境下 pytest 两文件 84 通过 / 8 失败，8 个失败在改前 `43d6444` 上完全相同（launch `enable_link_collision_check` 默认值 + compact 攀爬/硬件攀爬测试，属攀爬侧既有问题，本对话未动）。
+- `run_sim.py --headless --record-servo-trace` 快（当前）/慢（`43d6444`）步态各跑一次，均正常结束。FK 足端误差峰值 前进/右移/旋转：快 33/30/17 mm，慢 27/21/18 mm；限速饱和帧比例 快 79–93%，慢 17–64%。**快步态实际抬腿只有约 22–29 mm**（关节目标本身被 4 rad/s 限速截断，指令 40 mm 达不到），慢步态约 43 mm。平地可走；越障或不平地面的抬腿余量偏小。trace 无机身位姿，未量实际行进距离。

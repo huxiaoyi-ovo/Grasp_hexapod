@@ -226,6 +226,29 @@ P0 同时被攀爬和接近（tag 示教）使用，二者必须是同一个物�
 
 Isaac 时用 `--climb-joint-speed 1.2`（4 rad/s × 1.2 = 4.8 rad/s）检查实机定时，不要用 1.8（6 rad/s）的预览结果判断实机。
 
+### 5.6 计算提速（默认做法，2026-11-23 用户要求以后都这么做）
+
+静态搜索（落点、机身位姿、摆腿路径、站姿）一律**向量化 + 多进程**，不要写逐个调用 `evaluate()` 的 Python 循环。
+
+1. **向量化**：`geom` 的 `world_from_base / inv_rigid / apply / base_to_hip / leg_ik / com_base_exact / capsule_clearance_fast / seg_dist` 都支持前置批量维度。把成千上万个候选位姿堆成 `(B,6)`，足端堆成 `(B,6,3)`（或广播 `(6,3)`），一次调用算完。现成封装在 `fastgeom.py`：
+   - `evaluate_batch(poses, feet, swing)`：IK 可达、关节余量、COM 余量、胶囊余量、机身离地，与 `plan/state.py evaluate` 结果逐位一致；
+   - `swing_path_clear(pose, feet, leg, knots, other)`：一条摆腿路径上对另一条腿和对机身的最小间隙、路径关节余量；
+   - `shank_batch(poses, feet)`：小腿相对接触面法线的倾角，与 `plan/shank.py` 一致；
+   - `body_clear(poses)`：机身底面圆盘离地。
+2. **多进程**：外层候选（落点组合、中继位置等）用 `fastgeom.pool_map`（`multiprocessing` fork 池；进程数受第 7 条资源预算约束，16 核 31 GB 机器上通常 ≤ 12）。每个进程设 `OMP_NUM_THREADS=1`，避免 numpy 线程与进程抢核。
+3. **先粗筛后细查**：先对整张网格做端点检查（起脚/落地两个时刻，向量化），只对幸存者做路径和后续阶段检查。
+4. **新写批量函数先对拍**：和逐个版本在几十个样本上比较，差值必须为 0 才能用。
+5. 多个候选的 CPU 审计（`cpu.sh`）互相独立，可以同时启动多个。
+6. 长任务要在关掉 Claude Code 后继续跑时，用 `setsid nohup bash pipeline.sh > log 2>&1 &`，不要挂在会话的后台任务里（会话退出时会被一起结束）。
+7. **资源预算：不要把机器用到极限**（2026-11-24 用户要求；当天 `jointback.py` 14 进程 × 每进程一次评估 86400 个位姿，约 3.6–7 GB/进程，把 31 GB 内存撑爆）。
+   - **分块**：任何批量调用每次 ≤ `fastgeom.CHUNK` = 8192 个位姿（实测约 41 kB/位姿，峰值约 0.35 GB），用 `fastgeom.chunked(fn, poses, ...)`。禁止在 worker 里把整张大网格一次送进 `evaluate_batch` / `leg_clear`。
+   - **按内存定进程数**：`pool_map` 默认用 `safe_procs(per_proc_gb)`，取“核数 − 4”和“可用内存 × 50% ÷ 单进程峰值”中的较小者。新脚本先在一个 worker 上用 `resource.getrusage(...).ru_maxrss` 实测单进程峰值，再填 `per_proc_gb`。
+   - **硬上限**：长任务或新脚本用 `systemd-run --user --scope -p MemoryMax=12G -p MemorySwapMax=0 python3 ...` 启动（脱离会话时放在 `setsid nohup` 里面）。超限时只杀这一个任务，不会拖垮桌面和 Isaac。
+   - **与 Isaac 并存**：Isaac 3 路并行在跑时，CPU 搜索 ≤ 6 进程、MemoryMax ≤ 8G；GPU 仿真保持 3 路（GPU 利用率已约 91%）。
+   - 启动前用 `free -g` 看一眼可用内存；预计峰值超过可用内存的一半时，先缩小网格或改成分段搜索。
+
+实测（v17，16 核）：批量评估单核快约 120 倍；LB 起脚姿态 + 路径搜索（3×18750 个位姿）15 s；落点 × 站姿 × 两步联合搜索（3600 组）5.4 min。原来逐个循环同规模要数小时。工具在 `/home/artrc/grasp_sync_backups/claude_front_v16_20261123/`（`fastgeom.py`、`v17search.py`），仍是原型路径。
+
 ---
 
 ## 6. 冻结（准备上实机）
@@ -280,6 +303,9 @@ Isaac 时用 `--climb-joint-speed 1.2`（4 rad/s × 1.2 = 4.8 rad/s）检查实�
 | 提速过头 | 起点误差鲁棒性下降 | 速度改动后必须重跑第 5 级扫描 |
 | `rospack` 缓存/主工作区路径 | worktree 校验时 `$(find)` 指向旧文件 | 干净环境：只 source `/opt/ros/noetic` 并把 `ROS_PACKAGE_PATH` 指向 worktree |
 | `pkill -f` 匹配到自身 shell | 命令被杀（exit 144） | 用 `[e]2e` 这种方括号模式 |
+| `landing_tolerance.py` 落点本身不安全时 | 误报四向 40 mm（`bad[0]=0` 取到 `STEP[-1]`） | 先查落点本身在 `safe` 掩码内 |
+| 只查起脚/落地两个时刻 | 中间路径小腿撞机身（v17 C17 −8.6 mm） | 摆腿路径整条采样查间隙（`swing_path_clear`） |
+| 逐个 Python 循环做静态搜索 | 一次搜索几十分钟到数小时，超时 | 按 5.6 向量化 + 多进程 |
 
 ---
 

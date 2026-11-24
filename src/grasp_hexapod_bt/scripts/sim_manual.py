@@ -8,7 +8,7 @@ dashboard 面板按钮 → /grasp_hexapod/sim_inject 服务（动作 id）→ �
     sim_feedback  自动时间线回归（按下放/落地/模式完成时刻自动推进）
     sim_manual    手动单步联调（每一步都由人点击放行，可控点更细）
 
-接口（标准名不变，契约见 src/docs/BT_INTERFACES.md）：
+接口（标准名不变，契约见 src/docs/BT_INTERFACE_GUIDE.md）：
     服务(托管)  sim_inject   /grasp_hexapod/sim_inject   （看板按钮调用，常驻）
                 switch_mode  /grasp_hexapod/switch_mode  （开关式挂载，探测占用）
                 gripper_act  /grasp_hexapod/gripper_act  （开关式挂载）

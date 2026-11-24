@@ -5,7 +5,7 @@
 sim_feedback.py（按 config/real_bt.yaml 对 simulate:true 的接口模拟发布/
 应答）。本脚本只做三件事：订阅标准名话题 → 调标准名服务 → tick 行为树。
 
-标准名接口（契约见 src/docs/BT_INTERFACES.md）：
+标准名接口（契约见 src/docs/BT_INTERFACE_GUIDE.md）：
     话题：/grasp_hexapod/sensor_health、/grasp_hexapod/encoder_state、
           /fix、/lora/command、/lora/status、/grasp_hexapod/remote_cmd
     服务：/grasp_hexapod/switch_mode（阻塞式，返回最终 success/message）、

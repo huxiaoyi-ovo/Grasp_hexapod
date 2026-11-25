@@ -284,6 +284,45 @@ CompactStage parseStage(const json& stage, int index, bool front) {
     }
     parsed.has_active_base_velocities = true;
   }
+  if (stage.contains("joint_space") && !stage["joint_space"].is_null()) {
+    const json& joint_space = stage["joint_space"];
+    const auto invalid = [&]() {
+      throw ConfigError("invalid joint_space: " + parsed.name);
+    };
+    if (!joint_space.is_object()) {
+      invalid();
+    }
+    const auto readInt = [&](const char* key, int& out) {
+      if (!joint_space.contains(key) || !joint_space[key].is_number_integer()) {
+        invalid();
+      }
+      out = joint_space[key].get<int>();
+    };
+    if (!joint_space.contains("legs") || !joint_space["legs"].is_array()) {
+      invalid();
+    }
+    for (const json& item : joint_space["legs"]) {
+      if (!item.is_number_integer()) {
+        invalid();
+      }
+      parsed.joint_space.legs.push_back(item.get<int>());
+    }
+    readInt("from_knot", parsed.joint_space.from_knot);
+    readInt("to_knot", parsed.joint_space.to_knot);
+    if (!joint_space.contains("q_knots_rad") ||
+        !readLoosePointRows(joint_space["q_knots_rad"], parsed.joint_space.q_knots_rad)) {
+      invalid();
+    }
+    if (joint_space.contains("q_velocities_rad_s") &&
+        !joint_space["q_velocities_rad_s"].is_null()) {
+      if (!readLoosePointRows(joint_space["q_velocities_rad_s"],
+                              parsed.joint_space.q_velocities_rad_s)) {
+        invalid();
+      }
+      parsed.joint_space.has_q_velocities = true;
+    }
+    parsed.has_joint_space = true;
+  }
   if (stage.contains("pose_knots") && !stage["pose_knots"].is_null()) {
     parsed.has_pose_knots = true;
     const json& rows = stage["pose_knots"];
@@ -549,7 +588,106 @@ bool intersects(const std::set<int>& a, const std::set<int>& b) {
 constexpr const char* kRoleKeys[3] = {"support_legs", "airborne_legs_start",
                                       "airborne_legs_end"};
 
+// 关节空间摆动段（stage.joint_space）校验。
+void validateJointSpace(const CompactStage& stage, bool base_piecewise_curve) {
+  const CompactJointSpace& js = stage.joint_space;
+  const std::string tag = "invalid joint_space: " + stage.name;
+  if (stage.anchor_curve != "piecewise_base_quintic" || !base_piecewise_curve) {
+    throw ConfigError(tag + " (requires piecewise_base_quintic)");
+  }
+  if (js.legs.empty()) {
+    throw ConfigError(tag + " (legs must be non-empty)");
+  }
+  std::set<int> unique;
+  std::vector<std::size_t> slots;
+  for (int leg : js.legs) {
+    const auto found = std::find(stage.active_legs.begin(), stage.active_legs.end(), leg);
+    if (found == stage.active_legs.end()) {
+      throw ConfigError(tag + " (leg is not an active leg)");
+    }
+    if (!unique.insert(leg).second) {
+      throw ConfigError(tag + " (duplicate leg)");
+    }
+    slots.push_back(static_cast<std::size_t>(found - stage.active_legs.begin()));
+  }
+  const int knot_count = static_cast<int>(stage.anchor_knots.size());
+  if (js.from_knot < 0 || js.from_knot >= js.to_knot || js.to_knot > knot_count - 1) {
+    throw ConfigError(tag + " (knot range out of bounds)");
+  }
+  const std::size_t rows = static_cast<std::size_t>(js.to_knot - js.from_knot + 1);
+  const auto shapeOk = [&](const std::vector<std::vector<Vector3d>>& table) {
+    if (table.size() != rows) {
+      return false;
+    }
+    for (const std::vector<Vector3d>& row : table) {
+      if (row.size() != js.legs.size()) {
+        return false;
+      }
+    }
+    return true;
+  };
+  if (!shapeOk(js.q_knots_rad)) {
+    throw ConfigError(tag + " (q_knots_rad shape mismatch)");
+  }
+  if (js.has_q_velocities && !shapeOk(js.q_velocities_rad_s)) {
+    throw ConfigError(tag + " (q_velocities_rad_s shape mismatch)");
+  }
+  const JointAngles lower = jointLower();
+  const JointAngles upper = jointUpper();
+  for (const std::vector<Vector3d>& row : js.q_knots_rad) {
+    for (std::size_t i = 0; i < js.legs.size(); ++i) {
+      const int leg = js.legs[i];
+      for (int joint = 0; joint < 3; ++joint) {
+        if (!(row[i][joint] >= lower[leg][joint] && row[i][joint] <= upper[leg][joint])) {
+          throw ConfigError(tag + " (q_knots_rad outside joint limits)");
+        }
+      }
+    }
+  }
+  if (js.has_q_velocities) {
+    for (const std::vector<Vector3d>* row :
+         {&js.q_velocities_rad_s.front(), &js.q_velocities_rad_s.back()}) {
+      for (const Vector3d& velocity : *row) {
+        if (velocity.cwiseAbs().maxCoeff() > 1e-12) {
+          throw ConfigError(tag + " (end velocities must be zero)");
+        }
+      }
+    }
+  }
+  const GraspKinematic kinematic;
+  for (std::size_t i = 0; i < js.legs.size(); ++i) {
+    const int leg = js.legs[i];
+    const std::size_t slot = slots[i];
+    const Vector3d start_foot = legFootBase(kinematic, leg, js.q_knots_rad.front()[i]);
+    const Vector3d end_foot = legFootBase(kinematic, leg, js.q_knots_rad.back()[i]);
+    const Vector3d& start_target =
+        stage.active_base_knots_m[static_cast<std::size_t>(js.from_knot)][slot];
+    const Vector3d& end_target =
+        stage.active_base_knots_m[static_cast<std::size_t>(js.to_knot)][slot];
+    if ((start_foot - start_target).cwiseAbs().maxCoeff() > 1e-3 ||
+        (end_foot - end_target).cwiseAbs().maxCoeff() > 1e-3) {
+      throw ConfigError(tag + " (boundary FK does not match active_base_knots_m)");
+    }
+    if (stage.has_active_base_velocities) {
+      for (int knot : {js.from_knot, js.to_knot}) {
+        if (stage.active_base_velocities_m_s[static_cast<std::size_t>(knot)][slot]
+                .cwiseAbs()
+                .maxCoeff() > 1e-12) {
+          throw ConfigError(tag + " (base velocities must be zero at joint-space boundaries)");
+        }
+      }
+    }
+  }
+}
+
 }  // namespace
+
+Vector3d legFootBase(const GraspKinematic& kinematic, int leg, const Vector3d& q) {
+  FootPositions hip{};
+  hip.fill(Vector3d::Zero());
+  hip[leg] = kinematic.forwardLeg(leg, q);
+  return kinematic.hipToBase(hip)[leg];
+}
 
 void validateClimbCompact(const ClimbCompactConfig& config) {
   if (config.schema != kCompactSchema || !config.simulation_only ||
@@ -822,6 +960,10 @@ void validateClimbCompact(const ClimbCompactConfig& config) {
       checkEndpoint(stage.anchor_knots.back(), stage.pose_end, -1);
     }
 
+    if (stage.has_joint_space) {
+      validateJointSpace(stage, base_piecewise_curve);
+    }
+
     previous_pose = stage.pose_end;
     previous_anchors = stage.anchor_knots.back();
   }
@@ -1010,6 +1152,11 @@ ClimbCompactConfig selectCompactClimbSide(const ClimbCompactConfig& config,
   ClimbCompactConfig selected = config;
   if (side == "left") {
     return selected;
+  }
+  for (const CompactStage& stage : selected.stages) {
+    if (stage.has_joint_space) {
+      throw ConfigError("joint_space stages have no right-side mirror: " + stage.name);
+    }
   }
 
   const double center_x = selected.xiaolan_translation.x();

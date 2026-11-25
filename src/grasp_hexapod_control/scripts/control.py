@@ -538,6 +538,11 @@ class GraspController:
         self.reset_active = False
         self.reset_start_q = self.q_init.copy()
 
+        # 关节空间覆盖：6 项，None 或 (3,) 关节角。存在时该腿跳过 DLS，限位、
+        # 单帧速度限幅、碰撞守卫仍照常作用于所有腿。每个控制周期开头清空，仅由
+        # 攀爬在本周期内设置；set_mode/reset_to_stand/abort_climb 同样清空。
+        self.joint_override = [None] * 6
+
         self.last_link_collision_free = np.ones(6, dtype=bool)
         # Observation-only per-update telemetry; it never feeds control.
         self.last_update_velocity_limit_clip_count = 0
@@ -926,6 +931,7 @@ class GraspController:
         if mode not in (self.APPROACH, self.CLIMB, self.DOCK):
             raise ValueError(f"Unknown control mode: {mode}")
         self.mode = mode
+        self.joint_override = [None] * 6
 
     def enter_climb(
         self,
@@ -1014,6 +1020,8 @@ class GraspController:
 
         self.climb_mode.hold()
         self.climb_mode.state = ClimbMode.IDLE
+        self.climb_mode.clear_joint_override()
+        self.joint_override = [None] * 6
 
     def update(
         self,
@@ -1023,6 +1031,7 @@ class GraspController:
         dock_robot_state=None,
     ):
         """执行当前任务模式并输出本周期关节目标。"""
+        self.joint_override = [None] * 6
         if self.mission.state != self.mission.IDLE:
             self.last_mode_result = self.mission.update(
                 q_cur,
@@ -1146,13 +1155,16 @@ class GraspController:
             damped_inverse @ vel_ff[..., np.newaxis]
         ).squeeze(-1)
 
-        q_candidate = np.clip(
+        q_raw = (
             q_cur
             + 16.0 * joint_correction * self.dt
-            + joint_ff * self.dt,
-            JOINT_LOWER,
-            JOINT_UPPER,
+            + joint_ff * self.dt
         )
+        for leg, override in enumerate(self.joint_override):
+            if override is not None:
+                # 关节空间段：该腿跳过 DLS 结果，直接取配置关节目标。
+                q_raw[leg] = override
+        q_candidate = np.clip(q_raw, JOINT_LOWER, JOINT_UPPER)
 
         # Simulation-only front candidates may request a bounded higher
         # command cap.  Side, non-climb and hardware paths retain the shared

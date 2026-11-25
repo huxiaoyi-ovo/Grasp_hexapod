@@ -365,3 +365,12 @@
 - ① Luna `b05b7f3`：phase 0.25→0.40 s、step_height 0.04→0.06（C++/Python/金标/测试同步）。Sol 复核（`/home/artrc/grasp_sync_backups/gait_20261124/gaitsweep.py`）：限速截断旧步态本就严重（0.12 m/s 180 帧 592 次，新 627 次）；根因是站姿踝关节 1.72 rad 离 ±2.094 限位仅 0.37 rad，行走时踝关节频繁顶限位（120 帧 49 帧），落点投影截短频繁（旧 90/200、新 139/200）。根治需调站立姿态，待用户决定；`b05b7f3` 可 `git revert` 回退。
 - ② 方案已定未实现：六足先只升降机身 → 三角组 A（LF/RM/LB）抬 4 cm→空中移到站位→放 → 组 B；仅六足着地时用，悬空等情况保留关节插值。
 - 遗留：C15/C16 LB knee_link 对墙顶边（模型 C15 名义 −1 mm、C16 −20 mm，被落后掩盖，用户 v16 实机未报此处卡腿）；C19 RF / C20 LF 抬脚 ~22 mm。
+
+## 2026-11-25 Claude Code（Luna，合同由 Sol 冻结）：压缩攀爬阶段新增关节空间摆动段 `joint_space`
+- execution_owner: Luna (sonnet, effort high) — 理由：C++/Python 控制器耦合特性，约 10 个文件 + 测试。
+- 目的：摆动腿踝关节翻到另一侧要经过伸直奇异点，位置 IK 滞后；用关节节点直接给目标。未配置 `joint_space` 的配置行为字节不变。
+- Schema（阶段级可选键）：`joint_space: {legs, from_knot, to_knot, q_knots_rad[(to-from+1, len(legs), 3)], q_velocities_rad_s? }`，仅 `piecewise_base_quintic` 阶段。校验（C++ `validateClimbCompact` / Python `ClimbMode._validate_joint_space`）：腿 ⊂ active_legs 且唯一；0≤from<to≤K-1；形状；有限；关节限位；速度首末行为零；首末节点 FK（hip_to_base(forward)）与 active_base_knots_m 差 ≤1e-3 m；若有 active_base_velocities，from/to 节点这些腿速度为零。侧向右镜像遇 joint_space 直接拒绝。
+- 运行时：T(from)≤phase_time≤T(to) 内，用与 active-base 槽位相同的插值（C++ `piecewiseSlots` / Python `_piecewise(elapsed=…)`）得 q_ref；该腿足端目标与世界锚点 = FK(q_ref)；控制器 `joint_override[leg]=q_ref`，`calJointPoses`/`cal_joint_poses` 对该腿跳过 DLS，限位、单帧速度限幅、碰撞守卫仍作用于所有腿。覆盖每个 update 开头清空，setMode/abortClimb（含 resetToStand）清空；HOLD/FAILED 帧重发上次覆盖。实机模式同一路径。
+- 文件：include/climb_compact.h、climb_mode.h、control.h；src/climb_compact.cpp、climb_mode.cpp、control.cpp；scripts/climb_mode.py、control.py、utils/climb.py；CMakeLists.txt；test/test_climb_joint_space.cpp/.py。
+- 验证：新 gtest 5/5（MID_PLATFORM_285 腿 5 knot 1→2，区间内 25 帧 max|q_des−q_ref|=6.7e-16，其余腿与去掉 joint_space 的回放差 0）；新 pytest 14/14（同样 0 / 0）；golden_trajectory 6/6、golden_config 7/7、KinematicsGolden 失败为已知项；pytest 集合 17 failed/146 passed（基线 17 failed/132 passed，失败列表相同，+14 新测试）；cpp_replay v16_1 sim/hw 与改前参考（`/home/artrc/grasp_sync_backups/joint_space_20261125/ref_{sim,hw}.csv`）逐字节相同，1173 帧，max diff 0；Python 与 C++ 对同一 joint_space 配置回放差 5.0e-6（与无 joint_space 基线的既有差异相同）。
+- 未做：config 中尚无使用 joint_space 的配置；未推送，待 Sol 审查。

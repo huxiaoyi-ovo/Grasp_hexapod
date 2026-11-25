@@ -541,6 +541,11 @@ def select_compact_climb_side(config, side):
     selected = deepcopy(config)
     if side == "left":
         return selected
+    for stage in selected["stages"]:
+        if stage.get("joint_space") is not None:
+            raise ValueError(
+                "joint_space stages have no right-side mirror: " + stage["name"]
+            )
 
     center_x = selected["xiaolan_translation"][0]
     p0 = selected["p0"]

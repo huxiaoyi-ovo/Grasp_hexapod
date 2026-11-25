@@ -68,6 +68,12 @@ class ClimbMode {
   void hold();
   void resume();
 
+  // HOLD/FAILED 帧不重新计算参考：把最近一次的关节空间覆盖原样重新交给控制器，
+  // 使暂停时继续追踪同一关节目标。
+  void republishJointOverride();
+  // 丢弃已保存的关节空间覆盖（abort/退出攀爬时调用）。
+  void clearJointOverride() { last_joint_override_ = {}; }
+
   // 推进当前攀爬预览阶段；command 不参与攀爬插值。
   void update(const Eigen::Vector4d& command, const JointAngles& q_current);
 
@@ -141,6 +147,10 @@ class ClimbMode {
       const std::vector<std::vector<Vector3d>>& knots,
       const std::vector<double>& durations,
       const std::vector<std::vector<Vector3d>>* velocities, double elapsed);
+  // 当前阶段声明 joint_space 且 phase_time 位于 [T(from), T(to)] 时，
+  // 用关节节点插值得到 q_ref：覆盖这些腿的足端目标/世界锚点为 FK(q_ref)，
+  // 并向控制器发布关节覆盖；否则不发布任何覆盖。
+  void applyJointSpace(bool sync_previous);
   void advanceStage();
   void startStageTiming();
   void recordStageTiming(const std::string& category);
@@ -150,6 +160,7 @@ class ClimbMode {
 
   GraspController* controller_;
   ClimbCompactConfig config_;
+  std::array<std::optional<Vector3d>, 6> last_joint_override_{};
   std::optional<std::chrono::steady_clock::time_point>
       hardware_stage_last_monotonic_;
 };

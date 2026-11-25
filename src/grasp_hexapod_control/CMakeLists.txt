@@ -139,6 +139,11 @@ if(CATKIN_ENABLE_TESTING)
     GRASP_GOLDEN_JSON="${GRASP_GOLDEN_JSON}"
     GRASP_CONTROL_CONFIG_DIR="${GRASP_CONTROL_CONFIG_DIR}")
 
+  catkin_add_gtest(test_climb_joint_space test/test_climb_joint_space.cpp ${GTEST_MAIN_SRC})
+  target_link_libraries(test_climb_joint_space grasp_hexapod_control_core)
+  target_compile_definitions(test_climb_joint_space PRIVATE
+    GRASP_CONTROL_CONFIG_DIR="${GRASP_CONTROL_CONFIG_DIR}")
+
   catkin_add_gtest(test_golden_config test/test_golden_config.cpp ${GTEST_MAIN_SRC})
   target_link_libraries(test_golden_config grasp_hexapod_control_core)
   target_compile_definitions(test_golden_config PRIVATE

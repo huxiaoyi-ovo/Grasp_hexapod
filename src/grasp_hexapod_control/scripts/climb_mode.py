@@ -9,11 +9,31 @@ import time
 
 import numpy as np
 
-from kinematics import JOINT_NAMES, LEG_NAMES, Q_STAND
+from kinematics import (
+    GraspKinematic,
+    JOINT_LOWER,
+    JOINT_NAMES,
+    JOINT_UPPER,
+    LEG_NAMES,
+    Q_STAND,
+)
 from utils import package_config_path
 
 
 COMPACT_SCHEMA = "SIMULATION_ONLY_CLIMB_COMPACT_V2"
+
+_FK_KINEMATIC = None
+
+
+def leg_foot_base(leg, q):
+    """一条腿关节角对应的足端球心（base_link，hip_to_base(forward(q))）。"""
+
+    global _FK_KINEMATIC
+    if _FK_KINEMATIC is None:
+        _FK_KINEMATIC = GraspKinematic()
+    hip = np.zeros((6, 3), dtype=np.float64)
+    hip[leg] = _FK_KINEMATIC.forward_leg(leg, np.asarray(q, dtype=np.float64))
+    return _FK_KINEMATIC.hip_to_base(hip)[leg]
 
 
 class ClimbMode:
@@ -79,6 +99,8 @@ class ClimbMode:
         self.stage_timing_by_index = {}
         self.hardware_execution = False
         self._hardware_stage_last_monotonic = None
+        # 关节空间摆动段：最近一次发布给控制器的覆盖（6 项，None 或 (3,) 数组）。
+        self._last_joint_override = [None] * 6
 
     @staticmethod
     def _world_from_base(base):
@@ -186,6 +208,79 @@ class ClimbMode:
         config = self._load_config() if config is None else config
         self._validate_config(config)
         return self._array(config, ("terminal_q_rad",), (6, 3)).copy()
+
+    @staticmethod
+    def _validate_joint_space(stage, base_piecewise_curve, base_knots, base_velocities):
+        """检查 stage.joint_space（关节空间摆动段）。"""
+
+        tag = "invalid joint_space: " + stage["name"]
+        joint_space = stage["joint_space"]
+        if not base_piecewise_curve or stage.get("anchor_curve") != "piecewise_base_quintic":
+            raise ValueError(tag + " (requires piecewise_base_quintic)")
+        if not isinstance(joint_space, dict):
+            raise ValueError(tag)
+        active = stage["active_legs"]
+        legs = joint_space.get("legs")
+        if (
+            not isinstance(legs, list)
+            or not legs
+            or any(isinstance(leg, bool) or not isinstance(leg, int) for leg in legs)
+        ):
+            raise ValueError(tag + " (legs must be a non-empty int list)")
+        if len(set(legs)) != len(legs):
+            raise ValueError(tag + " (duplicate leg)")
+        if any(leg not in active for leg in legs):
+            raise ValueError(tag + " (leg is not an active leg)")
+        from_knot = joint_space.get("from_knot")
+        to_knot = joint_space.get("to_knot")
+        knot_count = len(stage["anchor_knots"])
+        if (
+            any(isinstance(v, bool) or not isinstance(v, int) for v in (from_knot, to_knot))
+            or not 0 <= from_knot < to_knot <= knot_count - 1
+        ):
+            raise ValueError(tag + " (knot range out of bounds)")
+        shape = (to_knot - from_knot + 1, len(legs), 3)
+        try:
+            q_knots = np.asarray(joint_space.get("q_knots_rad"), dtype=np.float64)
+        except (TypeError, ValueError):
+            raise ValueError(tag + " (q_knots_rad is not numeric)")
+        if q_knots.shape != shape:
+            raise ValueError(tag + " (q_knots_rad shape mismatch)")
+        if not np.all(np.isfinite(q_knots)):
+            raise ValueError(tag + " (q_knots_rad must be finite)")
+        q_velocities = joint_space.get("q_velocities_rad_s")
+        if q_velocities is not None:
+            try:
+                q_velocities = np.asarray(q_velocities, dtype=np.float64)
+            except (TypeError, ValueError):
+                raise ValueError(tag + " (q_velocities_rad_s is not numeric)")
+            if q_velocities.shape != shape:
+                raise ValueError(tag + " (q_velocities_rad_s shape mismatch)")
+            if not np.all(np.isfinite(q_velocities)):
+                raise ValueError(tag + " (q_velocities_rad_s must be finite)")
+        leg_index = np.asarray(legs, dtype=np.int64)
+        if np.any(q_knots < JOINT_LOWER[leg_index]) or np.any(q_knots > JOINT_UPPER[leg_index]):
+            raise ValueError(tag + " (q_knots_rad outside joint limits)")
+        if q_velocities is not None and (
+            np.max(np.abs(q_velocities[0])) > 1e-12
+            or np.max(np.abs(q_velocities[-1])) > 1e-12
+        ):
+            raise ValueError(tag + " (end velocities must be zero)")
+        for column, leg in enumerate(legs):
+            slot = active.index(leg)
+            for row, knot in ((0, from_knot), (-1, to_knot)):
+                foot = leg_foot_base(leg, q_knots[row, column])
+                if np.max(np.abs(foot - base_knots[knot, slot])) > 1e-3:
+                    raise ValueError(
+                        tag + " (boundary FK does not match active_base_knots_m)"
+                    )
+                if (
+                    base_velocities is not None
+                    and np.max(np.abs(base_velocities[knot, slot])) > 1e-12
+                ):
+                    raise ValueError(
+                        tag + " (base velocities must be zero at joint-space boundaries)"
+                    )
 
     def _validate_config(self, config):
         """检查 compact 攀爬配置。"""
@@ -470,6 +565,11 @@ class ClimbMode:
                             "base-relative endpoint mismatch: "
                             + stage["name"]
                         )
+            if stage.get("joint_space") is not None:
+                self._validate_joint_space(
+                    stage, base_piecewise_curve, active_base_knots,
+                    active_base_velocities,
+                )
             previous_pose = pose_end
             previous_anchors = knots[-1]
         if len(set(names)) != len(names):
@@ -709,6 +809,54 @@ class ClimbMode:
         self.controller.foot_desired_base[:] = desired[:, :3]
         if sync_previous:
             self.controller.foot_desired_base_prev[:] = desired[:, :3]
+        self._apply_joint_space(sync_previous)
+
+    def _apply_joint_space(self, sync_previous):
+        """stage.joint_space 区间内：用关节节点插值覆盖指定腿的足端目标和关节目标。"""
+
+        override = [None] * 6
+        stage = (
+            self.config["stages"][self.stage_index]
+            if self.config is not None and self.stage_index is not None
+            else None
+        )
+        joint_space = None if stage is None else stage.get("joint_space")
+        if joint_space is not None:
+            from_knot = joint_space["from_knot"]
+            to_knot = joint_space["to_knot"]
+            cumulative = np.cumsum(np.asarray(
+                stage["segment_durations_s"], dtype=np.float64))
+            t_from = 0.0 if from_knot == 0 else float(cumulative[from_knot - 1])
+            t_to = float(cumulative[to_knot - 1])
+            if t_from <= self.phase_time <= t_to:
+                q_ref = self._piecewise(
+                    np.asarray(joint_space["q_knots_rad"], dtype=np.float64),
+                    stage["segment_durations_s"][from_knot:to_knot],
+                    joint_space.get("q_velocities_rad_s"),
+                    elapsed=self.phase_time - t_from,
+                )
+                world = self._world_from_base(self.base_pose)
+                for column, leg in enumerate(joint_space["legs"]):
+                    foot_base = leg_foot_base(leg, q_ref[column])
+                    self.controller.foot_desired_base[leg] = foot_base
+                    if sync_previous:
+                        self.controller.foot_desired_base_prev[leg] = foot_base
+                    self.anchors_world[leg] = (
+                        world @ np.append(foot_base, 1.0)
+                    )[:3]
+                    override[leg] = np.array(q_ref[column], dtype=np.float64)
+        self._last_joint_override = override
+        self.controller.joint_override = list(override)
+
+    def republish_joint_override(self):
+        """HOLD/FAILED 帧继续追踪同一关节目标。"""
+
+        self.controller.joint_override = list(self._last_joint_override)
+
+    def clear_joint_override(self):
+        """丢弃已保存的关节空间覆盖。"""
+
+        self._last_joint_override = [None] * 6
 
     def _stage_reference(self):
         """计算当前阶段的机身和足端参考。"""
@@ -806,10 +954,11 @@ class ClimbMode:
             anchors[declared] = knots[segment, declared]
         return anchors
 
-    def _piecewise(self, knots, durations, velocities=None):
-        """按当前阶段时间插值足端锚点。"""
+    def _piecewise(self, knots, durations, velocities=None, elapsed=None):
+        """按当前阶段时间（或给定 elapsed）插值足端锚点。"""
 
-        elapsed = self.phase_time
+        if elapsed is None:
+            elapsed = self.phase_time
         for index, duration in enumerate(durations):
             if elapsed <= duration:
                 u = elapsed / duration
@@ -1077,9 +1226,11 @@ class ClimbMode:
         if self.state == self.IDLE:
             return None
         if self.state == self.HOLD:
+            self.republish_joint_override()
             self._update_tracking_diagnostics(q_current)
             return None
         if self.state == self.FAILED:
+            self.republish_joint_override()
             self._update_tracking_diagnostics(q_current)
             return None
 

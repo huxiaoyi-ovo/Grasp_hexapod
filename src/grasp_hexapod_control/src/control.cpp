@@ -609,6 +609,7 @@ void GraspController::setMode(const std::string& next_mode) {
     throw ConfigError("Unknown control mode: " + next_mode);
   }
   mode = next_mode;
+  joint_override = {};
 }
 
 void GraspController::enterClimb(const JointAngles& q_cur,
@@ -690,12 +691,15 @@ void GraspController::abortClimb() {
   // 停止当前攀爬会话；B 复位后只能重新通过入口开始。
   climb_mode.hold();
   climb_mode.state = ClimbState::Idle;
+  climb_mode.clearJointOverride();
+  joint_override = {};
 }
 
 JointAngles GraspController::update(const JointAngles& q_cur,
                                     const Eigen::Vector4d& command,
                                     const NavigationState* navigation_state,
                                     const DockRobotState* dock_robot_state) {
+  joint_override = {};
   if (mission.state != MissionStateMachine::kIdle) {
     last_mode_result = mission.update(q_cur, navigation_state);
   } else if (mode == kApproach) {
@@ -803,6 +807,10 @@ JointAngles GraspController::calJointPoses(const JointAngles& q_cur) {
     const Vector3d joint_ff = damped_inverse[leg] * vel_ff;
     q_candidate[leg] =
         q_cur[leg] + 16.0 * joint_correction * dt + joint_ff * dt;
+    if (joint_override[leg].has_value()) {
+      // 关节空间段：该腿跳过 DLS 结果，直接取配置关节目标。
+      q_candidate[leg] = *joint_override[leg];
+    }
   }
   foot_desired_base_prev = foot_desired_base;
 

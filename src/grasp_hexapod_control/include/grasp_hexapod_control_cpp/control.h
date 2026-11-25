@@ -130,6 +130,12 @@ class GraspController {
 
   double base_height_at_stand = 0.0;
 
+  // 关节空间覆盖：存在时该腿的关节候选直接取此值，跳过 DLS（限位、单帧速度
+  // 限幅、碰撞守卫仍照常作用于所有腿）。每个控制周期开头清空，仅由攀爬在本周期
+  // 内设置；setMode/resetToStand/abortClimb 同样清空，不会泄漏到攀爬之外。
+  std::array<std::optional<Vector3d>, 6> joint_override{};
+
+
   // A 使能和 B 复位都用五次曲线平滑回到标准站姿。
   double reset_duration = 2.0;
   double reset_time = 0.0;

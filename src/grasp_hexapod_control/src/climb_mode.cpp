@@ -247,6 +247,52 @@ void ClimbMode::applyReference(const BasePose& base,
       controller_->foot_desired_base_prev[leg] = desired.head<3>();
     }
   }
+  applyJointSpace(sync_previous);
+}
+
+void ClimbMode::applyJointSpace(bool sync_previous) {
+  last_joint_override_ = {};
+  if (stage_index.has_value()) {
+    const CompactStage& stage = config_.stages[*stage_index];
+    if (stage.has_joint_space) {
+      const CompactJointSpace& js = stage.joint_space;
+      // 与 update() 的 boundaries 相同的顺序累加，使边界处 phase_time 恰好相等。
+      double t_from = 0.0;
+      double t_to = 0.0;
+      for (int k = 0; k < js.to_knot; ++k) {
+        if (k < js.from_knot) {
+          t_from += stage.segment_durations_s[static_cast<std::size_t>(k)];
+        }
+        t_to += stage.segment_durations_s[static_cast<std::size_t>(k)];
+      }
+      if (phase_time >= t_from && phase_time <= t_to) {
+        const std::vector<double> durations(
+            stage.segment_durations_s.begin() + js.from_knot,
+            stage.segment_durations_s.begin() + js.to_knot);
+        const std::vector<Vector3d> q_ref = piecewiseSlots(
+            js.q_knots_rad, durations,
+            js.has_q_velocities ? &js.q_velocities_rad_s : nullptr, phase_time - t_from);
+        const Matrix4d world = worldFromBase(*base_pose);
+        for (std::size_t slot = 0; slot < js.legs.size(); ++slot) {
+          const int leg = js.legs[slot];
+          const Vector3d foot_base = legFootBase(controller_->kinematic, leg, q_ref[slot]);
+          controller_->foot_desired_base[leg] = foot_base;
+          if (sync_previous) {
+            controller_->foot_desired_base_prev[leg] = foot_base;
+          }
+          anchors_world.value()[leg] =
+              (world * Eigen::Vector4d(foot_base.x(), foot_base.y(), foot_base.z(), 1.0))
+                  .head<3>();
+          last_joint_override_[static_cast<std::size_t>(leg)] = q_ref[slot];
+        }
+      }
+    }
+  }
+  controller_->joint_override = last_joint_override_;
+}
+
+void ClimbMode::republishJointOverride() {
+  controller_->joint_override = last_joint_override_;
 }
 
 // 解析分段插值位置：返回 (段索引, 归一化 u, 段时长)；越界返回 nullopt。
@@ -641,6 +687,7 @@ void ClimbMode::update(const Eigen::Vector4d& command, const JointAngles& q_curr
     return;
   }
   if (state == ClimbState::Hold || state == ClimbState::Failed) {
+    republishJointOverride();
     updateTrackingDiagnostics(q_current);
     return;
   }

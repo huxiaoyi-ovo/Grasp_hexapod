@@ -5,6 +5,7 @@
 // 这些函数只做确定性模型计算；校验失败抛 ConfigError，消息与 Python 一致。
 #pragma once
 
+#include "grasp_hexapod_control_cpp/kinematics.h"
 #include "grasp_hexapod_control_cpp/types.h"
 
 #include <nlohmann/json.hpp>
@@ -39,6 +40,19 @@ struct CompactSettleGate {
   bool tracking_errors_diagnostic_only = false;
 };
 
+// compact 阶段内可选的关节空间摆动段（stage.joint_space）：指定腿在
+// [from_knot, to_knot] 区间直接插值关节角，不经笛卡尔目标 + DLS，
+// 用于越过伸直奇异点。形状由校验器判定。
+struct CompactJointSpace {
+  std::vector<int> legs;
+  int from_knot = 0;
+  int to_knot = 0;
+  // (to-from+1, len(legs), 3)，rad。
+  std::vector<std::vector<Vector3d>> q_knots_rad;
+  bool has_q_velocities = false;
+  std::vector<std::vector<Vector3d>> q_velocities_rad_s;
+};
+
 // compact 单阶段（stages[i]）。
 struct CompactStage {
   std::string name;
@@ -64,6 +78,9 @@ struct CompactStage {
   bool has_active_base_velocities = false;
   std::vector<std::vector<Vector3d>> active_base_velocities_m_s;
   bool continuous_air_transition = false;
+  // 可选关节空间摆动段（仅 piecewise_base_quintic 阶段允许）。
+  bool has_joint_space = false;
+  CompactJointSpace joint_space;
   // front-only: pose_curve == piecewise_quintic 的机身位姿关键帧 (K, 6)。
   // pose_knots_wellformed=false 表示存在但不是有限的 (K,6) 数组。
   bool has_pose_knots = false;
@@ -116,6 +133,10 @@ struct ClimbCompactConfig {
 
   bool isFront() const { return climb_orientation == "front"; }
 };
+
+// 一条腿关节角对应的足端球心（base_link，与 active_base_knots_m 同一约定：
+// hipToBase(forward(q))）。关节空间摆动段的边界连续性校验与运行时共用。
+Vector3d legFootBase(const GraspKinematic& kinematic, int leg, const Vector3d& q);
 
 // 读取并检查 compact 配置（文件不存在/JSON 非法抛 ConfigError）。
 ClimbCompactConfig loadClimbCompact(const std::string& path);

@@ -64,27 +64,26 @@ def depth_median(depth, encoding, box, center, roi_size=9,
             x <= u < x+bw and y <= v < y+bh):
         raise ValueError('RGB bbox outside aligned depth')
     half = roi_size // 2
-    regions = [(u-half, v-half, u+half+1, v+half+1)]
-    for x1, y1, x2, y2 in regions:
-        crop = depth[max(y,y1):min(y+bh,y2), max(x,x1):min(x+bw,x2)]
-        values = crop.astype(np.float32).ravel() * scale
-        positive = values[np.isfinite(values) & (values > 0)]
-        if diagnostics is not None:
-            diagnostics.update(encoding=encoding, roi_pixels=int(values.size),
-                positive_pixels=int(positive.size), min_depth_m=min_z, max_depth_m=max_z,
-                observed_median_m=float(np.median(positive)) if positive.size else None,
-                below_range_pixels=int(np.count_nonzero(positive <= min_z)),
-                above_range_pixels=int(np.count_nonzero(positive >= max_z)))
-        values = values[np.isfinite(values)]
-        values = values[(values > min_z) & (values < max_z)]
-        if diagnostics is not None:
-            diagnostics['valid_pixels'] = int(values.size)
-            diagnostics['required_pixels'] = min_valid
-            diagnostics['reason'] = ('MEASURED' if values.size >= min_valid else
-                'NO_VALID_DEPTH' if not positive.size else
-                'DEPTH_OUT_OF_RANGE' if not values.size else 'INSUFFICIENT_DEPTH_PIXELS')
-        if values.size >= min_valid:
-            return float(np.median(values))
+    x1, y1, x2, y2 = u-half, v-half, u+half+1, v+half+1
+    crop = depth[max(y,y1):min(y+bh,y2), max(x,x1):min(x+bw,x2)]
+    values = crop.astype(np.float32).ravel() * scale
+    positive = values[np.isfinite(values) & (values > 0)]
+    if diagnostics is not None:
+        diagnostics.update(encoding=encoding, roi_pixels=int(values.size),
+            positive_pixels=int(positive.size), min_depth_m=min_z, max_depth_m=max_z,
+            observed_median_m=float(np.median(positive)) if positive.size else None,
+            below_range_pixels=int(np.count_nonzero(positive <= min_z)),
+            above_range_pixels=int(np.count_nonzero(positive >= max_z)))
+    values = values[np.isfinite(values)]
+    values = values[(values > min_z) & (values < max_z)]
+    if diagnostics is not None:
+        diagnostics['valid_pixels'] = int(values.size)
+        diagnostics['required_pixels'] = min_valid
+        diagnostics['reason'] = ('MEASURED' if values.size >= min_valid else
+            'NO_VALID_DEPTH' if not positive.size else
+            'DEPTH_OUT_OF_RANGE' if not values.size else 'INSUFFICIENT_DEPTH_PIXELS')
+    if values.size >= min_valid:
+        return float(np.median(values))
     return None
 
 

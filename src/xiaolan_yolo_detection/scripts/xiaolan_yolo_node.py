@@ -19,7 +19,7 @@ class YoloNode:
             raise ValueError('Missing trained one-class model: '+model+'; see docs/YOLO_SETUP.md')
         self.conf = float(rospy.get_param('~conf_threshold', .5))
         self.hz = float(rospy.get_param('~max_fps', 15.))
-        self.max_age = float(rospy.get_param('~max_input_age', .5))
+        self.max_age = float(rospy.get_param('~max_input_age', .25))
         self.diagnostics_period = float(rospy.get_param('~diagnostics_period_s', 2.))
         size = int(rospy.get_param('~input_size', 416))
         if not 0 < self.conf <= 1 or self.hz <= 0 or self.max_age <= 0 or size <= 0 or self.diagnostics_period <= 0:

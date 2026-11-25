@@ -63,6 +63,9 @@ TagGuidance::TagGuidance(TagGuidanceConfig c) : config_(c) {
       c.min_reliable_z_m < 0. || !positive(c.max_blind_distance_m) ||
       !positive(c.blind_speed_m_s) || !positive(c.heading_gain) ||
       !positive(c.max_heading_error_rad) || !positive(c.odom_mismatch_m) ||
+      !std::isfinite(c.handoff_max_z_m) || c.handoff_max_z_m < 0. ||
+      (c.handoff_max_z_m > 0. && c.handoff_max_z_m <= c.p0_z_m - c.final_overshoot_m) ||
+      !std::isfinite(c.max_yaw_jump_rad) || c.max_yaw_jump_rad < 0. ||
       !positive(c.blind_timeout_s) || !(c.imu_yaw_sign == 1. || c.imu_yaw_sign == -1.)) {
     throw std::invalid_argument("invalid tag guidance configuration");
   }
@@ -91,6 +94,7 @@ void TagGuidance::begin(double now) {
   error_.setZero();
   reason_.clear();
   have_last_valid_ = false;
+  last_yaw_stamp_ = 0.0;
   handover_ = TagHandover();
   odom_ = cmd_integral_ = last_forward_cmd_ = heading_error_ = odom_at_last_valid_ = 0.0;
   last_imu_valid_ = imu_at_last_valid_ok_ = false;
@@ -142,6 +146,27 @@ void TagGuidance::processCache(double now) {
   // Duplicate or reordered stamps are ignored without invalidating the
   // previous good sample.
   if (v.stamp <= source_high_watermark_) return;
+  if (state_ == TagState::Coarse && config_.handoff_max_z_m > 0. && v.z > config_.handoff_max_z_m) {
+    // Too far: single-tag yaw is ambiguous here, does not count toward handoff.
+    source_high_watermark_ = v.stamp;
+    confirmations_ = 0;
+    accepted_available_ = false;
+    return;
+  }
+  if (config_.max_yaw_jump_rad > 0. && have_last_valid_) {
+    const double dt = v.stamp - last_yaw_stamp_;
+    const bool coarse = state_ == TagState::Coarse;
+    if (!coarse || dt <= config_.max_age_s) {
+      const double allowed = coarse ? config_.max_yaw_jump_rad
+                                    : config_.max_yaw_jump_rad + config_.max_yaw_rate * dt;
+      if (std::abs(wrapAngle(yaw - last_yaw_)) > allowed) {
+        source_high_watermark_ = v.stamp;
+        accepted_available_ = false;
+        if (coarse) confirmations_ = 0;
+        return;
+      }
+    }
+  }
   source_high_watermark_ = v.stamp;
   accepted_ = v;
   accepted_yaw_ = yaw;
@@ -150,6 +175,7 @@ void TagGuidance::processCache(double now) {
   last_x_ = v.x;
   last_z_ = v.z;
   last_yaw_ = yaw;
+  last_yaw_stamp_ = v.stamp;
   odom_at_last_valid_ = odom_;  // odometry accumulates continuously from handoff
   imu_at_last_valid_ok_ = last_imu_valid_;  // IMU heading of the most recent update
   imu_heading_at_last_valid_ = last_imu_heading_;

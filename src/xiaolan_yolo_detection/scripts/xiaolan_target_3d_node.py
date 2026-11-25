@@ -50,11 +50,11 @@ class Target3DNode:
         self.slop = float(p('~depth_sync_tolerance', .025))
         self.wait = float(p('~depth_wait_timeout', .08))
         self.timeout = float(p('~target_timeout', .5))
-        self.max_result_age = float(p('~max_result_age', .8))
+        self.max_result_age = float(p('~max_result_age', .25))
         self.hold_time = float(p('~max_hold_seconds', .25))
         self.roi = int(p('~roi_size', 9))
         self.min_valid = int(p('~min_valid_depth_pixels', 5))
-        self.min_z, self.max_z = float(p('~min_depth', .2)), float(p('~max_depth', 1.))
+        self.min_z, self.max_z = float(p('~min_depth', .2)), float(p('~max_depth', 2.5))
         self.center = float(p('~center_tolerance_m', .03))
         confirm, lost = int(p('~confirm_frames', 2)), int(p('~lost_tolerance_frames', 3))
         max_x, max_z, alpha = float(p('~max_x_jump_m', .15)), float(p('~max_z_jump_m', .15)), float(p('~ema_alpha', .4))
@@ -96,8 +96,8 @@ class Target3DNode:
         self.health_pub = rospy.Publisher('/xiaolan/perception_status', PerceptionStatus, queue_size=1)
         self.subs = [
             rospy.Subscriber(p('~detection_topic', '/xiaolan/detection'), XiaolanDetection, self.detection_cb, queue_size=1),
-            rospy.Subscriber(p('~aligned_depth_topic', '/camera/aligned_depth_to_color/image_raw'), Image, self.depth_cb, queue_size=1, buff_size=2**24),
-            rospy.Subscriber(p('~aligned_info_topic', '/camera/aligned_depth_to_color/camera_info'), CameraInfo, self.aligned_cb, queue_size=1),
+            rospy.Subscriber(p('~aligned_depth_topic', '/camera/depth/image_raw'), Image, self.depth_cb, queue_size=1, buff_size=2**24),
+            rospy.Subscriber(p('~aligned_info_topic', '/camera/depth/camera_info'), CameraInfo, self.aligned_cb, queue_size=1),
             rospy.Subscriber(p('~color_info_topic', '/camera/color/camera_info'), CameraInfo, self.color_cb, queue_size=1),
         ]
 

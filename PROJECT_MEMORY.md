@@ -9,6 +9,7 @@ This file stores stable physical facts and the accepted current simulation snaps
 - The robot has 18 Hiwonder LX-15D bus servos. Only joint-position feedback is available; torque/current is not a contact sensor.
 - A foot has a hemispherical lower contact surface and cylindrical upper section. Terminal leg-axis angle to the local support normal is a kinematic posture metric, not contact area, force, or load proof.
 - Sensors: top-forward Orbbec Gemini 336L, IMU, robot RTK, and a fixed bottom USB docking camera. Do not assume other sensors.
+- Gemini 336L optical axis is parallel to base_link +y (forward), pitch ≈ 0 (user 2026-11-25): camera depth z equals body-forward distance for tag/visual approach.
 - Xiaolan is stationary on the photovoltaic panel, has its own RTK, and exchanges RTK positions with the robot over LoRa.
 
 ## Xiaolan Geometry

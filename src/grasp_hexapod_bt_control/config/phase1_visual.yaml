@@ -33,6 +33,10 @@ visual_approach_timeout_s: 120.0
 tag_guidance_enabled: true
 tag_guidance_id: 0
 tag_handoff_confirm_frames: 5
+# Gate: only tag detections with camera depth z <= 0.5 m count toward the handoff (single-tag yaw is ambiguous farther away; also keeps the 0.02 m/s tag advance inside the 60 s timeout).
+tag_handoff_max_z_m: 0.5
+# Jump: a yaw change > 0.10 rad (+ max_yaw_rate*dt after handoff) between accepted samples is physically impossible for the robot and is rejected as pose ambiguity.
+tag_max_yaw_jump_rad: 0.10
 tag_max_age_s: 0.25
 # Taught reference of the tag in camera_color_optical_frame
 # (x right, y down, z forward). !!! PLACEHOLDERS, MUST BE TAUGHT on the rig:

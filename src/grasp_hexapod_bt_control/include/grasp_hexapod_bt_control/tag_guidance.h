@@ -41,6 +41,8 @@ constexpr double kServoDeadbandFraction = 0.5;
 struct TagGuidanceConfig {
   int tag_id = 0;
   int confirm_frames = 5;
+  double handoff_max_z_m = 0.;  // Coarse counts only detections with z <= this toward the handoff (0 = off)
+  double max_yaw_jump_rad = 0.;  // reject a sample whose yaw differs from the reference sample by more than this (0 = off)
   double max_age_s = .25;
   std::string expected_frame = "camera_color_optical_frame";
   // Taught reference of the tag in the camera frame at P0.  These defaults are
@@ -196,6 +198,7 @@ class TagGuidance {
   // Last valid sample (survives later invalid detections; cleared by resume()).
   bool have_last_valid_ = false;
   double last_x_ = 0.0, last_z_ = 0.0, last_yaw_ = 0.0;
+  double last_yaw_stamp_ = 0.0;  // stamp of the last accepted sample
   double odom_at_last_valid_ = 0.0;
   // IMU heading (sign applied) of the latest update with a valid IMU, and the one
   // current when the last valid tag sample was accepted.

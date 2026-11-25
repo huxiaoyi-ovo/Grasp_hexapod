@@ -201,8 +201,9 @@ now stops at the coarse `visual_stop_distance_m: 0.20` and hands off to the tag:
   distance D; an error in D transfers 1:1 to the stopping position.
   `z_target = tag_p0_z_m - tag_final_overshoot_m` (default 0.01, i.e. aim 1 cm
   closer than P0).
-- Tag geometry (camera optical frame, camera axis assumed along body +y, pitch
-  ignored): `ex = x - tag_ref_x_m`, `ez = z - z_target`,
+- Tag geometry (camera optical frame; the Gemini 336L optical axis is parallel
+  to base_link +y, pitch about 0, user-confirmed 2026-11-25, so camera depth z
+  equals body-forward distance): `ex = x - tag_ref_x_m`, `ez = z - z_target`,
   `eyaw = wrap(yaw - tag_ref_yaw_rad)`, `yaw = atan2(R(2,0), R(0,0))`
   (R = tag frame in camera frame; tag x axis, independent of the tag z
   convention). A CCW body yaw
@@ -289,6 +290,25 @@ now stops at the coarse `visual_stop_distance_m: 0.20` and hands off to the tag:
   (`_offset_from_p0_m` required, > 0; optional `_topic:= _frame:=`). It prints
   the three yaml lines (`tag_p0_z_m = mean z - D`) and the sample standard
   deviation of x, z and yaw.
+- Handoff gate / yaw jump: `tag_handoff_max_z_m` (yaml 0.5, code default 0 =
+  off): only tag detections with camera depth z <= this count toward the handoff
+  (single-tag yaw is ambiguous farther away; also keeps the 0.02 m/s tag advance
+  inside the 60 s timeout). `tag_max_yaw_jump_rad` (yaml 0.10, code default 0 =
+  off): a yaw change larger than this (plus `tag_max_yaw_rate*dt` after the
+  handoff) between accepted samples is physically impossible for the robot and
+  is rejected as pose ambiguity (in Coarse it resets the count; after handoff
+  the update commands zero and a persistent run ends in "tag lost").
+- Teaching additions: choose the back-off distance D so the taught tag depth is
+  about 0.3 m (inside the 0.5 m gate, near the handover depth, because the
+  single-tag yaw bias varies with distance). Before teaching, check yaw vs
+  distance: back the robot straight from P0 in about 5 cm steps out to 0.5 m
+  and confirm the tag yaw spread is <= 1 deg (half of `tag_yaw_tolerance_rad`
+  0.035); a larger spread means a print/size/calibration problem - report it
+  instead of teaching.
+- Mounting: mount the tag upright or upside down (180 deg is fine after
+  teaching); a 90 deg in-plane mount gives |R(1,0)| about 1 and every detection
+  is rejected. Print the official tag36h11 images; OpenCV's DICT_APRILTAG_36h11
+  renders the same code rotated 180 deg.
 - Leg odometry only shows that the stance feet moved back as commanded (it
   cannot prove the body advanced when feet slip). The remaining distance is the
   last valid sample minus the leg-odometry travel since it; the gait's

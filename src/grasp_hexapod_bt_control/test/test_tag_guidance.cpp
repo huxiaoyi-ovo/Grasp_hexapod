@@ -1341,5 +1341,118 @@ TEST(TagGuidance, ConfigValidation) {
   EXPECT_NO_THROW(TagGuidance{TagGuidanceConfig()});
 }
 
+TEST(TagGuidance, HandoffGateCountsOnlyCloseDetections) {
+  TagGuidanceConfig c = testConfig();
+  c.handoff_max_z_m = 0.5;
+  Rig rig(c);
+  for (int i = 0; i < 5; ++i) rig.step(0.05, 0.6, 0.1);
+  EXPECT_FALSE(rig.guidance.handedOff());
+  EXPECT_EQ(rig.guidance.confirmations(), 0);
+  for (int i = 0; i < 5; ++i) rig.step(0.05, 0.45, 0.1);
+  EXPECT_TRUE(rig.guidance.handedOff());
+  EXPECT_EQ(rig.guidance.state(), TagState::Aligning);
+}
+
+TEST(TagGuidance, HandoffGateOutsideSampleResetsCount) {
+  TagGuidanceConfig c = testConfig();
+  c.handoff_max_z_m = 0.5;
+  Rig rig(c);
+  for (int i = 0; i < 4; ++i) rig.step(0.05, 0.45, 0.1);
+  rig.step(0.05, 0.6, 0.1);
+  EXPECT_EQ(rig.guidance.confirmations(), 0);
+  for (int i = 0; i < 4; ++i) rig.step(0.05, 0.45, 0.1);
+  EXPECT_FALSE(rig.guidance.handedOff());
+  rig.step(0.05, 0.45, 0.1);
+  EXPECT_TRUE(rig.guidance.handedOff());
+}
+
+TEST(TagGuidance, GateAndYawJumpValidation) {
+  TagGuidanceConfig c = testConfig();
+  c.handoff_max_z_m = -0.1;
+  EXPECT_THROW(TagGuidance{c}, std::invalid_argument);
+  c = testConfig();
+  c.handoff_max_z_m = zTarget(c);  // must lie beyond z_target
+  EXPECT_THROW(TagGuidance{c}, std::invalid_argument);
+  c = testConfig();
+  c.max_yaw_jump_rad = -0.1;
+  EXPECT_THROW(TagGuidance{c}, std::invalid_argument);
+  c = testConfig();
+  c.max_yaw_jump_rad = std::numeric_limits<double>::quiet_NaN();
+  EXPECT_THROW(TagGuidance{c}, std::invalid_argument);
+  c = testConfig();
+  c.handoff_max_z_m = 0.;
+  c.max_yaw_jump_rad = 0.;
+  EXPECT_NO_THROW(TagGuidance{c});
+}
+
+TEST(TagGuidance, CoarseYawJumpPreventsHandoff) {
+  TagGuidanceConfig c = testConfig();
+  c.max_yaw_jump_rad = 0.10;
+  Rig flip(c);
+  for (int i = 0; i < 20; ++i) {
+    flip.now += 1. / 30.;  // 15 Hz total
+    flip.step(0.05, 0.3, i % 2 == 0 ? 0.17 : -0.17);
+  }
+  EXPECT_FALSE(flip.guidance.handedOff());
+  Rig steady(c);
+  for (int i = 0; i < 5; ++i) {
+    steady.now += 1. / 30.;
+    steady.step(0.05, 0.3, 0.17);
+  }
+  EXPECT_TRUE(steady.guidance.handedOff());
+}
+
+TEST(TagGuidance, CoarseYawReferenceExpiresAfterGap) {
+  TagGuidanceConfig c = testConfig();
+  c.max_yaw_jump_rad = 0.10;
+  Rig rig(c);
+  rig.step(0.05, 0.3, 0.0);
+  EXPECT_EQ(rig.guidance.confirmations(), 1);
+  const double gap_start = rig.now;
+  while (rig.now - gap_start < c.max_age_s + 0.1) rig.tick();
+  rig.step(0.05, 0.3, 0.3);
+  EXPECT_EQ(rig.guidance.confirmations(), 1);
+}
+
+TEST(TagGuidance, YawJumpAfterHandoffIsRejectedOnce) {
+  TagGuidanceConfig c = testConfig();
+  c.max_yaw_jump_rad = 0.10;
+  Rig rig(c);
+  rig.handoff(0.05, 0.3, 0.1);
+  ASSERT_EQ(rig.guidance.state(), TagState::Aligning);
+  const Eigen::Vector3d before = rig.guidance.lastMeasurement();
+  EXPECT_EQ(rig.step(0.05, 0.3, 0.4), Eigen::Vector4d::Zero());
+  EXPECT_EQ(rig.guidance.lastMeasurement(), before);
+  EXPECT_NE(rig.step(0.05, 0.3, 0.1), Eigen::Vector4d::Zero());
+  EXPECT_EQ(rig.guidance.state(), TagState::Aligning);
+}
+
+TEST(TagGuidance, PersistentYawJumpsAfterHandoffLoseTheTag) {
+  TagGuidanceConfig c = testConfig();
+  c.max_yaw_jump_rad = 0.10;
+  Rig rig(c);
+  rig.handoff(0.05, 0.3, 0.1);
+  ASSERT_EQ(rig.guidance.state(), TagState::Aligning);
+  const double start = rig.now;
+  while (rig.now - start < c.loss_timeout_s + 0.2) rig.step(0.05, 0.3, 0.4);
+  EXPECT_EQ(rig.guidance.state(), TagState::Failed);
+  EXPECT_EQ(rig.guidance.reason(), "tag lost");
+}
+
+TEST(TagGuidance, SlowRotationAfterHandoffIsAccepted) {
+  TagGuidanceConfig c = testConfig();
+  c.max_yaw_jump_rad = 0.10;
+  Rig rig(c);
+  double yaw = 0.1;
+  rig.handoff(0.05, 0.3, yaw);
+  ASSERT_EQ(rig.guidance.state(), TagState::Aligning);
+  for (int i = 0; i < 30; ++i) {
+    yaw += 0.005;
+    rig.now += 1. / 30.;  // 15 Hz total
+    rig.step(0.05, 0.3, yaw);
+    EXPECT_NEAR(rig.guidance.lastMeasurement()[2], yaw, 1e-9);
+  }
+}
+
 }  // namespace
 }  // namespace grasp_hexapod_bt_control

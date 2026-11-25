@@ -390,3 +390,12 @@
 - 合成图实测（scratchpad `tagtest/`，独立 roscore 端口，参数同 full_mission.launch，fx 690，无畸变）：位置 x/z 亚毫米准确；官方图案（libapriltag `apriltag_to_image`）正装 yaw≈0、+10° 偏转测得 +9.7…+12.3°，控制器 yaw 符号定义与 apriltag_ros 一致；OpenCV aruco 的 APRILTAG_36h11 图 = 官方图转 180°（yaw≈±180°，示教后 wrap 可处理）；平面内转 90° 安装 |R10|=1 → 全部拒收。
 - 风险（推理 + 合成证据，未实机）：(1) 近正对 yaw 病态：6 cm tag 在 0.5 m 约 0.35 px 边缘误差 ≈ 2°，合成图已出现随距离变化的 0.1–2.3° 偏差，与 tag_yaw_tolerance 0.035 rad 同量级；(2) z=0.8 m、偏 10° 时 40/40 帧 yaw 在 ±10.5° 间翻转（平面位姿二义性），而 Coarse→tag 交接无距离门；(3) 交接无距离门 + tag 前进上限 0.02 m/s + align_timeout 60 s（覆盖 Aligning+Advancing）→ 远处（约 >1.2 m）交接会超时；(4) 相机俯仰被忽略：p0_z=z_D−D 在俯仰 θ 时多走 D(1/cosθ−1)（θ20°/D0.3 m ≈19 mm），URDF 无相机外参，θ 未知；(5) odom_at_last_valid 用处理时刻而非图像时刻，约 2–3 mm 多走（次要）。
 - 待用户决定：交接距离门/近距离才交接、yaw 容差或改用多 tag/更大 tag、俯仰补偿（需相机外参）。
+
+## 2026-11-25 Claude Code（Sol + Luna）：tag 交接距离门 + yaw 跳变拒收（本地提交，未推送）
+
+- 用户决定：直接在 `test` 开发、可本地提交、推送等用户指令（与攀爬一起推）。相机光轴平行 base_link +y、俯仰≈0（用户确认，已记入 PROJECT_MEMORY），俯仰补偿不做。
+- Sol：cherry-pick `cb5be0d`→`81643cd`、`ca59b7f`→`02eae62`（交接文件冲突两边保留），YOLO 两处小修 `9ac4606`。
+- execution_owner：Luna（sonnet，effort medium；9 文件 C++/配置/测试/文档耦合）。`TagGuidance`：`tag_handoff_max_z_m`（yaml 0.5，代码默认 0=关）——Coarse 只有 z≤门限的检测计入连续确认，门外清零；`tag_max_yaw_jump_rad`（yaml 0.10，默认 0）——与参考样本 yaw 差超限即拒收，Coarse 中参考超过 max_age_s 失效（自恢复）、清零计数，交接后参考不失效、容许量 +max_yaw_rate·dt，拒收帧零命令，持续拒收走原 "tag lost"/handover 分支。README 补参数、示教（示教深度约 0.3 m，先测 yaw–距离，散布 ≤1°）、安装（正装/倒装，禁 90°；OpenCV 36h11 图为官方转 180°）。感知节点代码默认值对齐 yaml（max_result_age .25、max_depth 2.5、深度话题 /camera/depth/*、intra_op 2），test_target_timing 显式配 0.8 模拟 NX CPU 慢节奏。
+- 验证（`grasp_wt_test` build 目标 + 二进制）：tag gtest 58/58（原 50）、visual 26/26、mode_framework 13/13、routing 7/7、bt_control_node 编译通过；YOLO pytest 18 通过 / 3 GPU 跳过；yaml 可加载。未跑 roslaunch / 实机。
+- 注意：本工作树同时有另一会话（攀爬，grasp-hexapod-a3）在写，其 CLAUDE_HANDOFF 条目未被本提交纳入。
+- 待办：实机示教 tag、yaw–距离检查、IMU yaw 符号；大 tag / 双 tag 需硬件。

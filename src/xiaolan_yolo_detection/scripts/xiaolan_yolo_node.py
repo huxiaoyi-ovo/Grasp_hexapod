@@ -37,7 +37,7 @@ class YoloNode:
         elif backend == 'onnx':
             import onnxruntime as ort
             opts = ort.SessionOptions()
-            opts.intra_op_num_threads = int(rospy.get_param('~intra_op_num_threads', 4))
+            opts.intra_op_num_threads = int(rospy.get_param('~intra_op_num_threads', 2))
             opts.inter_op_num_threads = int(rospy.get_param('~inter_op_num_threads', 1))
             if min(opts.intra_op_num_threads, opts.inter_op_num_threads) < 1:
                 raise ValueError('ORT thread counts must be >=1')

@@ -254,7 +254,7 @@ rosrun rqt_image_view rqt_image_view /xiaolan_visualizer/image
 | `max_hold_seconds` | `0.25` | 丢失或跳变时，自上次有效测量起允许复用旧结果的最长时间；不用于重置连续有效检测，秒 |
 | `ema_alpha` | `0.4` | 位置平滑系数 |
 | `target_timeout` | `0.5` | 检测消息中断阈值；超过后清空确认状态，秒 |
-| `max_result_age` | `0.8` | 从 RGB 采集到定位结果的总有效期，包含 CPU 推理耗时，秒 |
+| `max_result_age` | `0.25` | 从 RGB 采集到定位结果的总有效期，包含 CPU 推理耗时，秒 |
 
 CPU 对比启动（本机 GPU 解释器也包含 ONNX Runtime）：
 
@@ -333,7 +333,7 @@ YOLO 日志中的 `FPS` 只统计实际执行推理的帧，`dropped` 是该日�
 | 提示找不到 `tensorrt` 或 CUDA 库 | 执行本机 GPU 安装步骤，并使用 `.venv/jetson-gpu/bin/python3` 入口 |
 | 引擎缺失或版本/模型不匹配 | 用 GPU 解释器重新运行 `scripts/build_trt_engine.py` |
 | 提示找不到 `onnxruntime` | 检查 `yolo_python` 是否指向已安装依赖的虚拟环境 |
-| `STALE_OR_INVALID_RGB_TIMESTAMP` / `STALE_RGB_RESULT` | 检测前 RGB 有效期为 `max_input_age`（0.5 秒），定位总有效期为 `max_result_age`（0.8 秒）；检查相机延迟和 CPU 推理耗时，诊断话题 `rgb_age_s` 可查看定位时帧龄 |
+| `STALE_OR_INVALID_RGB_TIMESTAMP` / `STALE_RGB_RESULT` | 检测前 RGB 有效期为 `max_input_age`（0.25 秒），定位总有效期为 `max_result_age`（0.25 秒）；检查相机延迟和 CPU 推理耗时，诊断话题 `rgb_age_s` 可查看定位时帧龄 |
 | `OUT_OF_ORDER_RGB` / `INVALID_RGB_TIMESTAMP` | 检查重复、倒退、零时间戳或超前的 RGB 时间戳，以及 ROS 时钟配置 |
 | 模型输入或输出格式报错 | 检查单类别、静态尺寸、FP32 和无内置 NMS 的导出要求 |
 | 有检测框但没有有效定位 | 检查对齐深度、内参、时间戳匹配以及深度是否在配置范围内 |

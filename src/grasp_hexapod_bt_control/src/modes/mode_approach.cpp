@@ -24,6 +24,8 @@ TagGuidanceConfig loadTagGuidanceConfig(ros::NodeHandle& p, bool enabled) {
   if (!enabled) return c;
   c.tag_id = p.param("tag_guidance_id", 0);
   c.confirm_frames = p.param("tag_handoff_confirm_frames", 5);
+  c.handoff_max_z_m = p.param("tag_handoff_max_z_m", 0.0);
+  c.max_yaw_jump_rad = p.param("tag_max_yaw_jump_rad", 0.0);
   c.max_age_s = p.param("tag_max_age_s", .25);
   c.expected_frame = p.param<std::string>("visual_expected_target_frame", "camera_color_optical_frame");
   c.ref_x_m = p.param("tag_ref_x_m", 0.0);

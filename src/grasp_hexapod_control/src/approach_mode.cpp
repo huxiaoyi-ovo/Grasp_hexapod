@@ -46,6 +46,17 @@ void ApproachMode::initFromController() {
 
   swing_start_base_ = controller->foot_init_base;
   swing_target_base_ = controller->foot_init_base;
+
+  for (int leg = 0; leg < kLegCount; ++leg) {
+    swing_q_start_[leg] = controller->q_init[leg];
+    swing_q_end_[leg] = controller->q_init[leg];
+    swing_qd_start_[leg].setZero();
+    swing_qd_end_[leg].setZero();
+    swing_lift_amplitude_[leg] = 0.0;
+    last_override_q_[leg] = controller->q_init[leg];
+    swing_override_emitted_[leg] = false;
+  }
+  last_override_valid_ = false;
 }
 
 void ApproachMode::configureFixedApproach(
@@ -444,48 +455,249 @@ bool ApproachMode::commitCandidate(const FootPositions& candidate_base) {
   return controller_->commitWorkspaceCandidate(candidate_base);
 }
 
-double ApproachMode::smoothStepStatic(double phase) {
-  const double p2 = phase * phase;
-  const double p3 = p2 * phase;
-  return 10.0 * p3 - 15.0 * p3 * phase + 6.0 * p3 * p2;
+// ---------------------------------------------------------------------
+// 摆动腿关节空间轨迹
+// ---------------------------------------------------------------------
+Vector3d ApproachMode::basePointToHip(int leg, const Vector3d& point_base) const {
+  FootPositions feet{};
+  feet.fill(point_base);
+  return controller_->kinematic.baseToHip(feet)[leg];
 }
 
-double ApproachMode::trapezoidRise(double u) const {
-  // 梯形升起剖面(归一化 0→1): smoothstep 加速-匀速-减速。
-  const double a = lift_accel_fraction_;
-  const double v = 1.0 / (1.0 - a);
-  if (u <= a) {
-    return v * a * 0.5 * smoothStepStatic(u / a);
-  }
-  if (u <= 1.0 - a) {
-    return v * (a * 0.5 + (u - a));
-  }
-  return v * (1.0 - 1.5 * a + 0.5 * a * smoothStepStatic((u - 1.0 + a) / a));
+Vector3d ApproachMode::hipPointToBase(int leg, const Vector3d& point_hip) const {
+  FootPositions feet{};
+  feet.fill(point_hip);
+  return controller_->kinematic.hipToBase(feet)[leg];
 }
 
-std::pair<Eigen::Vector2d, Eigen::Vector2d> ApproachMode::quinticSegment(
-    const Eigen::Vector2d& start, const Eigen::Vector2d& target,
-    const Eigen::Vector2d& start_velocity, const Eigen::Vector2d& target_velocity,
-    double duration, double phase) {
-  Eigen::Vector2d position;
-  Eigen::Vector2d velocity;
-  for (int axis = 0; axis < 2; ++axis) {
-    const double start_scaled_velocity = start_velocity[axis] * duration;
-    const double velocity_change = (target_velocity[axis] - start_velocity[axis]) * duration;
-    const double residual = target[axis] - start[axis] - start_scaled_velocity;
+Vector3d ApproachMode::baseVectorToHip(int leg, const Vector3d& point_base,
+                                       const Vector3d& vector_base) const {
+  return basePointToHip(leg, point_base + vector_base) - basePointToHip(leg, point_base);
+}
 
-    const double c3 = 10.0 * residual - 4.0 * velocity_change;
-    const double c4 = -15.0 * residual + 7.0 * velocity_change;
-    const double c5 = 6.0 * residual - 3.0 * velocity_change;
-
-    position[axis] = start[axis] + start_scaled_velocity * phase +
-                     c3 * std::pow(phase, 3) + c4 * std::pow(phase, 4) +
-                     c5 * std::pow(phase, 5);
-    velocity[axis] = (start_scaled_velocity + 3.0 * c3 * phase * phase +
-                      4.0 * c4 * std::pow(phase, 3) + 5.0 * c5 * std::pow(phase, 4)) /
-                     duration;
+bool ApproachMode::legIk(int leg, const Vector3d& target_hip, const Vector3d& q_seed,
+                         Vector3d* q) const {
+  const GraspKinematic& kinematic = controller_->kinematic;
+  Vector3d angles = q_seed;
+  for (int iteration = 0; iteration < 50; ++iteration) {
+    const Vector3d error = target_hip - kinematic.forwardLeg(leg, angles);
+    if (error.norm() < 1e-10) {
+      break;
+    }
+    const Matrix3d jacobian = kinematic.jacobianLeg(leg, angles);
+    const Matrix3d normal = jacobian.transpose() * jacobian + 1e-9 * Matrix3d::Identity();
+    angles += normal.partialPivLu().solve(jacobian.transpose() * error);
   }
-  return {position, velocity};
+  *q = angles;
+  return (target_hip - kinematic.forwardLeg(leg, angles)).norm() <= 1e-6;
+}
+
+void ApproachMode::hermiteQuintic(const Vector3d& q0, const Vector3d& q1,
+                                  const Vector3d& qd0, const Vector3d& qd1,
+                                  double duration, double u, Vector3d* q, Vector3d* dq) {
+  const Vector3d scaled_velocity = qd0 * duration;
+  const Vector3d residual = q1 - q0 - scaled_velocity;
+  const Vector3d velocity_change = (qd1 - qd0) * duration;
+  const Vector3d c3 = 10.0 * residual - 4.0 * velocity_change;
+  const Vector3d c4 = -15.0 * residual + 7.0 * velocity_change;
+  const Vector3d c5 = 6.0 * residual - 3.0 * velocity_change;
+  *q = q0 + scaled_velocity * u + c3 * std::pow(u, 3) + c4 * std::pow(u, 4) +
+       c5 * std::pow(u, 5);
+  *dq = (scaled_velocity + 3.0 * c3 * u * u + 4.0 * c4 * std::pow(u, 3) +
+         5.0 * c5 * std::pow(u, 4)) /
+        duration;
+}
+
+void ApproachMode::swingJointState(int leg, double u, Vector3d* q, Vector3d* dq) const {
+  hermiteQuintic(swing_q_start_[leg], swing_q_end_[leg], swing_qd_start_[leg],
+                 swing_qd_end_[leg], phase_duration_, u, q, dq);
+  // b(u)=64u^3(1-u)^3：b(0)=b(1)=0，两端速度、加速度为零，b(0.5)=1。
+  const double bump = 64.0 * std::pow(u, 3) * std::pow(1.0 - u, 3);
+  const double bump_rate =
+      192.0 * u * u * (1.0 - u) * (1.0 - u) * (1.0 - 2.0 * u) / phase_duration_;
+  (*q)[1] += swing_lift_amplitude_[leg] * bump;
+  (*dq)[1] += swing_lift_amplitude_[leg] * bump_rate;
+}
+
+bool ApproachMode::planSwing(const std::vector<int>& swing_indices) {
+  GraspController* controller = controller_;
+  const GraspKinematic& kinematic = controller->kinematic;
+  const double alpha = swing_boundary_velocity_ratio_;
+  const JointAngles lower = jointLower();
+  const JointAngles upper = jointUpper();
+
+  for (int leg : swing_indices) {
+    const Vector3d start_base = swing_start_base_[leg];
+    const Vector3d target_base = swing_target_base_[leg];
+    const Vector3d start_hip = basePointToHip(leg, start_base);
+    const Vector3d target_hip = basePointToHip(leg, target_base);
+    Vector3d q_start;
+    Vector3d q_end;
+    const bool start_ok = legIk(leg, start_hip, controller->q_des[leg], &q_start);
+    const bool end_ok = legIk(leg, target_hip, controller->q_init[leg], &q_end);
+    if (!(start_ok && end_ok)) {
+      return false;
+    }
+
+    const Vector3d start_velocity(swing_start_velocity_xy_[leg].x(),
+                                  swing_start_velocity_xy_[leg].y(), 0.0);
+    const Vector3d target_velocity(swing_target_velocity_xy_[leg].x(),
+                                   swing_target_velocity_xy_[leg].y(), 0.0);
+    const Vector3d qd_start =
+        alpha * kinematic.jacobianLeg(leg, q_start)
+                    .partialPivLu()
+                    .solve(baseVectorToHip(leg, start_base, start_velocity));
+    const Vector3d qd_end =
+        alpha * kinematic.jacobianLeg(leg, q_end)
+                    .partialPivLu()
+                    .solve(baseVectorToHip(leg, target_base, target_velocity));
+    swing_q_start_[leg] = q_start;
+    swing_q_end_[leg] = q_end;
+    swing_qd_start_[leg] = qd_start;
+    swing_qd_end_[leg] = qd_end;
+
+    // 膝关节抬腿：幅值二分到 21 个均匀采样点上足端最高点
+    // 高出落点地面 step_height。
+    std::array<Vector3d, 21> q_base_samples;
+    std::array<double, 21> bump_samples;
+    for (int sample = 0; sample <= 20; ++sample) {
+      const double u = sample / 20.0;
+      Vector3d dq_unused;
+      hermiteQuintic(q_start, q_end, qd_start, qd_end, phase_duration_, u,
+                     &q_base_samples[sample], &dq_unused);
+      bump_samples[sample] = 64.0 * std::pow(u, 3) * std::pow(1.0 - u, 3);
+    }
+    Vector3d q_mid;
+    Vector3d dq_unused;
+    hermiteQuintic(q_start, q_end, qd_start, qd_end, phase_duration_, 0.5, &q_mid,
+                   &dq_unused);
+    const double sign = kinematic.jacobianLeg(leg, q_mid)(2, 1) >= 0.0 ? 1.0 : -1.0;
+    const double ground_z_hip = target_hip.z();
+    const auto peak_height = [&](double lift_amplitude) {
+      double peak = -1e300;
+      for (int sample = 0; sample <= 20; ++sample) {
+        Vector3d q_lift = q_base_samples[sample];
+        q_lift[1] += sign * lift_amplitude * bump_samples[sample];
+        peak = std::max(peak, kinematic.forwardLeg(leg, q_lift).z() - ground_z_hip);
+      }
+      return peak;
+    };
+    double low = 0.0;
+    double high = 1.2;
+    for (int iteration = 0; iteration < 60; ++iteration) {
+      const double middle = 0.5 * (low + high);
+      if (peak_height(middle) < step_height_) {
+        low = middle;
+      } else {
+        high = middle;
+      }
+    }
+    double amplitude = 0.5 * (low + high);
+    if (peak_height(1.2) < step_height_) {
+      amplitude = 1.2;
+    }
+
+    // 速度限幅：幅值取 min(高度所需幅值, 该腿 41 个均匀采样点上
+    // 三个关节解析峰值速度不超过限值的最大幅值)。
+    std::array<Vector3d, 41> base_rate;
+    std::array<double, 41> bump_rate;
+    for (int sample = 0; sample <= 40; ++sample) {
+      const double u = sample / 40.0;
+      Vector3d q_unused;
+      hermiteQuintic(q_start, q_end, qd_start, qd_end, phase_duration_, u, &q_unused,
+                     &base_rate[sample]);
+      bump_rate[sample] = 192.0 * u * u * (1.0 - u) * (1.0 - u) * (1.0 - 2.0 * u) /
+                          phase_duration_;
+    }
+    const auto peak_speed = [&](double lift_amplitude) {
+      double peak = 0.0;
+      for (int sample = 0; sample <= 40; ++sample) {
+        Vector3d rate = base_rate[sample];
+        rate[1] += sign * lift_amplitude * bump_rate[sample];
+        peak = std::max(peak, rate.cwiseAbs().maxCoeff());
+      }
+      return peak;
+    };
+    if (peak_speed(0.0) > swing_joint_speed_limit_) {
+      // 基础路径本身已超速，不能靠减小抬腿解决：保持高度所需幅值。
+      speed_governor_infeasible += 1;
+    } else if (peak_speed(1.2) > swing_joint_speed_limit_) {
+      double feasible = 0.0;
+      double infeasible = 1.2;
+      for (int iteration = 0; iteration < 60; ++iteration) {
+        const double middle = 0.5 * (feasible + infeasible);
+        if (peak_speed(middle) <= swing_joint_speed_limit_) {
+          feasible = middle;
+        } else {
+          infeasible = middle;
+        }
+      }
+      amplitude = std::min(amplitude, feasible);
+    }
+    swing_lift_amplitude_[leg] = sign * amplitude;
+
+    for (int sample = 0; sample <= 20; ++sample) {
+      Vector3d q;
+      Vector3d dq;
+      swingJointState(leg, sample / 20.0, &q, &dq);
+      for (int joint = 0; joint < kJointCount; ++joint) {
+        if (q[joint] < lower[leg][joint] || q[joint] > upper[leg][joint]) {
+          return false;
+        }
+      }
+    }
+  }
+  return true;
+}
+
+void ApproachMode::clearOverrideState() {
+  for (int leg = 0; leg < kLegCount; ++leg) {
+    if (swing_override_emitted_[leg]) {
+      controller_->joint_override[leg].reset();
+    }
+    swing_override_emitted_[leg] = false;
+    last_override_q_[leg].setZero();
+  }
+  last_override_valid_ = false;
+}
+
+void ApproachMode::emitOverrides(bool committed, const std::array<bool, 6>& is_swing,
+                                 const std::array<Vector3d, 6>& swing_targets) {
+  GraspController* controller = controller_;
+  if (committed) {
+    const FootPositions feet_hip = controller->kinematic.baseToHip(controller->foot_desired_base);
+    JointAngles targets{};
+    bool all_converged = true;
+    for (int leg = 0; leg < kLegCount; ++leg) {
+      if (is_swing[leg]) {
+        targets[leg] = swing_targets[leg];
+        continue;
+      }
+      const Vector3d seed =
+          last_override_valid_ ? last_override_q_[leg] : controller->q_des[leg];
+      if (!legIk(leg, feet_hip[leg], seed, &targets[leg])) {
+        all_converged = false;
+        break;
+      }
+    }
+    if (all_converged) {
+      last_override_q_ = targets;
+      last_override_valid_ = true;
+    }
+  }
+  for (int leg = 0; leg < kLegCount; ++leg) {
+    controller->joint_override[leg] =
+        last_override_valid_ ? last_override_q_[leg] : controller->q_des[leg];
+    swing_override_emitted_[leg] = true;
+  }
+}
+
+void ApproachMode::abortStep() {
+  // 摆动规划失败：不起步，全部保持支撑，按停止路径清零指令。
+  gait_started = false;
+  phase_time_ = 0.0;
+  requested_command_.setZero();
+  foot_velocity_xy_.fill(Eigen::Vector2d::Zero());
 }
 
 std::array<Eigen::Vector2d, 6> ApproachMode::stanceVelocity(
@@ -502,43 +714,80 @@ std::array<Eigen::Vector2d, 6> ApproachMode::stanceVelocity(
   return velocity;
 }
 
-void ApproachMode::slewRequestedCommand(const Eigen::Vector4d& command) {
-  Eigen::Vector4d slewed = command;
+Eigen::Vector4d ApproachMode::scaledCommand(const Eigen::Vector4d& command) const {
+  Eigen::Vector4d scaled = command;
   const double foot_speed_budget =
-      slewed.head<2>().norm() + nominal_foot_radius_ * std::abs(slewed[3]);
+      scaled.head<2>().norm() + nominal_foot_radius_ * std::abs(scaled[3]);
   if (foot_speed_budget > max_foot_planar_speed_) {
     const double scale = max_foot_planar_speed_ / foot_speed_budget;
-    slewed.head<2>() *= scale;
-    slewed[3] *= scale;
+    scaled.head<2>() *= scale;
+    scaled[3] *= scale;
   }
-  Eigen::Vector2d linear_delta = slewed.head<2>() - requested_command_.head<2>();
+  return scaled;
+}
+
+Eigen::Vector4d ApproachMode::slewCommand(const Eigen::Vector4d& requested,
+                                          const Eigen::Vector4d& target) const {
+  Eigen::Vector4d slewed = requested;
+  Eigen::Vector2d linear_delta = target.head<2>() - slewed.head<2>();
   const double linear_norm = linear_delta.norm();
   const double linear_step = max_linear_acceleration_ * controller_->dt;
   if (linear_norm > linear_step) {
     linear_delta *= linear_step / linear_norm;
   }
-  requested_command_.head<2>() += linear_delta;
+  slewed.head<2>() += linear_delta;
 
   const double yaw_delta = std::max(
       -max_yaw_acceleration_ * controller_->dt,
-      std::min(max_yaw_acceleration_ * controller_->dt,
-               slewed[3] - requested_command_[3]));
-  requested_command_[3] += yaw_delta;
-  requested_command_[2] = slewed[2];
+      std::min(max_yaw_acceleration_ * controller_->dt, target[3] - slewed[3]));
+  slewed[3] += yaw_delta;
+  slewed[2] = target[2];
+  return slewed;
 }
 
-void ApproachMode::updateSwingTarget(const std::vector<int>& swing_indices) {
+void ApproachMode::slewRequestedCommand(const Eigen::Vector4d& command) {
+  slew_target_command_ = scaledCommand(command);
+  requested_command_ = slewCommand(requested_command_, slew_target_command_);
+}
+
+std::vector<Eigen::Vector4d> ApproachMode::predictCommandProfile(int count) const {
+  std::vector<Eigen::Vector4d> profile;
+  profile.reserve(static_cast<std::size_t>(count));
+  Eigen::Vector4d current = requested_command_;
+  for (int index = 0; index < count; ++index) {
+    profile.push_back(current);
+    current = slewCommand(current, slew_target_command_);
+  }
+  return profile;
+}
+
+void ApproachMode::updateSwingTarget(const std::vector<int>& swing_indices,
+                                     int frame_offset) {
   GraspController* controller = controller_;
   FootPositions target = controller->foot_init_base;
+  // 落地腿的支撑期 = 随后的共同支撑 + 下一摆动相 + 再下一次共同支撑；
+  // 落点取支撑期位移的一半反向偏置，使支撑行程以 home 为中心。
+  const int phase_frames =
+      static_cast<int>(std::ceil(phase_duration_ / controller->dt - 1e-9));
+  const int first_stance = frame_offset + phase_frames;
+  const int stance_count = transfer_frames_ + phase_frames + transfer_frames_;
+  const std::vector<Eigen::Vector4d> profile =
+      predictCommandProfile(first_stance + stance_count);
   std::array<Eigen::Vector2d, 6> home_xy{};
   for (int leg = 0; leg < kLegCount; ++leg) {
     home_xy[leg] = controller->foot_init_base[leg].head<2>();
   }
-  const std::array<Eigen::Vector2d, 6> stance_at_home = stanceVelocity(home_xy, active_phase_command_);
-  const double support_duration = phase_duration_ + 2.0 * transfer_duration_;
+  std::array<Eigen::Vector2d, 6> stance_displacement{};
+  stance_displacement.fill(Eigen::Vector2d::Zero());
+  for (int index = first_stance; index < first_stance + stance_count; ++index) {
+    const std::array<Eigen::Vector2d, 6> stance_at_home =
+        stanceVelocity(home_xy, profile[static_cast<std::size_t>(index)]);
+    for (int leg = 0; leg < kLegCount; ++leg) {
+      stance_displacement[leg] += stance_at_home[leg] * controller->dt;
+    }
+  }
   for (int leg : swing_indices) {
-    target[leg].head<2>() +=
-        0.5 * support_duration * (-stance_at_home[leg]);
+    target[leg].head<2>() -= 0.5 * stance_displacement[leg];
     target[leg].z() = controller->foot_init_base[leg].z() - body_height_offset_;
   }
 
@@ -553,12 +802,13 @@ void ApproachMode::updateSwingTarget(const std::vector<int>& swing_indices) {
   for (int leg : swing_indices) {
     swing_target_base_[leg] = target[leg];
   }
-  // 目标速度在（投影后的）新落点位置上求值。
+  // 落点边界速度 = 第一帧支撑指令在（投影后的）新落点位置上的刚体速度。
   std::array<Eigen::Vector2d, 6> target_xy{};
   for (int leg = 0; leg < kLegCount; ++leg) {
     target_xy[leg] = swing_target_base_[leg].head<2>();
   }
-  const std::array<Eigen::Vector2d, 6> target_velocity = stanceVelocity(target_xy, active_phase_command_);
+  const std::array<Eigen::Vector2d, 6> target_velocity =
+      stanceVelocity(target_xy, profile[static_cast<std::size_t>(first_stance)]);
   for (int leg : swing_indices) {
     swing_target_velocity_xy_[leg] = target_velocity[leg];
   }
@@ -575,27 +825,28 @@ void ApproachMode::reset() {
   transfer_time_ = 0.0;
   transfer_active_ = false;
   requested_command_.setZero();
-  active_phase_command_.setZero();
+  slew_target_command_.setZero();
   stop_requested_ = false;
   gait_started = false;
   first_step_ = true;
   foot_velocity_xy_.fill(Eigen::Vector2d::Zero());
   swing_start_velocity_xy_.fill(Eigen::Vector2d::Zero());
   swing_target_velocity_xy_.fill(Eigen::Vector2d::Zero());
+  clearOverrideState();
   approach_plan = ApproachPlan();
   navigation_state_.reset();
 }
 
 void ApproachMode::finishReset() {
+  clearOverrideState();
   body_height_offset_ = 0.0;
   swing_start_base_ = controller_->foot_init_base;
   swing_target_base_ = controller_->foot_init_base;
 }
 
-void ApproachMode::beginStep() {
+bool ApproachMode::beginStep(int frame_offset) {
   GraspController* controller = controller_;
   phase_time_ = 0.0;
-  active_phase_command_ = requested_command_;
 
   std::vector<int> swing_indices;
   for (int leg = 0; leg < kLegCount; ++leg) {
@@ -606,7 +857,11 @@ void ApproachMode::beginStep() {
   swing_start_base_ = controller->foot_desired_base;
   swing_target_base_ = controller->foot_init_base;
   swing_start_velocity_xy_ = foot_velocity_xy_;
-  updateSwingTarget(swing_indices);
+  updateSwingTarget(swing_indices, frame_offset);
+  if (!planSwing(swing_indices)) {
+    return false;
+  }
+  return true;
 }
 
 const ApproachPlan& ApproachMode::update(const Eigen::Vector4d& command,
@@ -628,6 +883,8 @@ const ApproachPlan& ApproachMode::update(const Eigen::Vector4d& command,
 
 void ApproachMode::updateGait(const Eigen::Vector4d& command) {
   GraspController* controller = controller_;
+  // 控制器每帧开头已清空 joint_override；本帧的发出标记重新计。
+  swing_override_emitted_.fill(false);
 
   // 回正由控制器中的关节插值接管。
   if (controller->reset_active) {
@@ -660,7 +917,9 @@ void ApproachMode::updateGait(const Eigen::Vector4d& command) {
     for (int leg = 0; leg < kLegCount; ++leg) {
       candidate_base[leg].z() = ground_z[leg].z();
     }
-    if (!commitCandidate(candidate_base)) {
+    const bool idle_committed = commitCandidate(candidate_base);
+    emitOverrides(idle_committed, std::array<bool, 6>{}, std::array<Vector3d, 6>{});
+    if (!idle_committed) {
       return;
     }
     foot_velocity_xy_.fill(Eigen::Vector2d::Zero());
@@ -670,7 +929,10 @@ void ApproachMode::updateGait(const Eigen::Vector4d& command) {
     }
     gait_started = true;
     stop_requested_ = false;
-    beginStep();
+    if (!beginStep(0)) {
+      abortStep();
+      return;
+    }
   } else {
     // 零指令时先让当前摆动组落地，再停止。
     stop_requested_ = planar_command.norm() < 1e-8;
@@ -683,7 +945,7 @@ void ApproachMode::updateGait(const Eigen::Vector4d& command) {
     for (int leg = 0; leg < kLegCount; ++leg) {
       candidate_xy[leg] = candidate_base[leg].head<2>();
     }
-    const std::array<Eigen::Vector2d, 6> stance = stanceVelocity(candidate_xy, active_phase_command_);
+    const std::array<Eigen::Vector2d, 6> stance = stanceVelocity(candidate_xy, requested_command_);
     for (int leg = 0; leg < kLegCount; ++leg) {
       candidate_base[leg].head<2>() += stance[leg] * transfer_dt;
       candidate_base[leg].z() = ground_z[leg].z();
@@ -691,7 +953,9 @@ void ApproachMode::updateGait(const Eigen::Vector4d& command) {
     const std::array<Eigen::Vector2d, 6> velocity_before = foot_velocity_xy_;
     foot_velocity_xy_ = stance;
 
-    if (!commitCandidate(candidate_base)) {
+    const bool transfer_committed = commitCandidate(candidate_base);
+    emitOverrides(transfer_committed, std::array<bool, 6>{}, std::array<Vector3d, 6>{});
+    if (!transfer_committed) {
       foot_velocity_xy_ = velocity_before;
       return;
     }
@@ -718,15 +982,20 @@ void ApproachMode::updateGait(const Eigen::Vector4d& command) {
     }
     first_step_ = false;
 
-    if (stop_requested_) {
+    // 零指令且限加速度指令已降到零才停；否则继续迈步，
+    // 前瞻落点会让最后几步自然缩短。
+    if (stop_requested_ && requested_command_.head<2>().norm() < 1e-6 &&
+        std::abs(requested_command_[3]) < 1e-6) {
       gait_started = false;
       phase_time_ = 0.0;
       requested_command_.setZero();
-      active_phase_command_.setZero();
       foot_velocity_xy_.fill(Eigen::Vector2d::Zero());
       return;
     }
-    beginStep();
+    if (!beginStep(1)) {
+      abortStep();
+      return;
+    }
     return;
   }
 
@@ -741,7 +1010,7 @@ void ApproachMode::updateGait(const Eigen::Vector4d& command) {
   for (int leg = 0; leg < kLegCount; ++leg) {
     candidate_xy[leg] = candidate_base[leg].head<2>();
   }
-  const std::array<Eigen::Vector2d, 6> stance = stanceVelocity(candidate_xy, active_phase_command_);
+  const std::array<Eigen::Vector2d, 6> stance = stanceVelocity(candidate_xy, requested_command_);
   for (int leg : stance_indices) {
     candidate_base[leg].head<2>() += stance[leg] * phase_dt;
     candidate_base[leg].z() = ground_z[leg].z();
@@ -753,30 +1022,39 @@ void ApproachMode::updateGait(const Eigen::Vector4d& command) {
 
   const double next_phase_time = phase_time_ + phase_dt;
   const double phase = std::max(0.0, std::min(1.0, next_phase_time / phase_duration_));
-  for (int leg : swing_indices) {
-    const auto [position, velocity] = quinticSegment(
-        swing_start_base_[leg].head<2>(), swing_target_base_[leg].head<2>(),
-        swing_start_velocity_xy_[leg], swing_target_velocity_xy_[leg],
-        phase_duration_, phase);
-    candidate_base[leg].head<2>() = position;
-    foot_velocity_xy_[leg] = velocity;
-  }
-
-  double lift_height;
-  if (phase < swing_lift_fraction_) {
-    lift_height = step_height_ * trapezoidRise(phase / swing_lift_fraction_);
-  } else if (phase > 1.0 - swing_lift_fraction_) {
-    lift_height =
-        step_height_ * trapezoidRise((1.0 - phase) / swing_lift_fraction_);
-  } else {
-    lift_height = step_height_;
-  }
-  for (int leg : swing_indices) {
-    candidate_base[leg].z() = ground_z[leg].z() + lift_height;
-  }
-
   const bool phase_finished = next_phase_time >= phase_duration_ - 1e-12;
-  if (phase_finished) {
+  // 摆动腿走关节空间轨迹：候选足端取规划关节角的 FK，使边界、
+  // 工作空间和碰撞检查看到真实的规划足端。
+  std::array<Vector3d, 6> swing_joint_targets{};
+  FootPositions swing_hip_feet{};
+  FootPositions swing_hip_moved{};
+  for (int leg = 0; leg < kLegCount; ++leg) {
+    swing_hip_feet[leg].setZero();
+    swing_hip_moved[leg].setZero();
+    swing_joint_targets[leg].setZero();
+  }
+  for (int leg : swing_indices) {
+    if (phase_finished) {
+      swing_joint_targets[leg] = swing_q_end_[leg];
+      continue;
+    }
+    Vector3d q_leg;
+    Vector3d dq_leg;
+    swingJointState(leg, phase, &q_leg, &dq_leg);
+    swing_joint_targets[leg] = q_leg;
+    swing_hip_feet[leg] = controller->kinematic.forwardLeg(leg, q_leg);
+    swing_hip_moved[leg] =
+        swing_hip_feet[leg] + controller->kinematic.jacobianLeg(leg, q_leg) * dq_leg;
+  }
+  if (!phase_finished) {
+    const FootPositions swing_feet_base = controller->kinematic.hipToBase(swing_hip_feet);
+    const FootPositions swing_feet_moved = controller->kinematic.hipToBase(swing_hip_moved);
+    for (int leg : swing_indices) {
+      candidate_base[leg] = swing_feet_base[leg];
+      foot_velocity_xy_[leg] =
+          (swing_feet_moved[leg] - swing_feet_base[leg]).head<2>();
+    }
+  } else {
     for (int leg : swing_indices) {
       candidate_base[leg] = swing_target_base_[leg];
       candidate_base[leg].z() = ground_z[leg].z();
@@ -784,8 +1062,18 @@ void ApproachMode::updateGait(const Eigen::Vector4d& command) {
     }
   }
 
-  if (!commitCandidate(candidate_base)) {
+  const bool committed = commitCandidate(candidate_base);
+  if (!committed) {
     foot_velocity_xy_ = velocity_before;
+  }
+  // 控制器每帧清空覆盖：摆动腿取调度，支撑腿取已提交足端的精确 IK；
+  // commit 失败时重复上一帧目标以保持足端。
+  std::array<bool, 6> is_swing{};
+  for (int leg : swing_indices) {
+    is_swing[leg] = true;
+  }
+  emitOverrides(committed, is_swing, swing_joint_targets);
+  if (!committed) {
     return;
   }
   phase_time_ = next_phase_time;

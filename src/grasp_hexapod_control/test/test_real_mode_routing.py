@@ -1375,20 +1375,32 @@ def test_dock_foot_target_uses_the_shared_dls_chain():
     assert dock.failed_reason == ""
 
 
-def test_ordinary_walking_uses_60mm_swing_and_lands_before_stop():
+def test_ordinary_walking_uses_40mm_joint_space_swing_and_lands_before_stop():
     controller = GraspController(1.0 / 30.0)
     mode = controller.approach_mode
-    assert np.isclose(mode.step_height, 0.060)
-    assert np.isclose(mode.phase_duration, 0.40)
+    assert np.isclose(mode.step_height, 0.040)
+    assert np.isclose(mode.phase_duration, 0.50)
+    assert np.isclose(mode.max_foot_planar_speed, 0.14)
+    assert np.isclose(mode.max_linear_acceleration, 0.25)
+    assert np.isclose(mode.max_yaw_acceleration, 1.2)
+    assert np.isclose(mode.swing_joint_speed_limit, 3.0)
     q_cur = Q_STAND.copy()
     maximum_lift = 0.0
+    maximum_joint_speed = 0.0
+    velocity_clips = 0
     minimum_joint_margin = np.inf
     for _ in range(25):
+        previous_q = q_cur
         q_cur = controller.update(q_cur, np.array([0.20, 0.0, 0.0, 0.0]))
+        velocity_clips += controller.last_update_velocity_limit_clip_count
         ground_z = controller.foot_init_base[:, 2] - mode.body_height_offset
         maximum_lift = max(
             maximum_lift,
             float(np.max(controller.foot_desired_base[:, 2] - ground_z)),
+        )
+        maximum_joint_speed = max(
+            maximum_joint_speed,
+            float(np.max(np.abs(q_cur - previous_q))) / controller.dt,
         )
         minimum_joint_margin = min(
             minimum_joint_margin,
@@ -1396,31 +1408,38 @@ def test_ordinary_walking_uses_60mm_swing_and_lands_before_stop():
             float(np.min(JOINT_UPPER - q_cur)),
         )
         assert controller.last_update_collision_guard_hold_count == 0
-    assert maximum_lift >= 0.0599
-    # 长步态（phase_duration 0.40 s、抬腿 60 mm，与实机 C++ 一致）：实测最大抬腿 60.0 mm，
-    # 关节余量最小 0.0（踝关节压到软件限位）；只要求不越限。
-    assert minimum_joint_margin >= 0.0
+    # 关节空间步态（phase_duration 0.50 s、最高点净空 40 mm、抬腿受 3 rad/s 速度限幅、
+    # 指令被限到 0.14 m/s，限加速度 0.25 m/s²）、默认 Q_STAND 站姿：
+    # 实测最大抬腿 40.1 mm、最大关节速度 3.29 rad/s、0 次单帧限幅、
+    # 关节余量最小 0.157 rad；作为回归报警，不是安全裕度。
+    assert 0.0395 <= maximum_lift <= 0.0425
+    assert maximum_joint_speed <= 3.35
+    assert velocity_clips == 0
+    assert minimum_joint_margin >= 0.15
 
-    for _ in range(30):
+    for _ in range(40):
         q_cur = controller.update(q_cur, np.zeros(4))
         if not mode.gait_started:
             break
     assert not mode.gait_started
     assert not mode.transfer_active
     assert np.allclose(mode.requested_command, 0.0)
-    assert np.allclose(mode.active_phase_command, 0.0)
     assert np.allclose(
         controller.foot_desired_base[:, 2],
         controller.foot_init_base[:, 2],
     )
+    # 步行模式下六条腿始终走关节覆盖（站立时是已提交足端的精确 IK）。
+    assert all(override is not None for override in controller.joint_override)
 
 
-def test_walking_command_switch_is_slew_limited_and_latches_active_phase():
+def test_walking_command_switch_is_slew_limited_and_stance_follows_requested_command():
     controller = GraspController(1.0 / 30.0)
     mode = controller.approach_mode
     q_cur = Q_STAND.copy()
-    # 长步态单相约 12 帧（0.40 s @30Hz）：在第一相内部（第 4 帧）切换指令，验证本相锁存。
-    # 实测（phase 0.40 s、抬腿 60 mm）：足端单帧步长 19.9 mm，关节速度 4.0 rad/s，关节余量最小 0.0。
+    # 关节空间步态单相 15 帧（0.50 s @30Hz）：在第一相内部（第 4 帧）切换指令。
+    # 支撑腿每帧都按限加速度后的 requested_command 运动（不再锁存整相指令），
+    # 落点在换相时按前瞻指令一次定下，相内不变。
+    # 实测：足端单帧步长 13.6 mm，关节速度 2.97 rad/s，关节余量最小 0.157 rad。
     commands = (
         [np.array([0.20, 0.0, 0.0, 0.0])] * 4
         + [np.array([-0.20, 0.0, 0.0, 0.0])] * 12
@@ -1433,10 +1452,12 @@ def test_walking_command_switch_is_slew_limited_and_latches_active_phase():
     maximum_joint_speed = 0.0
     minimum_joint_margin = np.inf
     active_endpoint = None
-    requested_changed_while_active = False
     first_phase_end = None
+    stance_frames_checked = 0
 
     for index, command in enumerate(commands):
+        transfer_before = mode.transfer_active
+        gaits_before = mode.gaits.copy()
         q_cur = controller.update(q_cur, command)
         if first_phase_end is None and mode.transfer_active:
             first_phase_end = index
@@ -1455,17 +1476,31 @@ def test_walking_command_switch_is_slew_limited_and_latches_active_phase():
             <= mode.max_foot_planar_speed + 1e-10
         )
         if index == 0:
-            assert np.array_equal(
-                mode.active_phase_command, requested_command
-            )
             assert requested_command[0] < command[0]
         if index == 1:
             active_endpoint = mode.swing_target_base.copy()
-        if index >= 4 and first_phase_end is None:
+        if index >= 1 and first_phase_end is None:
             assert np.array_equal(mode.swing_target_base, active_endpoint)
-            requested_changed_while_active |= not np.array_equal(
-                requested_command, mode.active_phase_command
+        # 支撑腿（共同支撑期为全部六条腿）每帧位移等于 requested_command 的刚体速度。
+        stance_legs = (
+            list(range(6))
+            if transfer_before
+            else [leg for leg in range(6) if gaits_before[leg]]
+        )
+        if index >= 1 and stance_legs:
+            expected = mode._stance_velocity(
+                previous_target[stance_legs, :2], requested_command
+            ) * controller.dt
+            actual = (
+                controller.foot_desired_base[stance_legs, :2]
+                - previous_target[stance_legs, :2]
             )
+            unprojected = previous_target.copy()
+            unprojected[stance_legs, :2] += expected
+            # 指令反向后的长行程会被工作空间投影截断，那些帧不比较。
+            if controller._workspace_feasible(unprojected)[stance_legs].all():
+                assert np.allclose(actual, expected, atol=1e-9)
+                stance_frames_checked += 1
         maximum_target_step = max(
             maximum_target_step,
             float(np.max(np.linalg.norm(
@@ -1488,15 +1523,15 @@ def test_walking_command_switch_is_slew_limited_and_latches_active_phase():
 
     assert active_endpoint is not None
     assert first_phase_end is not None
-    assert requested_changed_while_active
-    assert maximum_target_step <= 0.021
-    assert maximum_joint_speed <= float(np.max(JOINT_VELOCITY_LIMIT)) + 1e-10
-    assert minimum_joint_margin >= 0.0
+    assert stance_frames_checked >= 10
+    assert maximum_target_step <= 0.0145
+    assert maximum_joint_speed <= 3.1
+    assert minimum_joint_margin >= 0.15
     assert np.max(np.abs(q_cur - Q_STAND)) > 0.01
 
 
 def test_84_frame_abrupt_command_witness_remains_continuous_and_safe():
-    # 门槛钉住实机长步态现状（实测 21.2 mm / 191 次 / 0），作为回归报警，不是安全裕度。
+    # 门槛钉住关节空间步态现状（实测 19.5 mm / 0 次 / 0.157 rad），作为回归报警，不是安全裕度。
     controller = GraspController(1.0 / 30.0)
     q_cur = Q_STAND.copy()
     commands = (
@@ -1531,12 +1566,193 @@ def test_84_frame_abrupt_command_witness_remains_continuous_and_safe():
         )
 
     assert len(commands) == 84
-    assert maximum_target_step <= 0.022
-    assert velocity_clips <= 200
-    assert minimum_joint_margin >= 0.0
+    assert maximum_target_step <= 0.0205
+    assert velocity_clips == 0
+    assert minimum_joint_margin >= 0.15
     assert offline_link_collision_frames == 0
     assert not controller.approach_mode.gait_started
     assert not controller.approach_mode.transfer_active
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        (0.0, 0.04, 0.0, 0.0),
+        (0.0, 0.08, 0.0, 0.0),
+        (0.0, 0.12, 0.0, 0.0),
+        (0.0, 0.14, 0.0, 0.0),
+        (0.14, 0.0, 0.0, 0.0),
+        (0.0, 0.0, 0.0, 0.6),
+        (0.07, 0.07, 0.0, 0.3),
+        (0.0, -0.10, 0.0, 0.0),
+    ],
+)
+def test_joint_space_walking_never_falls_back_and_stance_legs_follow_exact_ik(
+    monkeypatch, command
+):
+    controller = GraspController(1.0 / 30.0)
+    mode = controller.approach_mode
+    kinematic = controller.kinematic
+    aborted = []
+    saturated = []
+    original_plan = mode._plan_swing
+    monkeypatch.setattr(mode, "_abort_step", lambda: aborted.append(True))
+
+    def plan(swing_indices):
+        accepted = original_plan(swing_indices)
+        saturated.append(mode.swing_lift_saturated)
+        return accepted
+
+    monkeypatch.setattr(mode, "_plan_swing", plan)
+    q_cur = Q_STAND.copy()
+    swing_frames = 0
+    for index in range(300):
+        walking = index < 210
+        transfer_before = mode.transfer_active
+        was_started = mode.gait_started
+        q_cur = controller.update(
+            q_cur, np.array(command) if walking else np.zeros(4)
+        )
+        # 步行模式下没有 DLS：六条腿每帧都有关节覆盖。
+        assert all(override is not None for override in controller.joint_override)
+        if was_started and not transfer_before:
+            swing_frames += 1
+            stance_legs = [leg for leg in range(6) if mode.gaits[leg]]
+        else:
+            stance_legs = list(range(6))
+        # 支撑腿覆盖 = 已提交足端的精确 IK（髋系足端误差只剩数值残差）。
+        feet_hip = kinematic.base_to_hip(controller.foot_desired_base)
+        override_feet = kinematic.forward(np.array(controller.joint_override))
+        assert np.allclose(
+            override_feet[stance_legs], feet_hip[stance_legs], atol=1e-8
+        )
+        if not walking and not mode.gait_started:
+            break
+    assert not aborted
+    assert saturated and not any(saturated)
+    assert swing_frames >= 2 * 14
+    assert not mode.gait_started
+
+
+@pytest.mark.parametrize(
+    "command",
+    [(0.0, 0.04, 0.0, 0.0), (0.0, 0.08, 0.0, 0.0), (0.0, -0.10, 0.0, 0.0)],
+)
+def test_swing_lift_governor_keeps_analytic_joint_speed_within_limit(
+    monkeypatch, command
+):
+    controller = GraspController(1.0 / 30.0)
+    mode = controller.approach_mode
+    original_plan = mode._plan_swing
+    peaks = []
+
+    def plan(swing_indices):
+        accepted = original_plan(swing_indices)
+        for leg in swing_indices:
+            rates = [
+                np.abs(mode._swing_joint_state(leg, u)[1]).max()
+                for u in np.linspace(0.0, 1.0, 41)
+            ]
+            peaks.append(max(rates))
+        return accepted
+
+    monkeypatch.setattr(mode, "_plan_swing", plan)
+    q_cur = Q_STAND.copy()
+    for _ in range(120):
+        q_cur = controller.update(q_cur, np.array(command))
+    assert len(peaks) >= 9
+    assert mode.speed_governor_infeasible == 0
+    assert max(peaks) <= mode.swing_joint_speed_limit + 1e-9
+
+
+def test_swing_plan_failure_keeps_all_legs_in_stance(monkeypatch):
+    controller = GraspController(1.0 / 30.0)
+    mode = controller.approach_mode
+    monkeypatch.setattr(
+        mode, "_leg_ik", lambda leg, target_hip, q_seed: (q_seed, False)
+    )
+    q_cur = Q_STAND.copy()
+    for _ in range(10):
+        q_cur = controller.update(q_cur, np.array([0.0, 0.10, 0.0, 0.0]))
+        assert not mode.gait_started
+        assert not mode.transfer_active
+        # IK 失败：重复发出（没有上一帧时保持 q_des），站姿不动。
+        assert all(override is not None for override in controller.joint_override)
+    assert np.allclose(controller.foot_desired_base, controller.foot_init_base)
+    assert np.allclose(q_cur, Q_STAND, atol=1e-9)
+
+
+def test_stance_ik_failure_repeats_previous_overrides(monkeypatch):
+    controller = GraspController(1.0 / 30.0)
+    mode = controller.approach_mode
+    q_cur = Q_STAND.copy()
+    for _ in range(6):
+        q_cur = controller.update(q_cur, np.array([0.0, 0.10, 0.0, 0.0]))
+    previous = [override.copy() for override in controller.joint_override]
+    monkeypatch.setattr(
+        mode, "_leg_ik", lambda leg, target_hip, q_seed: (q_seed, False)
+    )
+    controller.update(q_cur, np.array([0.0, 0.10, 0.0, 0.0]))
+    for leg in range(6):
+        assert np.array_equal(controller.joint_override[leg], previous[leg])
+
+
+def test_touchdown_lookahead_is_pure_and_centres_the_stance_stroke():
+    controller = GraspController(1.0 / 30.0)
+    mode = controller.approach_mode
+    dt = controller.dt
+    swing = np.array([2, 3, 4])
+    stance_frames = mode.transfer_frames + 15 + mode.transfer_frames
+
+    steady = np.array([0.0, 0.14, 0.0, 0.0])
+    mode.requested_command[:] = steady
+    mode.slew_target_command[:] = steady
+    profile = mode._predict_command_profile(6)
+    assert np.array_equal(mode.requested_command, steady)
+    assert np.allclose(profile, steady)
+    mode._update_swing_target(swing, 0)
+    home = controller.foot_init_base[swing, 1]
+    # 恒定指令：落点 = home + 半个支撑期位移，与以前的对称公式一致。
+    assert np.allclose(
+        mode.swing_target_base[swing, 1],
+        home + 0.5 * stance_frames * dt * 0.14,
+    )
+    assert np.allclose(mode.swing_target_velocity_xy[swing, 1], -0.14)
+
+    # 指令还在加速：支撑期平均速度更小，落点更靠近 home。
+    mode.requested_command[:] = 0.0
+    mode.slew_target_command[:] = steady
+    ramp = mode._predict_command_profile(4)
+    assert np.all(np.diff(ramp[:, 1]) > 0.0)
+    mode._update_swing_target(swing, 0)
+    assert np.all(mode.swing_target_base[swing, 1] > home)
+    assert np.all(
+        mode.swing_target_base[swing, 1]
+        < home + 0.5 * stance_frames * dt * 0.14 + 1e-12
+    )
+    assert np.array_equal(mode.requested_command, np.zeros(4))
+
+
+def test_failed_swing_commit_repeats_last_joint_target(monkeypatch):
+    controller = GraspController(1.0 / 30.0)
+    mode = controller.approach_mode
+    q_cur = Q_STAND.copy()
+    for _ in range(12):
+        q_cur = controller.update(q_cur, np.array([0.0, 0.10, 0.0, 0.0]))
+    assert mode.gait_started and not mode.transfer_active
+    assert all(override is not None for override in controller.joint_override)
+    previous_override = [override.copy() for override in controller.joint_override]
+    previous_feet = controller.foot_desired_base.copy()
+    phase_time = mode.phase_time
+
+    monkeypatch.setattr(
+        controller, "_commit_workspace_candidate", lambda candidate: False
+    )
+    q_cur = controller.update(q_cur, np.array([0.0, 0.10, 0.0, 0.0]))
+    for leg in range(6):
+        assert np.array_equal(controller.joint_override[leg], previous_override[leg])
+    assert np.array_equal(controller.foot_desired_base, previous_feet)
+    assert mode.phase_time == phase_time
 
 
 def test_approach_skips_full_link_scan_but_climb_retains_it(monkeypatch):

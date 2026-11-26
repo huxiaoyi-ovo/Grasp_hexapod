@@ -391,6 +391,14 @@
 - 风险（推理 + 合成证据，未实机）：(1) 近正对 yaw 病态：6 cm tag 在 0.5 m 约 0.35 px 边缘误差 ≈ 2°，合成图已出现随距离变化的 0.1–2.3° 偏差，与 tag_yaw_tolerance 0.035 rad 同量级；(2) z=0.8 m、偏 10° 时 40/40 帧 yaw 在 ±10.5° 间翻转（平面位姿二义性），而 Coarse→tag 交接无距离门；(3) 交接无距离门 + tag 前进上限 0.02 m/s + align_timeout 60 s（覆盖 Aligning+Advancing）→ 远处（约 >1.2 m）交接会超时；(4) 相机俯仰被忽略：p0_z=z_D−D 在俯仰 θ 时多走 D(1/cosθ−1)（θ20°/D0.3 m ≈19 mm），URDF 无相机外参，θ 未知；(5) odom_at_last_valid 用处理时刻而非图像时刻，约 2–3 mm 多走（次要）。
 - 待用户决定：交接距离门/近距离才交接、yaw 容差或改用多 tag/更大 tag、俯仰补偿（需相机外参）。
 
+### 2026-11-25 Sol：关节角摆腿功能 + 上台/顶面摆腿"抬高、小腿朝上"（原型，未推送）
+- 用户：实机舵机受载下垂，足端蹭小蓝背面；所有上台和小蓝背面上的摆腿必须先抬到较高高度再移动，小腿方向朝上或水平，不朝下/朝前；用关节角控制；最简单做法是只转踝关节。
+- Luna 本地提交 `70d631e`（未推送）：compact climb 阶段可选 `joint_space`（legs/from_knot/to_knot/q_knots_rad/q_velocities_rad_s），窗口内该腿直接用关节角插值，跳过 DLS；C++/Python 对称；无 joint_space 的配置 C++ 重放与改前逐字节相同（v16.1 1173 帧，差 0）；新 gtest 5/5、pytest 14/14，金标 6/6、7/7。
+- 审查（`lift_audit_20261125/swing_audit.py`）：v16.1 全部 19 次上台/顶面摆腿小腿朝下（竖直分量均值 −0.6…−0.99）或朝前（最大 +0.98），空中离地 ~20 mm。
+- 工具 `lift_audit_20261125/tuck_all.py`（翻小腿生成）、`clip_retime.py`（关节窗口感知的自动重定时）、`path_terrain.py`（控制器逐帧回放的扫掠检查）。注意：`hw_retime.py` 不认 joint_space（会拉长时长但不改关节速度→过冲），joint_space 配置用 `clip_retime.py`，流水线 `NO_RETIME=1`。
+- v16.3：离地 1.5 cm 即翻，C3 翻转扫进前坡面（Isaac 11/11 在 C3 翻倒）。v16.4：加扫掠检查，C3/C11 改为抬高后再翻 → Isaac **10/11**（仅 +2/+1.5/+3° C12 失败），CPU 0 截断，C++ 仿真/实机 1422 帧一致、峰值 3.80 rad/s。
+- v16.5（进行中）：按用户规则"先抬高再移动"——先只转踝关节（必要时加少量膝）把脚抬到 50 mm，再翻小腿平移，落点上方 ≥ 落点+50 mm（关节限位内）再竖直落；C3/C17/C19 沿用 v16.4。扫掠（抬起后）脚 46–56 mm（C11 28、C20 LF 24），计划 46.5 s。Isaac 11 组运行中。
+
 ## 2026-11-25 Claude Code（Sol + Luna）：tag 交接距离门 + yaw 跳变拒收（本地提交，未推送）
 
 - 用户决定：直接在 `test` 开发、可本地提交、推送等用户指令（与攀爬一起推）。相机光轴平行 base_link +y、俯仰≈0（用户确认，已记入 PROJECT_MEMORY），俯仰补偿不做。
@@ -399,3 +407,36 @@
 - 验证（`grasp_wt_test` build 目标 + 二进制）：tag gtest 58/58（原 50）、visual 26/26、mode_framework 13/13、routing 7/7、bt_control_node 编译通过；YOLO pytest 18 通过 / 3 GPU 跳过；yaml 可加载。未跑 roslaunch / 实机。
 - 注意：本工作树同时有另一会话（攀爬，grasp-hexapod-a3）在写，其 CLAUDE_HANDOFF 条目未被本提交纳入。
 - 待办：实机示教 tag、yaw–距离检查、IMU yaw 符号；大 tag / 双 tag 需硬件。
+
+## 2026-11-25 Claude Code（Sol，c0）：平地行走站姿 + 步态分析（仅原型，无仓库代码改动）
+- 用户要求：专门的行走站姿和行走步态，平稳快速、减少机身晃动、稳定跟踪给定机身速度；完成后做 approach ROS 闭环联调（A）。用户思路：踝基本不动、支撑腿小腿竖直，速度由大腿摆动和膝抬落决定。
+- 原型目录 scratchpad `gait/`（会话临时，可能被清）：harness.py（Python 控制器镜像，理想伺服 30 Hz）、stance.py、jsgait*.py、compare.py、compare.png。
+- 根因（模型）：现有笛卡尔摆动在 Q_STAND（ρ .109、髋下 .0886）原半径竖直抬 6 cm → 未截断需求 膝 12–18 rad/s、踝 6–9 rad/s（指令限速 4），每条腿每 180 帧膝截断约 70 次、踝顶限位；0.05 m/s 也每帧 3 次截断。摆动腿落后 → 换相时未落地即另一组抬起，推测为实机机身晃动来源。
+- 新方案原型：支撑腿笛卡尔刚体平移；摆动腿关节空间五次 Hermite（端点关节速度 = α×支撑速度，α=.5）+ 只用膝抬 4 cm（sin² 包络，FK 标定）；行走站姿 ρ .125–.14、髋下 .11（机身升高约 2 cm）、β=0。T .5 s、τ .05 s。前进 0.14 m/s 时峰值 大腿 2.76/膝 2.78/踝 2.47 rad/s（≤3），横移 .12 ≤2.8，转向 .5 rad/s 踝≈0。关节余量 ≥.37 rad（Q_STAND .20）。
+- 限制：3 自由度下前后腿支撑末端小腿倾角随步长增大（0.12 m/s 约 15°），仅中立位竖直；抬腿 4 cm（低于 b05b7f3 的 6 cm，5 cm 需 T .6）。
+- 待用户决定后实施：站姿参数、抬腿高度、最大速度上限、Q_STAND↔行走站姿切换（三角组抬腿放置，进入/离开 approach 时）、tag 示教须在行走站姿下做。实施涉及 C++ approach_mode/control + Python 镜像 + 金标 + 测试（Luna），control.* 需先通知 a3。
+- 2026-11-25 续：只转踝关节抬脚（v16.5/5b）会让脚绕踝关节画圆弧，在 4 cm 以下横扫 6–8 cm，Isaac 7/11，弃用（工具备份 `lift_audit_20261125/tuck_all_ankle_v165.py`）。**v16.6**（用户选）：先按脚位置竖直抬到关节限位允许的最高处（目标 50 mm；C12 前腿只到 23–28、C14 30、C20 LF 38），再关节角翻小腿；落点上方 ≥ 落点+50 mm（限位内）后竖直落；C3/C11/C19 沿用 v16.4。低处横移（`low_drag.py`，脚 <40 mm 时的水平移动）C4/C8/C15/C17/C20 ≤1 mm；C12 32–43、C14 20、C19 RF 112（未解决：RF 伸直只能竖直抬 13 mm，需改该步机身动作）。CPU DONE 1523 帧 0 截断，计划 48.9 s。Isaac 核心 3 组（名义、±3°）全部 SUCCESS；其余 8 组在后台跑，结果见 `claude_front_v18_20261124/full_v166.log` 与 `gpu_v166_summary.txt`。未推送；推送需带上 `70d631e`（关节角功能）并经用户同意；C++ 重放 v16.6 尚未做（v16.4 已验证 1422 帧一致）。
+- 2026-11-25 v16.6 结果：Isaac 11 组 **10/11**（仅 +2/+1.5/+3° 在 C17 LB_SLOPE_BODY 失败）；C++ cpp_replay（含 70d631e）仿真/实机模式 DONE 1523 帧，与 Python CPU 一致，峰值 3.80 rad/s，末帧对 terminal_q 4.3e-6。配置 `claude_front_v18_20261124/v166hw.json`，未入库、未推送；远端仍为 v16.1（7596500）。
+
+## 2026-11-26 攀爬会话对步态会话（Q_STAND → Q_CLIMB_PREP）的答复
+
+（对方 socket 已失效，消息没送达，答复记在这里。）
+- (a) 攀爬会话没有改对方清单里的文件，以后也不打算改；未提交的只有本文件（只追加）。对方可以把本文件连同 v16.5/v16.6 段落一起提交。攀爬会话下一步要写的文件（climb_front_v16_6.json，以及 mode_climb.cpp、full_mission.launch、control_only.launch 里的默认攀爬配置那一行）要等用户同意推送，并且等对方这一批提交完成后才动。
+- (b) 依赖旧站姿的地方：control.py:263 / control.cpp:162 的 PREPARE_CLIMB 门限（拿 q_cur 和 q_init 比）；run_sim.py:1319-1347 prepare_compact_stage_entry 用 base_height_at_stand，run_sim.py:1409 从 P0 起步时用 q_init 生成机器人；run_sim_dock.py:261-270 会覆盖 q_init、foot_init_base、base_height_at_stand。只影响行走：mode_walk.cpp:17、bt_control_node.cpp:177、run_real.py:496、run_sim.py:1471 用 foot_init_base 半径推算偏航角速度上限，rho 一变，上限也会跟着变。
+- 换站姿动作的物理要求：两组三角步态交替换腿时，机身漂移会占用起点误差余量（dx ±20 mm、dy ±15 mm、yaw ±3°，v16.6 最极端那组已经失败），Isaac 里要报告漂移量，建议控制在 5 mm、0.5° 以内；前腿往外摆向小蓝正面时，要检查脚和小腿离台阶立面、边沿的间隙；最后机身下降要准确落到 Q_CLIMB_PREP，settle_gate 门限不放宽。
+- (c) 同意把攀爬入口门限从 q_init 改为 Q_CLIMB_PREP。条件：容差不变；C++ 和 Python 一起改；P0、compact 配置检查和攀爬金标逐字节不变；test_climb_joint_space（cpp 5/5、py 14/14）和攀爬金标测试保持通过。
+
+### 2026-11-26 walking gait run 1 (walk session grasp-hexapod-cd)
+- execution_owner: Luna (sonnet, effort high — two-language coupled controller change with golden parity). Contract: /home/artrc/grasp_sync_backups/claude_walk_gait_20261125/CONTRACT_GAIT_RUN1.md.
+- Scope: ApproachMode swing becomes joint-space (quintic Hermite liftoff→touchdown, α=0.5 boundary velocity, knee-only lift 64u³(1−u)³ calibrated to 4 cm foot-tip clearance), T 0.50 s, max_foot_planar_speed 0.14. Files: approach_mode.{h,cpp,py}, golden reset_then_walk only, walking-envelope tests in test_real_mode_routing.py.
+- Next (run 2, pending climb-session confirmation): Q_STAND := walking stance (ρ .125, z −.115, β −10°; body 96 mm); old values → Q_CLIMB_PREP; walk→climb-prep tripod transition (A then B lift-and-place to the climb-prep xy, then a 26 mm six-foot body lowering) before every climb entry; climb P0 / golden byte-identical.
+- Run 1 accepted after 3 iterations (1 → 1b → 1c) and committed locally (no push). The final design:
+  - every walking leg gets an exact joint target (stance = Newton IK of the rigid-twist foot, swing = joint Hermite + knee lift governed to ≤3 rad/s), so walking no longer goes through DLS;
+  - no per-phase command latch: stance follows the slewed command every frame, and the touchdown uses a look-ahead of the slew profile;
+  - accelerations 0.25 m/s² / 1.2 rad/s², T 0.5, h 0.04, budget 0.14.
+  CPU metrics at the walking stance (ideal servo, 8-case matrix):
+  - 0 clips, tracking 0 %, settled slip < 0.6 mm, steady lift 40 mm;
+  - overall peak ≤ 2.98 rad/s except the combined start-up at 3.09;
+  - lateral 0.14 trims some lifts to 37 mm (25.5 mm at start-up).
+  Metrics: claude_walk_gait_20261125/run1/metrics_b.json.
+- Isaac baseline of the OLD gait (HEAD before this commit, 0.12 m/s): forward reaches only 42 mm/s (35 %) with roll p2p 5.8° and height p2p 12 mm. At 0.06 m/s it is fine (95 %). Harness: claude_walk_gait_20261125/isaac/{walk_trace.py,analyze.py}.

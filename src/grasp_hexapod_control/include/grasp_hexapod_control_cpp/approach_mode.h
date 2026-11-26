@@ -72,6 +72,8 @@ class ApproachMode {
   double position_tolerance_ = 0.03;
   double yaw_tolerance_ = 5.0 * M_PI / 180.0;
   bool transfer_active_ = false;
+  // 离线诊断：基础路径本身已超速、速度限幅无解的腿步数。
+  int speed_governor_infeasible = 0;
   // Read-only: true = stance; stale during transfer/stopped, callers treat those as all-stance.
   const std::array<bool, 6>& stanceMask() const { return gaits_; }
 
@@ -94,18 +96,45 @@ class ApproachMode {
       double target_yaw) const;
   Eigen::Vector4d autonomousCommand(const NavigationState& navigation_state);
   bool commitCandidate(const FootPositions& candidate_base);
-  static double smoothStepStatic(double phase);
-  double trapezoidRise(double u) const;
-  // 五次轨迹：两端位置、速度连续，两端加速度为零（按轴计算）。
-  static std::pair<Eigen::Vector2d, Eigen::Vector2d> quinticSegment(
-      const Eigen::Vector2d& start, const Eigen::Vector2d& target,
-      const Eigen::Vector2d& start_velocity, const Eigen::Vector2d& target_velocity,
-      double duration, double phase);
+  // 摆动腿关节空间轨迹：beginStep 规划一次，每帧求值。
+  Vector3d basePointToHip(int leg, const Vector3d& point_base) const;
+  Vector3d hipPointToBase(int leg, const Vector3d& point_hip) const;
+  Vector3d baseVectorToHip(int leg, const Vector3d& point_base,
+                           const Vector3d& vector_base) const;
+  // 单腿数值逆解（雅可比 Newton）；返回是否收敛。
+  bool legIk(int leg, const Vector3d& target_hip, const Vector3d& q_seed,
+             Vector3d* q) const;
+  // 关节五次 Hermite：两端位置、速度给定，两端加速度为零。
+  static void hermiteQuintic(const Vector3d& q0, const Vector3d& q1,
+                             const Vector3d& qd0, const Vector3d& qd1,
+                             double duration, double u, Vector3d* q,
+                             Vector3d* dq);
+  // 第 leg 腿相位 u 的关节角与关节速度（膝关节叠加抬腿鼓包）。
+  void swingJointState(int leg, double u, Vector3d* q, Vector3d* dq) const;
+  bool planSwing(const std::vector<int>& swing_indices);
+  // 清空关节覆盖状态，并撤销本模式发出的关节覆盖（回正前后调用）。
+  void clearOverrideState();
+  // 写本帧六条腿的关节覆盖：committed 为真时摆动腿取调度、其余腿对已提交
+  // 足端做 IK（以上一帧覆盖为初值）；任一腿 IK 失败或 committed 为假，
+  // 重复发出上一帧覆盖（没有上一帧时保持 q_des）。
+  void emitOverrides(bool committed, const std::array<bool, 6>& is_swing,
+                     const std::array<Vector3d, 6>& swing_targets);
+  void abortStep();
   static std::array<Eigen::Vector2d, 6> stanceVelocity(
       const std::array<Eigen::Vector2d, 6>& foot_xy, const Eigen::Vector4d& command);
+  // 按足端平面速度预算缩放指令（平移和偏航同比例）。
+  Eigen::Vector4d scaledCommand(const Eigen::Vector4d& command) const;
+  // 纯函数：requested 按实机可控加速度向 target 推进一帧。
+  Eigen::Vector4d slewCommand(const Eigen::Vector4d& requested,
+                              const Eigen::Vector4d& target) const;
   void slewRequestedCommand(const Eigen::Vector4d& command);
-  void updateSwingTarget(const std::vector<int>& swing_indices);
-  void beginStep();
+  // 纯函数：从当前 requested_command_ 起向保持不变的目标指令逐帧外推，
+  // 第 i 项是 i 帧之后的指令（第 0 项即当前指令）。
+  std::vector<Eigen::Vector4d> predictCommandProfile(int count) const;
+  // frame_offset：本相第一帧相对当前帧的帧数（起步帧为 0，换相帧为 1）。
+  void updateSwingTarget(const std::vector<int>& swing_indices, int frame_offset);
+  // 摆动规划失败返回 false，且不起步。
+  bool beginStep(int frame_offset);
   void updateGait(const Eigen::Vector4d& command);
 
   GraspController* controller_;
@@ -125,9 +154,9 @@ class ApproachMode {
   std::array<bool, 6> gaits_{};
   int stance_group_index_ = 0;
 
-  // 实机优先保持足端轨迹和舵机跟踪平滑，不追求极限步频。
-  // 步距 = v*(T+2τ)：0.30 m/s 约 14 cm，0.12 m/s 约 5.6 cm，避免落点超出工作空间。
-  double phase_duration_ = 0.40;
+  // 摆动腿走关节空间轨迹，步态周期放慢以保证关节速度不超过 3 rad/s。
+  // 步距 = v*(T+2τ)：0.14 m/s 约 8.4 cm，落点由工作空间投影兜底。
+  double phase_duration_ = 0.50;
   double phase_time_ = 0.0;
 
   // 共同支撑目标为 50 ms，并量化到最接近的整数控制帧。
@@ -135,19 +164,21 @@ class ApproachMode {
   double transfer_duration_ = 0.0;
   double transfer_time_ = 0.0;
 
-  double step_height_ = 0.060;
-  // 前 45% 平滑抬起、中间 10% 保持高位、后 45% 平滑落下。
-  double swing_lift_fraction_ = 0.45;
-  // 梯形剖面加减速段占比，峰值速度由单程抬腿时间决定。
-  double lift_accel_fraction_ = 0.15;
-  double max_linear_acceleration_ = 0.60;
-  double max_yaw_acceleration_ = 2.0;
+  // 摆动全程足端相对支撑地面的最高净空（按 21 个采样点的峰值标定）。
+  double step_height_ = 0.040;
+  // 摆动两端关节速度 = alpha × 支撑腿刚体速度对应的关节速度。
+  double swing_boundary_velocity_ratio_ = 0.5;
+  // 从静止起步时第一组支撑腿从 home 出发，斜坡时间约为 T+τ 才能让首程
+  // 约为半个步距，留在工作空间内。
+  double max_linear_acceleration_ = 0.25;
+  double max_yaw_acceleration_ = 1.2;
   // 合并平移和偏航后，限制标准足端的平面速度预算。
   // 这是实际限速瓶颈：navigation_linear_speed 配 0.20 也被这里砍回限幅值。
-  double max_foot_planar_speed_ = 0.30;
+  double max_foot_planar_speed_ = 0.14;
   double nominal_foot_radius_ = 0.0;
   Eigen::Vector4d requested_command_ = Eigen::Vector4d::Zero();
-  Eigen::Vector4d active_phase_command_ = Eigen::Vector4d::Zero();
+  // 最近一帧经足端速度预算缩放后的原始指令；落点前瞻按它保持不变外推。
+  Eigen::Vector4d slew_target_command_ = Eigen::Vector4d::Zero();
   bool stop_requested_ = false;
 
   double body_height_offset_ = 0.0;
@@ -161,6 +192,22 @@ class ApproachMode {
   std::array<Eigen::Vector2d, 6> foot_velocity_xy_{};
   std::array<Eigen::Vector2d, 6> swing_start_velocity_xy_{};
   std::array<Eigen::Vector2d, 6> swing_target_velocity_xy_{};
+
+  // 摆动腿关节空间计划：基础五次 Hermite 端点/端速度 + 仅膝关节的抬腿鼓包。
+  JointAngles swing_q_start_{};
+  JointAngles swing_q_end_{};
+  JointAngles swing_qd_start_{};
+  JointAngles swing_qd_end_{};
+  // 带符号的膝关节抬腿幅值 s*A（rad）。
+  std::array<double, 6> swing_lift_amplitude_{};
+  // 摆动腿的抬腿幅值受关节速度限制（rad/s），分析峰值取 41 个均匀采样点。
+  double swing_joint_speed_limit_ = 3.0;
+  // 步行期间六条腿全部走关节覆盖：摆动腿取调度，其余腿取已提交足端的精确 IK。
+  // last_override_q_ 是上一帧成功提交的六腿关节目标；commit 或 IK 失败时重复发出。
+  JointAngles last_override_q_{};
+  bool last_override_valid_ = false;
+  // 本帧由本模式写入 joint_override 的腿。
+  std::array<bool, 6> swing_override_emitted_{};
 };
 
 }  // namespace grasp_hexapod_control_cpp

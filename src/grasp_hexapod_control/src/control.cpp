@@ -19,9 +19,34 @@ constexpr double kBodyCollisionZMax = 0.121;
 constexpr double kWorkspaceBetaLimit = 30.0 * M_PI / 180.0;
 constexpr double kWorkspaceNumericalTolerance = 1e-9;
 
+// 攀爬准备过渡（行走站姿 -> Q_CLIMB_PREP）的冻结参数。
+constexpr double kClimbPrepClearance = 0.030;      // 摆动足净空（m）
+constexpr double kClimbPrepLiftDuration = 0.60;    // S1/S3 单组迈步时长（s）
+constexpr double kClimbPrepHoldDuration = 0.10;    // S2/S4 保持（s）
+constexpr double kClimbPrepLowerDuration = 1.20;   // S5 机身下降（s）
+constexpr double kClimbPrepJointMargin = 0.05;     // 关节限位余量（rad）
+constexpr double kClimbPrepSpeedLimit = 3.0;       // 逐帧关节速度上限（rad/s）
+
 double minFootClearance() {
   static const double value = 2.0 * kFootRadius + kCollisionMargin;
   return value;
+}
+
+// 单腿数值逆解（与 ApproachMode::legIk 相同的 Newton 迭代与收敛判据）。
+bool legIkNewton(const GraspKinematic& kinematic, int leg, const Vector3d& target_hip,
+                 const Vector3d& q_seed, Vector3d* q) {
+  Vector3d angles = q_seed;
+  for (int iteration = 0; iteration < 50; ++iteration) {
+    const Vector3d error = target_hip - kinematic.forwardLeg(leg, angles);
+    if (error.norm() < 1e-10) {
+      break;
+    }
+    const Matrix3d jacobian = kinematic.jacobianLeg(leg, angles);
+    const Matrix3d normal = jacobian.transpose() * jacobian + 1e-9 * Matrix3d::Identity();
+    angles += normal.partialPivLu().solve(jacobian.transpose() * error);
+  }
+  *q = angles;
+  return (target_hip - kinematic.forwardLeg(leg, angles)).norm() <= 1e-6;
 }
 
 }  // namespace
@@ -132,7 +157,17 @@ std::optional<ApproachPlan> MissionStateMachine::update(
       prepare_elapsed_s = 0.0;
       prepare_settle_s = 0.0;
       if (!posture_prepared) {
-        controller_->prepareClimbEntry(q_cur);
+        // 落脚未完成时继续以零指令更新接近步态，六足落地后再开始准备过渡。
+        if (controller_->approach_mode.gait_started ||
+            controller_->approach_mode.transfer_active_) {
+          return result;
+        }
+        std::string prep_reason;
+        if (!controller_->beginClimbPrep(q_cur, &prep_reason)) {
+          state = kFailed;
+          reason = prep_reason;
+          return result;
+        }
         posture_prepared = true;
       }
       if (navigation_state != nullptr) {
@@ -159,11 +194,12 @@ std::optional<ApproachPlan> MissionStateMachine::update(
     double joint_error = 0.0;
     for (int leg = 0; leg < kLegCount; ++leg) {
       joint_error =
-          std::max(joint_error, (q_cur[leg] - controller_->q_init[leg]).cwiseAbs().maxCoeff());
+          std::max(joint_error,
+                   (q_cur[leg] - controller_->q_climb_prep[leg]).cwiseAbs().maxCoeff());
     }
     last_prepare_joint_error_rad = joint_error;
     const CompactSettleGate& gate = climb_config->settle_gate;
-    if (!controller_->reset_active) {
+    if (!controller_->climb_prep_active) {
       if (navigation_state == nullptr) {
         state = kFailed;
         reason = "navigation state was lost before climb entry";
@@ -356,6 +392,14 @@ GraspController::GraspController(double dt, bool enable_link_collision_check,
   }
   base_height_at_stand = kFootRadius - z_sum / kLegCount;
 
+  q_climb_prep = makeQClimbPrep();
+  foot_climb_prep_base = kinematic.hipToBase(kinematic.forward(q_climb_prep));
+  double prep_z_sum = 0.0;
+  for (int leg = 0; leg < kLegCount; ++leg) {
+    prep_z_sum += foot_climb_prep_base[leg].z();
+  }
+  base_height_at_climb_prep = kFootRadius - prep_z_sum / kLegCount;
+
   reset_start_q = q_init;
   last_link_collision_free.fill(true);
 
@@ -373,6 +417,16 @@ GraspController::GraspController(double dt, bool enable_link_collision_check,
   for (int leg = 0; leg < kLegCount; ++leg) {
     if (!collision_ok[leg]) {
       throw ConfigError("Q_STAND contains a link collision");
+    }
+  }
+  const std::array<bool, 6> prep_workspace_ok = workspaceFeasible(foot_climb_prep_base);
+  const std::array<bool, 6> prep_collision_ok = linkCollisionFree(q_climb_prep);
+  for (int leg = 0; leg < kLegCount; ++leg) {
+    if (!prep_workspace_ok[leg]) {
+      throw ConfigError("Q_CLIMB_PREP is outside the safe workspace");
+    }
+    if (!prep_collision_ok[leg]) {
+      throw ConfigError("Q_CLIMB_PREP contains a link collision");
     }
   }
 }
@@ -574,6 +628,11 @@ void GraspController::resetToStand(const JointAngles& q_cur) {
   abortClimb();
   exitDock(q_cur);
   setMode(kApproach);
+  // 回行走站姿同时取消攀爬准备过渡与保持。
+  climb_prep_active = false;
+  climb_prep_posture_held = false;
+  climb_prep_schedule_.clear();
+  climb_prep_frame_ = 0;
   prepareClimbEntry(q_cur);
 }
 
@@ -582,6 +641,203 @@ void GraspController::prepareClimbEntry(const JointAngles& q_cur) {
   reset_time = 0.0;
   reset_active = true;
   approach_mode.reset();
+}
+
+bool GraspController::planClimbPrep(const JointAngles& q_start,
+                                    std::vector<JointAngles>* schedule,
+                                    std::array<int, 5>* segment_frames,
+                                    std::string* reason) const {
+  const auto fail = [&](const std::string& message) {
+    *reason = message;
+    return false;
+  };
+  const int lift_frames = static_cast<int>(std::lround(kClimbPrepLiftDuration / dt));
+  const int hold_frames = static_cast<int>(std::lround(kClimbPrepHoldDuration / dt));
+  const int lower_frames = static_cast<int>(std::lround(kClimbPrepLowerDuration / dt));
+  *segment_frames = {lift_frames, hold_frames, lift_frames, hold_frames, lower_frames};
+  if (lift_frames < 2 || hold_frames < 1 || lower_frames < 2) {
+    return fail("climb prep frame count is too small for the control period");
+  }
+
+  // 中间目标：足端 xy 取准备姿态，z 保持当前地面高度，IK 以 Q_CLIMB_PREP 为初值。
+  const FootPositions start_base = kinematic.hipToBase(kinematic.forward(q_start));
+  FootPositions mid_base = foot_climb_prep_base;
+  for (int leg = 0; leg < kLegCount; ++leg) {
+    mid_base[leg].z() = start_base[leg].z();
+  }
+  const FootPositions mid_hip = kinematic.baseToHip(mid_base);
+  JointAngles q_mid{};
+  for (int leg = 0; leg < kLegCount; ++leg) {
+    if (!legIkNewton(kinematic, leg, mid_hip[leg], q_climb_prep[leg], &q_mid[leg])) {
+      return fail("climb prep mid-target IK failed on leg " + std::to_string(leg));
+    }
+  }
+
+  // 摆动腿：五次平滑 + 仅膝关节抬腿鼓包；幅值二分到 21 个采样点上峰值净空 30 mm。
+  const auto base_pose = [&](int leg, double u) {
+    return Vector3d(q_start[leg] + (q_mid[leg] - q_start[leg]) * smoothStep(u));
+  };
+  std::array<double, 6> lift_amplitude{};  // 带符号 s*A
+  for (int leg = 0; leg < kLegCount; ++leg) {
+    const Vector3d q_half = base_pose(leg, 0.5);
+    const double sign = kinematic.jacobianLeg(leg, q_half)(2, 1) >= 0.0 ? 1.0 : -1.0;
+    const double ground_z_hip = mid_hip[leg].z();
+    const auto peak_height = [&](double amplitude) {
+      double peak = -1e300;
+      for (int sample = 0; sample <= 20; ++sample) {
+        const double u = sample / 20.0;
+        Vector3d q_lift = base_pose(leg, u);
+        q_lift[1] += sign * amplitude * 64.0 * std::pow(u, 3) * std::pow(1.0 - u, 3);
+        peak = std::max(peak, kinematic.forwardLeg(leg, q_lift).z() - ground_z_hip);
+      }
+      return peak;
+    };
+    double low = 0.0;
+    double high = 1.2;
+    for (int iteration = 0; iteration < 60; ++iteration) {
+      const double middle = 0.5 * (low + high);
+      if (peak_height(middle) < kClimbPrepClearance) {
+        low = middle;
+      } else {
+        high = middle;
+      }
+    }
+    double amplitude = 0.5 * (low + high);
+    if (peak_height(1.2) < kClimbPrepClearance) {
+      amplitude = 1.2;
+    }
+    lift_amplitude[leg] = sign * amplitude;
+  }
+  const auto swing_pose = [&](int leg, double u) {
+    Vector3d q = base_pose(leg, u);
+    q[1] += lift_amplitude[leg] * 64.0 * std::pow(u, 3) * std::pow(1.0 - u, 3);
+    return q;
+  };
+
+  const int total_frames = 2 * lift_frames + 2 * hold_frames + lower_frames;
+  schedule->assign(static_cast<std::size_t>(total_frames) + 1, q_start);
+  std::size_t frame = 0;
+  const auto is_group_a = [](int leg) { return leg == 0 || leg == 1 || leg == 5; };
+  // S1：A 组迈步，B 组保持。
+  for (int step = 1; step <= lift_frames; ++step) {
+    JointAngles q = (*schedule)[frame];
+    for (int leg = 0; leg < kLegCount; ++leg) {
+      if (is_group_a(leg)) {
+        q[leg] = swing_pose(leg, static_cast<double>(step) / lift_frames);
+      }
+    }
+    (*schedule)[++frame] = q;
+  }
+  // S2：全部保持。
+  for (int step = 1; step <= hold_frames; ++step) {
+    (*schedule)[frame + 1] = (*schedule)[frame];
+    ++frame;
+  }
+  // S3：B 组迈步，A 组停在 q_m。
+  for (int step = 1; step <= lift_frames; ++step) {
+    JointAngles q = (*schedule)[frame];
+    for (int leg = 0; leg < kLegCount; ++leg) {
+      if (!is_group_a(leg)) {
+        q[leg] = swing_pose(leg, static_cast<double>(step) / lift_frames);
+      }
+    }
+    (*schedule)[++frame] = q;
+  }
+  // S4：全部保持。
+  for (int step = 1; step <= hold_frames; ++step) {
+    (*schedule)[frame + 1] = (*schedule)[frame];
+    ++frame;
+  }
+  // S5：机身下降。足端 xy 取准备姿态，z 由 q_m 对应高度平滑过渡到准备高度，
+  // 逐帧 IK 以上一帧为初值；末帧精确取 Q_CLIMB_PREP。
+  for (int step = 1; step <= lower_frames; ++step) {
+    const double blend = smoothStep(static_cast<double>(step) / lower_frames);
+    FootPositions target_base = foot_climb_prep_base;
+    for (int leg = 0; leg < kLegCount; ++leg) {
+      target_base[leg].z() =
+          mid_base[leg].z() + blend * (foot_climb_prep_base[leg].z() - mid_base[leg].z());
+    }
+    const FootPositions target_hip = kinematic.baseToHip(target_base);
+    JointAngles q = (*schedule)[frame];
+    if (step == lower_frames) {
+      q = q_climb_prep;
+    } else {
+      for (int leg = 0; leg < kLegCount; ++leg) {
+        if (!legIkNewton(kinematic, leg, target_hip[leg], (*schedule)[frame][leg], &q[leg])) {
+          return fail("climb prep lowering IK failed on leg " + std::to_string(leg) +
+                      " at step " + std::to_string(step));
+        }
+      }
+    }
+    (*schedule)[++frame] = q;
+  }
+
+  // 接受前整段仿真校验：关节余量、整机连杆碰撞、逐帧关节速度。
+  const JointAngles lower = jointLower();
+  const JointAngles upper = jointUpper();
+  for (std::size_t k = 1; k < schedule->size(); ++k) {
+    const JointAngles& q = (*schedule)[k];
+    for (int leg = 0; leg < kLegCount; ++leg) {
+      for (int joint = 0; joint < kJointCount; ++joint) {
+        const double margin =
+            std::min(q[leg][joint] - lower[leg][joint], upper[leg][joint] - q[leg][joint]);
+        if (!(margin >= kClimbPrepJointMargin)) {
+          return fail("climb prep joint margin below 0.05 rad at frame " + std::to_string(k) +
+                      " leg " + std::to_string(leg));
+        }
+        if (!((std::abs(q[leg][joint] - (*schedule)[k - 1][leg][joint]) / dt) <=
+              kClimbPrepSpeedLimit)) {
+          return fail("climb prep joint speed above 3.0 rad/s at frame " + std::to_string(k) +
+                      " leg " + std::to_string(leg));
+        }
+      }
+    }
+    const std::array<bool, 6> collision_free = linkCollisionFree(q);
+    for (int leg = 0; leg < kLegCount; ++leg) {
+      if (!collision_free[leg]) {
+        return fail("climb prep link collision at frame " + std::to_string(k) + " leg " +
+                    std::to_string(leg));
+      }
+    }
+  }
+  return true;
+}
+
+bool GraspController::beginClimbPrep(const JointAngles& q_cur, std::string* reason) {
+  std::string local_reason;
+  std::string* out = reason != nullptr ? reason : &local_reason;
+  const auto fail = [&](const std::string& message) {
+    *out = message;
+    return false;
+  };
+  if (mode != kApproach) {
+    return fail("climb prep requires APPROACH mode");
+  }
+  if (reset_active) {
+    return fail("climb prep cannot start while the stand reset is active");
+  }
+  if (approach_mode.gait_started || approach_mode.transfer_active_) {
+    return fail("climb prep requires the approach gait to be idle");
+  }
+  if (climb_prep_active) {
+    return fail("climb prep is already active");
+  }
+  for (int leg = 0; leg < kLegCount; ++leg) {
+    if (!q_cur[leg].allFinite()) {
+      return fail("q_cur must be finite");
+    }
+  }
+  std::vector<JointAngles> schedule;
+  std::array<int, 5> segment_frames{};
+  if (!planClimbPrep(q_cur, &schedule, &segment_frames, out)) {
+    return false;
+  }
+  climb_prep_schedule_ = std::move(schedule);
+  climb_prep_segment_frames = segment_frames;
+  climb_prep_frame_ = 0;
+  climb_prep_active = true;
+  climb_prep_posture_held = false;
+  return true;
 }
 
 ApproachPlan GraspController::startAutonomousApproach(
@@ -618,6 +874,9 @@ void GraspController::enterClimb(const JointAngles& q_cur,
                                  std::optional<int> end_stage_index,
                                  bool hardware_execution) {
   reset_active = false;
+  // 攀爬入口接管准备姿态：过渡与保持标志在此消耗。
+  climb_prep_active = false;
+  climb_prep_posture_held = false;
   exitDock(q_cur);
   setMode(kClimb);
   climb_mode.enter(q_cur, config, start_stage_index, end_stage_index,
@@ -693,6 +952,7 @@ void GraspController::abortClimb() {
   climb_mode.state = ClimbState::Idle;
   climb_mode.clearJointOverride();
   joint_override = {};
+  climb_prep_posture_held = false;
 }
 
 JointAngles GraspController::update(const JointAngles& q_cur,
@@ -786,6 +1046,26 @@ JointAngles GraspController::calJointPoses(const JointAngles& q_cur) {
       foot_desired_hip = foot_init_hip;
       approach_mode.finishReset();
     }
+    return q_des;
+  }
+
+  // 攀爬准备过渡：逐帧取预先校验过的关节调度，不经 DLS（与回正同样处理）。
+  if (climb_prep_active) {
+    ++climb_prep_frame_;
+    q_des = climb_prep_schedule_[climb_prep_frame_];
+    foot_desired_base = kinematic.hipToBase(kinematic.forward(q_des));
+    foot_desired_base_prev = foot_desired_base;
+    if (climb_prep_frame_ + 1 >= climb_prep_schedule_.size()) {
+      climb_prep_active = false;
+      climb_prep_posture_held = true;
+    }
+    return q_des;
+  }
+  // 过渡完成后保持 Q_CLIMB_PREP，直到 B 复位、中止或攀爬入口。
+  if (climb_prep_posture_held) {
+    q_des = q_climb_prep;
+    foot_desired_base = foot_climb_prep_base;
+    foot_desired_base_prev = foot_climb_prep_base;
     return q_des;
   }
 

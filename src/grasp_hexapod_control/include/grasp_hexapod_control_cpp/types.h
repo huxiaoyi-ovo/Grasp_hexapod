@@ -69,20 +69,36 @@ inline constexpr double kThighToKneeLength = 0.05236;
 inline constexpr double kKneeToAnkleLength = 0.07745;
 inline constexpr double kFootRadius = 0.0065;
 
-// 标准工作中心保持 108.971 mm 外展半径，同时让末段严格竖直。
-inline constexpr double kStandKneeAngleDeg = 43.035535181;
-inline constexpr double kStandAnkleAngleDeg = -98.531183330;
+// 攀爬准备姿态（旧默认站姿，数值逐位保持）：标准工作中心保持 108.971 mm 外展半径，
+// 同时让末段严格竖直。所有攀爬入口、P0 和攀爬/对接几何都以它为准。
+inline constexpr double kClimbPrepKneeAngleDeg = 43.035535181;
+inline constexpr double kClimbPrepAnkleAngleDeg = -98.531183330;
 
-inline JointAngles makeQStand() {
-  const double stand_knee = kStandKneeAngleDeg * M_PI / 180.0;
-  const double stand_ankle = kStandAnkleAngleDeg * M_PI / 180.0;
-  JointAngles q_stand{};
+inline JointAngles makeQClimbPrep() {
+  const double prep_knee = kClimbPrepKneeAngleDeg * M_PI / 180.0;
+  const double prep_ankle = kClimbPrepAnkleAngleDeg * M_PI / 180.0;
+  JointAngles q_prep{};
   for (int leg = 0; leg < kLegCount; ++leg) {
-    q_stand[leg] = Eigen::Vector3d(
+    q_prep[leg] = Eigen::Vector3d(
         0.0 / kJointAxisSigns[leg].x(),
-        stand_knee / kJointAxisSigns[leg].y(),
-        stand_ankle / kJointAxisSigns[leg].z());
+        prep_knee / kJointAxisSigns[leg].y(),
+        prep_ankle / kJointAxisSigns[leg].z());
   }
+  return q_prep;
+}
+
+// 行走站姿 Q_STAND（冻结字面值，与 Python Q_STAND 逐位一致）。
+// 定义：髋坐标系足端 = (rho*cos(beta), rho*sin(beta), -0.115)，rho = 0.125 m，
+// beta = s*(-10 deg)，s = +1 lb、-1 lf、0 lm、-1 rb、+1 rf、0 rm（前后足向外侧转 10 度）。
+// 行：lb, lf, lm, rb, rf, rm；列（控制器关节顺序）：thigh, knee, ankle。机身高约 96 mm。
+inline JointAngles makeQStand() {
+  JointAngles q_stand{};
+  q_stand[0] = Eigen::Vector3d(0.17453630454812805, -0.34908021850852294, 1.318643074432592);
+  q_stand[1] = Eigen::Vector3d(-0.1745295458507378, -0.34908021850852256, 1.3186430744325917);
+  q_stand[2] = Eigen::Vector3d(3.3793486951084017e-06, -0.3490802185085229, 1.3186430744325923);
+  q_stand[3] = Eigen::Vector3d(-0.1745295458507378, 0.34908021850852256, -1.3186430744325917);
+  q_stand[4] = Eigen::Vector3d(0.17453630454812805, 0.34908021850852294, -1.318643074432592);
+  q_stand[5] = Eigen::Vector3d(3.3793486951084017e-06, 0.3490802185085229, -1.3186430744325923);
   return q_stand;
 }
 

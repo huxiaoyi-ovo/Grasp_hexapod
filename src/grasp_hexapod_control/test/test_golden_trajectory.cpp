@@ -33,7 +33,7 @@ void compareSequence(const t::json& golden, const std::string& name,
 
   const double dt = golden["dt"].get<double>();
   g::GraspController controller(dt, false, false, t::goldenPaths());
-  g::JointAngles q_cur = g::makeQStand();
+  g::JointAngles q_cur = g::makeQClimbPrep();
   const Eigen::Vector4d zero_command = Eigen::Vector4d::Zero();
 
   if (name == "reset_then_walk") {
@@ -142,9 +142,9 @@ TEST(ClimbFrontHardware, RejectedWithoutFlagAndAcceptedWithFlag) {
   ASSERT_FALSE(config.allow_front_hardware) << "flag must default to false";
 
   g::GraspController controller(dt, false, false, t::goldenPaths());
-  const g::JointAngles q_stand = g::makeQStand();
+  const g::JointAngles q_climb_prep = g::makeQClimbPrep();
   try {
-    controller.enterClimb(q_stand, config, 0, std::nullopt, true);
+    controller.enterClimb(q_climb_prep, config, 0, std::nullopt, true);
     FAIL() << "front + hardware must be rejected without allow_front_hardware";
   } catch (const g::ConfigError& error) {
     EXPECT_STREQ(error.what(), "front compact climbing is simulation-only");
@@ -155,10 +155,10 @@ TEST(ClimbFrontHardware, RejectedWithoutFlagAndAcceptedWithFlag) {
   // 拒绝不得破坏正在进行的侧向会话。
   g::ClimbCompactConfig side = g::loadClimbCompact(t::goldenPaths().climb_compact_json);
   side = g::selectCompactClimbSide(side, "left");
-  controller.enterClimb(q_stand, side, 0, std::nullopt, true);
+  controller.enterClimb(q_climb_prep, side, 0, std::nullopt, true);
   const std::string side_phase = controller.climb_mode.phase;
   ASSERT_EQ(controller.climb_mode.state, g::ClimbState::Running);
-  EXPECT_THROW(controller.climb_mode.enter(q_stand, config, 0, std::nullopt, true),
+  EXPECT_THROW(controller.climb_mode.enter(q_climb_prep, config, 0, std::nullopt, true),
                g::ConfigError);
   EXPECT_EQ(controller.climb_mode.state, g::ClimbState::Running);
   EXPECT_EQ(controller.climb_mode.phase, side_phase);
@@ -166,12 +166,12 @@ TEST(ClimbFrontHardware, RejectedWithoutFlagAndAcceptedWithFlag) {
 
   // front + 非 hardware 不需要该标志。
   g::GraspController sim_controller(dt, false, false, t::goldenPaths());
-  EXPECT_NO_THROW(sim_controller.enterClimb(q_stand, config, 0, std::nullopt, false));
+  EXPECT_NO_THROW(sim_controller.enterClimb(q_climb_prep, config, 0, std::nullopt, false));
 
   // 显式授权后接受；授权标志不会被 JSON 设置。
   config.allow_front_hardware = true;
   g::GraspController hardware_controller(dt, false, false, t::goldenPaths());
-  EXPECT_NO_THROW(hardware_controller.enterClimb(q_stand, config, 0, std::nullopt, true));
+  EXPECT_NO_THROW(hardware_controller.enterClimb(q_climb_prep, config, 0, std::nullopt, true));
   EXPECT_EQ(hardware_controller.climb_mode.state, g::ClimbState::Running);
   EXPECT_TRUE(hardware_controller.climb_mode.hardware_execution);
 }
@@ -194,7 +194,7 @@ TEST(ClimbFrontHardware, HardwareModeIgnoresSimulationVelocityCap) {
     }
   }
   ASSERT_NE(sequence, nullptr);
-  g::JointAngles previous = g::makeQStand();
+  g::JointAngles previous = g::makeQClimbPrep();
   int sim_frames_above_shared_cap = 0;
   for (const t::json& frame : (*sequence)["frames"]) {
     const g::JointAngles q = t::toJoints(frame["q_des"].get<std::vector<double>>());
@@ -210,7 +210,7 @@ TEST(ClimbFrontHardware, HardwareModeIgnoresSimulationVelocityCap) {
   // 同一配置的 hardware 回放：任何一帧都不得超过 4 rad/s，且共享上限确实发生裁剪。
   config.allow_front_hardware = true;
   g::GraspController controller(dt, false, false, t::goldenPaths());
-  g::JointAngles q_cur = g::makeQStand();
+  g::JointAngles q_cur = g::makeQClimbPrep();
   controller.enterClimb(q_cur, config, 0, std::nullopt, true);
   const Eigen::Vector4d zero_command = Eigen::Vector4d::Zero();
   double worst_step = 0.0;
@@ -243,7 +243,7 @@ TEST(ClimbFrontFeedbackSimulation, FinishesWithFeedbackCheckpointsAndSimulationC
   g::validateClimbCompact(config);
 
   g::GraspController controller(dt, false, false, t::goldenPaths());
-  g::JointAngles q_cur = g::makeQStand();
+  g::JointAngles q_cur = g::makeQClimbPrep();
   controller.enterClimb(q_cur, config, 0, std::nullopt, false);
   ASSERT_FALSE(controller.climb_mode.hardware_execution);
   const Eigen::Vector4d zero_command = Eigen::Vector4d::Zero();
@@ -261,4 +261,104 @@ TEST(ClimbFrontFeedbackSimulation, FinishesWithFeedbackCheckpointsAndSimulationC
       << controller.climb_mode.failure_reason;
   EXPECT_LE(worst_step, *config.simulation_joint_velocity_limit_rad_s * dt + 1e-9);
   EXPECT_GT(worst_step, 4.0 * dt) << "front simulation cap (6 rad/s) must apply";
+}
+
+// 行走站姿 Q_STAND 的几何定义与 Q_CLIMB_PREP（旧默认站姿）逐位不变。
+TEST(StanceDefinition, WalkingStanceMatchesGeometryAndClimbPrepIsTheOldStand) {
+  const double dt = t::loadGolden()["dt"].get<double>();
+  g::GraspController controller(dt, false, false, t::goldenPaths());
+  const g::FootPositions feet = controller.kinematic.forward(g::makeQStand());
+  const double sign[6] = {1.0, -1.0, 0.0, -1.0, 1.0, 0.0};
+  for (int leg = 0; leg < g::kLegCount; ++leg) {
+    const double beta = sign[leg] * (-10.0 * M_PI / 180.0);
+    const Eigen::Vector3d expected(0.125 * std::cos(beta), 0.125 * std::sin(beta), -0.115);
+    EXPECT_LT((feet[leg] - expected).norm(), 1e-9) << "leg " << leg;
+  }
+  const g::JointAngles climb_prep = g::makeQClimbPrep();
+  const double knee = 43.035535181 * M_PI / 180.0;
+  const double ankle = -98.531183330 * M_PI / 180.0;
+  for (int leg = 0; leg < g::kLegCount; ++leg) {
+    EXPECT_TRUE((climb_prep[leg].array() ==
+                 Eigen::Array3d(0.0 / g::kJointAxisSigns[leg].x(),
+                                knee / g::kJointAxisSigns[leg].y(),
+                                ankle / g::kJointAxisSigns[leg].z()))
+                    .all());
+  }
+}
+
+// 攀爬准备过渡：行走站姿 -> 抬脚换位 -> 降机身，精确到达 Q_CLIMB_PREP 并保持。
+TEST(ClimbPrepTransition, ReachesQClimbPrepHoldsAndResetsToStand) {
+  const double dt = t::loadGolden()["dt"].get<double>();
+  g::GraspController controller(dt, false, false, t::goldenPaths());
+  const Eigen::Vector4d zero_command = Eigen::Vector4d::Zero();
+  g::JointAngles q = g::makeQStand();
+
+  std::string reason;
+  ASSERT_TRUE(controller.beginClimbPrep(q, &reason)) << reason;
+  EXPECT_TRUE(controller.climb_prep_active);
+  EXPECT_FALSE(controller.beginClimbPrep(q, &reason));
+  const std::array<int, 5> expected_frames = {18, 3, 18, 3, 36};
+  EXPECT_EQ(controller.climb_prep_segment_frames, expected_frames);
+
+  double peak_speed = 0.0;
+  int frames = 0;
+  while (controller.climb_prep_active && frames < 1000) {
+    const g::JointAngles q_des = controller.update(q, zero_command);
+    peak_speed = std::max(peak_speed, t::maxAbsDiff(q, q_des) / dt);
+    q = q_des;
+    ++frames;
+  }
+  EXPECT_EQ(frames, 78);
+  EXPECT_LE(peak_speed, 3.0);
+  EXPECT_TRUE(controller.climb_prep_posture_held);
+  const g::JointAngles climb_prep = g::makeQClimbPrep();
+  for (int leg = 0; leg < g::kLegCount; ++leg) {
+    EXPECT_TRUE((q[leg].array() == climb_prep[leg].array()).all()) << "leg " << leg;
+  }
+
+  // 保持期间即使有行走指令，步态也不动、不写关节覆盖。
+  for (int frame = 0; frame < 20; ++frame) {
+    q = controller.update(q, Eigen::Vector4d(0.1, 0.1, 0.0, 0.0));
+    for (int leg = 0; leg < g::kLegCount; ++leg) {
+      EXPECT_TRUE((q[leg].array() == climb_prep[leg].array()).all());
+      EXPECT_FALSE(controller.joint_override[leg].has_value());
+    }
+  }
+  EXPECT_FALSE(controller.approach_mode.gait_started);
+
+  // B：取消保持并回到行走站姿。
+  controller.resetToStand(q);
+  EXPECT_FALSE(controller.climb_prep_posture_held);
+  for (int frame = 0; frame < 80 && controller.reset_active; ++frame) {
+    q = controller.update(q, zero_command);
+  }
+  EXPECT_FALSE(controller.reset_active);
+  const g::JointAngles stand = g::makeQStand();
+  for (int leg = 0; leg < g::kLegCount; ++leg) {
+    EXPECT_TRUE((q[leg].array() == stand[leg].array()).all()) << "leg " << leg;
+  }
+}
+
+TEST(ClimbPrepTransition, RejectsBadPreconditionsWithoutChangingState) {
+  const double dt = t::loadGolden()["dt"].get<double>();
+  g::GraspController controller(dt, false, false, t::goldenPaths());
+  std::string reason;
+  g::JointAngles q = g::makeQStand();
+
+  controller.reset_active = true;
+  EXPECT_FALSE(controller.beginClimbPrep(q, &reason));
+  controller.reset_active = false;
+  controller.setMode(g::GraspController::kClimb);
+  EXPECT_FALSE(controller.beginClimbPrep(q, &reason));
+  controller.setMode(g::GraspController::kApproach);
+  g::JointAngles bad = q;
+  bad[0][0] = std::nan("");
+  EXPECT_FALSE(controller.beginClimbPrep(bad, &reason));
+  // 起点关节贴近限位：余量门拒绝。
+  bad = q;
+  bad[0][1] = g::jointLower()[0][1] + 0.01;
+  EXPECT_FALSE(controller.beginClimbPrep(bad, &reason));
+  EXPECT_FALSE(reason.empty());
+  EXPECT_FALSE(controller.climb_prep_active);
+  EXPECT_FALSE(controller.climb_prep_posture_held);
 }

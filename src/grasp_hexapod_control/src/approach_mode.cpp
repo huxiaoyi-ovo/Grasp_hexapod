@@ -886,8 +886,10 @@ void ApproachMode::updateGait(const Eigen::Vector4d& command) {
   // 控制器每帧开头已清空 joint_override；本帧的发出标记重新计。
   swing_override_emitted_.fill(false);
 
-  // 回正由控制器中的关节插值接管。
-  if (controller->reset_active) {
+  // 回正由控制器中的关节插值接管；攀爬准备过渡或准备姿态保持期间步态同样不动，
+  // 否则步态的站姿高度会把机身拉回行走高度。
+  if (controller->reset_active || controller->climb_prep_active ||
+      controller->climb_prep_posture_held) {
     return;
   }
 

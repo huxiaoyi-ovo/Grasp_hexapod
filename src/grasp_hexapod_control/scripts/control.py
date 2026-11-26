@@ -22,6 +22,7 @@ from kinematics import (
     JOINT_LOWER,
     JOINT_UPPER,
     JOINT_VELOCITY_LIMIT,
+    Q_CLIMB_PREP,
     Q_STAND,
     GraspKinematic,
 )
@@ -47,6 +48,15 @@ BODY_COLLISION_RADIUS = 0.097
 BODY_COLLISION_Z_MIN = 0.0
 BODY_COLLISION_Z_MAX = 0.121
 MIN_FOOT_CLEARANCE = 2.0 * FOOT_RADIUS + COLLISION_MARGIN
+
+# 攀爬准备过渡（行走站姿 -> Q_CLIMB_PREP）的冻结参数。
+CLIMB_PREP_CLEARANCE_M = 0.030  # 摆动足净空
+CLIMB_PREP_LIFT_DURATION_S = 0.60  # S1/S3 单组迈步时长
+CLIMB_PREP_HOLD_DURATION_S = 0.10  # S2/S4 保持
+CLIMB_PREP_LOWER_DURATION_S = 1.20  # S5 机身下降
+CLIMB_PREP_JOINT_MARGIN_RAD = 0.05  # 关节限位余量
+CLIMB_PREP_SPEED_LIMIT_RAD_S = 3.0  # 逐帧关节速度上限
+CLIMB_PREP_GROUP_A = (0, 1, 5)  # 与 ApproachMode 的三角步态 A 组一致
 
 WORKSPACE_BOUNDARY_PATH = package_config_path("workspace_bounds.csv")
 WORKSPACE_BETA_LIMIT = np.deg2rad(30.0)
@@ -236,7 +246,15 @@ class MissionStateMachine:
                 self.prepare_elapsed_s = 0.0
                 self.prepare_settle_s = 0.0
                 if not self.posture_prepared:
-                    self.controller.prepare_climb_entry(q_cur)
+                    # 落脚未完成时继续以零指令更新接近步态，六足落地后再开始准备过渡。
+                    approach = self.controller.approach_mode
+                    if approach.gait_started or approach.transfer_active:
+                        return result
+                    ok, prep_reason = self.controller.begin_climb_prep(q_cur)
+                    if not ok:
+                        self.state = self.FAILED
+                        self.reason = prep_reason
+                        return result
                     self.posture_prepared = True
                 self.prepare_previous_pose_pv = (
                     navigation_state.normalized().pv_from_base
@@ -260,10 +278,10 @@ class MissionStateMachine:
         if self.state == self.PREPARE_CLIMB:
             self.prepare_elapsed_s += self.controller.dt
             self.last_prepare_joint_error_rad = float(
-                np.max(np.abs(np.asarray(q_cur) - self.controller.q_init))
+                np.max(np.abs(np.asarray(q_cur) - self.controller.q_climb_prep))
             )
             gate = self.climb_config["settle_gate"]
-            if not self.controller.reset_active:
+            if not self.controller.climb_prep_active:
                 if navigation_state is None:
                     self.state = self.FAILED
                     self.reason = "navigation state was lost before climb entry"
@@ -531,6 +549,23 @@ class GraspController:
             FOOT_RADIUS - np.mean(self.foot_init_base[:, 2])
         )
 
+        # 攀爬准备姿态（旧默认站姿Q_CLIMB_PREP）：行走站姿Q_STAND通过抬脚换位过渡到它。
+        self.q_climb_prep = Q_CLIMB_PREP.copy()
+        self.foot_climb_prep_base = self.kinematic.hip_to_base(
+            self.kinematic.forward(self.q_climb_prep)
+        )
+        self.base_height_at_climb_prep = (
+            FOOT_RADIUS - np.mean(self.foot_climb_prep_base[:, 2])
+        )
+        # 过渡执行中/完成后保持；保持期间步态不得把机身拉回行走高度。
+        self.climb_prep_active = False
+        self.climb_prep_posture_held = False
+        # 5段帧数（S1 A组、S2保持、S3 B组、S4保持、S5降机身）与逐帧关节目标
+        # （下标k为第k帧结束时的目标，下标0为起点）。
+        self.climb_prep_segment_frames = (0, 0, 0, 0, 0)
+        self._climb_prep_schedule = None
+        self._climb_prep_frame = 0
+
         # A使能和B复位都用五次曲线平滑回到标准站姿。
         # 2 s五次曲线让整机从任意当前姿态平滑回到Q_STAND。
         self.reset_duration = 2.0
@@ -562,6 +597,10 @@ class GraspController:
             raise ValueError("Q_STAND is outside the safe workspace")
         if not self._link_collision_free(self.q_init).all():
             raise ValueError("Q_STAND contains a link collision")
+        if not self._workspace_feasible(self.foot_climb_prep_base).all():
+            raise ValueError("Q_CLIMB_PREP is outside the safe workspace")
+        if not self._link_collision_free(self.q_climb_prep).all():
+            raise ValueError("Q_CLIMB_PREP contains a link collision")
 
     @staticmethod
     def _smooth_step(phase):
@@ -875,6 +914,11 @@ class GraspController:
         self.abort_climb()
         self.exit_dock(q_cur)
         self.set_mode(self.APPROACH)
+        # 回行走站姿同时取消攀爬准备过渡与保持。
+        self.climb_prep_active = False
+        self.climb_prep_posture_held = False
+        self._climb_prep_schedule = None
+        self._climb_prep_frame = 0
         self.prepare_climb_entry(q_cur)
 
     def prepare_climb_entry(self, q_cur):
@@ -888,6 +932,198 @@ class GraspController:
         self.reset_active = True
 
         self.approach_mode.reset()
+
+    @staticmethod
+    def _leg_ik(kinematic, leg, target_hip, q_seed):
+        """单腿数值逆解（与ApproachMode._leg_ik相同的Newton迭代与收敛判据）。"""
+
+        q = np.array(q_seed, dtype=np.float64)
+        identity = np.eye(3)
+        for _ in range(50):
+            error = target_hip - kinematic.forward_leg(leg, q)
+            if np.linalg.norm(error) < 1e-10:
+                break
+            jacobian = kinematic.jacobian_leg(leg, q)
+            q = q + np.linalg.solve(
+                jacobian.T @ jacobian + 1e-9 * identity,
+                jacobian.T @ error,
+            )
+        error = target_hip - kinematic.forward_leg(leg, q)
+        return q, bool(np.linalg.norm(error) <= 1e-6)
+
+    def _plan_climb_prep(self, q_start):
+        """规划并校验整段过渡调度；返回(调度(含起点帧), 段帧数, 原因)，失败时调度为None。"""
+
+        kinematic = self.kinematic
+        lift_frames = int(round(CLIMB_PREP_LIFT_DURATION_S / self.dt))
+        hold_frames = int(round(CLIMB_PREP_HOLD_DURATION_S / self.dt))
+        lower_frames = int(round(CLIMB_PREP_LOWER_DURATION_S / self.dt))
+        segment_frames = (
+            lift_frames, hold_frames, lift_frames, hold_frames, lower_frames
+        )
+        if lift_frames < 2 or hold_frames < 1 or lower_frames < 2:
+            return None, segment_frames, (
+                "climb prep frame count is too small for the control period"
+            )
+
+        # 中间目标：足端xy取准备姿态，z保持当前地面高度，IK以Q_CLIMB_PREP为初值。
+        start_base = kinematic.hip_to_base(kinematic.forward(q_start))
+        mid_base = self.foot_climb_prep_base.copy()
+        mid_base[:, 2] = start_base[:, 2]
+        mid_hip = kinematic.base_to_hip(mid_base)
+        q_mid = np.empty((6, 3), dtype=np.float64)
+        for leg in range(6):
+            q_mid[leg], ok = self._leg_ik(
+                kinematic, leg, mid_hip[leg], self.q_climb_prep[leg]
+            )
+            if not ok:
+                return None, segment_frames, (
+                    f"climb prep mid-target IK failed on leg {leg}"
+                )
+
+        # 摆动腿：五次平滑+仅膝关节抬腿鼓包；幅值二分到21个采样点上峰值净空30 mm。
+        def base_pose(leg, u):
+            return q_start[leg] + (q_mid[leg] - q_start[leg]) * self._smooth_step(u)
+
+        def bump(u):
+            return 64.0 * u**3 * (1.0 - u) ** 3
+
+        lift_amplitude = np.zeros(6, dtype=np.float64)  # 带符号 s*A
+        for leg in range(6):
+            q_half = base_pose(leg, 0.5)
+            sign = (
+                1.0
+                if kinematic.jacobian_leg(leg, q_half)[2, 1] >= 0.0
+                else -1.0
+            )
+            ground_z_hip = mid_hip[leg][2]
+
+            def peak_height(amplitude, leg=leg, sign=sign, ground_z_hip=ground_z_hip):
+                peak = -1e300
+                for sample in range(21):
+                    u = sample / 20.0
+                    q_lift = base_pose(leg, u).copy()
+                    q_lift[1] += sign * amplitude * bump(u)
+                    peak = max(
+                        peak,
+                        kinematic.forward_leg(leg, q_lift)[2] - ground_z_hip,
+                    )
+                return peak
+
+            low, high = 0.0, 1.2
+            for _ in range(60):
+                middle = 0.5 * (low + high)
+                if peak_height(middle) < CLIMB_PREP_CLEARANCE_M:
+                    low = middle
+                else:
+                    high = middle
+            amplitude = 0.5 * (low + high)
+            if peak_height(1.2) < CLIMB_PREP_CLEARANCE_M:
+                amplitude = 1.2
+            lift_amplitude[leg] = sign * amplitude
+
+        def swing_pose(leg, u):
+            q = base_pose(leg, u).copy()
+            q[1] += lift_amplitude[leg] * bump(u)
+            return q
+
+        total_frames = 2 * lift_frames + 2 * hold_frames + lower_frames
+        schedule = np.repeat(
+            np.asarray(q_start, dtype=np.float64)[np.newaxis],
+            total_frames + 1,
+            axis=0,
+        )
+        frame = 0
+        group_a = CLIMB_PREP_GROUP_A
+        # S1：A组迈步，B组保持。
+        for step in range(1, lift_frames + 1):
+            q = schedule[frame].copy()
+            for leg in group_a:
+                q[leg] = swing_pose(leg, step / lift_frames)
+            frame += 1
+            schedule[frame] = q
+        # S2：全部保持。
+        for _ in range(hold_frames):
+            schedule[frame + 1] = schedule[frame]
+            frame += 1
+        # S3：B组迈步，A组停在q_m。
+        for step in range(1, lift_frames + 1):
+            q = schedule[frame].copy()
+            for leg in range(6):
+                if leg not in group_a:
+                    q[leg] = swing_pose(leg, step / lift_frames)
+            frame += 1
+            schedule[frame] = q
+        # S4：全部保持。
+        for _ in range(hold_frames):
+            schedule[frame + 1] = schedule[frame]
+            frame += 1
+        # S5：机身下降。足端xy取准备姿态，z由q_m对应高度平滑过渡到准备高度，
+        # 逐帧IK以上一帧为初值；末帧精确取Q_CLIMB_PREP。
+        for step in range(1, lower_frames + 1):
+            blend = self._smooth_step(step / lower_frames)
+            target_base = self.foot_climb_prep_base.copy()
+            target_base[:, 2] = mid_base[:, 2] + blend * (
+                self.foot_climb_prep_base[:, 2] - mid_base[:, 2]
+            )
+            target_hip = kinematic.base_to_hip(target_base)
+            q = schedule[frame].copy()
+            if step == lower_frames:
+                q = self.q_climb_prep.copy()
+            else:
+                for leg in range(6):
+                    q[leg], ok = self._leg_ik(
+                        kinematic, leg, target_hip[leg], schedule[frame][leg]
+                    )
+                    if not ok:
+                        return None, segment_frames, (
+                            f"climb prep lowering IK failed on leg {leg} at step {step}"
+                        )
+            frame += 1
+            schedule[frame] = q
+
+        # 接受前整段仿真校验：关节余量、整机连杆碰撞、逐帧关节速度。
+        margin = np.minimum(
+            schedule[1:] - JOINT_LOWER, JOINT_UPPER - schedule[1:]
+        )
+        if not (margin >= CLIMB_PREP_JOINT_MARGIN_RAD).all():
+            return None, segment_frames, "climb prep joint margin below 0.05 rad"
+        speed = np.abs(np.diff(schedule, axis=0)) / self.dt
+        if not (speed <= CLIMB_PREP_SPEED_LIMIT_RAD_S).all():
+            return None, segment_frames, "climb prep joint speed above 3.0 rad/s"
+        for index in range(1, len(schedule)):
+            if not self._link_collision_free(schedule[index]).all():
+                return None, segment_frames, (
+                    f"climb prep link collision at frame {index}"
+                )
+        return schedule, segment_frames, ""
+
+    def begin_climb_prep(self, q_cur):
+        """从行走站姿抬脚换位过渡到Q_CLIMB_PREP；返回(是否开始, 原因)，失败不改状态。"""
+
+        if self.mode != self.APPROACH:
+            return False, "climb prep requires APPROACH mode"
+        if self.reset_active:
+            return False, "climb prep cannot start while the stand reset is active"
+        if (
+            self.approach_mode.gait_started
+            or self.approach_mode.transfer_active
+        ):
+            return False, "climb prep requires the approach gait to be idle"
+        if self.climb_prep_active:
+            return False, "climb prep is already active"
+        q_cur = np.asarray(q_cur, dtype=np.float64).reshape(6, 3)
+        if not np.isfinite(q_cur).all():
+            return False, "q_cur must be finite"
+        schedule, segment_frames, reason = self._plan_climb_prep(q_cur)
+        if schedule is None:
+            return False, reason
+        self._climb_prep_schedule = schedule
+        self.climb_prep_segment_frames = segment_frames
+        self._climb_prep_frame = 0
+        self.climb_prep_active = True
+        self.climb_prep_posture_held = False
+        return True, ""
 
     def start_autonomous_approach(self, navigation_state, target_side=None):
         """在APPROACH模式下选择安全接近点并启动固定路径。"""
@@ -943,6 +1179,9 @@ class GraspController:
     ):
         """通过唯一入口进入仅仿真的 compact 攀爬。"""
         self.reset_active = False
+        # 攀爬入口接管准备姿态：过渡与保持标志在此消耗。
+        self.climb_prep_active = False
+        self.climb_prep_posture_held = False
         self.exit_dock(q_cur)
         self.set_mode(self.CLIMB)
         self.climb_mode.enter(
@@ -1022,6 +1261,7 @@ class GraspController:
         self.climb_mode.state = ClimbMode.IDLE
         self.climb_mode.clear_joint_override()
         self.joint_override = [None] * 6
+        self.climb_prep_posture_held = False
 
     def update(
         self,
@@ -1127,6 +1367,25 @@ class GraspController:
                 self.foot_desired_hip[:] = self.foot_init_hip
                 self.approach_mode.finish_reset()
 
+            return self.q_des
+
+        # 攀爬准备过渡：逐帧取预先校验过的关节调度，不经DLS（与回正同样处理）。
+        if self.climb_prep_active:
+            self._climb_prep_frame += 1
+            self.q_des = self._climb_prep_schedule[self._climb_prep_frame].copy()
+            self.foot_desired_base[:] = self.kinematic.hip_to_base(
+                self.kinematic.forward(self.q_des)
+            )
+            self.foot_desired_base_prev = self.foot_desired_base.copy()
+            if self._climb_prep_frame + 1 >= len(self._climb_prep_schedule):
+                self.climb_prep_active = False
+                self.climb_prep_posture_held = True
+            return self.q_des
+        # 过渡完成后保持Q_CLIMB_PREP，直到B复位、中止或攀爬入口。
+        if self.climb_prep_posture_held:
+            self.q_des = self.q_climb_prep.copy()
+            self.foot_desired_base[:] = self.foot_climb_prep_base
+            self.foot_desired_base_prev = self.foot_climb_prep_base.copy()
             return self.q_des
 
         #步态规划在base_link工作，统一转换一下坐标系

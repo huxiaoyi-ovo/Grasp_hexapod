@@ -21,7 +21,7 @@ sys.path[:0] = [str(SCRIPTS), str(SCRIPTS / "tools")]
 
 from climb_mode import ClimbMode
 from control import GraspController
-from kinematics import FOOT_RADIUS, JOINT_LOWER, JOINT_UPPER, Q_STAND
+from kinematics import FOOT_RADIUS, JOINT_LOWER, JOINT_UPPER, Q_CLIMB_PREP
 from build_climb_front import (
     MESH, TRANSLATION, base_points, foot_sphere_signed_gap, load_triangles,
     quintic_weight, support_margin, world_from_base,
@@ -233,10 +233,10 @@ def _audit(config, candidate=False, inherited_capsule_proxy_names=()):
     triangles = load_triangles(MESH) + TRANSLATION
     controller = GraspController(DT, enable_link_collision_check=False,
                                  climb_timeout_uses_wall_time=False)
-    controller.enter_climb(Q_STAND, config, 0, len(config["stages"]) - 1,
+    controller.enter_climb(Q_CLIMB_PREP, config, 0, len(config["stages"]) - 1,
                            hardware_execution=False)
     mode = controller.climb_mode
-    q = Q_STAND.copy()
+    q = Q_CLIMB_PREP.copy()
     stage_rows, boundaries, q_samples = {}, {}, []
     first_failure = None
     merged = {item[0] for item in MERGES}

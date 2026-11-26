@@ -62,7 +62,7 @@ g::Vector3d exactIk(const g::GraspKinematic& kinematic, int leg, const g::Vector
   base_feet.fill(g::Vector3d::Zero());
   base_feet[leg] = base_target;
   const g::Vector3d hip_target = kinematic.baseToHip(base_feet)[leg];
-  g::Vector3d q = g::makeQStand()[leg];
+  g::Vector3d q = g::makeQClimbPrep()[leg];
   for (int iteration = 0; iteration < 500; ++iteration) {
     const g::Vector3d error = hip_target - kinematic.forwardLeg(leg, q);
     if (error.norm() < 1e-14) {
@@ -242,7 +242,7 @@ std::vector<Tick> replay(const json& document, int* final_state) {
   g::GraspController controller(1.0 / 30.0, false, false, paths);
   g::ClimbCompactConfig config = g::climbCompactFromJson(document);
   config = g::selectCompactClimbSide(config, "left");
-  g::JointAngles q = g::makeQStand();
+  g::JointAngles q = g::makeQClimbPrep();
   controller.enterClimb(q, config, 0, std::nullopt, false);
   std::vector<Tick> ticks;
   while (controller.climb_mode.state == g::ClimbState::Running && ticks.size() < 40000) {

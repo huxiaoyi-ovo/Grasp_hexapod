@@ -8,9 +8,9 @@ grasp_hexapod_control（C++ 部分）的 gtest 逐项对比。
 
 序列设计（两侧实现必须完全一致）：
     reset_then_walk : 扰动关节角 -> B 回站 -> 恒定速度步态 -> 反向 -> 停止
-    climb_left      : Q_STAND 入口，compact 左侧、hardware_execution=True、
+    climb_left      : Q_CLIMB_PREP 入口，compact 左侧、hardware_execution=True、
                       理想舵服（q_cur = 上一帧 q_des），直到 DONE
-    climb_front_direct : Q_STAND 入口，config/climb_front_direct.json（front，6 元素位姿，
+    climb_front_direct : Q_CLIMB_PREP 入口，config/climb_front_direct.json（front，6 元素位姿，
                       simulation_joint_velocity_limit_rad_s=6.0）、hardware_execution=False
                       （Python 拒绝 front + hardware；仿真模式使用 front 的 6 rad/s 步进上限）、
                       不改 settle_gate，理想舵服，直到 DONE
@@ -29,7 +29,7 @@ sys.path.insert(0, str(SCRIPTS_DIR))
 from climb_mode import ClimbMode  # noqa: E402
 from control import GraspController  # noqa: E402
 from dock_mode import load_dock_system  # noqa: E402
-from kinematics import Q_STAND  # noqa: E402
+from kinematics import Q_CLIMB_PREP, Q_STAND  # noqa: E402
 from utils.climb import (  # noqa: E402
     derive_compact_approach_geometry,
     select_compact_climb_side,
@@ -66,18 +66,18 @@ def flatten_feet(feet):
 
 
 def kinematics_samples():
-    """固定关节角下的 FK/Jacobian/DLS/碰撞检查快照。"""
+    """固定关节角下的 FK/Jacobian/DLS/碰撞检查快照（以攀爬准备姿态为中心）。"""
     rng = np.random.default_rng(20260909)
     samples = []
     q_values = [
-        Q_STAND.copy(),
-        Q_STAND + np.deg2rad(np.array([[6, -8, 5], [-4, 7, -6], [8, -5, 4],
+        Q_CLIMB_PREP.copy(),
+        Q_CLIMB_PREP + np.deg2rad(np.array([[6, -8, 5], [-4, 7, -6], [8, -5, 4],
                                        [-7, 6, -5], [5, -9, 7], [-6, 4, -8]])),
     ]
     for _ in range(3):
         q_values.append(
             np.clip(
-                Q_STAND + rng.normal(0.0, np.deg2rad(10.0), size=(6, 3)),
+                Q_CLIMB_PREP + rng.normal(0.0, np.deg2rad(10.0), size=(6, 3)),
                 -1.2,
                 1.2,
             )
@@ -175,10 +175,10 @@ def replay_climb_left():
     config = controller.climb_mode._load_config()
     config = select_compact_climb_side(config, "left")
     config["settle_gate"]["max_foot_target_error_m"] = CLIMB_FOOT_GATE_M
-    controller.enter_climb(Q_STAND.copy(), config=config, hardware_execution=True)
+    controller.enter_climb(Q_CLIMB_PREP.copy(), config=config, hardware_execution=True)
 
     command = np.zeros(4, dtype=np.float64)
-    q_cur = Q_STAND.copy()
+    q_cur = Q_CLIMB_PREP.copy()
     frames = []
     for _ in range(20000):
         q_des = controller.update(q_cur, command)
@@ -206,10 +206,10 @@ def replay_climb_front_direct():
     with CLIMB_FRONT_DIRECT_PATH.open() as file:
         config = json.load(file)
     config = select_compact_climb_side(config, "left")  # front: 原样副本
-    controller.enter_climb(Q_STAND.copy(), config=config, hardware_execution=False)
+    controller.enter_climb(Q_CLIMB_PREP.copy(), config=config, hardware_execution=False)
 
     command = np.zeros(4, dtype=np.float64)
-    q_cur = Q_STAND.copy()
+    q_cur = Q_CLIMB_PREP.copy()
     frames = []
     for _ in range(40000):
         q_des = controller.update(q_cur, command)

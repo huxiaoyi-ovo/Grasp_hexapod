@@ -1033,8 +1033,13 @@ class ApproachMode:
         # 控制器每帧开头已清空 joint_override；本帧的发出标记重新计。
         self.swing_override_emitted[:] = False
 
-        # 回正由控制器中的关节插值接管。
-        if controller.reset_active:
+        # 回正由控制器中的关节插值接管；攀爬准备过渡或准备姿态保持期间步态同样不动，
+        # 否则步态的站姿高度会把机身拉回行走高度。
+        if (
+            controller.reset_active
+            or controller.climb_prep_active
+            or controller.climb_prep_posture_held
+        ):
             return
 
         # 每帧过滤操作者请求；本相使用的命令只会在下一次换相时锁存。

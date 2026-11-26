@@ -16,7 +16,7 @@ from build_climb_front import (
 )
 from climb_mode import ClimbMode
 from control import GraspController
-from kinematics import FOOT_RADIUS, GraspKinematic, JOINT_LOWER, JOINT_UPPER, Q_STAND
+from kinematics import FOOT_RADIUS, GraspKinematic, JOINT_LOWER, JOINT_UPPER, Q_CLIMB_PREP
 from audit_climb_front_landing import PatchClassifier, gap_in_interval, rectangle_patch_check, same_component
 
 CONFIG = ROOT / "src/grasp_hexapod_control/config/climb_front_optimized.json"
@@ -38,7 +38,7 @@ def stage_index(config, name):
 def entry_q(stage):
     q, residual = solve_ik(
         GraspKinematic(), np.asarray(stage["pose_start"], dtype=float),
-        np.asarray(stage["anchor_knots"][0], dtype=float), Q_STAND,
+        np.asarray(stage["anchor_knots"][0], dtype=float), Q_CLIMB_PREP,
         tolerance_m=1e-5,
     )
     assert residual <= 1e-5
@@ -331,17 +331,17 @@ def test_false_flag_terminal_persistence_resets_and_front_hardware_stays_rejecte
     assert mode.settle_time == 0.0
     assert mode.state == ClimbMode.RUNNING
     with pytest.raises(ValueError, match="front compact climbing is simulation-only"):
-        ClimbMode(None).enter(Q_STAND, config, hardware_execution=True)
+        ClimbMode(None).enter(Q_CLIMB_PREP, config, hardware_execution=True)
 
 
 def test_side_time_only_progression_is_unchanged():
     config = json.loads(SIDE.read_text())
     controller = GraspController(DT, enable_link_collision_check=False, climb_timeout_uses_wall_time=False)
-    controller.enter_climb(Q_STAND, config, hardware_execution=False)
+    controller.enter_climb(Q_CLIMB_PREP, config, hardware_execution=False)
     mode = controller.climb_mode
     duration = sum(config["stages"][0]["segment_durations_s"])
     mode.phase_time = duration
-    controller.update(Q_STAND + .5, np.zeros(4))
+    controller.update(Q_CLIMB_PREP + .5, np.zeros(4))
     # The existing SIDE preview remains elapsed-time only: lagged feedback
     # does not add a checkpoint hold or mutate its configuration semantics.
     assert mode.stage_index == 1

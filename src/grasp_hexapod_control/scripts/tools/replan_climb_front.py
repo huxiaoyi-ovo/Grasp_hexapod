@@ -20,7 +20,7 @@ from build_climb_front import (  # noqa: E402
     solve_ik,
 )
 from climb_mode import ClimbMode  # noqa: E402
-from kinematics import GraspKinematic, JOINT_LOWER, JOINT_UPPER, Q_STAND  # noqa: E402
+from kinematics import GraspKinematic, JOINT_LOWER, JOINT_UPPER, Q_CLIMB_PREP  # noqa: E402
 from optimize_climb_front import _refresh_active_base_knots  # noqa: E402
 
 PATCH_HELPER_PATH = ROOT / "src/docs/evidence/climb_front_terminal_20260924/front_terminal_audit.py"

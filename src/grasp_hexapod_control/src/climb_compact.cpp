@@ -694,10 +694,10 @@ void validateClimbCompact(const ClimbCompactConfig& config) {
       !config.simulation_candidate_only) {
     throw ConfigError("invalid simulation-only compact climb config");
   }
-  const JointAngles q_stand = makeQStand();
+  const JointAngles q_climb_prep = makeQClimbPrep();
   for (int leg = 0; leg < kLegCount; ++leg) {
-    if (!(config.p0.q_rad[leg].array() == q_stand[leg].array()).all()) {
-      throw ConfigError("compact P0 must be Q_STAND");
+    if (!(config.p0.q_rad[leg].array() == q_climb_prep[leg].array()).all()) {
+      throw ConfigError("compact P0 must be Q_CLIMB_PREP");
     }
   }
   const bool is_front = config.isFront();

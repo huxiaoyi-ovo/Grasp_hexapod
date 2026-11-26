@@ -18,7 +18,7 @@ sys.path[:0] = [str(SCRIPTS)]
 
 from climb_mode import ClimbMode
 from control import GraspController
-from kinematics import GraspKinematic, Q_STAND
+from kinematics import GraspKinematic, Q_CLIMB_PREP
 from utils.climb import select_compact_climb_side
 
 CONFIG = Path(__file__).resolve().parents[1] / "config/climb_front_v16_1.json"
@@ -33,7 +33,7 @@ def exact_ik(leg, base_target):
     base = np.zeros((6, 3))
     base[leg] = base_target
     hip_target = kin.base_to_hip(base)[leg]
-    q = Q_STAND[leg].copy()
+    q = Q_CLIMB_PREP[leg].copy()
     for _ in range(500):
         error = hip_target - kin.forward_leg(leg, q)
         if np.linalg.norm(error) < 1e-14:
@@ -127,7 +127,7 @@ def test_right_mirror_rejects_joint_space():
 def replay(doc):
     controller = GraspController(1.0 / 30.0, False, False)
     config = select_compact_climb_side(doc, "left")
-    q = Q_STAND.copy()
+    q = Q_CLIMB_PREP.copy()
     controller.enter_climb(q, config, 0, None, False)
     ticks = []
     while controller.climb_mode.state == ClimbMode.RUNNING and len(ticks) < 40000:

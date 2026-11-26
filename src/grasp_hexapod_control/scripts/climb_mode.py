@@ -15,7 +15,7 @@ from kinematics import (
     JOINT_NAMES,
     JOINT_UPPER,
     LEG_NAMES,
-    Q_STAND,
+    Q_CLIMB_PREP,
 )
 from utils import package_config_path
 
@@ -295,8 +295,8 @@ class ClimbMode:
         self._array(config, ("xiaolan_translation",), (3,))
         p0_q = self._array(config, ("p0", "q_rad"), (6, 3))
         self._array(config, ("terminal_q_rad",), (6, 3))
-        if not np.array_equal(p0_q, Q_STAND):
-            raise ValueError("compact P0 must be Q_STAND")
+        if not np.array_equal(p0_q, Q_CLIMB_PREP):
+            raise ValueError("compact P0 must be Q_CLIMB_PREP")
         is_front = config.get("climb_orientation") == "front"
         contact_plan_version = config.get("contact_plan_version")
         role_keys = (

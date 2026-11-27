@@ -648,9 +648,15 @@ def derive_compact_approach_geometry(config, xiaolan_mesh_path=None):
         raise ValueError("compact Xiaolan translation must contain 3 finite values")
 
     targets = {}
-    for side in ("left", "right"):
+    # 正面攀爬只有 left（无右侧镜像）；其 P0 base 为 x/y/z/roll/pitch/yaw。
+    front = config.get("climb_orientation") == "front"
+    for side in (("left",) if front else ("left", "right")):
         selected = select_compact_climb_side(config, side)
         base = np.asarray(selected.get("p0", {}).get("base"), dtype=np.float64)
+        if front and base.shape == (6,):
+            if abs(base[3]) > 1e-9 or abs(base[4]) > 1e-9:
+                raise ValueError("front compact P0 base must be level (roll = pitch = 0)")
+            base = base[[0, 1, 2, 5]]
         if base.shape != (4,) or not np.isfinite(base).all():
             raise ValueError("compact P0 base must contain finite x/y/z/yaw")
         cosine, sine = np.cos(base[3]), np.sin(base[3])

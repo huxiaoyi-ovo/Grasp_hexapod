@@ -235,6 +235,8 @@ def main():
     parser.add_argument("--yolo-max-depth-m", type=float, default=2.5)
     parser.add_argument("--seed", type=int, default=1)
     parser.add_argument("--timeout-s", type=float, default=240.0)
+    parser.add_argument("--no-imu", action="store_true",
+                        help="publish no IMU (the robot may run without one; only the blind finish needs it)")
     parser.add_argument("--out", default="")
     args = parser.parse_args()
     if args.case == "tag_dropout":
@@ -279,7 +281,7 @@ def main():
 
         def imu_loop():
             rate = rospy.Rate(50)
-            while running and not rospy.is_shutdown():
+            while running and not rospy.is_shutdown() and not args.no_imu:
                 with world.lock:
                     psi = float(world.pose[2])
                 msg = Imu()

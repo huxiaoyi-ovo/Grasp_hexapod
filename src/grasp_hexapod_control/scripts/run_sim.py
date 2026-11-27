@@ -1212,8 +1212,8 @@ def main() -> None:
         if compact.get("climb_orientation") == "front":
             if args.climb_side != "left":
                 raise ValueError("front compact climbing has no right-side mirror")
-            if args.full_mission or args.ros:
-                raise ValueError("front compact climbing is unavailable with --full-mission or --ros")
+            if args.ros:
+                raise ValueError("front compact climbing is unavailable with --ros")
         compact = select_compact_climb_side(compact, args.climb_side)
         if (
             compact.get("schema") != "SIMULATION_ONLY_CLIMB_COMPACT_V2"
@@ -1548,7 +1548,9 @@ def main() -> None:
             approach_timeout_s=args.approach_timeout,
             approach_position_tolerance_m=0.002,
             approach_yaw_tolerance_rad=np.deg2rad(0.2),
-            climb_hardware_execution=True,
+            # 与 --climb-start 一致：正面 compact 只做仿真回放（Python 端 front
+            # 不接受 hardware_execution）；侧面沿用实机门控路径。
+            climb_hardware_execution=compact.get("climb_orientation") != "front",
         )
         if result.failed:
             raise RuntimeError(
@@ -1968,10 +1970,15 @@ def main() -> None:
                             current_pose[:2, 3]
                             - mission_target_pose[:2, 3]
                         )
+                        # 相对接近目标的偏航误差（正面 P0 偏航为 -90 度，不能打印绝对偏航）。
                         current_yaw = np.arctan2(
                             current_pose[1, 0],
                             current_pose[0, 0],
+                        ) - np.arctan2(
+                            mission_target_pose[1, 0],
+                            mission_target_pose[0, 0],
                         )
+                        current_yaw = np.arctan2(np.sin(current_yaw), np.cos(current_yaw))
                         print(
                             "[mission] CLIMB entered after stopped-pose "
                             "recheck: position_error={:.3f}m "

@@ -60,3 +60,6 @@ exports/
 # 只跟踪 README Markdown 文档。
 *.md
 !README.md
+
+# hw_calibrate.py backups
+*.bak_20*

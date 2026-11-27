@@ -24,6 +24,16 @@ NODE_LABELS = (
     ('/xiaolan_yolo_node', 'yolo'),
     ('/xiaolan_target_3d_node', 'td3'),
     ('/xiaolan_visualizer', 'visualizer'),
+    # Rest of full_mission.launch (missing ones are reported and skipped), so
+    # one run gives the whole on-robot load.
+    ('/xiaolan_apriltag_detector', 'apriltag'),
+    ('/camera/color/tag_image_proc_manager', 'image_proc'),
+    ('/grasp_hexapod_bt_control', 'bt_control'),
+    ('/servo_left_node', 'servo_left'),
+    ('/servo_right_node', 'servo_right'),
+    ('/dock_camera/usb_cam', 'dock_camera'),
+    ('/bt_dashboard', 'dashboard'),
+    ('/grasp_hexapod_remote_control', 'remote'),
 )
 MAP_KEYS = ('site-packages/numpy', 'dist-packages/numpy', 'cv2/',
             'libopencv_core.so', 'libnvinfer.so', 'libcudnn', 'torch')
@@ -255,6 +265,9 @@ def main():
               (label[1], proc and pids[label[1]], proc['cpu_pct_avg'], proc['cpu_pct_max'],
                (proc['rss_kb_first'] or 0) / 1024., (proc['rss_kb_last'] or 0) / 1024.,
                proc['threads_max']))
+    total = sum(p['cpu_pct_avg'] for p in out['processes'].values()
+                if p is not None and p.get('cpu_pct_avg') is not None)
+    print('%-12s %6s %8.1f   (sum of the processes above, %% of one core)' % ('TOTAL', '', total))
     msg = out['messages']
     print('detection %.2f Hz (detected %.0f%%, conf_med %s), target %.2f Hz (detected %.0f%%), '
           'latency(n=%s) p50 %s ms / p99 %s ms' %

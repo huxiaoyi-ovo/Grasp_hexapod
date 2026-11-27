@@ -195,7 +195,7 @@ roslaunch xiaolan_yolo_detection xiaolan_yolo.launch \
   show_window:=true
 ```
 
-无桌面环境将 `show_window` 改为 `false`；仍会发布可视化图像话题。
+无桌面环境将 `show_window` 改为 `false`；可视化节点默认不启动，需显式 `start_visualizer:=true` 开启，开启后仍会发布可视化图像话题。
 
 | 启动参数 | 默认值 | 说明 |
 | --- | --- | --- |
@@ -206,7 +206,7 @@ roslaunch xiaolan_yolo_detection xiaolan_yolo.launch \
 | `engine_path` | 包内 `models/best.engine` | 本机生成的 TensorRT FP16 引擎 |
 | `start_yolo` | `true` | 启用检测节点 |
 | `start_3d` | `true` | 启用定位节点 |
-| `start_visualizer` | `true` | 启用可视化节点 |
+| `start_visualizer` | `false` | 启用可视化节点；需要时显式 `start_visualizer:=true` 开启 |
 | `show_window` | `false` | 显示 OpenCV 窗口 |
 
 `start_yolo:=false` 可用于配合录制的检测消息调试定位与显示，本身不会进行目标识别。
@@ -226,7 +226,7 @@ rosrun rqt_image_view rqt_image_view /xiaolan_visualizer/image
 | `/xiaolan/detection` | `xiaolan_yolo_detection/XiaolanDetection` | 检测状态、置信度、检测框、中心像素、推理耗时及原因 |
 | `/xiaolan/target` | `xiaolan_yolo_detection/XiaolanTarget` | 供下游使用的目标定位结果 |
 | `/xiaolan/target_debug` | `std_msgs/String` | 定位诊断信息 |
-| `/xiaolan_visualizer/image` | `sensor_msgs/Image` | 叠加检测与定位信息的图像 |
+| `/xiaolan_visualizer/image` | `sensor_msgs/Image` | 叠加检测与定位信息的图像；节点显式开启后，也只在有人订阅该话题或显示窗口时才订阅相机图像 |
 
 检测框坐标和消息时间戳对应原始 RGB 图像。X、Z 使用**相机光学坐标系**：X 向右为正、向左为负，Z 为前方深度，单位为米；未转换到机器人 `base_link` 坐标系。
 
@@ -245,6 +245,7 @@ rosrun rqt_image_view rqt_image_view /xiaolan_visualizer/image
 | `intra_op_num_threads` | `2` | ONNX Runtime 算子内部线程数；关闭空闲忙等以减轻 CPU 争用 |
 | `visualization_max_fps` | `5.0` | 预览刷新率上限；可视化 OpenCV 固定为单线程，降低 NX 与远程桌面的负载 |
 | `depth_sync_tolerance` | `0.025` | RGB 与深度时间戳容差，秒 |
+| `depth_cache_size` | `6` | 深度帧缓存长度，仅用于与检测时间戳配对 |
 | `roi_size` | `9` | 检测框中心深度采样区域边长，像素 |
 | `min_valid_depth_pixels` | `5` | 深度区域最少有效像素数 |
 | `min_depth` / `max_depth` | `0.20` / `2.50` | 有效深度范围，严格排除边界，米 |

@@ -440,3 +440,133 @@
   - lateral 0.14 trims some lifts to 37 mm (25.5 mm at start-up).
   Metrics: claude_walk_gait_20261125/run1/metrics_b.json.
 - Isaac baseline of the OLD gait (HEAD before this commit, 0.12 m/s): forward reaches only 42 mm/s (35 %) with roll p2p 5.8° and height p2p 12 mm. At 0.06 m/s it is fine (95 %). Harness: claude_walk_gait_20261125/isaac/{walk_trace.py,analyze.py}.
+## 2026-11-26 ZCode 主会话（Sol）：xiaolan_yolo_detection 新建 tag36h11 单 ID 检测 launch
+
+- 基线：`test` @ `7596500`，本批未提交。
+- execution_owner：Sol，新建 1 个 launch、`package.xml` 加两行依赖、追加本条，共 ≤3 个文件的琐碎配置，不涉及控制/攀爬/舵机。
+- 目标与范围：用户先要求把本地 apriltag 入库 `src/reference/`，随后改为不入库，用本机 apt 的 `ros-noetic-apriltag-ros 3.2.1`，在 `xiaolan_yolo_detection` 新建 launch，从 `/camera/color/image_raw` + `/camera/color/camera_info` 检测 `tag36h11` 的单个 ID（默认 255）。本机没有 apriltag 源码，只有 `/opt/ros/noetic` 下的 apt 二进制与头文件，所以没有东西可入库。
+- 修改文件：`src/xiaolan_yolo_detection/launch/xiaolan_apriltag.launch`（新建）；`src/xiaolan_yolo_detection/package.xml`（`exec_depend` 加 `apriltag_ros`、`image_view`）。
+- 用法：先启动 `xiaolan_orbbec_camera.launch`，再 `roslaunch xiaolan_yolo_detection xiaolan_apriltag.launch`。参数：`image_topic`、`camera_info_topic`、`tag_id`（255）、`tag_size_m`（0.060）、`publish_tf`（true）、`show_window`（true）。输出 `/tag_detections`、`/tag_detections_image`，TF `camera_color_optical_frame -> tag_255`。节点名 `xiaolan_apriltag_detector_$(arg tag_id)`，与 `full_mission.launch` 的 `xiaolan_apriltag_detector` 不同名，不会互相踢掉。
+- 实际运行的验证（本机实机 ROS 环境；相机已在运行，master 上只有 `/camera/camera` 与 `/rosout`，无控制/舵机节点）：
+  - `xmllint`、`roslaunch --nodes`（`/xiaolan_apriltag_detector_255`、`/tag_255_view`）、`roslaunch --dump-params`：`standalone_tags` = `id: 255`（整数）/`size: 0.06`/`name: tag_255`。
+  - 真实相机（848×480 rgb8，约 13 Hz；tag36h11 255 号贴在小蓝侧面）：节点日志 `Loaded tag config: 255, size: 0.06, frame_name: tag_255`，无告警；最终版 5 s 内 74 条 `/tag_detections`，全部 `id=[255]`；同一帧用 libapriltag 离线检测为 `id=255 hamming=0 margin=123.2`。检测进程约 113% CPU（6 核）。
+  - 合成图（libapriltag `apriltag_to_image` 渲染 255 与 0，发布到私有话题）：仅 255 时 56 条全为 255；255 与 0 同图时 60 条全为 255，日志 `Requested description of standalone tag ID [0], but no description was found`。
+  - 未运行：带窗口的 `image_view`（本会话无 DISPLAY）；`catkin_make`（本批未改编译内容）。
+- 证据层级：实机相机 + 实机 ROS，仅感知节点，无执行器。测试脚本与合成图在仓库外 `/tmp/zc_apriltag/`（易失）。
+- 发现与未决事项：
+  1. **`full_mission.launch` 的 AprilTag 检测器不会发布任何检测**：其 `standalone_tags` 的 `<rosparam>` 没写 `subst_value="true"`，roslaunch 不替换 `$(arg tag_id)`/`$(arg tag_size_m)`。`roslaunch --dump-params` 得到 `id: '$(arg tag_id)'`、`size: '$(arg tag_size_m)'`；把该节点块原样复制到临时 launch 实测，启动即 `[ERROR] Error loading standalone tag descriptions: type error`，画面含 0/255 号 tag 时零发布。即经 `full_mission.launch` 启动时，approach 的 tag 引导收不到检测（approach 具体行为未实测）。**未修**（不在本轮范围，属实机任务关键文件，待用户决定）。修法是给该 `<rosparam>` 加 `subst_value="true"`（一行）。
+  2. `tag_size_m` 默认 0.060 沿用仓库其他 tag；255 号 tag 实际边长未确认，只影响位姿平移，不影响 ID 识别。
+  3. 订阅的是未矫正的 `image_raw`（`plumb_bob`，k1≈−0.032）：ID 识别不受影响，位姿在画面边缘有偏差；需要精确位姿时用 `image_proc` 矫正话题（`xiaolan_tag_system.launch`/`full_mission.launch` 的做法）。
+  4. 该包 `README.md` 未补这个 launch 的说明（本轮未动，超出 3 文件边界）。
+- 下一步：用户确认 tag 边长；决定是否修 `full_mission.launch` 的 `subst_value`。
+
+## 2026-11-26 追加：xiaolan_apriltag.launch 无 DISPLAY 弹窗崩溃修复
+
+- 基线：同日条目之上，本批未提交。execution_owner：Sol，单文件 launch 一处条件 + 本条。
+- 现象：用户在无 DISPLAY 的终端启动，`image_view` 段错误（exit -11，`cannot open display`），检测器不受影响继续发布。
+- 环境核实：机器人本机有 Xorg + gnome-shell，但桌面停在 GDM 登录界面（gnome-shell 属 gdm），`DISPLAY=:0` 未登录时不可用；用户 shell 无 DISPLAY。
+- 修改：`xiaolan_apriltag.launch` 的 image_view 条件改为 `if="$(eval arg('show_window') and optenv('DISPLAY', '') != '')"`——无 DISPLAY 自动跳过弹窗；`show_window:=false` 仍可强制关。用户同批把 `tag_size_m` 默认改为 `0.050`，保留。
+- 验证：`--nodes` 三种情况（无 DISPLAY / 有 DISPLAY / 有 DISPLAY + show_window:=false）节点列表均正确；无 DISPLAY 对真实相机实跑：只起检测器、无崩溃，5 s 74 条检测全为 `id=[255]`，日志 `Loaded tag config: 255, size: 0.05`。另清理了用户上次崩溃启动遗留在 master 上的 `/tag_255_view` 注册与参数。
+- 下一步不变：等用户决定是否修 `full_mission.launch` 的 `subst_value`。
+
+## 2026-11-26 追加：xiaolan_apriltag.launch 检测器占用 140% → 60%
+
+- 基线：同日之上，未提交。execution_owner：Sol，单个 launch 改参数 + 本条。
+- 用户反馈：apriltag 占用非常多；用户确认 15 Hz 够用，不降帧率。
+- 事实：本机 `apriltag_ros` 只读 `tag_family / tag_threads / tag_decimate / tag_refine_edges / max_hamming_dist / remove_duplicates / publish_tf / standalone_tags / tag_bundles / tag_debug / publish_tag_detections_image / transport_hint`；`tag_blur` 不被读取（四个二进制里没有 "blur" 字符串）。
+- 基准方法：真实相机录 7.7 s / 117 帧回放（含 255 号 tag，黑边框外宽约 52 px，距 0.385 m），每个配置单起节点、回放只放一遍，按 `/proc` 进程 CPU 时间算 ms/帧；同会话、同主频 1.42 GHz，基线复测 144.9/144.7/145.5% 一致。注意：**回放不能 `--loop`**，时间戳倒跳会让节点的 image/camera_info 时间戳配对卡住（日志 `Topics ... do not appear to be synchronized`）。脚本与回放在仓库外 `/tmp/zc_apriltag/`（易失）。
+- 结果（4 线程）：decimate 1.0 = 145% / 96 ms，1.5 = 87% / 58 ms，2.0 = 65% / 44 ms，3.0 = 50% / 33 ms，4.0 = 45% / 30 ms；全部 83/83 帧检出，x 相同，z 0.3846–0.3847 m，yaw 标准差 0.14–0.31°。decimate 2.0 下线程 4/2/1 = 65.5/60.0/55.8%。离线：decimate 2.5 → 0/12 检出（非整数走插值把 tag 糊掉）；`tag_refine_edges=0` 丢一半检测；标注图发布开/关无差别。
+- 修改：launch 新增参数 `tag_decimate`（默认 2.0）、`tag_threads`（默认 2，原 4），删除无效的 `tag_blur`。用户此前把 `tag_size_m` 改为 0.050、并把 image_view 节点整块注释掉，均保留。
+- 真实相机前后对照（同文件、同会话、交替两次）：旧配置 140.3% / 139.6%，新配置 60.5% / 59.6%；5.5 s 内均 82 帧 82 检测（≈15 Hz），x −0.0369 → −0.0368 m，z 0.3848 m 不变，yaw 标准差 0.25–0.27°，节点日志无告警。
+- 边界：只在当前场景（一个 tag、约 0.4 m、正对相机）实测。tag 更远或在画面里更小时，decimate 2.0 的找 tag 步骤会比 1.0 更早失败；按等价关系推算约 2 倍距离（0.8 m）内仍可检出，但未实测。需要旧行为时用 `tag_decimate:=1.0`。
+- 未解决不变：`full_mission.launch` 的 `subst_value`。
+
+## 2026-11-26 ZCode 主会话（Sol）：camera_stream 远程查看推流节点（bt_control）
+
+- 基线：`test` @ `7596500`，本批未提交（工作区另有今日 xiaolan_yolo_detection 的未提交改动，与本批无关）。
+- execution_owner：Sol，理由：≤3 个文件的琐碎工具（1 个 ~110 行 Python 节点 + 1 个 launch + CMakeLists 一行安装），不碰控制/攀爬/舵机，且需要与实机 ROS 在线联测反复迭代，拆给 Luna 往返成本更高。
+- 目标与范围：用户要求把 `/camera/color/image_raw` 推流给其他电脑远程查看，指定推 compressed。新建独立节点，不进 full_mission/autostart，按需手动启动。
+- 修改文件：`src/grasp_hexapod_bt_control/scripts/camera_stream.py`（新建）、`src/grasp_hexapod_bt_control/launch/camera_stream.launch`（新建）、`src/grasp_hexapod_bt_control/CMakeLists.txt`（`catkin_install_python` 加一行）。
+- 设计与实测约定：
+  - 订阅 `~input_topic`（默认 `/camera/color/image_raw`）→ 发布 `~output_topic`（默认 `/camera/stream/compressed`，与驱动的 lazy `.../image_raw/compressed` 不同名，避免双发布者）。参数 `~fps`=8.0、`~jpeg_quality`=70，无 cv_bridge 依赖（numpy+cv2，支持 rgb8/bgr8/mono8）。
+  - 编码约定逐字节模仿本机驱动：format 串 `"<encoding>; jpeg compressed <encoding>"`，rgb8 先转 BGR 再 imencode。用 C++ 探针链接 image_transport 的 compressed 订阅插件实测：插件交付 `encoding=rgb8` 且通道均值与原图不交换 → rqt_image_view/image_view 颜色正确（这条链路的行为 2026-11-26 实测确认，不是文档推断）。
+  - 双端惰性：无人订阅输出时输入订阅也注销（0.5 s 定时器管理）。rospy 收 848x480@15 Hz raw 的反序列化固定吃 ~17% 单核，不能常驻订阅。
+  - `cv2.setNumThreads(1)`：opencv-python 线程池对 JPEG 编码是纯开销，本机实测默认单帧 wall 4.0 ms 烧 23.4 ms CPU（线程池自旋），单线程 wall 3.9 ms、CPU 3.8 ms。
+- 实际运行的验证（本机实机相机 + 实机 ROS；Jetson 6 核 1.42 GHz 节流频率）：
+  - `py_compile`、`xmllint`、`roslaunch --nodes`（`/camera_stream_node`）、`catkin_make --only-pkg-with-deps grasp_hexapod_bt_control`（白名单与工作区原配置一致，未复位）。
+  - 在线联测：无人订阅 0–0.2% 核；一个订阅者 22.6% 核（收图 ~17% + 编码 ~5%）；退订 1 s 后回 0%；输出 7.4–7.5 Hz（8 上限）；带宽 323–438 KB/s（≈2.6–3.5 Mbps）；订阅后首帧 0.6 s；解码通道校验与驱动同构（swap 误差 2.95 < 同序 10.05）；C++ 插件探针消费端颜色正确；节点日志无 ERROR。
+  - 优化前对照：编码态 87% 核（OpenCV 线程池 5 worker 占 43%，主线程仅 22.5%），即每帧 ~88 ms CPU 时间摊 6 线程。
+  - 未运行：全量 catkin（既有 OrbbecSDK 缺扩展文件问题，与本批无关）、catkin 测试（纯新增脚本，无 C++/配置改动）。
+- 发现与备注：
+  1. `catkin_install_python` 的 devel 包装器是运行时 relay（exec 源文件），改脚本无需重编。
+  2. 本机后台进程跨工具调用存活不稳定：测试期间 roscore/相机两次被外部清掉，验证改为单命令自包含流程；结束后 roscore+相机保持运行（与会话开始时一致）。
+  3. `/tmp` 会话中途被清两次，测试脚本统一放 `~/zc_tmp/`。
+  4. 远程电脑（同一 ROS master）查看：`rqt_image_view` 选 `/camera/stream/compressed`；或 `rosrun image_view image_view image:=/camera/stream _image_transport:=compressed`。
+- 下一步：等用户决定是否 `git commit`；如需更低 CPU 可 `_fps:=5` 或把 jpeg_quality 降到 60。
+
+## 2026-11-26 追加（Sol）：相机推流合并进 bt_dashboard，独立 camera_stream 撤回
+
+- 基线同上条（`test` @ `7596500`，未提交）。execution_owner：Sol（单文件功能合并 + 撤回本会话自己的未提交文件，与实机在线联测紧耦合）。
+- 用户决定：把相机远程查看合并进 Web 看板（浏览器直接看，远端电脑不再需要 ROS）。
+- 修改：`src/grasp_hexapod_bt/scripts/bt_dashboard.py`
+  - 新增 `CameraFeed` 类（~110 行）：raw→JPEG，惰性订阅（0 观看者退订，省 ~17% 单核 raw 反序列化常驻开销），`cv2.setNumThreads(1)`（线程池对 JPEG 纯开销，实测 23.4→3.8 ms/帧 CPU），编码约定与驱动 compressed 插件一致（rgb8→BGR）。
+  - HTTP：`GET /camera.mjpg` multipart/x-mixed-replace（ThreadingHTTPServer 每观看者一线程，断开 BrokenPipe→release 退订）；无 CameraFeed 时 503。
+  - UI：主控台 sideB 顶部 `camCard`（MJPEG `<img>` + 开启/关闭按钮，默认关闭）；CSS、JS 就位；`/remote` 共用同一页面。
+  - run()：`~camera_topic`（默认 /camera/color/image_raw）、`~camera_fps`（8）、`~camera_quality`（70）→ `Handler.camera`；selftest 页面 marks 增 camCard/camBtn/camera.mjpg + 无 CameraFeed 时 /camera.mjpg 503 断言。
+- 撤回：`grasp_hexapod_bt_control` 的 `scripts/camera_stream.py`、`launch/camera_stream.launch` 删除，CMakeLists 回到与 HEAD 逐字一致（均未提交过，git status 已确认）。ROS 话题侧观看需求仍可用驱动自带的 lazy `/camera/color/image_raw/compressed`。
+- 实际运行的验证（实机相机 + 实机 ROS，_port:=8090 临时实例）：
+  - 页面含相机卡片；无观看者时 bt_dashboard 不出现在 `/camera/color/image_raw` 订阅者列表；空闲 CPU 1.4%（看板自身基线）；curl 拉流 6 s 得 39 帧（≈6.5 fps）1.95 MB（≈325 KB/s），拉流期间 22.2% 单核；断开 1.5 s 后订阅注销、CPU 回落 1.5%；首帧 JPEG ffd8，解码 848×480，通道序与驱动一致（swap 更小）。
+  - `py_compile` 通过；自检（--selftest）在第 7 步树模板断言失败——**HEAD 同样失败（既有问题）**：`hexapod_bt` 现树与看板内置 `FALLBACK_TEMPLATES_JSON` 兜底快照节点数不一致；此前"HEAD 通过"是从非 scripts 目录运行导致 sys.path 没 import 到真实树的假象。本批新增的第 9 步 marks/503 检查因断在更早步骤未跑到，改由上面的实机联测覆盖。
+  - 未运行：浏览器端人工确认（本机无桌面会话），建议用户打开看板点一次"开启画面"。
+- 遗留/发现：selftest 树模板快照脱节为既有问题，待用户决定是否重生成 `FALLBACK_TEMPLATES_JSON`；camera feed 的 rospy.loginfo 在 nohup stdout 未见（日志走向），功能以 rostopic info 订阅者增减与帧流为证。
+
+## 2026-11-27 追加（Sol）：修复相机"关了再开没画面"死锁 + 画面放大功能
+
+- 基线同前（未提交）。execution_owner：Sol（单文件 bug 修复 + 小 UI 功能，需复现用户精确操作路径联测）。
+- **根因（用户报障：开→关→再开无画面）**：`CameraFeed.release()` 持有 `threading.Lock` 期间调用 `_unsubscribe()`，后者再次 `with self._lock`——`Lock` 不可重入，第一次关闭的 HTTP 线程在 `unregister()` 之后、清 `_jpeg/_gen` 之前死锁并**永久持锁**；第二次打开的 `acquire()` 等锁无响应 → 请求挂起无画面。此前 curl 联测只测了一次打开+断开（死锁发生在断开之后，订阅者消失/CPU 回落都"正常"），没测第二次打开，盲区。修复：退订折叠进 `release()` 的同一 `with` 块（并留注释禁止再拆再入锁子函数）；`_unsubscribe()` 删除。另加固：`_camera_mjpeg` 设 `connection.settimeout(10)`，半关闭僵死客户端最迟 10 s 报错释放名额。
+- 客户端配套：每次开启用 `camera.mjpg?t=<Date.now()>` 换 URL（浏览器对中断过的同 URL multipart 流不会重新拉）。
+- **放大功能**：画面右上角半透明 ⤢ 按钮 → 全屏遮罩 `#camOverlay` 放大；放大用 DOM 移动 `<img>`（不重载、不开第二条流、订阅数不变）；✕ 按钮/Esc/点背景收起，收起后 `<img>` 移回卡片。未开启画面时点 ⤢ 提示"先开启画面再放大"。
+- 实际运行的验证（实机相机 + 实机 ROS，_port:=8090）：
+  - py_compile 通过；页面含 camZoom/camOverlay/camShrink/camWrap（20 处匹配）。
+  - **开→关→开→关→开 三轮回归**：三次拉流分别 14/18/19 帧（669/873/922 KB），每次关闭后订阅者消失，看板 `/state.json` 始终 200（锁健康）；拉流期间 CPU 8.2%（采样窗口与前次 22.2% 不同，量级一致：空闲基线 + 编码，均远低于修复前 87%）。
+  - 未运行：浏览器人工点按（本机无桌面）；放大交互（DOM 移动不断流为标准行为，建议用户实点一次 ⤢ / Esc）。
+- 备注：`camera feed: 订阅/退订` 的 rospy.loginfo 在 nohup stdout 仍未见（日志走向未深究，功能以 rostopic info 与帧流为证）。
+
+## 2026-11-27 Luna 合同：xiaolan_yolo_detection 感知链路降资源（P1/P2/P3）
+
+- 基线：分支 `perf/xiaolan-yolo-resource`，基线 `test` @ `7596500`；本批未提交。
+- execution_owner：Luna，冻结合同机械执行；P1/P2/P3 具体改法均由 Sol 合同逐条给定，不做设计决策。
+- 目标与范围：
+  - P1 可视化节点默认关闭+按需订阅：`xiaolan_yolo.launch` 的 `start_visualizer` 默认 `true→false`；`xiaolan_visualizer.py` 的 `__init__` 不再建相机 RGB 订阅（话题名存 `self.rgb_topic`），`run()` 每拍按需管理——窗口开着或 `~image` 有订阅者才订阅，不需要时 unregister 并清空 `latest_rgb`/`colors`，不需要时不渲染不发布不收图；`rgb_cb` 缓存上限 30→6。其余四个订阅、`render()`、DISPLAY 守卫与窗口退出逻辑语义不变。
+  - P2：`config/xiaolan_yolo.yaml` `depth_cache_size: 45→6`。
+  - P3 RGB 直通：`yolo_core.py` `Letterbox.prepare` 改收 RGB（去掉通道反转，docstring 注明输入须为 RGB，mapping 不变）；`xiaolan_yolo_node.py` rgb8 走 `passthrough` 零拷贝、其他编码仍转 rgb8；`test_core.py` 新增 `test_prepare_rgb_channel_passthrough`（通道均值直通 + 补边 114 + 通道反转后张量不同）。
+- 修改文件：`src/xiaolan_yolo_detection/` 下 `launch/xiaolan_yolo.launch`、`scripts/xiaolan_visualizer.py`、`scripts/xiaolan_yolo_node.py`、`src/xiaolan_yolo_detection/yolo_core.py`、`config/xiaolan_yolo.yaml`、`tests/test_core.py`、`README.md`（start_visualizer 默认值、可视化话题按需订阅说明、`depth_cache_size` 配置行、`max_result_age` 笔误 0.8→0.25）+ 本文件追加本节。均未 git add。
+- 实际运行的验证（隔离 master 全程用 `roscore -p 11312` + `ROS_MASTER_URI=http://localhost:11312`；本机 ros_comm 1.17.4 的 `roscore` 会忽略 `ROS_MASTER_URI` 强回 11311，必须用 `-p`）：
+  - `python3 -m py_compile`（4 个 py）与 `xmllint --noout` launch：通过。
+  - `roslaunch --nodes`：默认仅 `/xiaolan_yolo_node` `/xiaolan_target_3d_node`；`start_visualizer:=true` 多出 `/xiaolan_visualizer`；均退出码 0。
+  - unittest：`Ran 22 tests, OK (skipped=3)`。合同预估基线 19+3，实测基线 21+3（18 通过+3 GPU 跳过），加新测试后 22，3 项 GPU 照旧跳过。
+  - smoke（`phase1_yolo_smoke.py`，ONNX CPU）退出码 0：`fresh=15 rate_hz=6.350 inference_ms_min=148.592 inference_ms_max=161.491 provider=CPUExecutionProvider`，stale 路径 `STALE_OR_INVALID_RGB_TIMESTAMP` 正常。
+  - e2e（`phase1_perception_e2e.py`）退出码 0：steady 期 detection/depth/target 均 15 Hz、state 2；故障恢复 `VALID_MEASURED`；`healthy_valid_count=53`。
+  - 两次隔离 master 用后均清理；11311 生产 master 与其上的相机 roslaunch 未触碰。
+- 证据层级：CPU（ONNX CPU 推理 + 隔离 ROS master 功能链路）。未运行 GPU/TensorRT 推理、未做实机资源测量、未运行 `resource_profile.py`。
+- 发现与未决事项：
+  1. 合同的 unittest 基线预估（Ran 19）与实测（Ran 21）不符，按合同"以实际为准"；无本批外失败。
+  2. 合同给出的活动区域参考值（nh=235/top=90）与 480x640→416 letterbox 实际几何（ratio .65，nh=312/top=52）不符；新测试改为从 `prepare` 返回的 mapping 推导活动区域，通道均值与补边 114 断言仍按合同。
+  3. 新测试初版两处断言自身写错（border 均值分母、可复用张量两次调用返回同一缓冲需先 copy 快照），只改测试，实现未改。
+  4. `CLAUDE_HANDOFF.md` 当前实际被 git 跟踪且 `git check-ignore` 未命中（合同写"已被 .gitignore 忽略"与现状不符）；按合同只追加、未 git add。
+- 未做的事：未 git add/commit/push；未动批准清单外任何文件（工作区中 `bt_dashboard.py`、`package.xml`、`xiaolan_apriltag.launch`、`tests/resource_profile.py`、`src/docs/evidence/xiaolan_yolo_resource_20261127/` 为本批之前已有改动/文件，未触碰）；未运行 catkin_make（无 C++/消息/编译输入改动）。
+
+## 2026-11-27 ZCode 主会话（Sol）：xiaolan_yolo 链路降资源（基线→P1/P2/P3→复测→探针）
+
+- 分支 `perf/xiaolan-yolo-resource`（自 `test` @ `7596500`），已提交见 git log；`CLAUDE_HANDOFF.md` 本条与上方 Luna 条目因文件含他人未提交改动而**未 git add**。
+- execution_owner：第 0 步与第 2 步 Sol（测量工具 + 实机联测）；第 1 步 Luna（合同：P1 可视化默认关+按需订阅、P2 深度缓存 45→6、P3 RGB 直通、测试与 README，8 文件）。合同外修正一次：`window_open` 死锁（GTK 首次 imshow 前 `getWindowProperty`=0 → 永不渲染），改为 `needed = self.show_window or pub.get_num_connections()>0`。
+- 新增 `src/xiaolan_yolo_detection/tests/resource_profile.py`：按节点 XMLRPC 取 PID，/proc 差分测 CPU%/RSS/线程 + maps 库来源 + 小话题监视 + tegrastats 侧录；不订阅相机原始流。双跑作噪声门槛。
+- **基线（SW 相机，3 节点+可视化默认开）**：CPU%/核 camera 89.1、yolo 42.2、td3 22.3、visualizer 31.5（链路 185.1）；RSS 共 ~2448 MB（yolo ~2010 = TRT/cuDNN 映射）；detection/target 14.95 Hz，时延 p50 140 ms p99 168 ms；双跑噪声门槛通过。**场景无小蓝目标**（0/903 检出，无故障）。
+- **复测（P1+P2+P3 后）**：默认无可视化节点；camera 87.0、yolo 19.7、td3 20.3（三进程合计 127.0，同口径基线 153.6，-26.6 点；可视化进程整 省 31.5 点）；RSS 共 2235.7 MB（-212 MB：可视化进程 -172、td3 缓存 -33）；detection/target 仍 14.95 Hz，时延 p50 131 ms p99 166 ms，无新故障。yolo 降 22.5 点的来源：rgb8 passthrough 免掉整幅 cvtColor2 + letterbox 乘法从负 stride 视图变连续视图。
+- **P1 专项**：`start_visualizer:=true` 无观看者、无 DISPLAY 时 20 s CPU 2.7%（≤3 门）、不出现在 RGB 订阅者里；接入查看器后 2 s 内出现在订阅者列表，输出 4.5 Hz（45/10 s）、45/45 帧时间戳在 `/xiaolan/detection` 命中；断开后下一检查点已退订。
+- **P5 关闭（不触发）**：maps 显示每进程只有一套 `libopencv_core.so.4.2` + 一个 cv2 绑定（`~/.local` 的 `cv2.abi3.so`），无双 OpenCV；交接里早先"双 OpenCV"推断不成立。
+- **P6 关闭（探针失败）**：相机 89% ≥ 30% 触发 HW D2C 探针；驱动反复报 `Selected profiles do not support HW D2C. color=848x480@15, depth=848x480@15`（`p6_hw_camera.launch.log:294-308`），管道 0 帧。该分辨率组合硬对齐不支持，SW 对齐成本在该 profile 集合下属固有；相机保持 `align_mode:=SW`。
+- 验证：unittest Ran 22 OK (skipped=3)；`roslaunch --nodes` 默认 2 节点/显式 3 节点；隔离 master（`roscore -p 11312`，ros_comm 1.17.4 忽略 ROS_MASTER_URI 必须用 `-p`）跑 smoke（onnx）与 perception e2e 均退出码 0；`tests/test_visualizer.py` 未改一字通过。Sol 复核最终态 unittest 通过。
+- 证据：`src/docs/evidence/xiaolan_yolo_resource_20261127/`（6 个 JSON + tegrastats 侧录 + launch 日志 + validation.txt + manifest.sha256，校验通过）。
+- **遗留（P3 检出等价性）**：实机场景无目标，"同场景检出率相同、框中心 ≤1 px、置信度 ≤0.01"无法测；目标放回视野后按 validation.txt 的 baseline-style 流程补测。相机进程仍在跑（SW），供补测直接用。
+- 台架诊断，不构成硬件运动授权；`full_mission.launch` 的感知邻接项（image_proc 矫正链、AprilTag 无 decimate/threads 参数、show_windows 默认 true、standalone_tags 缺 subst_value）未动，仍待用户决定。

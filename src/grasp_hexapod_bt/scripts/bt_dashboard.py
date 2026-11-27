@@ -1602,6 +1602,26 @@ _PAGE_TEMPLATE = """<!DOCTYPE html>
   #toast.bad { background:#fef2f2; border-color:#fca5a5; color:#b91c1c; }
   footer { position:fixed; bottom:0; right:8px; color:#475569; font-size:11px;
            background:#f1f5f9; padding:0 4px; }
+
+  /* ---- 相机 MJPEG ---- */
+  #camImg { display:block; width:100%; aspect-ratio:848/480; background:#0f172a;
+            border-radius:8px; object-fit:contain; }
+  #camWrap { position:relative; }
+  #camZoom { position:absolute; top:8px; right:8px; width:36px; height:36px;
+             border-radius:8px; cursor:pointer; font:inherit; font-size:19px;
+             line-height:1; color:#e2e8f0; background:rgba(15,23,42,.45);
+             border:1px solid rgba(255,255,255,.35); }
+  #camZoom:hover { background:rgba(15,23,42,.7); }
+  #camOverlay { position:fixed; inset:0; z-index:60; display:none;
+                align-items:center; justify-content:center; flex-direction:column;
+                gap:12px; background:rgba(15,23,42,.93); }
+  #camOverlay.show { display:flex; }
+  #camOverlay img { max-width:96vw; max-height:90vh; width:auto; height:auto;
+                    background:#0f172a; border-radius:8px; object-fit:contain; }
+  #camShrink { padding:6px 14px; border-radius:8px; cursor:pointer;
+               font:inherit; font-size:13px; color:#e2e8f0;
+               background:rgba(15,23,42,.5); border:1px solid rgba(255,255,255,.35); }
+  #camShrink:hover { background:rgba(15,23,42,.75); }
 </style>
 </head>
 <body>
@@ -1710,6 +1730,17 @@ _PAGE_TEMPLATE = """<!DOCTYPE html>
       </div>
      </div><!-- /sideA -->
      <div class="sideInner" id="sideB">
+      <div class="card" id="camCard">
+        <h3>相机 <small>/camera/color/image_raw · MJPEG ≤8fps</small></h3>
+        <div id="camWrap">
+          <img id="camImg" alt="未开启">
+          <button id="camZoom" title="放大画面">⤢</button>
+        </div>
+        <div class="btnrow" style="margin-top:8px">
+          <button class="b" id="camBtn">开启画面</button>
+        </div>
+        <p class="note" id="camNote">默认关闭；开启后看板订阅相机推 JPEG。关闭画面或无人观看时看板不订阅相机，零开销。</p>
+      </div>
       <div class="card" id="loraLinkCard">
         <h3>LoRa 链路 <small>地面站仿真（/remote 定位到此）</small></h3>
         <div class="btnrow">
@@ -1799,6 +1830,9 @@ _PAGE_TEMPLATE = """<!DOCTYPE html>
   <div id="joyHint">原始帧发布到 /joy（axes[8] buttons[11]：轴 0/1=左摇杆、3=右摇杆转向、
     6/7=十字键，方向与实机一致：左/前=+1 右/后=-1；键 A/B/X/Y=使能/复位/攀爬/对接）<br>
     键盘调试：WASD=左摇杆，Q/E=转向，方向键=十字键，1/2/3/4=A/B/X/Y</div>
+</div>
+<div id="camOverlay">
+  <button id="camShrink">✕ 收起（Esc）</button>
 </div>
 <div id="toast"></div>
 <footer>自动刷新 1s · bt_dashboard v2</footer>
@@ -2417,6 +2451,51 @@ setInterval(function(){
     .catch(function(){});
 }, 1000);
 
+/* ---- 相机 MJPEG ---- */
+var camOpen = false;
+var camImgEl = document.getElementById("camImg");
+document.getElementById("camBtn").addEventListener("click", function(){
+  var note = document.getElementById("camNote");
+  camOpen = !camOpen;
+  if (camOpen){
+    // 每次打开都换 URL：浏览器对同 URL 的 multipart 流中断后不会重新拉流
+    camImgEl.src = "camera.mjpg?t=" + Date.now();
+    this.textContent = "关闭画面";
+    note.textContent = "拉流中（MJPEG，≤8fps，JPEG q70）";
+  } else {
+    camImgEl.removeAttribute("src");
+    this.textContent = "开启画面";
+    note.textContent = "默认关闭；开启后看板订阅相机推 JPEG。关闭画面或无人观看时看板不订阅相机，零开销。";
+  }
+});
+camImgEl.addEventListener("error", function(){
+  if (camOpen){
+    document.getElementById("camNote").textContent =
+      "拉流中断（相机话题无数据或看板正在退出）";
+  }
+});
+document.getElementById("camZoom").addEventListener("click", function(){
+  if (!camOpen){ toast("先开启画面再放大", false); return; }
+  var ov = document.getElementById("camOverlay");
+  ov.classList.add("show");
+  // DOM 移动 <img> 不会重载，MJPEG 流不中断（避免为放大再开一条流）
+  ov.insertBefore(camImgEl, document.getElementById("camShrink"));
+});
+function camExitZoom(){
+  var ov = document.getElementById("camOverlay");
+  if (!ov.classList.contains("show")) return;
+  ov.classList.remove("show");
+  document.getElementById("camWrap").insertBefore(
+    camImgEl, document.getElementById("camZoom"));
+}
+document.getElementById("camShrink").addEventListener("click", camExitZoom);
+document.getElementById("camOverlay").addEventListener("click", function(e){
+  if (e.target === this) camExitZoom();   // 点背景空白处收起
+});
+document.addEventListener("keydown", function(e){
+  if (e.key === "Escape") camExitZoom();
+});
+
 /* ---- 启动：/remote 滚动定位到远端链路面板 ---- */
 showView("bt");
 if (location.pathname.indexOf("remote") >= 0){
@@ -2452,11 +2531,120 @@ def get_page():
 
 
 # ---------------------------------------------------------------------------
+# 相机 MJPEG 拉流（浏览器无需 ROS，直接看 /camera.mjpg）
+# ---------------------------------------------------------------------------
+class CameraFeed:
+    """raw 相机图像 → JPEG 帧，供 /camera.mjpg 的 multipart 流消费。
+
+    - 编码约定与本机 orbbec 驱动的 image_transport compressed 插件一致：
+      rgb8 转 BGR 再 imencode（2026-11-26 用 C++ 探针实测过消费端颜色）。
+    - 按观看人数惰性订阅：0 个观看者时退订。rospy 收 848x480@15 Hz raw
+      固定吃 ~17% 单核的反序列化开销，不能常驻订阅。
+    - cv2 钉死单线程：opencv-python 线程池对 JPEG 编码是纯开销（本机实测
+      默认单帧 wall 4.0 ms 烧 23.4 ms CPU，单线程 wall 3.9 ms / 3.8 ms）。
+    - 不依赖 cv_bridge：rgb8/bgr8/mono8 直接 numpy + cv2 处理。
+    """
+    CHANNELS = {
+        "rgb8": (3, True),   # (通道数, 是否需转 BGR)
+        "bgr8": (3, False),
+        "mono8": (1, False),
+    }
+
+    def __init__(self, input_topic, fps, quality, log=print):
+        if fps <= 0.0:
+            raise SystemExit("~camera_fps 必须大于 0，当前 %g" % fps)
+        if not 1 <= quality <= 100:
+            raise SystemExit("~camera_quality 必须在 [1,100]，当前 %d" % quality)
+        self.input_topic = input_topic
+        self._min_interval = 1.0 / fps
+        self._quality = quality
+        self._log = log
+        self._cv2 = None      # 惰性导入，保持 --selftest 无 ROS/cv2 依赖
+        self._np = None
+        self._params = None
+        self._sub = None
+        self._viewers = 0
+        self._last_pub = 0.0
+        self._lock = threading.Lock()
+        self._jpeg = b""
+        self._gen = 0         # 帧代号；HTTP 线程据此发现新帧
+
+    def _ensure_cv2(self):
+        if self._cv2 is None:
+            import cv2
+            import numpy
+            cv2.setNumThreads(1)
+            self._cv2 = cv2
+            self._np = numpy
+            self._params = [cv2.IMWRITE_JPEG_QUALITY, self._quality]
+
+    def acquire(self):
+        with self._lock:
+            self._viewers += 1
+            if self._viewers == 1:
+                self._subscribe()
+
+    def release(self):
+        # 注意：Lock 不可重入。退订必须在本 with 块内一次完成，不得拆出
+        # 再入锁的子函数（2026-11-26 版把退订拆进 _unsubscribe() 再取锁，
+        # 第一次关闭即死锁并永久持锁，第二次打开的 acquire() 永远等不到
+        # 锁 → 请求无响应，表现为“关了再开没画面”）。
+        with self._lock:
+            self._viewers = max(0, self._viewers - 1)
+            if self._viewers == 0 and self._sub is not None:
+                self._sub.unregister()
+                self._sub = None
+                self._jpeg = b""
+                self._gen = 0
+                self._log("camera feed: 无人观看，退订 %s" % self.input_topic)
+
+    def _subscribe(self):
+        import rospy
+        from sensor_msgs.msg import Image
+        self._ensure_cv2()
+        # rospy 默认接收缓冲 256 KB，放不下一帧原始图像（约 1.2 MB），必须显式给大。
+        self._sub = rospy.Subscriber(self.input_topic, Image, self._on_image,
+                                     queue_size=1, buff_size=4 << 20)
+        self._log("camera feed: 订阅 %s" % self.input_topic)
+
+    def _on_image(self, msg):
+        now = time.monotonic()
+        if now - self._last_pub < self._min_interval:
+            return  # 限速
+        spec = self.CHANNELS.get(msg.encoding)
+        if spec is None:
+            return
+        channels, to_bgr = spec
+        buf = self._np.frombuffer(msg.data, self._np.uint8)
+        if msg.step == msg.width * channels:  # 无行填充的常规情况
+            mat = buf.reshape(msg.height, msg.width, channels)
+        else:  # 有行填充时按 step 切掉每行末尾
+            mat = buf.reshape(msg.height, msg.step // channels,
+                              channels)[:, :msg.width]
+        if channels == 1:
+            mat = mat.reshape(msg.height, msg.width)
+        if to_bgr:
+            mat = self._cv2.cvtColor(mat, self._cv2.COLOR_RGB2BGR)
+        ok, encoded = self._cv2.imencode(".jpg", mat, self._params)
+        if not ok:
+            return
+        with self._lock:
+            self._jpeg = encoded.tobytes()
+            self._gen += 1
+        self._last_pub = now
+
+    def latest(self):
+        with self._lock:
+            return self._jpeg, self._gen
+
+
+# ---------------------------------------------------------------------------
 # HTTP 服务
 # ---------------------------------------------------------------------------
 class Handler(BaseHTTPRequestHandler):
     core = None          # DashboardCore（run/selftest 注入）
     joy = None           # JoyLink
+    camera = None        # CameraFeed（run 注入；selftest 保持 None）
     protocol_version = "HTTP/1.1"
 
     def _respond(self, code, body, ctype):
@@ -2496,8 +2684,44 @@ class Handler(BaseHTTPRequestHandler):
                 self._json(503, {"ok": False, "msg": "joy unavailable"})
                 return
             self._json(200, self.joy.view())
+        elif path == "/camera.mjpg":
+            if Handler.camera is None:
+                self.send_error(503, "camera feed unavailable")
+                return
+            self._camera_mjpeg()
         else:
             self.send_error(404, "not found")
+
+    def _camera_mjpeg(self):
+        cam = Handler.camera
+        cam.acquire()          # 最后一个观看者断开时在 finally 里退订
+        try:
+            self.connection.settimeout(10.0)
+        except OSError:
+            pass  # 半关闭/僵死客户端最迟 10 s 在写处报错退出，释放观看名额
+        self.close_connection = True
+        try:
+            self.send_response(200)
+            self.send_header("Content-Type",
+                             "multipart/x-mixed-replace; boundary=frame")
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("Connection", "close")
+            self.end_headers()
+            last_gen = -1
+            while True:
+                jpg, gen = cam.latest()
+                if gen == last_gen or not jpg:
+                    time.sleep(0.02)
+                    continue
+                last_gen = gen
+                self.wfile.write(
+                    b"--frame\r\nContent-Type: image/jpeg\r\n"
+                    b"Content-Length: %d\r\n\r\n" % len(jpg) + jpg + b"\r\n")
+                self.wfile.flush()
+        except (BrokenPipeError, ConnectionResetError, OSError):
+            pass  # 浏览器关页/断开，正常退出路径
+        finally:
+            cam.release()
 
     def _body(self):
         try:
@@ -2636,6 +2860,11 @@ def run():
     joy_pub = rospy.Publisher(JOY_TOPIC, JoyMsg, queue_size=10)
     Handler.core = core
     Handler.joy = JoyLink(joy_pub, log=rospy.loginfo)
+    Handler.camera = CameraFeed(
+        input_topic=rospy.get_param("~camera_topic", "/camera/color/image_raw"),
+        fps=float(rospy.get_param("~camera_fps", 8.0)),
+        quality=int(rospy.get_param("~camera_quality", 70)),
+        log=rospy.loginfo)
 
     def on_bt_state(msg):
         core.bt.update(snapshot_from_msg(msg))
@@ -3037,6 +3266,7 @@ def selftest():
         base = "http://127.0.0.1:{}".format(port)
         for path, marks in (
                 ("/", ["viewBt", "sideCol", "sideA", "sideB", "mainLayout",
+                       "camCard", "camBtn", "camZoom", "camOverlay", "camera.mjpg",
                        "modeGrid", "data-gripper", "viewJoy",
                        "makeStick", "data-sim-toggle", "data-sim-once",
                        "data-op", "autoSw", "loraLinkCard",
@@ -3056,6 +3286,11 @@ def selftest():
                                                 timeout=5).read().decode("utf-8"))
         assert st2["sys"]["mem_pct"] > 0 and st2["sys"]["self_rss_mb"] > 0
         assert st2["sys"]["disk_pct"] > 0
+        try:   # selftest 未注入 CameraFeed，拉流端点应 503
+            urllib.request.urlopen(base + "/camera.mjpg", timeout=5).read()
+            raise AssertionError("无 CameraFeed 时 /camera.mjpg 应 503")
+        except urllib.error.HTTPError as err:
+            assert err.code == 503
 
         def _post(path_, payload):
             req = urllib.request.Request(

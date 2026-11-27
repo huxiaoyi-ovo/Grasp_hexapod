@@ -16,7 +16,7 @@ inter_op_num_threads: 1
 
 depth_sync_tolerance: 0.025
 depth_wait_timeout: 0.08
-depth_cache_size: 45
+depth_cache_size: 6
 
 roi_size: 9
 min_valid_depth_pixels: 5

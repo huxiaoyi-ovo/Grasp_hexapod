@@ -1,0 +1,299 @@
+... logging to /home/artrc-gflz/.ros/log/e3e06e92-ea02-11f1-bc2b-70cf499c08ab/roslaunch-ubuntu-11262.log
+Checking log directory for disk usage. This may take a while.
+Press Ctrl-C to interrupt
+Done checking log file disk usage. Usage is <1GB.
+]2;/home/artrc-gflz/Grasp_hexapod/src/xiaolan_yolo_detection/launch/xiaolan_orbbec_camera.launch
+[1mstarted roslaunch server http://ubuntu:41379/[0m
+
+SUMMARY
+========
+
+PARAMETERS
+ * /camera/camera/accel_range: 4g
+ * /camera/camera/accel_rate: 200hz
+ * /camera/camera/align_mode: SW
+ * /camera/camera/align_target_stream: COLOR
+ * /camera/camera/bag_filename: 
+ * /camera/camera/bag_loop: False
+ * /camera/camera/bag_record_filename: 
+ * /camera/camera/camera_name: camera
+ * /camera/camera/color_ae_max_exposure: -1
+ * /camera/camera/color_ae_roi_bottom: -1
+ * /camera/camera/color_ae_roi_left: -1
+ * /camera/camera/color_ae_roi_right: -1
+ * /camera/camera/color_ae_roi_top: -1
+ * /camera/camera/color_anti_flicker: False
+ * /camera/camera/color_backlight_compensation: -1
+ * /camera/camera/color_brightness: -1
+ * /camera/camera/color_contrast: -1
+ * /camera/camera/color_decimation_filter_scale: -1
+ * /camera/camera/color_delay_us: 0
+ * /camera/camera/color_denoising_level: -1
+ * /camera/camera/color_exposure: -1
+ * /camera/camera/color_flip: False
+ * /camera/camera/color_format: ANY
+ * /camera/camera/color_fps: 15
+ * /camera/camera/color_gain: -1
+ * /camera/camera/color_gamma: -1
+ * /camera/camera/color_height: 480
+ * /camera/camera/color_hue: -1
+ * /camera/camera/color_info_uri: 
+ * /camera/camera/color_mirror: False
+ * /camera/camera/color_mjpeg_quality: -1
+ * /camera/camera/color_powerline_freq: 
+ * /camera/camera/color_preset: Default
+ * /camera/camera/color_rotation: -1
+ * /camera/camera/color_saturation: -1
+ * /camera/camera/color_sharpness: -1
+ * /camera/camera/color_white_balance: -1
+ * /camera/camera/color_width: 848
+ * /camera/camera/config_file_path: 
+ * /camera/camera/connection_delay: 100
+ * /camera/camera/decimation_filter_scale_range: -1
+ * /camera/camera/depth_ae_roi_bottom: -1
+ * /camera/camera/depth_ae_roi_left: -1
+ * /camera/camera/depth_ae_roi_right: -1
+ * /camera/camera/depth_ae_roi_top: -1
+ * /camera/camera/depth_delay_us: 0
+ * /camera/camera/depth_flip: False
+ * /camera/camera/depth_format: ANY
+ * /camera/camera/depth_fps: 15
+ * /camera/camera/depth_height: 480
+ * /camera/camera/depth_mirror: False
+ * /camera/camera/depth_precision: 
+ * /camera/camera/depth_registration: True
+ * /camera/camera/depth_rotation: -1
+ * /camera/camera/depth_width: 848
+ * /camera/camera/device_access_mode: default
+ * /camera/camera/device_num: 1
+ * /camera/camera/device_preset: Default
+ * /camera/camera/device_type: camera
+ * /camera/camera/diagnostics_frequency: 1.0
+ * /camera/camera/disparity_offset_config: False
+ * /camera/camera/disparity_range_mode: -1
+ * /camera/camera/disparity_search_offset: -1
+ * /camera/camera/disparity_to_depth_mode: HW
+ * /camera/camera/enable_accel: False
+ * /camera/camera/enable_accel_data_correction: True
+ * /camera/camera/enable_color: True
+ * /camera/camera/enable_color_auto_exposure: True
+ * /camera/camera/enable_color_auto_exposure_priority: False
+ * /camera/camera/enable_color_auto_white_balance: True
+ * /camera/camera/enable_color_decimation_filter: False
+ * /camera/camera/enable_color_undistortion: False
+ * /camera/camera/enable_colored_point_cloud: False
+ * /camera/camera/enable_d2c_viewer: False
+ * /camera/camera/enable_decimation_filter: False
+ * /camera/camera/enable_depth: True
+ * /camera/camera/enable_depth_auto_exposure_priority: False
+ * /camera/camera/enable_depth_undistortion: False
+ * /camera/camera/enable_disparity_to_depth: True
+ * /camera/camera/enable_enhanced_depth: False
+ * /camera/camera/enable_false_positive_filter: False
+ * /camera/camera/enable_firmware_log: False
+ * /camera/camera/enable_fps_boost: False
+ * /camera/camera/enable_frame_drop_log: False
+ * /camera/camera/enable_frame_sync: True
+ * /camera/camera/enable_gyro: False
+ * /camera/camera/enable_gyro_data_correction: True
+ * /camera/camera/enable_hardware_noise_removal_filter: False
+ * /camera/camera/enable_hardware_reset: False
+ * /camera/camera/enable_hdr_merge: False
+ * /camera/camera/enable_heartbeat: False
+ * /camera/camera/enable_hole_filling_filter: False
+ * /camera/camera/enable_image_transport_plugins: False
+ * /camera/camera/enable_ir_auto_exposure: True
+ * /camera/camera/enable_ir_long_exposure: False
+ * /camera/camera/enable_laser: True
+ * /camera/camera/enable_ldp: False
+ * /camera/camera/enable_left_ir: False
+ * /camera/camera/enable_left_ir_sequence_id_filter: False
+ * /camera/camera/enable_left_ir_undistortion: False
+ * /camera/camera/enable_lrm_obstacle_distance_publish: False
+ * /camera/camera/enable_noise_removal_filter: False
+ * /camera/camera/enable_point_cloud: False
+ * /camera/camera/enable_ptp_config: False
+ * /camera/camera/enable_right_ir: False
+ * /camera/camera/enable_right_ir_sequence_id_filter: False
+ * /camera/camera/enable_right_ir_undistortion: False
+ * /camera/camera/enable_sequenced_filter: False
+ * /camera/camera/enable_spatial_fast_filter: False
+ * /camera/camera/enable_spatial_filter: False
+ * /camera/camera/enable_spatial_moderate_filter: False
+ * /camera/camera/enable_sync_host_time: False
+ * /camera/camera/enable_sync_output_accel_gyro: False
+ * /camera/camera/enable_temporal_filter: False
+ * /camera/camera/enable_threshold_filter: False
+ * /camera/camera/enhanced_depth_confidence_threshold: 51
+ * /camera/camera/enhanced_depth_model_path: 
+ * /camera/camera/enumerate_net_device: True
+ * /camera/camera/export_config_json_file_path: 
+ * /camera/camera/exposure_range_mode: default
+ * /camera/camera/force_ip_address: 192.168.1.10
+ * /camera/camera/force_ip_enable: False
+ * /camera/camera/force_ip_gateway: 192.168.1.1
+ * /camera/camera/force_ip_mac: 
+ * /camera/camera/force_ip_subnet_mask: 255.255.255.0
+ * /camera/camera/frame_aggregate_mode: ANY
+ * /camera/camera/frame_timestamp_csv_file: 
+ * /camera/camera/frames_per_trigger: 1
+ * /camera/camera/gyro_range: 1000dps
+ * /camera/camera/gyro_rate: 200hz
+ * /camera/camera/hardware_noise_removal_filter_threshold: -1.0
+ * /camera/camera/hdr_index0_depth_exposure: 7500
+ * /camera/camera/hdr_index0_depth_gain: 16
+ * /camera/camera/hdr_index0_ir_ae_max_exposure: 30458
+ * /camera/camera/hdr_index0_ir_brightness: 90
+ * /camera/camera/hdr_index0_laser_control: 1
+ * /camera/camera/hdr_index1_depth_exposure: 7500
+ * /camera/camera/hdr_index1_depth_gain: 16
+ * /camera/camera/hdr_index1_ir_ae_max_exposure: 30458
+ * /camera/camera/hdr_index1_ir_brightness: 30
+ * /camera/camera/hdr_index1_laser_control: 1
+ * /camera/camera/hdr_merge_exposure_1: -1
+ * /camera/camera/hdr_merge_exposure_2: -1
+ * /camera/camera/hdr_merge_gain_1: -1
+ * /camera/camera/hdr_merge_gain_2: -1
+ * /camera/camera/hole_filling_filter_mode: 
+ * /camera/camera/interleave_ae_mode: laser
+ * /camera/camera/interleave_frame_enable: False
+ * /camera/camera/interleave_skip_enable: False
+ * /camera/camera/interleave_skip_index: 1
+ * /camera/camera/intra_camera_sync_reference: 
+ * /camera/camera/ip_address: 
+ * /camera/camera/ir_ae_max_exposure: -1
+ * /camera/camera/ir_brightness: -1
+ * /camera/camera/ir_exposure: -1
+ * /camera/camera/ir_info_uri: 
+ * /camera/camera/laser_energy_level: -1
+ * /camera/camera/laser_index0_depth_exposure: 3000
+ * /camera/camera/laser_index0_depth_gain: 16
+ * /camera/camera/laser_index0_ir_ae_max_exposure: 30000
+ * /camera/camera/laser_index0_ir_brightness: 60
+ * /camera/camera/laser_index0_laser_control: 1
+ * /camera/camera/laser_index1_depth_exposure: 3000
+ * /camera/camera/laser_index1_depth_gain: 16
+ * /camera/camera/laser_index1_ir_ae_max_exposure: 17000
+ * /camera/camera/laser_index1_ir_brightness: 60
+ * /camera/camera/laser_index1_laser_control: 0
+ * /camera/camera/left_ir_flip: False
+ * /camera/camera/left_ir_format: ANY
+ * /camera/camera/left_ir_fps: 0
+ * /camera/camera/left_ir_height: 0
+ * /camera/camera/left_ir_mirror: False
+ * /camera/camera/left_ir_rotation: -1
+ * /camera/camera/left_ir_sequence_id_filter_id: -1
+ * /camera/camera/left_ir_width: 0
+ * /camera/camera/linear_accel_cov: 0.01
+ * /camera/camera/load_config_json_file_path: 
+ * /camera/camera/log_file_name: 
+ * /camera/camera/log_level: none
+ * /camera/camera/lrm_obstacle_distance_publish_rate: 10.0
+ * /camera/camera/mean_intensity_set_point: -1
+ * /camera/camera/noise_removal_filter_max_size: 80
+ * /camera/camera/noise_removal_filter_min_diff: 256
+ * /camera/camera/offset_index0: -1
+ * /camera/camera/offset_index1: -1
+ * /camera/camera/ordered_pc: False
+ * /camera/camera/point_cloud_decimation_filter_factor: 1
+ * /camera/camera/port: 0
+ * /camera/camera/preset_firmware_path: 
+ * /camera/camera/publish_tf: True
+ * /camera/camera/retry_on_usb3_detection_failure: False
+ * /camera/camera/right_ir_flip: False
+ * /camera/camera/right_ir_format: ANY
+ * /camera/camera/right_ir_fps: 0
+ * /camera/camera/right_ir_height: 0
+ * /camera/camera/right_ir_mirror: False
+ * /camera/camera/right_ir_rotation: -1
+ * /camera/camera/right_ir_sequence_id_filter_id: -1
+ * /camera/camera/right_ir_width: 0
+ * /camera/camera/sequence_id_filter_id: 1
+ * /camera/camera/serial_number: 
+ * /camera/camera/software_trigger_enabled: True
+ * /camera/camera/software_trigger_period: 33
+ * /camera/camera/spatial_fast_filter_radius: -1
+ * /camera/camera/spatial_filter_alpha: -1.0
+ * /camera/camera/spatial_filter_diff_threshold: -1
+ * /camera/camera/spatial_filter_magnitude: -1
+ * /camera/camera/spatial_filter_radius: -1
+ * /camera/camera/spatial_moderate_filter_diff_threshold: -1
+ * /camera/camera/spatial_moderate_filter_magnitude: -1
+ * /camera/camera/spatial_moderate_filter_radius: -1
+ * /camera/camera/sync_mode: standalone
+ * /camera/camera/temporal_filter_diff_threshold: -1.0
+ * /camera/camera/temporal_filter_weight: -1.0
+ * /camera/camera/tf_publish_rate: 0.0
+ * /camera/camera/threshold_filter_max: -1
+ * /camera/camera/threshold_filter_min: -1
+ * /camera/camera/time_domain: global
+ * /camera/camera/timestamp_clock_type: 
+ * /camera/camera/trigger2image_delay_us: 0
+ * /camera/camera/trigger_out_delay_us: 0
+ * /camera/camera/trigger_out_enabled: True
+ * /camera/camera/upgrade_firmware: 
+ * /camera/camera/usb_port: 
+ * /camera/camera/uvc_backend: libuvc
+ * /rosdistro: noetic
+ * /rosversion: 1.17.4
+
+NODES
+  /camera/
+    camera (orbbec_camera/orbbec_camera_node)
+[0m[INFO] [1795751151.953217510]: Setting extensions directory to: /home/artrc-gflz/Grasp_hexapod/src/reference/OrbbecSDK_ROS1/SDK/lib/arm64/extensions[0m
+[0m[INFO] [1795751151.966382800]: SDK log file path set to: /home/artrc-gflz/.ros/Log/camera/OrbbecSDK_20261127_114551.log[0m
+[0m[INFO] [1795751152.058046650]: Device access mode: Default(4)[0m
+[0m[INFO] [1795751152.061761351]: Set UVC backend to libuvc[0m
+[0m[INFO] [1795751153.276126056]: queryDevice: first query device[0m
+[0m[INFO] [1795751153.276358262]: Device connect callback triggered[0m
+[0m[INFO] [1795751153.376912994]: Connecting to the default device[0m
+[0m[INFO] [1795751153.847185104]: Created persistent global image_transport instance to prevent plugin reloading[0m
+[33m[WARN] [1795751154.308099811]: Color preset is not supported by this device[0m
+[0m[INFO] [1795751154.305145210]: current time domain:global[0m
+[0m[INFO] [1795751154.307619622]: enable_sync_host_time:false[0m
+[0m[INFO] [1795751154.307994026]: Loaded device preset: Default[0m
+[0m[INFO] [1795751154.613394196]: Current color flip: OFF[0m
+[0m[INFO] [1795751154.613647618]: Current color mirror: OFF[0m
+[0m[INFO] [1795751154.613756730]: Current depth flip: OFF[0m
+[0m[INFO] [1795751154.613911310]: Current depth mirror: OFF[0m
+[0m[INFO] [1795751154.614232823]: Set noise removal filter to false[0m
+[0m[INFO] [1795751154.617261275]: Current LDP: OFF[0m
+[0m[INFO] [1795751154.617430126]: Current firmware log: OFF[0m
+[0m[INFO] [1795751154.617597090]: Current heartbeat: OFF[0m
+[0m[INFO] [1795751154.618710129]: Disparity to depth mode: HW[0m
+[0m[INFO] [1795751154.618882724]: Current sync mode: STANDALONE[0m
+[0m[INFO] [1795751154.619620687]: Current color auto exposure priority: OFF[0m
+[0m[INFO] [1795751154.620623302]: Current color auto white balance: ON[0m
+[0m[INFO] [1795751154.627971055]: Current depth auto exposure priority: OFF[0m
+[0m[INFO] [1795751154.633954459]: Set hardware noise removal filter to false[0m
+[0m[INFO] [1795751154.634127759]: Current accel data correction: ON[0m
+[0m[INFO] [1795751154.634219784]: Current gyro data correction: ON[0m
+[0m[INFO] [1795751154.634503315]: Set depth filter DecimationFilter to false[0m
+[0m[INFO] [1795751154.634698917]: Set depth filter ThresholdFilter to false[0m
+[0m[INFO] [1795751154.634921461]: Set depth filter HDRMerge to false[0m
+[0m[INFO] [1795751154.635041260]: Set depth filter SequenceIdFilter to false[0m
+[0m[INFO] [1795751154.635120519]: Set depth filter SpatialFastFilter to false[0m
+[0m[INFO] [1795751154.635192417]: Set depth filter SpatialModerateFilter to false[0m
+[0m[INFO] [1795751154.635263932]: Set depth filter SpatialAdvancedFilter to false[0m
+[0m[INFO] [1795751154.635381971]: Set depth filter TemporalFilter to false[0m
+[0m[INFO] [1795751154.635497387]: Set depth filter HoleFillingFilter to false[0m
+[0m[INFO] [1795751154.635621314]: Set depth filter DisparityTransform to true[0m
+[0m[INFO] [1795751154.638595146]: set color DecimationFilter to false[0m
+[0m[INFO] [1795751154.653200290]: SW D2C align output resolution will match target stream resolution[0m
+[0m[INFO] [1795751154.779561333]: Device Orbbec Gemini 336L connected[0m
+[0m[INFO] [1795751154.779732936]: Serial number: CPC93630007F[0m
+[0m[INFO] [1795751154.779877310]: Firmware version: 1.4.60[0m
+[0m[INFO] [1795751154.780026355]: ROS Wrapper version: 2.9.3[0m
+[0m[INFO] [1795751154.780107885]: SDK version: 2.9.3[0m
+[0m[INFO] [1795751154.780210181]: Hardware version: 0.1[0m
+[0m[INFO] [1795751154.780379545]: device uid: 2-3.1-3[0m
+[0m[INFO] [1795751154.780444308]: device connection Type: USB3.2[0m
+[0m[INFO] [1795751154.780628455]: ISP firmware version: 20241125[0m
+[0m[INFO] [1795751154.780763005]: ISP needed version: 20241125[0m
+[0m[INFO] [1795751154.780892212]: Current node pid: 11302[0m
+[0m[INFO] [1795751154.781003980]: Initialize device cost: 946 ms[0m
+[0m[INFO] [1795752610.663276023]: Enable frame sync[0m
+[0m[INFO] [1795752611.318924076]: color Frame - Width: 848 Height: 480 fps: 15 Format: MJPG[0m
+[0m[INFO] [1795752611.319459959]: depth Frame - Width: 848 Height: 480 fps: 15 Format: Y16[0m
+[0m[INFO] [1795752611.689539505]: current interleave_ae_mode_: laser[0m
+[0m[INFO] [1795752611.692052099]: Enable enable_interleave_depth_frame to false[0m

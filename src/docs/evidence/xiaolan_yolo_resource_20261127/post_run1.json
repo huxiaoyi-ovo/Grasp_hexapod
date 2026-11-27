@@ -1,0 +1,154 @@
+{
+ "env": {
+  "cpu_cur_freq_khz": [
+   "1420800",
+   "1420800",
+   "1420800",
+   "1420800",
+   "1420800",
+   "1420800"
+  ],
+  "loadavg": "1.29 1.05 0.80 3/791 14357",
+  "nvpmodel_status": "pmode:0008"
+ },
+ "label": "post_run1",
+ "messages": {
+  "confidence_median": null,
+  "detection_detected_ratio": 0.0,
+  "detection_hz": 14.952276529404202,
+  "detection_reasons": {
+   "NO_DETECTION": 902
+  },
+  "fault_reasons": {},
+  "state_distribution": {
+   "1": 586
+  },
+  "target_detected_ratio": 0.0,
+  "target_hz": 14.952276529404202,
+  "target_latency_p50_s": 0.130667626,
+  "target_latency_p99_s": 0.165783512,
+  "target_latency_samples": 902,
+  "target_status_counts": {
+   "NOT_FOUND": 902
+  }
+ },
+ "node_snapshot": [
+  "/camera/camera",
+  "/resource_profile",
+  "/rosout",
+  "/xiaolan_target_3d_node",
+  "/xiaolan_yolo_node"
+ ],
+ "pids": {
+  "camera": {
+   "cmdline": "/home/artrc-gflz/Grasp_hexapod/devel/lib/orbbec_camera/orbbec_camera_node /camera/depth/color/points:=/camera/depth_registered/points __name:=camera __log:=/home/artrc-gflz/.ros/log/e3e06e92-ea02-11f1",
+   "maps": {
+    "libopencv_core.so": [
+     "/usr/lib/aarch64-linux-gnu/libopencv_core.so.4.2.0"
+    ]
+   },
+   "pid": 11302
+  },
+  "td3": {
+   "cmdline": "/usr/bin/python3 /home/artrc-gflz/Grasp_hexapod/devel/lib/xiaolan_yolo_detection/xiaolan_target_3d_node.py __name:=xiaolan_target_3d_node __log:=/home/artrc-gflz/.ros/log/e3e06e92-ea02-11f1-bc2b-70cf4",
+   "maps": {
+    "cv2/": [
+     "/home/artrc-gflz/.local/lib/python3.8/site-packages/cv2/cv2.abi3.so"
+    ],
+    "libopencv_core.so": [
+     "/usr/lib/aarch64-linux-gnu/libopencv_core.so.4.2.0"
+    ],
+    "site-packages/numpy": [
+     "/home/artrc-gflz/.local/lib/python3.8/site-packages/numpy.libs/libgfortran-daac5196.so.5.0.0",
+     "/home/artrc-gflz/.local/lib/python3.8/site-packages/numpy.libs/libopenblas64_p-r0-cecebdce.3.21.so",
+     "/home/artrc-gflz/.local/lib/python3.8/site-packages/numpy/core/_multiarray_tests.cpython-38-aarch64-linux-gnu.so",
+     "/home/artrc-gflz/.local/lib/python3.8/site-packages/numpy/core/_multiarray_umath.cpython-38-aarch64-linux-gnu.so",
+     "/home/artrc-gflz/.local/lib/python3.8/site-packages/numpy/fft/_pocketfft_internal.cpython-38-aarch64-linux-gnu.so",
+     "/home/artrc-gflz/.local/lib/python3.8/site-packages/numpy/linalg/_umath_linalg.cpython-38-aarch64-linux-gnu.so",
+     "/home/artrc-gflz/.local/lib/python3.8/site-packages/numpy/random/_bounded_integers.cpython-38-aarch64-linux-gnu.so",
+     "/home/artrc-gflz/.local/lib/python3.8/site-packages/numpy/random/_common.cpython-38-aarch64-linux-gnu.so",
+     "/home/artrc-gflz/.local/lib/python3.8/site-packages/numpy/random/_generator.cpython-38-aarch64-linux-gnu.so",
+     "/home/artrc-gflz/.local/lib/python3.8/site-packages/numpy/random/_mt19937.cpython-38-aarch64-linux-gnu.so",
+     "/home/artrc-gflz/.local/lib/python3.8/site-packages/numpy/random/_pcg64.cpython-38-aarch64-linux-gnu.so",
+     "/home/artrc-gflz/.local/lib/python3.8/site-packages/numpy/random/_philox.cpython-38-aarch64-linux-gnu.so",
+     "/home/artrc-gflz/.local/lib/python3.8/site-packages/numpy/random/_sfc64.cpython-38-aarch64-linux-gnu.so",
+     "/home/artrc-gflz/.local/lib/python3.8/site-packages/numpy/random/bit_generator.cpython-38-aarch64-linux-gnu.so",
+     "/home/artrc-gflz/.local/lib/python3.8/site-packages/numpy/random/mtrand.cpython-38-aarch64-linux-gnu.so"
+    ]
+   },
+   "pid": 14188
+  },
+  "yolo": {
+   "cmdline": "/home/artrc-gflz/Grasp_hexapod/.venv/xiaolan-ort/bin/python3 /home/artrc-gflz/Grasp_hexapod/devel/lib/xiaolan_yolo_detection/xiaolan_yolo_node.py __name:=xiaolan_yolo_node __log:=/home/artrc-gflz/.ros",
+   "maps": {
+    "cv2/": [
+     "/home/artrc-gflz/.local/lib/python3.8/site-packages/cv2/cv2.abi3.so"
+    ],
+    "libcudnn": [
+     "/home/artrc-gflz/Grasp_hexapod/.venv/jetson-gpu/root/usr/lib/aarch64-linux-gnu/libcudnn.so.8.6.0",
+     "/home/artrc-gflz/Grasp_hexapod/.venv/jetson-gpu/root/usr/lib/aarch64-linux-gnu/libcudnn_cnn_infer.so.8.6.0",
+     "/home/artrc-gflz/Grasp_hexapod/.venv/jetson-gpu/root/usr/lib/aarch64-linux-gnu/libcudnn_ops_infer.so.8.6.0"
+    ],
+    "libnvinfer.so": [
+     "/home/artrc-gflz/Grasp_hexapod/.venv/jetson-gpu/root/usr/lib/aarch64-linux-gnu/libnvinfer.so.8.5.2"
+    ],
+    "libopencv_core.so": [
+     "/usr/lib/aarch64-linux-gnu/libopencv_core.so.4.2.0"
+    ],
+    "site-packages/numpy": [
+     "/home/artrc-gflz/.local/lib/python3.8/site-packages/numpy.libs/libgfortran-daac5196.so.5.0.0",
+     "/home/artrc-gflz/.local/lib/python3.8/site-packages/numpy.libs/libopenblas64_p-r0-cecebdce.3.21.so",
+     "/home/artrc-gflz/.local/lib/python3.8/site-packages/numpy/core/_multiarray_tests.cpython-38-aarch64-linux-gnu.so",
+     "/home/artrc-gflz/.local/lib/python3.8/site-packages/numpy/core/_multiarray_umath.cpython-38-aarch64-linux-gnu.so",
+     "/home/artrc-gflz/.local/lib/python3.8/site-packages/numpy/fft/_pocketfft_internal.cpython-38-aarch64-linux-gnu.so",
+     "/home/artrc-gflz/.local/lib/python3.8/site-packages/numpy/linalg/_umath_linalg.cpython-38-aarch64-linux-gnu.so",
+     "/home/artrc-gflz/.local/lib/python3.8/site-packages/numpy/random/_bounded_integers.cpython-38-aarch64-linux-gnu.so",
+     "/home/artrc-gflz/.local/lib/python3.8/site-packages/numpy/random/_common.cpython-38-aarch64-linux-gnu.so",
+     "/home/artrc-gflz/.local/lib/python3.8/site-packages/numpy/random/_generator.cpython-38-aarch64-linux-gnu.so",
+     "/home/artrc-gflz/.local/lib/python3.8/site-packages/numpy/random/_mt19937.cpython-38-aarch64-linux-gnu.so",
+     "/home/artrc-gflz/.local/lib/python3.8/site-packages/numpy/random/_pcg64.cpython-38-aarch64-linux-gnu.so",
+     "/home/artrc-gflz/.local/lib/python3.8/site-packages/numpy/random/_philox.cpython-38-aarch64-linux-gnu.so",
+     "/home/artrc-gflz/.local/lib/python3.8/site-packages/numpy/random/_sfc64.cpython-38-aarch64-linux-gnu.so",
+     "/home/artrc-gflz/.local/lib/python3.8/site-packages/numpy/random/bit_generator.cpython-38-aarch64-linux-gnu.so",
+     "/home/artrc-gflz/.local/lib/python3.8/site-packages/numpy/random/mtrand.cpython-38-aarch64-linux-gnu.so"
+    ]
+   },
+   "pid": 14186
+  }
+ },
+ "processes": {
+  "camera": {
+   "cpu_pct_avg": 87.0174762580301,
+   "cpu_pct_max": 88.85520457963163,
+   "cpu_samples": 60,
+   "rss_kb_first": 114636,
+   "rss_kb_last": 115420,
+   "rss_kb_max": 116208,
+   "rss_kb_min": 113840,
+   "threads_max": 29
+  },
+  "td3": {
+   "cpu_pct_avg": 20.3245760480662,
+   "cpu_pct_max": 21.964207873616807,
+   "cpu_samples": 60,
+   "rss_kb_first": 119592,
+   "rss_kb_last": 118836,
+   "rss_kb_max": 120844,
+   "rss_kb_min": 118796,
+   "threads_max": 12
+  },
+  "yolo": {
+   "cpu_pct_avg": 19.67808985025782,
+   "cpu_pct_max": 21.964207873616807,
+   "cpu_samples": 60,
+   "rss_kb_first": 2055176,
+   "rss_kb_last": 2055300,
+   "rss_kb_max": 2055304,
+   "rss_kb_min": 2055044,
+   "threads_max": 9
+  }
+ },
+ "wall_clock": "2026-11-27T12:11:29",
+ "warmup_s": 10.0,
+ "window_s": 60.32526205800059
+}

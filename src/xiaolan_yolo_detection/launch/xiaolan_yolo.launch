@@ -6,7 +6,7 @@
   <arg name="yolo_python" default="$(find xiaolan_yolo_detection)/../../.venv/jetson-gpu/bin/python3"/>
   <arg name="start_yolo" default="true"/>
   <arg name="start_3d" default="true"/>
-  <arg name="start_visualizer" default="true"/>
+  <arg name="start_visualizer" default="false"/>
   <arg name="show_window" default="false"/>
   <node if="$(arg start_yolo)" pkg="xiaolan_yolo_detection" type="xiaolan_yolo_node.py" name="xiaolan_yolo_node" output="screen" launch-prefix="$(arg yolo_python)" required="true">
     <env name="OMP_NUM_THREADS" value="2"/>

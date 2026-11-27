@@ -198,6 +198,10 @@ class GraspController {
   // 从行走站姿抬脚换位过渡到 Q_CLIMB_PREP（A 组、B 组各迈一步再降机身）。
   // 前置条件不满足或调度未通过校验时返回 false 并写 reason，不改变任何状态。
   bool beginClimbPrep(const JointAngles& q_cur, std::string* reason);
+  // 非任务攀爬入口是否要先走准备过渡：起始阶段为 0、q_cur 与 config.p0.q_rad 的
+  // 最大关节差超过入口门限，且准备姿态尚未保持（已保持则直接进入，由入口门限把关）。
+  bool climbEntryNeedsPrep(const JointAngles& q_cur, const ClimbCompactConfig& config,
+                           int start_stage_index) const;
   // 在 APPROACH 模式下选择安全接近点并启动固定路径。
   ApproachPlan startAutonomousApproach(
       const NavigationState& navigation_state,

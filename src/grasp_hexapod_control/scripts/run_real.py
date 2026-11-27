@@ -339,6 +339,10 @@ class RosControlNode:
     }
     BT_UNSUPPORTED_MODES = ("spin_search",)
     BT_DEFAULT_TICK_HZ = 30.0
+    # X/BT从行走站姿请求攀爬：先跑准备过渡（状态保持RUNNING，每帧零指令update），
+    # 过渡保持后再执行既有入口。B与A暂停都会清除；类级默认值便于无__init__的测试节点。
+    climb_after_prep = False
+    climb_prep_reject_reason = ""
 
     @staticmethod
     def _climb_foot_gate_m(value):
@@ -833,6 +837,8 @@ class RosControlNode:
         request["started"] = True
         self.command[:] = 0.0
         self.manual_override = False
+        if mode != "climb":
+            self.climb_after_prep = False
         if mode == "home":
             self.controller.mission.cancel("BT home")
             self.controller.abort_climb()
@@ -874,7 +880,13 @@ class RosControlNode:
             before = self.state
             self._start_real_climb(q_cur, True)
             if self.state != self.RUNNING or before != self.HOLD:
-                self._finish_bt_request(request, False, "climb entry rejected")
+                self._finish_bt_request(
+                    request,
+                    False,
+                    "climb entry rejected: " + self.climb_prep_reject_reason
+                    if self.climb_prep_reject_reason
+                    else "climb entry rejected",
+                )
             return
         if mode == "dock":
             self.state = self.HOLD
@@ -929,7 +941,9 @@ class RosControlNode:
                 self.command[:] = 0.0
                 self._finish_bt_request(request, True, "ready for climb")
         elif mode == "climb":
-            if self.controller.climb_mode.state == ClimbMode.DONE:
+            if self.climb_after_prep:
+                pass  # 准备过渡进行中：尚无攀爬终态。
+            elif self.controller.climb_mode.state == ClimbMode.DONE:
                 self._finish_bt_request(request, True, "climb complete")
             elif self.controller.climb_mode.state == ClimbMode.FAILED:
                 self._finish_bt_request(
@@ -1400,20 +1414,78 @@ class RosControlNode:
         if not controls_ready or self.state != self.HOLD or self.controller.mode != self.controller.APPROACH:
             rospy.logwarn_throttle(2.0, "X ignored: reset must finish and controls must be fresh")
             return
-        navigation = self.navigation.motion_snapshot()
-        imu = self.imu.snapshot()
+        self.climb_prep_reject_reason = ""
+        climb_side = getattr(self, "climb_side", "left")
+        gate_m = getattr(self, "climb_foot_gate_m", 0.02)
         try:
-            config = self.controller.climb_mode._load_config()
-            climb_side = getattr(self, "climb_side", "left")
-            config = select_compact_climb_side(config, climb_side)
-            gate_m = getattr(self, "climb_foot_gate_m", 0.02)
-            config["settle_gate"]["max_foot_target_error_m"] = gate_m
+            config = self._load_climb_entry_config()
+            if self.controller.climb_entry_needs_prep(q_cur, config, 0):
+                # 行走站姿（或其他远离P0的姿态）：先走准备过渡，保持后再自动进入。
+                ok, prep_reason = self.controller.begin_climb_prep(q_cur)
+                if not ok:
+                    self.climb_prep_reject_reason = prep_reason
+                    rospy.logwarn("X ignored: climb prep rejected: %s", prep_reason)
+                    return
+                self.climb_after_prep = True
+                self.command[:] = 0.0
+                self.local_climb_armed = False
+                self.local_climb_entry_q = None
+                self.state = self.RUNNING
+                rospy.loginfo(
+                    "X accepted: climb-prep transition started (walking stance "
+                    "-> Q_CLIMB_PREP); climb starts automatically when it is held"
+                )
+                return
             self.controller.enter_climb(
                 q_cur, config=config, hardware_execution=True
             )
         except ValueError as error:
             rospy.logwarn("X ignored: compact entry gate failed: %s", error)
             return
+        self._finish_real_climb_entry(climb_side, gate_m)
+
+    def _load_climb_entry_config(self):
+        """攀爬入口配置（side/足端门限与旧入口一致）。"""
+
+        config = self.controller.climb_mode._load_config()
+        config = select_compact_climb_side(config, getattr(self, "climb_side", "left"))
+        config["settle_gate"]["max_foot_target_error_m"] = getattr(
+            self, "climb_foot_gate_m", 0.02
+        )
+        return config
+
+    def _finish_climb_after_prep(self, q_cur):
+        """准备过渡保持后执行一次既有入口；入口门限失败则停在准备姿态并回到HOLD。"""
+
+        self.climb_after_prep = False
+        try:
+            config = self._load_climb_entry_config()
+            self.controller.enter_climb(
+                q_cur, config=config, hardware_execution=True
+            )
+        except ValueError as error:
+            # enter_climb在门限失败前已消耗保持标志（既有行为）：只能按B回行走站姿。
+            self.state = self.HOLD
+            self.command[:] = 0.0
+            message = "climb entry after prep failed: {}".format(error)
+            rospy.logwarn(
+                "%s; press B to return to the walking stance",
+                message,
+            )
+            request = self._bt_request_snapshot()
+            if request is not None:
+                self._finish_bt_request(request, False, message)
+            return
+        self._finish_real_climb_entry(
+            getattr(self, "climb_side", "left"),
+            getattr(self, "climb_foot_gate_m", 0.02),
+        )
+
+    def _finish_real_climb_entry(self, climb_side, gate_m):
+        """入口接受后的监控基准与状态设置（直接进入与准备过渡后进入共用）。"""
+
+        navigation = self.navigation.motion_snapshot()
+        imu = self.imu.snapshot()
         rospy.loginfo("Compact climb side selected: %s", climb_side)
         self.real_climb_monitor_active = navigation.valid and imu["valid"]
         if self.real_climb_monitor_active:
@@ -1514,6 +1586,20 @@ class RosControlNode:
     def _hold_motion(self, reason, log=True):
         """停止推进步态并保持上力；再次按A才能恢复。"""
         if self.state == self.RUNNING:
+            if self.climb_after_prep:
+                # 取消自动进入：准备过渡仍在后续帧走完并停在准备姿态，之后按X直接进入。
+                self.climb_after_prep = False
+                rospy.logwarn(
+                    "Climb entry cancelled (%s): the transition finishes in "
+                    "Q_CLIMB_PREP; press X to enter or B to return to the "
+                    "walking stance",
+                    reason,
+                )
+                request = self._bt_request_snapshot()
+                if request is not None:
+                    self._finish_bt_request(
+                        request, False, "climb prep interrupted: " + reason
+                    )
             if self.controller.mode == self.controller.DOCK:
                 if self.controller.dock_mode is not None:
                     self.controller.dock_mode.fail_execution(
@@ -1538,6 +1624,7 @@ class RosControlNode:
         终结进行中的自动任务/攀爬/对接后进入 RESETTING；回正由控制循环
         RESETTING 分支推进（reset_to_stand + update），完成即 HOLD。
         """
+        self.climb_after_prep = False
         if self.local_execution:
             self.local_climb_armed = False
             self.local_climb_entry_q = None
@@ -1712,6 +1799,7 @@ class RosControlNode:
             return self.local_climb_entry_q.copy()
 
         if self.state == self.RESETTING:
+            self.climb_after_prep = False
             if not self.controller.reset_active:
                 self.controller.reset_to_stand(q_cur)
             q_des = self.controller.update(q_cur, self.command)
@@ -1722,6 +1810,24 @@ class RosControlNode:
                 )
             self._finish_bt_mode_if_terminal(bt_request)
             return q_des
+
+        if (
+            self.climb_after_prep
+            and self.state == self.RUNNING
+            and not self.controller.climb_prep_active
+        ):
+            if self.controller.climb_prep_posture_held:
+                # 过渡已保持在Q_CLIMB_PREP：执行一次既有入口（成功则mode变CLIMB）。
+                self._finish_climb_after_prep(q_cur)
+            else:
+                # 过渡被外部取消（正常路径由B/HOLD清标志，这里只兜底）。
+                self.climb_after_prep = False
+                self.state = self.HOLD
+                self.command[:] = 0.0
+                rospy.logwarn(
+                    "Climb prep ended without holding Q_CLIMB_PREP; "
+                    "climb entry cancelled"
+                )
 
         navigation_state = None
         dock_robot_state = None
@@ -1746,6 +1852,9 @@ class RosControlNode:
                 self.command[:] = 0.0
                 navigation_state = self.navigation.snapshot()
             elif bt_mode:
+                self.command[:] = 0.0
+            elif self.climb_after_prep:
+                # 准备过渡期间忽略摇杆与导航，只零指令推进过渡。
                 self.command[:] = 0.0
             else:
                 if (

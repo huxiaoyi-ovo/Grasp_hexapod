@@ -837,17 +837,67 @@ void RingControlNode::startRealClimb(const JointAngles& q_cur,
                       "X ignored: reset must finish and controls must be fresh");
     return;
   }
-  const NavigationState navigation = navigation_->motionSnapshot();
-  const ImuInput::Snapshot imu = imu_->snapshot();
+  climb_prep_reject_reason_.clear();
   try {
-    ClimbCompactConfig config = controller_->climb_mode.loadConfig();
-    config = selectCompactClimbSide(config, climb_side_);
-    config.settle_gate.max_foot_target_error_m = climb_foot_gate_m_;
+    const ClimbCompactConfig config = loadClimbEntryConfig();
+    if (controller_->climbEntryNeedsPrep(q_cur, config, 0)) {
+      // 行走站姿（或其他远离 P0 的姿态）：先走准备过渡，保持后再自动进入。
+      std::string prep_reason;
+      if (!controller_->beginClimbPrep(q_cur, &prep_reason)) {
+        climb_prep_reject_reason_ = prep_reason;
+        ROS_WARN("X ignored: climb prep rejected: %s", prep_reason.c_str());
+        return;
+      }
+      climb_after_prep_ = true;
+      command_.setZero();
+      local_climb_armed_ = false;
+      local_climb_entry_q_.reset();
+      state_ = MachineState::Running;
+      ROS_INFO(
+          "X accepted: climb-prep transition started (walking stance -> "
+          "Q_CLIMB_PREP); climb starts automatically when it is held");
+      return;
+    }
     controller_->enterClimb(q_cur, config, 0, std::nullopt, true);
   } catch (const ConfigError& error) {
     ROS_WARN("X ignored: compact entry gate failed: %s", error.what());
     return;
   }
+  finishRealClimbEntry(q_cur);
+}
+
+ClimbCompactConfig RingControlNode::loadClimbEntryConfig() {
+  ClimbCompactConfig config = controller_->climb_mode.loadConfig();
+  config = selectCompactClimbSide(config, climb_side_);
+  config.settle_gate.max_foot_target_error_m = climb_foot_gate_m_;
+  return config;
+}
+
+void RingControlNode::finishClimbAfterPrep(const JointAngles& q_cur) {
+  climb_after_prep_ = false;
+  try {
+    const ClimbCompactConfig config = loadClimbEntryConfig();
+    controller_->enterClimb(q_cur, config, 0, std::nullopt, true);
+  } catch (const ConfigError& error) {
+    // enterClimb 在门限失败前已消耗保持标志（既有行为）：只能按 B 回行走站姿。
+    state_ = MachineState::Hold;
+    command_.setZero();
+    const std::string message =
+        std::string("climb entry after prep failed: ") + error.what();
+    ROS_WARN("%s; press B to return to the walking stance", message.c_str());
+    const std::shared_ptr<BtRequest> request = btRequestSnapshot();
+    if (request != nullptr) {
+      finishBtRequest(request, false, message);
+    }
+    return;
+  }
+  finishRealClimbEntry(q_cur);
+}
+
+void RingControlNode::finishRealClimbEntry(const JointAngles& q_cur) {
+  (void)q_cur;
+  const NavigationState navigation = navigation_->motionSnapshot();
+  const ImuInput::Snapshot imu = imu_->snapshot();
   ROS_INFO("Compact climb side selected: %s", climb_side_.c_str());
   real_climb_monitor_active_ = navigation.valid && imu.valid;
   if (real_climb_monitor_active_) {
@@ -963,6 +1013,17 @@ void RingControlNode::holdMotion(const std::string& reason, bool log) {
   if (state_ != MachineState::Running) {
     return;
   }
+  if (climb_after_prep_) {
+    // 取消自动进入：准备过渡仍在后续帧走完并停在准备姿态，之后按 X 直接进入。
+    climb_after_prep_ = false;
+    ROS_WARN("Climb entry cancelled (%s): the transition finishes in Q_CLIMB_PREP; "
+             "press X to enter or B to return to the walking stance",
+             reason.c_str());
+    const std::shared_ptr<BtRequest> request = btRequestSnapshot();
+    if (request != nullptr) {
+      finishBtRequest(request, false, "climb prep interrupted: " + reason);
+    }
+  }
   if (controller_->mode == RingController::kDock) {
     if (dock_mode_instance_ != nullptr) {
       dock_mode_instance_->failExecution("DockMode stopped: " + reason);
@@ -1000,6 +1061,7 @@ void RingControlNode::processButtons(const Eigen::VectorXi& button_presses,
     // B 是唯一无条件抢占：无论 BT 服务是否在等待，都先唤醒调用方，
     // 再沿用原有回站路径。
     abortBtRequest("aborted by B");
+    climb_after_prep_ = false;
     local_climb_armed_ = false;
     local_climb_entry_q_.reset();
     flushRealClimbSpeedDiagnostic("reset");
@@ -1344,6 +1406,9 @@ void RingControlNode::startBtRequest(BtRequest& request, const JointAngles& q_cu
   request.started = true;
   command_.setZero();
   manual_override_ = false;
+  if (mode != "climb") {
+    climb_after_prep_ = false;
+  }
   if (mode == "home") {
     controller_->mission.cancel("BT home");
     controller_->abortClimb();
@@ -1387,7 +1452,10 @@ void RingControlNode::startBtRequest(BtRequest& request, const JointAngles& q_cu
     const MachineState before = state_;
     startRealClimb(q_cur, true);
     if (state_ != MachineState::Running || before != MachineState::Hold) {
-      finishBtRequest(btRequestSnapshot(), false, "climb entry rejected");
+      finishBtRequest(btRequestSnapshot(), false,
+                      climb_prep_reject_reason_.empty()
+                          ? std::string("climb entry rejected")
+                          : "climb entry rejected: " + climb_prep_reject_reason_);
     }
     return;
   }
@@ -1437,7 +1505,9 @@ void RingControlNode::finishBtModeIfTerminal(
       finishBtRequest(request, true, "ready for climb");
     }
   } else if (mode == "climb") {
-    if (controller_->climb_mode.state == ClimbState::Done) {
+    if (climb_after_prep_) {
+      // 准备过渡进行中：尚无攀爬终态。
+    } else if (controller_->climb_mode.state == ClimbState::Done) {
       finishBtRequest(request, true, "climb complete");
     } else if (controller_->climb_mode.state == ClimbState::Failed) {
       finishBtRequest(request, false, controller_->climb_mode.failure_reason);
@@ -1569,6 +1639,7 @@ std::optional<JointAngles> RingControlNode::updateControl(
   }
 
   if (state_ == MachineState::Resetting) {
+    climb_after_prep_ = false;
     if (!controller_->reset_active) {
       controller_->resetToStand(q_cur);
     }
@@ -1579,6 +1650,20 @@ std::optional<JointAngles> RingControlNode::updateControl(
     }
     finishBtModeIfTerminal(bt_request);
     return q_des;
+  }
+
+  if (climb_after_prep_ && state_ == MachineState::Running &&
+      !controller_->climb_prep_active) {
+    if (controller_->climb_prep_posture_held) {
+      // 过渡已保持在 Q_CLIMB_PREP：执行一次既有入口（成功则 mode 变 kClimb）。
+      finishClimbAfterPrep(q_cur);
+    } else {
+      // 过渡被外部取消（正常路径由 B/HOLD 清标志，这里只兜底）。
+      climb_after_prep_ = false;
+      state_ = MachineState::Hold;
+      command_.setZero();
+      ROS_WARN("Climb prep ended without holding Q_CLIMB_PREP; climb entry cancelled");
+    }
   }
 
   std::optional<NavigationState> navigation_state;
@@ -1602,6 +1687,9 @@ std::optional<JointAngles> RingControlNode::updateControl(
       command_.setZero();
       navigation_state = navigation_->snapshot();
     } else if (!bt_mode.empty()) {
+      command_.setZero();
+    } else if (climb_after_prep_) {
+      // 准备过渡期间忽略摇杆与导航，只零指令推进过渡。
       command_.setZero();
     } else {
       if (control_source_ == "navigation" && !manual_override_ &&

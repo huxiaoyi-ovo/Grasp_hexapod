@@ -132,6 +132,13 @@ class MissionStateMachine:
             self.CLIMB,
         ):
             raise ValueError("full mission is already running")
+        if (
+            self.controller.climb_prep_active
+            or self.controller.climb_prep_posture_held
+        ):
+            raise ValueError(
+                "return to the walking stance (B) before starting a mission"
+            )
         self.controller.climb_mode._validate_config(climb_config)
         self.controller.set_mode(self.controller.APPROACH)
         self.controller.reset_active = False
@@ -358,32 +365,14 @@ class MissionStateMachine:
                     )
                 )
                 if not pose_ready:
-                    if self.prepare_retry_count >= self.max_prepare_retries:
-                        self.state = self.FAILED
-                        self.reason = (
-                            "climb entry pose changed after posture preparation: "
-                            "position_error_m={:.6g} yaw_error_deg={:.6g} "
-                            "world_foot_error_m={:.6g}".format(
-                                position_error,
-                                np.degrees(yaw_error),
-                                self.last_prepare_world_foot_error_m,
-                            )
-                        )
-                        return None
-                    self.prepare_retry_count += 1
-                    result = self.controller.start_autonomous_approach(
-                        navigation
+                    # 准备姿态下步态已挂起，重启接近不可能再移动机身：直接失败，
+                    # 不重试（原重试上限分支随之不可达，已删除）。
+                    self.state = self.FAILED
+                    self.reason = (
+                        "pose drifted after climb-prep; "
+                        "press B to return to the walking stance"
                     )
-                    if result.failed:
-                        self.state = self.FAILED
-                        self.reason = result.reason
-                    else:
-                        self.state = self.APPROACH
-                        self.approach_elapsed_s = 0.0
-                        self.approach_target_pose_pv = (
-                            result.target_pose_pv.copy()
-                        )
-                    return result
+                    return None
                 if (
                     self.last_prepare_joint_error_rad
                     <= gate["entry_max_joint_error_rad"]
@@ -1124,6 +1113,20 @@ class GraspController:
         self.climb_prep_active = True
         self.climb_prep_posture_held = False
         return True, ""
+
+    def climb_entry_needs_prep(self, q_cur, config, start_stage_index=0):
+        """非任务攀爬入口是否要先走准备过渡。
+
+        起始阶段为0、q_cur与config.p0.q_rad的最大关节差超过入口门限，且准备姿态
+        尚未保持（已保持则直接进入，由入口门限把关）。
+        """
+
+        if start_stage_index != 0 or self.climb_prep_posture_held:
+            return False
+        q_cur = np.asarray(q_cur, dtype=np.float64).reshape(6, 3)
+        p0_q = np.asarray(config["p0"]["q_rad"], dtype=np.float64).reshape(6, 3)
+        entry_error = float(np.max(np.abs(q_cur - p0_q)))
+        return entry_error > config["settle_gate"]["entry_max_joint_error_rad"]
 
     def start_autonomous_approach(self, navigation_state, target_side=None):
         """在APPROACH模式下选择安全接近点并启动固定路径。"""

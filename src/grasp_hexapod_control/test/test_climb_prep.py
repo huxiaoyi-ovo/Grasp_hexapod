@@ -320,3 +320,89 @@ def test_mission_fails_with_the_reason_when_climb_prep_is_infeasible():
     assert controller.mission.state == MissionStateMachine.FAILED
     assert "climb prep" in controller.mission.reason
     assert not controller.climb_prep_active
+
+
+def test_climb_entry_needs_prep_rule():
+    controller = GraspController(DT)
+    config = controller.climb_mode._load_config()
+    gate = config["settle_gate"]["entry_max_joint_error_rad"]
+    # 行走站姿远离 P0：需要准备；已在 P0（门限内）：不需要。
+    assert controller.climb_entry_needs_prep(Q_STAND, config, 0)
+    assert not controller.climb_entry_needs_prep(Q_CLIMB_PREP, config, 0)
+    inside = Q_CLIMB_PREP.copy()
+    inside[0, 1] += 0.9 * gate
+    assert not controller.climb_entry_needs_prep(inside, config, 0)
+    outside = Q_CLIMB_PREP.copy()
+    outside[0, 1] += 1.1 * gate
+    assert controller.climb_entry_needs_prep(outside, config, 0)
+    # 非 C1 起点不走准备。
+    assert not controller.climb_entry_needs_prep(Q_STAND, config, 1)
+    # 准备姿态已保持：不再重复准备（入口门限自行把关）。
+    _run_transition(controller, Q_STAND.copy())
+    assert controller.climb_prep_posture_held
+    assert not controller.climb_entry_needs_prep(Q_STAND, config, 0)
+
+
+def test_mission_start_is_rejected_while_climb_prep_is_active_or_held():
+    controller = GraspController(DT)
+    config = controller.climb_mode._load_config()
+    left = select_compact_climb_side(config, "left")
+    stamp = 1.0
+    controller._xiaolan_translation = np.asarray(config["xiaolan_translation"], dtype=float)
+    geometry = derive_compact_approach_geometry(config)
+    controller._base_pose_world = _p0_pose(controller, geometry)
+    ok, reason = controller.begin_climb_prep(Q_STAND.copy())
+    assert ok, reason
+    with pytest.raises(ValueError, match="return to the walking stance"):
+        controller.start_full_mission(_navigation(controller, left, stamp), left)
+    assert controller.mission.state == MissionStateMachine.IDLE
+    q = Q_STAND.copy()
+    while controller.climb_prep_active:
+        q = controller.update(q, ZERO)
+    assert controller.climb_prep_posture_held
+    with pytest.raises(ValueError, match="return to the walking stance"):
+        controller.start_full_mission(_navigation(controller, left, stamp), left)
+    assert controller.mission.state == MissionStateMachine.IDLE
+
+
+def test_mission_fails_instead_of_retrying_when_pose_drifts_after_climb_prep():
+    controller = GraspController(DT)
+    config = controller.climb_mode._load_config()
+    left = select_compact_climb_side(config, "left")
+    geometry = derive_compact_approach_geometry(config)
+    for side in ("left", "right"):
+        controller.approach_mode.configure_fixed_approach(
+            geometry["targets"][side],
+            target_side=side,
+            xiaolan_keepout_polygon_xy_m=geometry["xiaolan_keepout_polygon_xy_m"],
+            xiaolan_body_clearance_m=0.13,
+        )
+    controller._xiaolan_translation = np.asarray(config["xiaolan_translation"], dtype=float)
+    controller._base_pose_world = _p0_pose(controller, geometry)
+    stamp = 1.0
+    plan = controller.start_full_mission(
+        _navigation(controller, left, stamp), left, approach_timeout_s=30.0
+    )
+    assert not plan.failed, plan.reason
+    q = Q_STAND.copy()
+    drifted = False
+    for _ in range(600):
+        stamp += DT
+        q = controller.update(q, ZERO, _navigation(controller, left, stamp))
+        if controller.mission.state == MissionStateMachine.FAILED:
+            break
+        if (
+            not drifted
+            and controller.mission.state == MissionStateMachine.PREPARE_CLIMB
+            and not controller.climb_prep_active
+        ):
+            # 过渡走完后机身被推走 5 cm：重启接近永远动不了（步态已挂起）。
+            controller._base_pose_world[0, 3] += 0.05
+            drifted = True
+    assert drifted
+    assert controller.mission.state == MissionStateMachine.FAILED
+    assert controller.mission.reason == (
+        "pose drifted after climb-prep; press B to return to the walking stance"
+    )
+    assert controller.mission.prepare_retry_count == 0
+    assert controller.climb_mode.state != ClimbMode.RUNNING

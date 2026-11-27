@@ -29,6 +29,13 @@ class ClimbMode : public ModeBase {
   bool onNodeHold(const std::string& reason) override;
 
  private:
+  // 入口配置：载入、选侧、足端门限与 front 实机授权（start/准备后入口共用）。
+  grasp_hexapod_control_cpp::ClimbCompactConfig loadEntryConfig();
+  // 既有入口块：loadConfig/select/enterClimb/监控基准。成功返回 true 并置 Running；
+  // ConfigError 时返回 false 并把原因写入 reason。准备过渡保持后由 step() 调用，
+  // 无需准备时由 start() 直接调用。
+  bool enterAfterPrep(const JointAngles& q_cur, std::string& reason);
+
   // 实机攀爬速度诊断聚合（observation-only，从不参与门控）。
   struct SpeedDiagnostic {
     std::string stage;
@@ -78,6 +85,9 @@ class ClimbMode : public ModeBase {
   Matrix4d climb_start_planned_pose_ = Matrix4d::Identity();
   bool have_climb_start_planned_ = false;
   bool monitor_active_ = false;
+  // 从行走站姿请求攀爬：start() 启动准备过渡后置位；step() 零指令推进过渡，
+  // 过渡保持在 Q_CLIMB_PREP 后执行一次入口并清除。
+  bool prep_pending_ = false;
   int bad_frames_ = 0;
   int good_frames_ = 0;
   std::unique_ptr<SpeedDiagnostic> speed_diagnostic_;

@@ -204,6 +204,12 @@ class RingControlNode {
   void processButtons(const Eigen::VectorXi& button_presses, bool controls_ready,
                       const JointAngles& q_cur);
   void startRealClimb(const JointAngles& q_cur, bool controls_ready);
+  // 攀爬入口配置（side/足端门限与旧入口一致）。
+  ClimbCompactConfig loadClimbEntryConfig();
+  // 入口接受后的监控基准与状态设置（直接进入与准备过渡后进入共用）。
+  void finishRealClimbEntry(const JointAngles& q_cur);
+  // 准备过渡保持后执行一次既有入口；入口门限失败则停在准备姿态并回到 HOLD。
+  void finishClimbAfterPrep(const JointAngles& q_cur);
   void startRealDock(const JointAngles& q_cur, bool controls_ready);
   std::optional<bool> dockLockConfirmed();
   void holdMotion(const std::string& reason, bool log = true);
@@ -314,6 +320,10 @@ class RingControlNode {
   bool manual_override_ = false;
   Eigen::Vector4d command_ = Eigen::Vector4d::Zero();
   bool local_climb_armed_ = false;
+  // X/BT 从行走站姿请求攀爬：先跑准备过渡（状态保持 Running，每帧零指令 update），
+  // 过渡保持后再执行既有入口。B 与 A 暂停都会清除。
+  bool climb_after_prep_ = false;
+  std::string climb_prep_reject_reason_;
   std::optional<JointAngles> local_climb_entry_q_;
   NavigationState climb_start_navigation_;
   bool have_climb_start_navigation_ = false;

@@ -1152,6 +1152,10 @@ class _DiagnosticReplayController:
         self.entered_hardware_execution = None
         self.entered_config = None
 
+    def climb_entry_needs_prep(self, q_cur, config, start_stage_index=0):
+        del q_cur, config, start_stage_index
+        return False
+
     def enter_climb(self, q_cur, config=None, hardware_execution=False):
         del q_cur
         self.entered_hardware_execution = hardware_execution
@@ -2506,3 +2510,250 @@ def test_climb_observation_uses_start_frame_relative_transforms():
     node.real_climb_max_orientation_error = 1e-9
     node.real_climb_max_angular_speed = 1e-9
     assert RUN_REAL.RosControlNode._real_climb_observation(node) == (True, "")
+
+
+# ---------------------------------------------------------------------------
+# 攀爬入口统一经过准备过渡（X / BT / 本地 Isaac 武装入口）。
+# ---------------------------------------------------------------------------
+
+_PREP_DT = 1.0 / 30.0
+
+
+def _prep_node(local_execution=False):
+    """真实 GraspController + 无 ROS 的节点夹具，覆盖 X 与 BT 入口。"""
+
+    node = _bt_node()
+    node.local_execution = local_execution
+    node.enable_real_climb = True
+    node.climb_side = "left"
+    node.climb_foot_gate_m = 0.02
+    node.control_source = "teleop"
+    node.controller = GraspController(_PREP_DT)
+    node.state = node.HOLD
+    node.command = np.zeros(4)
+    node.navigation = types.SimpleNamespace(
+        motion_snapshot=lambda: types.SimpleNamespace(valid=False),
+        snapshot=lambda: None,
+    )
+    node.imu = types.SimpleNamespace(
+        snapshot=lambda: {"valid": False, "rotation": np.eye(3)}
+    )
+    node.local_climb_armed = False
+    node.local_climb_entry_q = None
+    node.real_climb_monitor_active = False
+    node.real_climb_speed_diagnostic = None
+    node.manual_override = False
+    node.bt_request = None
+    node.axis_right, node.axis_forward, node.axis_yaw = 0, 1, 3
+    node.axis_body_down, node.axis_body_up = 4, 5
+    node.axis_right_scale = node.axis_forward_scale = node.axis_yaw_scale = 1.0
+    node.axis_body_scale = -1.0
+    node.max_linear_speed = 0.2
+    node.max_vertical_speed = 0.02
+    node.max_yaw_rate = 0.3
+    return node
+
+
+def _step_node(node, q, buttons=None, joy_fresh=True):
+    """一帧 _update_control（Joy 新鲜、摇杆满偏）；返回关节目标。"""
+
+    if buttons is None:
+        buttons = np.zeros(4, dtype=np.int32)
+    axes = np.array([1.0, 1.0, 0.0, 1.0, 0.0, 0.0, 0.0])
+    return RUN_REAL.RosControlNode._update_control(
+        node,
+        q,
+        axes,
+        buttons,
+        1.0 if joy_fresh else 0.0,
+        1.1,
+        feedback_ready=True,
+    )
+
+
+def _run_prep_until_entry(node, q, max_frames=200):
+    """零指令逐帧推进，返回 (进入攀爬的帧下标, 进入时的关节反馈)。"""
+
+    entered_at = None
+    for index in range(max_frames):
+        q = _step_node(node, q)
+        if node.controller.mode == node.controller.CLIMB:
+            entered_at = index
+            break
+    return entered_at, q
+
+
+def test_x_from_walking_stance_runs_prep_then_enters_climb_once(monkeypatch):
+    node = _prep_node()
+    entries = []
+    real_enter = node.controller.enter_climb
+
+    def counting_enter(q_cur, config=None, hardware_execution=False):
+        entries.append(np.asarray(q_cur).copy())
+        return real_enter(q_cur, config=config, hardware_execution=hardware_execution)
+
+    monkeypatch.setattr(node.controller, "enter_climb", counting_enter)
+    RUN_REAL.RosControlNode._process_buttons(
+        node, np.array([0, 0, 1, 0]), True, Q_STAND
+    )
+    # 过渡开始：不进入攀爬，状态 RUNNING，等待标志置位。
+    assert node.state == node.RUNNING
+    assert node.climb_after_prep
+    assert node.controller.climb_prep_active
+    assert node.controller.mode == node.controller.APPROACH
+    assert entries == []
+
+    q = Q_STAND.copy()
+    prep_frames = 0
+    entered_at = None
+    for index in range(200):
+        # 摇杆满偏：过渡期间必须被忽略（q 严格沿调度走）。
+        q = _step_node(node, q)
+        if node.controller.mode == node.controller.CLIMB:
+            entered_at = index
+            break
+        prep_frames += 1
+        assert node.state == node.RUNNING
+        assert node.climb_after_prep
+    assert entered_at is not None
+    assert prep_frames >= sum(node.controller.climb_prep_segment_frames) - 1
+    assert len(entries) == 1
+    config = node.controller.climb_mode._load_config()
+    gate = config["settle_gate"]["entry_max_joint_error_rad"]
+    assert np.max(np.abs(entries[0] - np.asarray(config["p0"]["q_rad"]))) <= gate
+    assert np.array_equal(entries[0], Q_CLIMB_PREP)
+    assert node.controller.climb_mode.state == ClimbMode.RUNNING
+    assert node.state == node.RUNNING
+    assert not node.climb_after_prep
+    assert not node.controller.climb_prep_posture_held
+    # 之后继续推进也不会再次进入。
+    for _ in range(5):
+        q = _step_node(node, q)
+    assert len(entries) == 1
+
+
+def test_x_at_climb_prep_enters_immediately_without_transition():
+    node = _prep_node()
+    RUN_REAL.RosControlNode._process_buttons(
+        node, np.array([0, 0, 1, 0]), True, Q_CLIMB_PREP.copy()
+    )
+    assert node.state == node.RUNNING
+    assert not node.climb_after_prep
+    assert not node.controller.climb_prep_active
+    assert node.controller.mode == node.controller.CLIMB
+    assert node.controller.climb_mode.state == ClimbMode.RUNNING
+
+
+def test_b_during_climb_prep_cancels_without_entering_and_returns_to_stand():
+    node = _prep_node()
+    RUN_REAL.RosControlNode._process_buttons(
+        node, np.array([0, 0, 1, 0]), True, Q_STAND
+    )
+    assert node.climb_after_prep
+    q = Q_STAND.copy()
+    for _ in range(20):
+        q = _step_node(node, q)
+    assert node.controller.climb_prep_active
+    # B：取消过渡与等待标志，回行走站姿。
+    q = _step_node(node, q, buttons=np.array([0, 1, 0, 0], dtype=np.int32))
+    assert node.state == node.RESETTING
+    assert not node.climb_after_prep
+    for _ in range(200):
+        q = _step_node(node, q)
+        if node.state == node.HOLD:
+            break
+    assert node.state == node.HOLD
+    assert node.controller.mode == node.controller.APPROACH
+    assert not node.controller.climb_prep_active
+    assert not node.controller.climb_prep_posture_held
+    assert node.controller.climb_mode.state != ClimbMode.RUNNING
+    assert np.allclose(q, Q_STAND, atol=1e-9)
+
+
+def test_x_prep_rejection_keeps_state_and_reports_reason():
+    node = _prep_node()
+    node.controller.approach_mode.gait_started = True
+    RUN_REAL.RosControlNode._process_buttons(
+        node, np.array([0, 0, 1, 0]), True, Q_STAND
+    )
+    assert node.state == node.HOLD
+    assert not node.climb_after_prep
+    assert "idle" in node.climb_prep_reject_reason
+    assert node.controller.mode == node.controller.APPROACH
+
+
+def test_a_pause_during_climb_prep_cancels_entry_and_holds_posture():
+    node = _prep_node()
+    RUN_REAL.RosControlNode._process_buttons(
+        node, np.array([0, 0, 1, 0]), True, Q_STAND
+    )
+    q = Q_STAND.copy()
+    for _ in range(5):
+        q = _step_node(node, q)
+    RUN_REAL.RosControlNode._process_buttons(
+        node, np.array([1, 0, 0, 0]), True, q
+    )
+    assert node.state == node.HOLD
+    assert not node.climb_after_prep
+    for _ in range(200):
+        q = _step_node(node, q)
+    # 过渡仍走完并停在准备姿态；没有自动入口。
+    assert node.controller.climb_prep_posture_held
+    assert node.controller.mode == node.controller.APPROACH
+    # 再按 X：已保持，直接入口。
+    RUN_REAL.RosControlNode._process_buttons(
+        node, np.array([0, 0, 1, 0]), True, q
+    )
+    assert node.controller.mode == node.controller.CLIMB
+    assert node.controller.climb_mode.state == ClimbMode.RUNNING
+
+
+def test_bt_climb_from_walking_stance_runs_prep_and_does_not_finish_early():
+    node = _prep_node(local_execution=True)
+    request = _bt_request("climb")
+    request["started"] = False
+    node.bt_request = request
+    q = Q_STAND.copy()
+    entered_at = None
+    for index in range(200):
+        q = _step_node(node, q)
+        if request["final"] is not None:
+            break
+        if node.controller.mode == node.controller.CLIMB:
+            entered_at = index
+            break
+    assert request["final"] is None
+    assert entered_at is not None
+    assert entered_at >= sum(node.controller.climb_prep_segment_frames) - 1
+    assert node.controller.climb_mode.state == ClimbMode.RUNNING
+    assert node.state == node.RUNNING
+
+
+def test_bt_climb_prep_rejection_fails_request_with_the_reason():
+    node = _prep_node(local_execution=True)
+    node.controller.approach_mode.transfer_active = True
+    request = _bt_request("climb")
+    request["started"] = False
+    node.bt_request = request
+    _step_node(node, Q_STAND.copy())
+    assert request["final"] is not None
+    ok, message = request["final"]
+    assert not ok
+    assert "idle" in message
+
+
+def test_local_armed_entry_away_from_p0_runs_prep_on_first_x():
+    node = _prep_node(local_execution=True)
+    node.local_climb_armed = True
+    node.local_climb_entry_q = Q_STAND.copy()
+    node.controller.q_des = Q_STAND.copy()
+    RUN_REAL.RosControlNode._process_buttons(
+        node, np.array([0, 0, 1, 0]), True, Q_STAND
+    )
+    assert node.state == node.RUNNING
+    assert node.climb_after_prep
+    assert not node.local_climb_armed
+    assert node.local_climb_entry_q is None
+    entered_at, _ = _run_prep_until_entry(node, Q_STAND.copy())
+    assert entered_at is not None
+    assert node.controller.climb_mode.state == ClimbMode.RUNNING

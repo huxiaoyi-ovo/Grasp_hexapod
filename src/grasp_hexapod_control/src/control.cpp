@@ -67,6 +67,9 @@ ApproachPlan MissionStateMachine::start(
       state == kClimb) {
     throw ConfigError("full mission is already running");
   }
+  if (controller_->climb_prep_active || controller_->climb_prep_posture_held) {
+    throw ConfigError("return to the walking stance (B) before starting a mission");
+  }
   validateClimbCompact(climb_config);
   controller_->setMode(GraspController::kApproach);
   controller_->reset_active = false;
@@ -254,25 +257,11 @@ std::optional<ApproachPlan> MissionStateMachine::update(
       }
       last_prepare_world_foot_error_m = world_foot_error;
       if (!pose_ready) {
-        if (prepare_retry_count >= max_prepare_retries) {
-          state = kFailed;
-          reason = "climb entry pose changed after posture preparation: "
-                   "position_error_m=" + std::to_string(position_error) +
-                   " yaw_error_deg=" + std::to_string(yaw_error * 180.0 / M_PI) +
-                   " world_foot_error_m=" + std::to_string(world_foot_error);
-          return std::nullopt;
-        }
-        prepare_retry_count += 1;
-        const ApproachPlan result = controller_->startAutonomousApproach(navigation);
-        if (result.failed) {
-          state = kFailed;
-          reason = result.reason;
-        } else {
-          state = kApproach;
-          approach_elapsed_s = 0.0;
-          approach_target_pose_pv = result.target_pose_pv;
-        }
-        return result;
+        // 准备姿态下步态已挂起，重启接近不可能再移动机身：直接失败，不重试
+        //（原重试上限分支随之不可达，已删除）。
+        state = kFailed;
+        reason = "pose drifted after climb-prep; press B to return to the walking stance";
+        return std::nullopt;
       }
       if (last_prepare_joint_error_rad <= gate.entry_max_joint_error_rad &&
           last_prepare_world_foot_error_m <= gate.max_foot_target_error_m &&
@@ -838,6 +827,19 @@ bool GraspController::beginClimbPrep(const JointAngles& q_cur, std::string* reas
   climb_prep_active = true;
   climb_prep_posture_held = false;
   return true;
+}
+
+bool GraspController::climbEntryNeedsPrep(const JointAngles& q_cur,
+                                          const ClimbCompactConfig& config,
+                                          int start_stage_index) const {
+  if (start_stage_index != 0 || climb_prep_posture_held) {
+    return false;
+  }
+  double entry_error = 0.0;
+  for (int leg = 0; leg < kLegCount; ++leg) {
+    entry_error = std::max(entry_error, (q_cur[leg] - config.p0.q_rad[leg]).cwiseAbs().maxCoeff());
+  }
+  return entry_error > config.settle_gate.entry_max_joint_error_rad;
 }
 
 ApproachPlan GraspController::startAutonomousApproach(

@@ -600,3 +600,10 @@
 - 在 eccc25d 上重新验证：CPU 30 Hz DONE，1523 帧，0 次截断；用当前源码重编的 C++ cpp_replay 在仿真/实机模式下都是 DONE，与 70d631e 时的结果逐帧一致，峰值 3.80 rad/s。Isaac 11 组 10/11 是之前测的；那之后攀爬代码只做了 Q_CLIMB_PREP 改名。
 - 注意：仓库里的证据脚本 `src/docs/evidence/climb_front_direct_20260924/cpu_direct_audit.py` 仍用 Q_STAND 做攀爬起点，在新站姿下会报 "compact entry joint error exceeds simulation gate"。复跑时换成 Q_CLIMB_PREP（这次用的是 scratchpad 里改过的副本，证据目录本身没动）。
 - 遗留问题：C19 RF 只能先竖直抬 13 mm，随后在低处横移 112 mm；C12 前腿只能抬 23–28 mm；C3/C11 低处横移 10–30 mm。
+
+## 2026-11-27 攀爬会话：v16.7 入库并设为默认（本地提交，未推送）
+- 用户反馈：v16.6 每一步都抬得太高（翻小腿后脚飞到 30–40 cm），没必要。只有左前腿上台、右后腿上台、左右前腿在小蓝背上前伸这几步需要抬腿，抬到适度高度就够。左后腿上台太慢：左后腿抬起后机身就可以前移，不用等它落地。
+- v16.7 以 v16.1 为基础：C3 LF、C8 LF+RF、C12 LF+RF、C15 RB、C19 RF、C20 LF 先竖直抬 30 mm（受关节限位限制：C12 LF 24 mm、C12 RF 28 mm、C19 RF 13 mm），平移和落地前的节点都保持在地形上方 ≥30 mm，最后竖直落下；不再翻小腿（不用 joint_space）。C17 在左后腿抬起后就开始做 NORMAL_STAND 的机身移动，C18 只保持 0.2 s。落点和 P0 不变。
+- 计划时长 38.5 s（v16.6 48.9 s、v16.1 39.1 s）。CPU 30 Hz DONE，1211 帧，0 次截断；C++ 仿真/实机模式 DONE，峰值 3.72 rad/s。提交时 Isaac 11 组扫描还在后台跑（`claude_front_v18_20261124/full_v167.log`）。
+- 原型文件：`/home/artrc/grasp_sync_backups/v167_20261127/`（merge_lb.py、cart_v167.py、c2r.json）。
+- 工作区里 `hw_calibrate.py` 的改动是别的会话的，没有提交。

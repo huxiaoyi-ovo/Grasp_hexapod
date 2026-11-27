@@ -25,7 +25,7 @@
   <arg name="max_feedback_age" default="0.30"/>
   <arg name="max_feedback_skew" default="0.20"/>
   <arg name="max_cmd_vel_age" default="0.2"/>
-  <!-- 攀爬默认是正面 v16.6（bt_control_node 的 ~climb_config_file 默认值），
+  <!-- 攀爬默认是正面 v16.7（bt_control_node 的 ~climb_config_file 默认值），
        其 FK 检查点门限为 0.04 m。 -->
   <arg name="climb_foot_gate_m" default="0.04"/>
   <arg name="enable_real_climb" default="true"/>

@@ -4,11 +4,11 @@
     Front climbing and docking on hardware are not certified. Run only with
     harness/support and the e-stop within reach, under explicit operator
     authorization.
-    Timing note: climb_front_v16_6 is timed for the shared 4 rad/s hardware step
-    cap (CPU/C++ replay: zero clips, peak 3.8 rad/s; C++ == Python per frame).
+    Timing note: climb_front_v16_7 is timed for the shared 4 rad/s hardware step
+    cap (CPU/C++ replay: zero clips, peak 3.7 rad/s; C++ == Python per frame).
     Simulation evidence does not prove contact, load, friction or stability;
     follow the staged bring-up in CLAUDE_HANDOFF.md (suspended dry run first).
-    Route: climb_config_file selects climb_front_v16_6.json (previous routes: climb_front_v16_1.json, climb_front_v16.json, climb_front_v11.json,
+    Route: climb_config_file selects climb_front_v16_7.json (previous routes: climb_front_v16_6.json, climb_front_v16_1.json, climb_front_v16.json, climb_front_v11.json,
     climb_front_direct.json) and allow_front_hardware=true is the explicit
     hardware opt-in read by ClimbMode; without it a front config is rejected.
     Default: start_sequence=false. Nothing is sequenced unless requested.
@@ -71,7 +71,7 @@
 
   <!-- Controller params not exposed as control_only args. tag_guidance_enabled
        and tag_guidance_id come from phase1_visual.yaml. -->
-  <param name="/grasp_hexapod_bt_control/climb_config_file" value="climb_front_v16_6.json"/>
+  <param name="/grasp_hexapod_bt_control/climb_config_file" value="climb_front_v16_7.json"/>
   <param name="/grasp_hexapod_bt_control/allow_front_hardware" value="true"/>
 
   <include if="$(arg start_camera)" file="$(find xiaolan_yolo_detection)/launch/xiaolan_orbbec_camera.launch">

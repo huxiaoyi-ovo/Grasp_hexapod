@@ -33,8 +33,10 @@
   <arg name="start_tag_detector" default="true"/>
   <!-- Must equal tag_guidance_id in phase1_visual.yaml (the controller reads it
        from that YAML, which is loaded on the controller node). -->
-  <arg name="tag_id" default="0"/>
-  <arg name="tag_size_m" default="0.060"/>
+  <!-- Approach tag on Xiaolan confirmed on hardware 2026-11-26 (tag36h11 ID 255,
+       50 mm black-border edge; ZCode session + user). -->
+  <arg name="tag_id" default="255"/>
+  <arg name="tag_size_m" default="0.050"/>
   <!-- Detector cost on the Jetson (848x480 @ 15 Hz, measured 2026-11-26):
        decimate 1.0 = 145% CPU, 2.0 = 60-65% with identical detections and pose.
        Integer values only (2.5 blurs the tag). 2.0 still detects a 50-60 mm tag

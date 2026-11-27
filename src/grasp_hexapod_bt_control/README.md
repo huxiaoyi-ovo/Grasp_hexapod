@@ -141,7 +141,7 @@ camera, servo, collision, contact, load, or hardware validation.
 Step-by-step bring-up, teach-in and debugging commands (Chinese) are in the root `README.md`, section "实机全流程（正面攀爬）调试".
 
 `launch/full_mission.launch` starts the phase-1 stack with climb and dock
-enabled, plus the standalone AprilTag detector (`tag_id`, default 0; output
+enabled, plus the standalone AprilTag detector (`tag_id`, default 255, `tag_size_m` 0.050 — the hardware tag; output
 `/xiaolan/tag_detections`). It is **not certified for hardware**: front
 climbing and docking are not certified. Run only with harness/support and the
 e-stop within reach. `climb_front_v11` is timed for the shared 4 rad/s hardware
@@ -193,7 +193,7 @@ now stops at the coarse `visual_stop_distance_m: 0.20` and hands off to the tag:
 - Input: `apriltag_ros/AprilTagDetectionArray` on `approach.tag_detections` of
   `config/mode_topics.yaml` (default `/xiaolan/tag_detections`). After
   `tag_handoff_confirm_frames` (5) consecutive NEW detections of
-  `tag_guidance_id` (0) with a finite pose in front of the camera, age
+  `tag_guidance_id` (255) with a finite pose in front of the camera, age
   `<= tag_max_age_s` (0.25), frame `visual_expected_target_frame`, the run
   switches permanently to TagGuidance; YOLO is then ignored for control.
 - Hardware 2026-11-27: the camera still sees the tag at ~0.15 m depth with the

@@ -31,7 +31,7 @@ visual_approach_timeout_s: 120.0
 # visual_expected_target_frame. Camera-frame diagnostics only: neither the
 # 0.20 m coarse stop nor the reference below is a body-clearance claim.
 tag_guidance_enabled: true
-tag_guidance_id: 0
+tag_guidance_id: 255  # hardware tag (tag36h11 ID 255, 50 mm); must equal full_mission.launch tag_id
 tag_handoff_confirm_frames: 5
 # Gate: only tag detections with camera depth z <= 0.5 m count toward the handoff (single-tag yaw is ambiguous farther away; also keeps the 0.02 m/s tag advance inside the 60 s timeout).
 tag_handoff_max_z_m: 0.5

@@ -43,6 +43,13 @@
        out to about 0.8 m, beyond the 0.5 m tag_handoff_max_z_m gate. -->
   <arg name="tag_decimate" default="2.0"/>
   <arg name="tag_threads" default="2"/>
+  <!-- false (default): the detector reads the raw color image; the image_proc
+       debayer+rectify chain (a full-frame remap every frame) is not started.
+       The Gemini 336L color distortion is small (k1 about -0.032) and the P0
+       teaching absorbs the remaining bias, because teaching and approach see
+       the same image. true restores the rectified path (re-teach after a
+       change). -->
+  <arg name="tag_rectify" default="false"/>
   <arg name="climb_foot_gate_m" default="0.04"/>
   <arg name="start_dock_perception" default="true"/>
   <arg name="start_sequence" default="false"/>
@@ -97,7 +104,7 @@
        xiaolan_tag_system.launch). Publishes to /xiaolan/tag_detections, the
        approach.tag_detections topic in config/mode_topics.yaml. -->
   <group if="$(arg start_tag_detector)">
-    <group ns="/camera/color">
+    <group if="$(arg tag_rectify)" ns="/camera/color">
       <node pkg="nodelet" type="nodelet" name="tag_image_proc_manager"
             args="manager" output="screen"/>
       <include file="$(find image_proc)/launch/image_proc.launch">
@@ -118,7 +125,7 @@
         - {id: $(arg tag_id), size: $(arg tag_size_m), name: xiaolan_tag}
       </rosparam>
       <rosparam param="tag_bundles">[]</rosparam>
-      <remap from="image_rect" to="/camera/color/image_rect_color"/>
+      <remap from="image_rect" to="$(eval '/camera/color/image_rect_color' if arg('tag_rectify') else '/camera/color/image_raw')"/>
       <remap from="camera_info" to="/camera/color/camera_info"/>
       <remap from="tag_detections" to="/xiaolan/tag_detections"/>
       <remap from="tag_detections_image" to="/xiaolan/tag_detections_image"/>

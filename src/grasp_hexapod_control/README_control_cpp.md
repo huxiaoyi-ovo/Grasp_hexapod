@@ -83,7 +83,27 @@ catkin_make --pkg grasp_hexapod_control_cpp
 catkin_make run_tests_grasp_hexapod_control_cpp
 ```
 
-当前状态：7/7 全部通过。移植中发现并修复的典型差异：`wrap_angle` 的
+### front compact（`climb_orientation: "front"`）
+
+C++ 与 Python 一致支持 front compact（`config/climb_front_direct.json` 等）：6 元素机身位姿
+（含 yaw，P0 yaw 必须为 -π/2）、`active_base_knots_m` / `active_base_velocities_m_s`、
+`pose_knots` 分段位姿、`contact_plan_version: 1` 角色元数据（support/airborne/
+`segment_support_legs`；`segment_support_legs` 会固定声明腿的世界锚点）、
+`simulation_joint_velocity_limit_rad_s`（仅仿真）、无右侧镜像。金标新增
+`climb_front_direct`（**非 hardware 模式**：Python 拒绝 front+hardware，且仿真模式使用该配置的
+6 rad/s 步进上限）与 front 配置解析快照，容差同为 1e-6。
+
+**与 Python 的有意差异（项目所有者决定）**：Python 一律拒绝 front + `hardware_execution`；
+C++ 仅当调用方显式授权（`ClimbCompactConfig::allow_front_hardware`，由 bt_control 的 ROS 参数
+`~allow_front_hardware` 设置，默认 false，JSON 无法设置）才接受，否则以同一消息
+`front compact climbing is simulation-only` 拒绝。hardware 模式始终使用共享 4 rad/s 步进上限，
+忽略 `simulation_joint_velocity_limit_rad_s`。bt_control 新增 `~climb_config_file`
+（默认 `climb_compact.json`，在控制 config 目录内解析）。
+
+注意：bt_control 的 `ClimbMode` 总会用 `~climb_foot_gate_m`（默认 0.02）覆盖配置的 `max_foot_target_error_m`（front 配置自带 0.04），实机运行 front 须在 launch 中显式设置。非 hardware 且 `preview_time_only_stage_advance=false` 时，`update()` 与 Python 一致走反馈检查点逻辑（超时按控制 dt 推进）。
+
+当前状态：金标含 front 用例后，除下述两个既有差异外全部通过（ResetAndWalk 与
+KinematicsGolden 的失败为本改动之前就存在，未处理）。移植中发现并修复的典型差异：`wrap_angle` 的
 Python 取模符号语义、`rows @ T.T` 的齐次变换列向量等价形式
 （`T @ h` 而非 `T.T @ h`）、`np.interp/np.argmax` 的边界/平局语义。
 

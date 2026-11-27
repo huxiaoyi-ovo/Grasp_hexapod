@@ -64,17 +64,34 @@ THIGH_TO_KNEE_LENGTH = 0.05236
 KNEE_TO_ANKLE_LENGTH = 0.07745
 FOOT_RADIUS = 0.0065
 
-# 标准工作中心保持108.971 mm外展半径，同时让末段严格竖直。
-STAND_KNEE_ANGLE = np.deg2rad(43.035535181)
-STAND_ANKLE_ANGLE = np.deg2rad(-98.531183330)
-STAND_GEOMETRIC_ANGLES = np.tile(
+# 攀爬准备姿态（旧默认站姿，数值逐位保持）：标准工作中心保持108.971 mm外展半径，
+# 同时让末段严格竖直。所有攀爬入口、P0和攀爬/对接几何都以它为准。
+CLIMB_PREP_KNEE_ANGLE = np.deg2rad(43.035535181)
+CLIMB_PREP_ANKLE_ANGLE = np.deg2rad(-98.531183330)
+CLIMB_PREP_GEOMETRIC_ANGLES = np.tile(
     np.array(
-        [0.0, STAND_KNEE_ANGLE, STAND_ANKLE_ANGLE],
+        [0.0, CLIMB_PREP_KNEE_ANGLE, CLIMB_PREP_ANKLE_ANGLE],
         dtype=np.float64,
     ),
     (6, 1),
 )
-Q_STAND = STAND_GEOMETRIC_ANGLES / JOINT_AXIS_SIGNS
+Q_CLIMB_PREP = CLIMB_PREP_GEOMETRIC_ANGLES / JOINT_AXIS_SIGNS
+
+# 行走站姿 Q_STAND（冻结字面值，与C++ makeQStand 逐位一致）。
+# 定义：髋坐标系足端 = (rho*cos(beta), rho*sin(beta), -0.115)，rho = 0.125 m，
+# beta = s*(-10 deg)，s = +1 lb、-1 lf、0 lm、-1 rb、+1 rf、0 rm（前后足向外侧转10度）。
+# 行：lb, lf, lm, rb, rf, rm；列（控制器关节顺序）：thigh, knee, ankle。机身高约96 mm。
+Q_STAND = np.array(
+    [
+        [0.17453630454812805, -0.34908021850852294, 1.318643074432592],
+        [-0.1745295458507378, -0.34908021850852256, 1.3186430744325917],
+        [3.3793486951084017e-06, -0.3490802185085229, 1.3186430744325923],
+        [-0.1745295458507378, 0.34908021850852256, -1.3186430744325917],
+        [0.17453630454812805, 0.34908021850852294, -1.318643074432592],
+        [3.3793486951084017e-06, 0.3490802185085229, -1.3186430744325923],
+    ],
+    dtype=np.float64,
+)
 
 # 控制器顺序的URDF机械限位；公共控制层和Isaac Gym使用同一组边界。
 JOINT_LOWER = np.tile(

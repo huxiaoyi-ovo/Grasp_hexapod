@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """六足机器人行为树（py_trees 可运行实现）——统一模式执行版。
 
-架构（对应 src/docs/BT_INTERFACES.md）：
+架构（对应 src/docs/BT_INTERFACE_GUIDE.md）：
     - 所有运动/任务动作统一为“模式”：home / walk / climb / dock /
       spin_search / release / approach；连续性子动作（tag 导引到充电桩、
       六腿抬起、夹爪夹紧、结束确认、RTK 粗导航 + 视觉 tag 伺服到攀爬起点

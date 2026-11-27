@@ -18,12 +18,16 @@
 
   <!-- 控制核心参数（与 grasp_hexapod_control/launch/control_stack_cpp.launch 同名同默认）。 -->
   <arg name="control_source" default="teleop"/>
+  <arg name="visual_guidance_enabled" default="false"/>
+  <arg name="visual_guidance_config" default="$(find grasp_hexapod_bt_control)/config/phase1_visual.yaml"/>
   <arg name="controller_rate_hz" default="30.0"/>
   <arg name="enable_link_collision_check" default="false"/>
   <arg name="max_feedback_age" default="0.30"/>
   <arg name="max_feedback_skew" default="0.20"/>
   <arg name="max_cmd_vel_age" default="0.2"/>
-  <arg name="climb_foot_gate_m" default="0.02"/>
+  <!-- 攀爬默认是正面 v16.7（bt_control_node 的 ~climb_config_file 默认值），
+       其 FK 检查点门限为 0.04 m。 -->
+  <arg name="climb_foot_gate_m" default="0.04"/>
   <arg name="enable_real_climb" default="true"/>
   <arg name="climb_side" default="left"/>
   <arg name="enable_real_dock" default="true"/>
@@ -117,6 +121,8 @@
   <!-- 行为树控制节点：不订阅 /joy，服务切换状态机，walk 由 /cmd_vel 驱动。 -->
   <node pkg="grasp_hexapod_bt_control" type="bt_control_node"
         name="grasp_hexapod_bt_control" output="screen" required="true">
+    <rosparam if="$(arg visual_guidance_enabled)" command="load" file="$(arg visual_guidance_config)"/>
+    <param name="visual_guidance_enabled" value="$(arg visual_guidance_enabled)"/>
     <param name="control_config_dir" value="$(find grasp_hexapod_control)/config"/>
     <param name="control_source" value="$(arg control_source)"/>
     <param name="controller_rate_hz" value="$(arg controller_rate_hz)"/>

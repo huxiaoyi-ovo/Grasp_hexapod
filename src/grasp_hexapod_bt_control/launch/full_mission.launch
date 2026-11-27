@@ -1,0 +1,163 @@
+<launch>
+  <!--
+    !!! FULL MISSION (FRONT CLIMB + DOCK) — NOT CERTIFIED FOR HARDWARE !!!
+    Front climbing and docking on hardware are not certified. Run only with
+    harness/support and the e-stop within reach, under explicit operator
+    authorization.
+    Timing note: climb_front_v16_7 is timed for the shared 4 rad/s hardware step
+    cap (CPU/C++ replay: zero clips, peak 3.7 rad/s; C++ == Python per frame).
+    Simulation evidence does not prove contact, load, friction or stability;
+    follow the staged bring-up in CLAUDE_HANDOFF.md (suspended dry run first).
+    Route: climb_config_file selects climb_front_v16_7.json (previous routes: climb_front_v16_6.json, climb_front_v16_1.json, climb_front_v16.json, climb_front_v11.json,
+    climb_front_direct.json) and allow_front_hardware=true is the explicit
+    hardware opt-in read by ClimbMode; without it a front config is rejected.
+    Default: start_sequence=false. Nothing is sequenced unless requested.
+  -->
+
+  <!-- Same camera/perception args as phase1_visual.launch. -->
+  <arg name="config" default="$(find grasp_hexapod_bt_control)/config/phase1_visual.yaml"/>
+  <arg name="start_camera" default="true"/>
+  <arg name="start_perception" default="true"/>
+  <arg name="backend" default="tensorrt"/>
+  <arg name="yolo_python" default="$(find xiaolan_yolo_detection)/../../.venv/jetson-gpu/bin/python3"/>
+  <arg name="model_path" default="$(find xiaolan_yolo_detection)/models/best.onnx"/>
+  <arg name="engine_path" default="$(find xiaolan_yolo_detection)/models/best.engine"/>
+  <arg name="left_port" default="/dev/ttyTHS0"/>
+  <arg name="right_port" default="/dev/ttyACM0"/>
+  <arg name="baudrate" default="115200"/>
+  <arg name="servo_diagnostics" default="true"/>
+  <arg name="camera_fps" default="15"/>
+  <arg name="perception_config" default="$(find xiaolan_yolo_detection)/config/xiaolan_yolo.yaml"/>
+  <!-- CPU option (default off until A/B-measured on the robot): the camera
+       skips its full-frame software depth->colour alignment and target_3d
+       aligns only the YOLO ROI pixels (yolo_core.depth_median_sparse, same
+       result within a few mm in tests). Measure with
+       tests/resource_profile.py before/after. -->
+  <arg name="sparse_depth_align" default="false"/>
+
+  <!-- Full-mission additions. -->
+  <arg name="start_tag_detector" default="true"/>
+  <!-- Must equal tag_guidance_id in phase1_visual.yaml (the controller reads it
+       from that YAML, which is loaded on the controller node). -->
+  <!-- Approach tag on Xiaolan confirmed on hardware 2026-11-26 (tag36h11 ID 255,
+       50 mm black-border edge; ZCode session + user). -->
+  <arg name="tag_id" default="255"/>
+  <arg name="tag_size_m" default="0.050"/>
+  <!-- Detector cost on the Jetson (848x480 @ 15 Hz, measured 2026-11-26):
+       decimate 1.0 = 145% CPU, 2.0 = 60-65% with identical detections and pose.
+       Integer values only (2.5 blurs the tag). 2.0 still detects a 50-60 mm tag
+       out to about 0.8 m, beyond the 0.5 m tag_handoff_max_z_m gate. -->
+  <arg name="tag_decimate" default="2.0"/>
+  <arg name="tag_threads" default="2"/>
+  <!-- false (default): the detector reads the raw color image; the image_proc
+       debayer+rectify chain (a full-frame remap every frame) is not started.
+       The Gemini 336L color distortion is small (k1 about -0.032) and the P0
+       teaching absorbs the remaining bias, because teaching and approach see
+       the same image. true restores the rectified path (re-teach after a
+       change). -->
+  <arg name="tag_rectify" default="false"/>
+  <arg name="climb_foot_gate_m" default="0.04"/>
+  <arg name="start_dock_perception" default="true"/>
+  <arg name="start_sequence" default="false"/>
+  <!-- Desktop viewing on the robot computer: YOLO overlay window, AprilTag
+       overlay window and bottom dock camera window. The image_view windows are
+       skipped automatically when DISPLAY is unset (image_view segfaults without
+       an X display, e.g. over SSH). -->
+  <arg name="show_windows" default="true"/>
+  <arg name="stop_after" default=""/>
+  <arg name="home_before_dock" default="false"/>
+
+  <!-- Controller stack: control_only.launch directly (not phase1_visual.launch,
+       which hard-codes enable_real_climb/enable_real_dock=false). -->
+  <include file="$(find grasp_hexapod_bt_control)/launch/control_only.launch">
+    <arg name="visual_guidance_enabled" value="true"/>
+    <arg name="visual_guidance_config" value="$(arg config)"/>
+    <arg name="enable_real_climb" value="true"/>
+    <arg name="climb_foot_gate_m" value="$(arg climb_foot_gate_m)"/>
+    <arg name="enable_real_dock" value="true"/>
+    <arg name="start_dock_perception" value="$(arg start_dock_perception)"/>
+    <arg name="left_port" value="$(arg left_port)"/>
+    <arg name="right_port" value="$(arg right_port)"/>
+    <arg name="baudrate" value="$(arg baudrate)"/>
+    <arg name="servo_diagnostics" value="$(arg servo_diagnostics)"/>
+    <arg name="controller_rate_hz" value="30.0"/>
+    <arg name="servo_rate_hz" value="30.0"/>
+  </include>
+
+  <!-- Controller params not exposed as control_only args. tag_guidance_enabled
+       and tag_guidance_id come from phase1_visual.yaml. -->
+  <!-- One tag id for the detector and the controller: overrides the
+       tag_guidance_id loaded from phase1_visual.yaml, so tag_id:=N on the
+       command line can never leave the two looking for different tags. -->
+  <param name="/grasp_hexapod_bt_control/tag_guidance_id" value="$(arg tag_id)"/>
+  <param name="/grasp_hexapod_bt_control/climb_config_file" value="climb_front_v16_7.json"/>
+  <param name="/grasp_hexapod_bt_control/allow_front_hardware" value="true"/>
+
+  <include if="$(arg start_camera)" file="$(find xiaolan_yolo_detection)/launch/xiaolan_orbbec_camera.launch">
+    <arg name="camera_fps" value="$(arg camera_fps)"/>
+    <arg name="depth_registration" value="$(eval not arg('sparse_depth_align'))"/>
+  </include>
+  <include if="$(arg start_perception)" file="$(find xiaolan_yolo_detection)/launch/xiaolan_yolo.launch">
+    <arg name="backend" value="$(arg backend)"/>
+    <arg name="yolo_python" value="$(arg yolo_python)"/>
+    <arg name="model_path" value="$(arg model_path)"/>
+    <arg name="engine_path" value="$(arg engine_path)"/>
+    <arg name="config" value="$(arg perception_config)"/>
+    <arg name="show_window" value="$(arg show_windows)"/>
+    <arg name="sparse_align" value="$(arg sparse_depth_align)"/>
+  </include>
+
+  <!-- AprilTag detector for tag guidance. phase1_visual.launch does not provide
+       /camera/color/image_rect_color, so rectify it here (same pattern as
+       xiaolan_tag_system.launch). Publishes to /xiaolan/tag_detections, the
+       approach.tag_detections topic in config/mode_topics.yaml. -->
+  <group if="$(arg start_tag_detector)">
+    <group if="$(arg tag_rectify)" ns="/camera/color">
+      <node pkg="nodelet" type="nodelet" name="tag_image_proc_manager"
+            args="manager" output="screen"/>
+      <include file="$(find image_proc)/launch/image_proc.launch">
+        <arg name="manager" value="/camera/color/tag_image_proc_manager"/>
+      </include>
+    </group>
+    <node pkg="apriltag_ros" type="apriltag_ros_continuous_node"
+          name="xiaolan_apriltag_detector" clear_params="true" output="screen">
+      <param name="tag_family" value="tag36h11"/>
+      <param name="tag_threads" value="$(arg tag_threads)"/>
+      <param name="tag_decimate" value="$(arg tag_decimate)"/>
+      <param name="tag_refine_edges" value="1"/>
+      <param name="publish_tf" value="false"/>
+      <param name="publish_tag_detections_image" type="bool" value="true"/>
+      <!-- subst_value is required: without it the detector receives the literal
+           string "$(arg tag_id)", fails to load the tag and publishes nothing. -->
+      <rosparam param="standalone_tags" subst_value="true">
+        - {id: $(arg tag_id), size: $(arg tag_size_m), name: xiaolan_tag}
+      </rosparam>
+      <rosparam param="tag_bundles">[]</rosparam>
+      <remap from="image_rect" to="$(eval '/camera/color/image_rect_color' if arg('tag_rectify') else '/camera/color/image_raw')"/>
+      <remap from="camera_info" to="/camera/color/camera_info"/>
+      <remap from="tag_detections" to="/xiaolan/tag_detections"/>
+      <remap from="tag_detections_image" to="/xiaolan/tag_detections_image"/>
+    </node>
+    <node if="$(eval arg('show_windows') and optenv('DISPLAY', '') != '')"
+          pkg="image_view" type="image_view" name="tag_view" output="screen">
+      <remap from="image" to="/xiaolan/tag_detections_image"/>
+      <param name="window_name" value="AprilTag (approach alignment)"/>
+      <param name="autosize" value="true"/>
+    </node>
+  </group>
+
+  <!-- Bottom dock camera (raw image; the ring detector publishes no overlay yet). -->
+  <node if="$(eval arg('show_windows') and arg('start_dock_perception') and optenv('DISPLAY', '') != '')"
+        pkg="image_view" type="image_view" name="dock_view" output="screen">
+    <remap from="image" to="/dock_camera/image_raw"/>
+    <param name="window_name" value="Dock camera (bottom)"/>
+    <param name="autosize" value="true"/>
+  </node>
+
+  <!-- Sequencer: only when explicitly requested. -->
+  <node if="$(arg start_sequence)" pkg="grasp_hexapod_bt_control" type="full_mission_sequence"
+        name="full_mission_sequence" output="screen">
+    <param name="stop_after" value="$(arg stop_after)"/>
+    <param name="home_before_dock" value="$(arg home_before_dock)"/>
+  </node>
+</launch>

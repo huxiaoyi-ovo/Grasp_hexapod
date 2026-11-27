@@ -1,0 +1,19 @@
+{
+  "contract": "one visible v7 GPU preview with observation-only wrapper",
+  "argv": [
+    "run_sim.py", "--climb-start", "--climb-config", "src/grasp_hexapod_control/config/climb_front_optimized.json", "--climb-speed", "1", "--climb-joint-speed", "1.2", "--climb-metrics", "metrics.json"
+  ],
+  "env": {"DISPLAY": ":0", "XAUTHORITY": "/run/user/1000/gdm/Xauthority"},
+  "config_sha256": "b2351359bd492dd40c04d30f5bfd365084730b4802543cf64ff2de4befd3ec7e",
+  "runtime_sha256": "4a3ec853a8868e911e8e6d6b4b80845afef53b4b24207ce2859882bb03035db1",
+  "observer_runner_sha256": "e189b23beb30f6c09e71256024ea255e2359a002515fc8ce310d8d55c01783c4",
+  "simulator_process_exit_code": 1,
+  "status": "PRE_PHYSICS_CONFIG_REJECTION",
+  "viewer_mapped": false,
+  "stages_advanced": false,
+  "failure": "front simulation joint velocity cap 6 rad/s exceeds selected Isaac DOF limit 4.8 rad/s at required --climb-joint-speed 1.2",
+  "console_sha256": "3142d00fd051400af6dcec7b984ba43cf1a59513ea7bd6e502c562d0e2f47040",
+  "metrics_created": false,
+  "samples_created": false,
+  "boundary": "no physics, controller stage, or observation sample executed; no parameter override or config mutation applied"
+}

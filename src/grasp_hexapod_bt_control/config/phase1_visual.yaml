@@ -1,0 +1,96 @@
+visual_guidance_enabled: true
+visual_target_max_age_s: 0.25
+visual_confirm_frames: 3
+visual_lock_angle_rad: 0.10
+visual_align_angle_rad: 0.15
+visual_search_yaw_rate: 0.15
+visual_yaw_gain: 0.8
+visual_max_yaw_rate: 0.15
+visual_max_forward_speed_m_s: 0.03
+# z > visual_far_distance_m 时前进上限在 visual_far_ramp_m 内线性升到远距离上限；1 m 内保持 0.03 m/s。
+visual_far_distance_m: 1.0
+visual_far_ramp_m: 0.3
+visual_far_max_forward_speed_m_s: 0.08
+visual_distance_gain: 0.3
+visual_stop_distance_m: 0.20
+visual_stop_tolerance_m: 0.02
+visual_expected_target_frame: camera_color_optical_frame
+visual_input_startup_timeout_s: 2.0
+visual_input_loss_timeout_s: 0.5
+visual_diagnostics_period_s: 2.0
+visual_settle_s: 0.25
+visual_loss_timeout_s: 1.0
+visual_search_timeout_s: 60.0
+visual_approach_timeout_s: 120.0
+
+# --- AprilTag handoff + servo inside the visual approach mode ---------------
+# While the coarse YOLO approach runs, fresh detections of tag_guidance_id are
+# counted; after tag_handoff_confirm_frames consecutive NEW valid detections
+# the run switches permanently to tag servo (YOLO ignored). Detection topic:
+# mode_topics.yaml approach.tag_detections. Frame must equal
+# visual_expected_target_frame. Camera-frame diagnostics only: neither the
+# 0.20 m coarse stop nor the reference below is a body-clearance claim.
+tag_guidance_enabled: true
+tag_guidance_id: 255  # hardware tag (tag36h11 ID 255, 50 mm); must equal full_mission.launch tag_id
+tag_handoff_confirm_frames: 3
+# Per-frame source arbitration (2026-11-27): tag first (<= tag_handoff_max_z_m,
+# tag_handoff_confirm_frames consistent detections); a tag lost for
+# tag_handover_loss_s falls back to YOLO (driving only until the coarse stop
+# distance) or, with neither source usable, the robot stops and waits; failure
+# only after approach_wait_timeout_s of waiting or visual_approach_timeout_s in
+# total. The IMU blind finish is not used in this mode.
+tag_fallback_on_loss: true
+approach_wait_timeout_s: 5.0
+# Gate: only tag detections with camera depth z <= 0.5 m count toward the handoff (single-tag yaw is ambiguous farther away; also keeps the 0.02 m/s tag advance inside the 60 s timeout).
+tag_handoff_max_z_m: 0.5
+# Jump: a yaw change > 0.10 rad (+ max_yaw_rate*dt after handoff) between accepted samples is physically impossible for the robot and is rejected as pose ambiguity.
+tag_max_yaw_jump_rad: 0.10
+tag_max_age_s: 0.25
+# Taught reference of the tag in camera_color_optical_frame
+# (x right, y down, z forward). !!! PLACEHOLDERS, MUST BE TAUGHT on the rig:
+#   robot at the climb start pose P0, walking stance, then
+#   rosrun grasp_hexapod_bt_control record_tag_reference.py _tag_id:=<ID> _samples:=30
+# (hardware 2026-11-27: the tag stays visible down to ~0.15 m camera depth, so
+# it is taught at P0 directly; _offset_from_p0_m:=<D> only as a back-off
+# fallback, then tag_p0_z_m is a virtual depth at P0).
+# yaw = atan2(R(2,0), R(0,0)) of the tag frame in the camera frame (tag x axis).
+# The camera is pitched slightly down; the reference absorbs it, but re-teach
+# whenever the walking stance (camera height) changes. After handoff: align
+# (lateral + yaw), advance on the tag toward z_target = tag_p0_z_m -
+# tag_final_overshoot_m; only if the tag is lost finish the remaining distance
+# blind (leg odometry + IMU heading hold).
+tag_ref_x_m: 0.0
+# virtual tag depth at P0 = taught depth - offset D; computed by record_tag_reference.py
+tag_p0_z_m: 0.15
+tag_ref_yaw_rad: 0.0
+tag_final_overshoot_m: 0.01
+tag_lateral_gain: 0.5
+tag_forward_gain: 0.5
+tag_yaw_gain: 0.8
+tag_max_lateral_speed_m_s: 0.02
+tag_max_forward_speed_m_s: 0.02
+tag_max_yaw_rate: 0.10
+tag_position_tolerance_m: 0.01
+tag_yaw_tolerance_rad: 0.035
+tag_settle_s: 0.5
+tag_loss_timeout_s: 1.0
+tag_align_timeout_s: 60.0
+# Handover to the blind finish while advancing: no fresh valid tag for
+# tag_handover_loss_s, or last valid z < tag_min_reliable_z_m (0 = disabled).
+tag_handover_loss_s: 0.3
+tag_min_reliable_z_m: 0.0
+tag_max_blind_distance_m: 0.25
+# Blind finish: leg odometry (stance feet from joint feedback) + IMU yaw hold.
+# The remaining distance is the last valid tag depth minus z_target minus the
+# leg odometry travelled since that sample. The servo deadband is 0.5 x the
+# tolerances; the 2x advance gate, handover check and success stay at 1 x.
+tag_blind_speed_m_s: 0.015
+tag_heading_gain: 0.8
+tag_max_heading_error_rad: 0.087
+tag_odom_mismatch_m: 0.03
+tag_blind_timeout_s: 30
+# Sign of the raw IMU yaw axis relative to base_link +z (+1 or -1 only). Check on
+# the robot: with the launch running, turn the standing robot by hand
+# counter-clockwise (seen from above); the IMU yaw (rostopic echo
+# /grasp_hexapod/imu, quaternion yaw) must INCREASE; if it decreases set -1.
+tag_imu_yaw_sign: 1.0

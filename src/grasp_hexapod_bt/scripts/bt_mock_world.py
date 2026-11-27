@@ -50,7 +50,7 @@ DEFAULT_TIMELINE = {
     "mode_release": 11.0,      # 释放小蓝（夹爪 open 到位）
     "mode_spin_search": 13.0,  # 自转搜索（感知发现小蓝）
     "mode_approach": 24.0,     # 接近导航到攀爬点（粗导航 + tag 精导航）
-    "mode_climb": 45.0,        # 攀爬 C1→C35
+    "mode_climb": 45.0,        # 攀爬（compact 阶段序列）
     "mode_dock": 65.0,         # 对接（导引+抬腿+夹爪clamp）
 }
 
@@ -100,7 +100,7 @@ class ModeWorld:
 
 
 class MockRosBridge(hexapod_bt.BridgeContext):
-    """按时间线实现桥接契约（话题/服务语义与 BT_INTERFACES.md 一致）。"""
+    """按时间线实现桥接契约（话题/服务语义与 src/docs/BT_INTERFACE_GUIDE.md 一致）。"""
 
     def __init__(self, node):
         super().__init__()

@@ -82,7 +82,7 @@ rosservice call /grasp_hexapod/switch_mode "target_mode: 'home'"
 | `walk` | 遥控速度连续行走(仅测试链,随 remote_cmd) | 连续执行,直到遥控切走 |
 | `spin_search` | 【假实现】保持当前姿态 `~spin_search_fake_duration_s`(默认 5s)后成功;真实圆周搜索待实现 | 定时到 |
 | `approach` | 【默认假实现】保持当前姿态 `~approach_fake_duration_s`(默认 5s)后成功;真实 RTK+tag 导航在 `~approach_fake:=false` 时启用 | 假:定时到 / 真:ready for climb |
-| `climb` | 攀爬姿态准备 + C1→C35 步态序列 | 全程爬完并稳定 |
+| `climb` | 攀爬姿态准备 + compact 阶段序列（默认正面 v11，见 `~climb_config_file`） | 全程爬完并稳定 |
 | `dock` | tag 导引到充电桩 → 六腿抬起 → 调夹爪 `clamp` → 结束确认 | 四步全部完成 |
 | `release` | 调夹爪 `open` 松开载荷 | 夹爪张到位 |
 

@@ -10,8 +10,26 @@ import rospy
 from cv_bridge import CvBridge
 from sensor_msgs.msg import Image, CameraInfo
 from std_msgs.msg import String
-from xiaolan_yolo_detection.msg import XiaolanDetection, XiaolanTarget
-from xiaolan_yolo_detection.yolo_core import depth_median, StableTarget
+from xiaolan_yolo_detection.msg import XiaolanDetection, XiaolanTarget, PerceptionStatus
+from xiaolan_yolo_detection.yolo_core import depth_median, depth_median_sparse, StableTarget
+
+
+def validate_sparse(det, depth, depth_info, color_info):
+    """Sparse mode: depth stays in its own frame; colour intrinsics are required."""
+    if depth_info is None or color_info is None:
+        raise ValueError('CAMERA_INFO_MISSING')
+    if not det.header.frame_id or not depth.header.frame_id:
+        raise ValueError('EMPTY_FRAME_ID')
+    if (depth.width, depth.height) != (depth_info.width, depth_info.height):
+        raise ValueError('DEPTH_INFO_SIZE_MISMATCH')
+    if (det.image_width, det.image_height, det.header.frame_id) != (
+            color_info.width, color_info.height, color_info.header.frame_id):
+        raise ValueError('COLOR_INFO_MISMATCH')
+    for info in (depth_info, color_info):
+        if len(info.K) != 9 or not np.isfinite(info.K).all() or info.K[0] <= 0 or info.K[4] <= 0:
+            raise ValueError('INVALID_INTRINSICS')
+        if info.binning_x > 1 or info.binning_y > 1 or info.roi.x_offset or info.roi.y_offset:
+            raise ValueError('ROI/BINNING_NOT_SUPPORTED')
 
 
 def validate_alignment(det, depth, aligned_info, color_info):
@@ -33,17 +51,38 @@ def validate_alignment(det, depth, aligned_info, color_info):
         raise ValueError('ALIGNED_DEPTH_K_DIFFERS_FROM_COLOR_K')
 
 
+def validate_depth_source(depth, now, max_age):
+    if depth.encoding not in ('16UC1', '32FC1'):
+        raise ValueError('UNSUPPORTED_DEPTH_ENCODING')
+    stamp = depth.header.stamp
+    age = (now-stamp).to_sec()
+    if stamp.to_nsec() <= 0 or age < -.05:
+        raise ValueError('INVALID_DEPTH_TIMESTAMP')
+    if age > max_age:
+        raise ValueError('STALE_DEPTH_STREAM')
+
+
 class Target3DNode:
     def __init__(self):
         p = rospy.get_param
         self.slop = float(p('~depth_sync_tolerance', .025))
         self.wait = float(p('~depth_wait_timeout', .08))
         self.timeout = float(p('~target_timeout', .5))
-        self.max_result_age = float(p('~max_result_age', .8))
+        self.max_result_age = float(p('~max_result_age', .25))
         self.hold_time = float(p('~max_hold_seconds', .25))
         self.roi = int(p('~roi_size', 9))
+        # ~sparse_align: the camera driver does NOT align depth to colour
+        # (depth_registration:=false saves its full-frame software D2C); only
+        # the ROI depth pixels are moved into the colour frame here, using the
+        # driver's static TF depth->colour.  Off by default.
+        self.sparse = bool(p('~sparse_align', False))
+        self.extrinsic = None
+        if self.sparse:
+            import tf2_ros
+            self.tf_buffer = tf2_ros.Buffer()
+            self.tf_listener = tf2_ros.TransformListener(self.tf_buffer)
         self.min_valid = int(p('~min_valid_depth_pixels', 5))
-        self.min_z, self.max_z = float(p('~min_depth', .2)), float(p('~max_depth', 1.))
+        self.min_z, self.max_z = float(p('~min_depth', .2)), float(p('~max_depth', 2.5))
         self.center = float(p('~center_tolerance_m', .03))
         confirm, lost = int(p('~confirm_frames', 2)), int(p('~lost_tolerance_frames', 3))
         max_x, max_z, alpha = float(p('~max_x_jump_m', .15)), float(p('~max_z_jump_m', .15)), float(p('~ema_alpha', .4))
@@ -56,6 +95,8 @@ class Target3DNode:
             raise ValueError('Invalid 3D/filter parameters')
         self.filter = StableTarget(confirm, lost, max_x, max_z, alpha)
         self.bridge, self.lock = CvBridge(), threading.Lock()
+        # Wakes run() on new input instead of polling every 5 ms.
+        self.wake = threading.Event()
         cache_size = int(p('~depth_cache_size', 45))
         if cache_size < 1:
             raise ValueError('depth_cache_size must be positive')
@@ -67,18 +108,57 @@ class Target3DNode:
         self.last_input = time.monotonic()
         self.last_source_stamp = -1
         self.last_watchdog = self.last_log = 0.
+        self.health_hz = float(p('~health_publish_hz', 10.))
+        self.diagnostics_period = float(p('~diagnostics_period_s', 2.))
+        if not np.isfinite([self.health_hz, self.diagnostics_period]).all() or self.health_hz <= 0 or self.diagnostics_period <= 0:
+            raise ValueError('Invalid health parameters')
+        self.last_health_publish = self.last_health_log = 0.
+        self.last_health_key = None
+        self.last_detection = self.last_depth = None
+        self.last_inference_ms = 0.
+        self.window = deque()
+        self.window_start = time.monotonic()
+        self.last_summary = {}
+        self.health_state = PerceptionStatus.WAITING
+        self.health_reason = 'WAITING_FOR_INPUTS'
         self.pub = rospy.Publisher('/xiaolan/target', XiaolanTarget, queue_size=1)
         self.diag = rospy.Publisher('/xiaolan/target_debug', String, queue_size=1)
+        self.health_pub = rospy.Publisher('/xiaolan/perception_status', PerceptionStatus, queue_size=1)
         self.subs = [
             rospy.Subscriber(p('~detection_topic', '/xiaolan/detection'), XiaolanDetection, self.detection_cb, queue_size=1),
-            rospy.Subscriber(p('~aligned_depth_topic', '/camera/aligned_depth_to_color/image_raw'), Image, self.depth_cb, queue_size=1, buff_size=2**24),
-            rospy.Subscriber(p('~aligned_info_topic', '/camera/aligned_depth_to_color/camera_info'), CameraInfo, self.aligned_cb, queue_size=1),
+            rospy.Subscriber(p('~aligned_depth_topic', '/camera/depth/image_raw'), Image, self.depth_cb, queue_size=1, buff_size=2**24),
+            rospy.Subscriber(p('~aligned_info_topic', '/camera/depth/camera_info'), CameraInfo, self.aligned_cb, queue_size=1),
             rospy.Subscriber(p('~color_info_topic', '/camera/color/camera_info'), CameraInfo, self.color_cb, queue_size=1),
         ]
+
+    def check_geometry(self, det, depth, ai, ci):
+        if self.sparse:
+            validate_sparse(det, depth, ai, ci)
+        else:
+            validate_alignment(det, depth, ai, ci)
+
+    def depth_to_color(self, color_frame, depth_frame):
+        """Static depth->colour extrinsic (p_c = R p_d + t), looked up once."""
+        if self.extrinsic is None or self.extrinsic[0] != (color_frame, depth_frame):
+            try:
+                tf = self.tf_buffer.lookup_transform(color_frame, depth_frame, rospy.Time(0))
+            except Exception:
+                raise ValueError('NO_DEPTH_TO_COLOR_TF')
+            q, t = tf.transform.rotation, tf.transform.translation
+            x, y, z, w = q.x, q.y, q.z, q.w
+            rot = np.array([[1-2*(y*y+z*z), 2*(x*y-z*w), 2*(x*z+y*w)],
+                            [2*(x*y+z*w), 1-2*(x*x+z*z), 2*(y*z-x*w)],
+                            [2*(x*z-y*w), 2*(y*z+x*w), 1-2*(x*x+y*y)]])
+            self.extrinsic = ((color_frame, depth_frame), rot, np.array([t.x, t.y, t.z]))
+            rospy.loginfo('sparse_align: depth->colour t=%s m', np.round(self.extrinsic[2], 4).tolist())
+        return self.extrinsic[1], self.extrinsic[2]
 
     def depth_cb(self, msg):
         with self.lock:
             self.depths.append(msg)
+            self.last_depth = msg
+            self.window.append(('depth', time.monotonic()))
+        self.wake.set()
 
     def aligned_cb(self, msg):
         with self.lock:
@@ -92,6 +172,52 @@ class Target3DNode:
         with self.lock:
             self.serial += 1
             self.pending = (self.serial, msg, time.monotonic())
+        self.wake.set()
+
+    def _rate(self, kind, now):
+        with self.lock:
+            while self.window and now-self.window[0][1] > 2.:
+                self.window.popleft()
+            elapsed = now-self.window_start
+            if not self.window or elapsed < .1:
+                return 0.
+            elapsed = min(2., elapsed)
+            return sum(item[0] == kind for item in self.window)/elapsed
+
+    def set_health(self, state, reason, det=None, depth=None):
+        self.health_state, self.health_reason = state, reason
+        if det is not None:
+            self.last_detection = det
+            self.last_inference_ms = float(det.inference_ms)
+        if depth is not None:
+            self.last_depth = depth
+
+    def publish_health(self, now, force=False):
+        key = (self.health_state, self.health_reason)
+        if not force and key == self.last_health_key and now-self.last_health_publish < 1./self.health_hz:
+            return
+        det, depth = self.last_detection, self.last_depth
+        out = PerceptionStatus(state=self.health_state, reason=self.health_reason,
+                               detection_hz=self._rate('detection', now), depth_hz=self._rate('depth', now),
+                               target_hz=self._rate('target', now), inference_ms=self.last_inference_ms)
+        if det is not None:
+            out.rgb_stamp = det.header.stamp
+            out.header.frame_id = det.header.frame_id
+        if depth is not None:
+            out.depth_stamp = depth.header.stamp
+        if det is not None and depth is not None:
+            out.header.stamp = min(det.header.stamp, depth.header.stamp)
+        self.health_pub.publish(out)
+        summary = self.last_summary
+        source_age = (rospy.Time.now()-summary['source'].header.stamp).to_sec() if summary.get('source') is not None else None
+        input_age = (rospy.Time.now()-summary['current'].header.stamp).to_sec() if summary.get('current') is not None else None
+        if key != self.last_health_key and now-self.last_health_log >= .5:
+            rospy.loginfo('3D state=%d reason=%s X=%s Z=%s source_age=%s input_age=%s skew=%s infer_ms=%.1f det_hz=%.1f depth_hz=%.1f target_hz=%.1f', out.state, out.reason, summary.get('x'), summary.get('z'), source_age, input_age, summary.get('skew'), out.inference_ms, out.detection_hz, out.depth_hz, out.target_hz)
+            self.last_health_log = now
+        elif now-self.last_health_log >= self.diagnostics_period:
+            rospy.loginfo('3D summary state=%d reason=%s X=%s Z=%s source_age=%s input_age=%s skew=%s infer_ms=%.1f det_hz=%.1f depth_hz=%.1f target_hz=%.1f', out.state, out.reason, summary.get('x'), summary.get('z'), source_age, input_age, summary.get('skew'), out.inference_ms, out.detection_hz, out.depth_hz, out.target_hz)
+            self.last_health_log = now
+        self.last_health_key, self.last_health_publish = key, now
 
     def publish(self, value, source, current, reason, dt=None, depth_stats=None):
         out = XiaolanTarget(status='NOT_FOUND')
@@ -109,15 +235,19 @@ class Target3DNode:
             depth_rgb_dt=dt, status=out.status, x=out.x_target, z=out.z_target,
             rgb_age_s=(rospy.Time.now()-current.header.stamp).to_sec() if current is not None else None,
             depth_stats=depth_stats))))
-        if time.monotonic()-self.last_log >= 2.:
-            rospy.loginfo('3D confidence=%.3f X=%+.3f Z=%.3f status=%s reason=%s depth_rgb_dt=%s',
-                          confidence, out.x_target, out.z_target, out.status, reason, dt)
-            self.last_log = time.monotonic()
-            if depth_stats is not None and depth_stats['reason'] != 'MEASURED':
-                rospy.logwarn('Depth ROI: %s', json.dumps(depth_stats))
+        self.last_summary = dict(x=out.x_target, z=out.z_target, reason=reason,
+                                 source=source, current=current, skew=dt)
 
     def process(self, det, depth, ai, ci):
         now = time.monotonic()
+        with self.lock:
+            self.window.append(('detection', now))
+        self.last_detection = det
+        if depth is not None:
+            self.last_depth = depth
+        self.last_inference_ms = float(det.inference_ms)
+        # Every processed frame reclassifies health; an old fault cannot stick.
+        self.health_state, self.health_reason = PerceptionStatus.WAITING, 'PROCESSING'
         # Confirmation follows the input cadence, not the lifetime of held data.
         if now-self.last_input > self.timeout:
             self.filter.reset()
@@ -135,34 +265,63 @@ class Target3DNode:
             self.filter.reset()
             self.last_good_time = None
             self.publish(None, None, det, reason)
+            self.set_health(PerceptionStatus.FAULT, reason, det, depth)
             return
         self.last_source_stamp = det.header.stamp.to_nsec()
         measurement, reason, dt = None, det.reason or 'NO_DETECTION', None
         depth_stats = {}
-        if det.detected:
-            if depth is None:
+        if not det.detected:
+            if det.reason != 'NO_DETECTION':
+                reason = det.reason or 'INFERENCE_FAILURE'
+                self.set_health(PerceptionStatus.FAULT, reason, det, depth)
+            elif depth is None:
                 reason = 'NO_ALIGNED_DEPTH_WITHIN_TOLERANCE'
+                self.set_health(PerceptionStatus.FAULT, reason, det, depth)
             else:
                 try:
-                    validate_alignment(det, depth, ai, ci)
+                    validate_depth_source(depth, rospy.Time.now(), self.max_result_age)
+                    self.check_geometry(det, depth, ai, ci)
+                    self.set_health(PerceptionStatus.NO_TARGET, 'NO_DETECTION', det, depth)
+                except Exception as error:
+                    reason = str(error)
+                    self.set_health(PerceptionStatus.FAULT, reason, det, depth)
+        else:
+            if depth is None:
+                reason = 'NO_ALIGNED_DEPTH_WITHIN_TOLERANCE'
+                self.set_health(PerceptionStatus.FAULT, reason, det, depth)
+            else:
+                try:
+                    validate_depth_source(depth, rospy.Time.now(), self.max_result_age)
+                    self.check_geometry(det, depth, ai, ci)
                     dt = (depth.header.stamp-det.header.stamp).to_sec()
                     arr = self.bridge.imgmsg_to_cv2(depth, 'passthrough')
                     box = (det.bbox_x, det.bbox_y, det.bbox_width, det.bbox_height)
-                    z = depth_median(arr, depth.encoding, box, (det.center_u, det.center_v),
-                                     self.roi, self.min_valid, self.min_z, self.max_z,
-                                     diagnostics=depth_stats)
+                    if self.sparse:
+                        rot, trans = self.depth_to_color(det.header.frame_id, depth.header.frame_id)
+                        z = depth_median_sparse(arr, depth.encoding, ai.K, ci.K, rot, trans, box,
+                                                (det.center_u, det.center_v), self.roi, self.min_valid,
+                                                self.min_z, self.max_z, diagnostics=depth_stats)
+                        kx = ci.K
+                    else:
+                        z = depth_median(arr, depth.encoding, box, (det.center_u, det.center_v),
+                                         self.roi, self.min_valid, self.min_z, self.max_z,
+                                         diagnostics=depth_stats)
+                        kx = ai.K
                     reason = depth_stats['reason']
                     if z is not None:
-                        x = (det.center_u-ai.K[2])*z/ai.K[0]
+                        x = (det.center_u-kx[2])*z/kx[0]
                         measurement, reason = (x, z), 'MEASURED'
                 except Exception as error:
                     # A calibration/format error must never retain valid control data.
                     self.filter.reset()
                     self.publish(None, None, det, str(error), dt)
+                    self.set_health(PerceptionStatus.FAULT, str(error), det, depth)
                     return
         value, source, state = self.filter.update(measurement, det)
         if state == 'VALID':
             self.last_good_time = now
+            with self.lock:
+                self.window.append(('target', now))
         if measurement is not None and state in ('HELD', 'NOT_FOUND'):
             reason = 'JUMP_REJECTED'
         if state == 'HELD' and (self.last_good_time is None or
@@ -173,10 +332,19 @@ class Target3DNode:
             value, source, state = None, None, 'NOT_FOUND'
             reason = 'HOLD_EXPIRED'
         self.publish(value, source, det, state+': '+reason, dt, depth_stats or None)
+        if det.detected and self.health_state != PerceptionStatus.FAULT:
+            self.set_health(PerceptionStatus.TARGET_VALID if state == 'VALID' else PerceptionStatus.TARGET_PENDING,
+                            state+'_'+reason, det, depth)
 
     def watchdog(self, now):
         reason = None
-        if now-self.last_input > self.timeout:
+        depth_stale = self.last_depth is not None and (self.last_depth.header.stamp.to_nsec() <= 0 or
+                (rospy.Time.now()-self.last_depth.header.stamp).to_sec() > self.max_result_age)
+        if self.last_detection is None:
+            reason = 'DETECTION_STREAM_TIMEOUT'
+        elif self.last_depth is None:
+            reason = 'DEPTH_STREAM_TIMEOUT'
+        elif now-self.last_input > self.timeout:
             reason = 'DETECTION_STREAM_TIMEOUT'
         elif self.filter.active:
             if self.filter.misses and (self.last_good_time is None or
@@ -191,11 +359,21 @@ class Target3DNode:
                 self.filter.reset()
                 self.last_good_time = None
             self.publish(None, None, None, reason)
+            self.set_health(PerceptionStatus.FAULT, 'DEPTH_STREAM_TIMEOUT' if depth_stale else reason)
+        elif depth_stale:
+            self.set_health(PerceptionStatus.FAULT, 'DEPTH_STREAM_TIMEOUT')
+        elif self.last_detection is None or self.last_depth is None:
+            self.set_health(PerceptionStatus.WAITING, 'WAITING_FOR_INPUTS')
+        self.publish_health(now)
 
     def run(self):
         handled = -1
         while not rospy.is_shutdown():
+            # Clear before reading the inputs: a callback after this point wakes
+            # the wait below immediately, so no input is missed.
+            self.wake.clear()
             now = time.monotonic()
+            wake_at = self.last_watchdog + .1
             with self.lock:
                 pending = self.pending
                 depths = list(self.depths)
@@ -205,13 +383,25 @@ class Target3DNode:
                 nearest = min(depths, key=lambda d: abs(d.header.stamp.to_nsec()-det.header.stamp.to_nsec())) if depths else None
                 if nearest is not None and abs((nearest.header.stamp-det.header.stamp).to_sec()) > self.slop:
                     nearest = None
-                if not det.detected or nearest is not None or now-received >= self.wait:
+                # Negative health can use the latest validated depth stream;
+                # target geometry remains constrained to the synch tolerance.
+                health_depth = nearest
+                if not det.detected and depths:
+                    health_depth = depths[-1]
+                if (det.detected and (nearest is not None or now-received >= self.wait)) or (
+                        not det.detected and (health_depth is not None or now-received >= self.wait)):
                     handled = serial
-                    self.process(det, nearest, ai, ci)
+                    self.process(det, nearest if det.detected else health_depth, ai, ci)
+                    # Health for this frame goes out with the target (not on the
+                    # next 10 Hz watchdog tick): up to 100 ms less status age.
+                    self.publish_health(time.monotonic(), force=True)
+                else:
+                    wake_at = min(wake_at, received + self.wait)
             if now-self.last_watchdog >= .1:
                 self.watchdog(now)
                 self.last_watchdog = now
-            time.sleep(.005)
+                wake_at = min(wake_at, now + .1)
+            self.wake.wait(max(.001, wake_at - time.monotonic()))
 
 
 if __name__ == '__main__':

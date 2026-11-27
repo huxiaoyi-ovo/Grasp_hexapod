@@ -1,0 +1,834 @@
+{
+  "method": "offline exact nearest-triangle, coplanar-component, and boundary classification from observer q/root; simulator truth diagnostic only",
+  "config_sha256": "661def8c67353f2f58e23cde5f70aa9c34b780b53f017fac7c1cac247e7a99a0",
+  "metrics_sha256": "e4e02a77a90c2157cfbcd35b4fa091779dd4d043e84e833a82a717d22d70d473",
+  "samples_sha256": "9877efa3f55408c1aa36fd34d5489799990108ee32d1c261ef90e8f2611a98c1",
+  "state": "DONE",
+  "snapshots": {
+    "c17_terminal_actual": {
+      "stage_index": 16,
+      "stage_name": "DIAGONAL_LF_RM_ADVANCE",
+      "phase_time_s": 2.2,
+      "actual_root_xyz": [
+        0.4139648973941803,
+        -0.06192239373922348,
+        0.29902979731559753
+      ],
+      "actual_root_quaternion_xyzw": [
+        0.009994913754195213,
+        -0.0063987909369935475,
+        -0.7054172109043453,
+        0.7086929629490653
+      ],
+      "feet": {
+        "LB": {
+          "foot_center_world_xyz_m": [
+            0.19215061006248232,
+            0.03000896756107224,
+            0.1513524521996625
+          ],
+          "nearest_point_world_xyz_m": [
+            0.19350182829629572,
+            0.030008967561072214,
+            0.14499546726110718
+          ],
+          "nearest_triangle_index": 17143,
+          "face_normal_world": [
+            -0.20791159846561078,
+            0.0,
+            0.9781476203638562
+          ],
+          "face_normal_abs_z": 0.9781476203638562,
+          "plane_normal_dot_nearest_m": 0.1015956968378964,
+          "component_triangle_count": 43,
+          "component_area_m2": 0.04115123498940288,
+          "true_planar_boundary_inset_m": 0.015929025433079717,
+          "distance_to_stl_m": 0.006499003633204791,
+          "physical_foot_sphere_gap_m": -9.963667952084254e-07
+        },
+        "LF": {
+          "foot_center_world_xyz_m": [
+            0.5158638871351584,
+            0.026964056750372056,
+            0.198294205528887
+          ],
+          "nearest_point_world_xyz_m": [
+            0.5158638871351584,
+            0.02696405675037206,
+            0.1899999976158142
+          ],
+          "nearest_triangle_index": 15559,
+          "face_normal_world": [
+            0.0,
+            0.0,
+            1.0
+          ],
+          "face_normal_abs_z": 1.0,
+          "plane_normal_dot_nearest_m": 0.1899999976158142,
+          "component_triangle_count": 171,
+          "component_area_m2": 0.0748856461587181,
+          "true_planar_boundary_inset_m": 0.01041743307521265,
+          "distance_to_stl_m": 0.008294207913072782,
+          "physical_foot_sphere_gap_m": 0.0017942079130727822
+        },
+        "LM": {
+          "foot_center_world_xyz_m": [
+            0.3800100883634371,
+            0.11318276413337588,
+            0.19645626241991243
+          ],
+          "nearest_point_world_xyz_m": [
+            0.3800100883634371,
+            0.11318276413337588,
+            0.1899999976158142
+          ],
+          "nearest_triangle_index": 15609,
+          "face_normal_world": [
+            0.0,
+            0.0,
+            1.0
+          ],
+          "face_normal_abs_z": 1.0,
+          "plane_normal_dot_nearest_m": 0.1899999976158142,
+          "component_triangle_count": 171,
+          "component_area_m2": 0.0748856461587181,
+          "true_planar_boundary_inset_m": 0.01628026896701648,
+          "distance_to_stl_m": 0.006456264804098222,
+          "physical_foot_sphere_gap_m": -4.3735195901777914e-05
+        },
+        "RB": {
+          "foot_center_world_xyz_m": [
+            0.19305432804892636,
+            -0.16393778083212396,
+            0.15154808411774862
+          ],
+          "nearest_point_world_xyz_m": [
+            0.19440626637292202,
+            -0.16393778083212396,
+            0.1451877114196674
+          ],
+          "nearest_triangle_index": 17143,
+          "face_normal_world": [
+            -0.20791159846561078,
+            0.0,
+            0.9781476203638562
+          ],
+          "face_normal_abs_z": 0.9781476203638562,
+          "plane_normal_dot_nearest_m": 0.1015956968378964,
+          "component_triangle_count": 43,
+          "component_area_m2": 0.04115123498940288,
+          "true_planar_boundary_inset_m": 0.016853669175800126,
+          "distance_to_stl_m": 0.006502467077224229,
+          "physical_foot_sphere_gap_m": 2.467077224229536e-06
+        },
+        "RF": {
+          "foot_center_world_xyz_m": [
+            0.5842125038077404,
+            -0.15726362108550984,
+            0.19088946081253239
+          ],
+          "nearest_point_world_xyz_m": [
+            0.5836464885124367,
+            -0.15703683524245365,
+            0.18441987908163104
+          ],
+          "nearest_triangle_index": 18001,
+          "face_normal_world": [
+            0.08710268584196197,
+            -0.03489950926243405,
+            0.99558783960651
+          ],
+          "face_normal_abs_z": 0.99558783960651,
+          "plane_normal_dot_nearest_m": 0.23992387421312522,
+          "component_triangle_count": 24,
+          "component_area_m2": 0.04208627687569186,
+          "true_planar_boundary_inset_m": 0.05923283380128691,
+          "distance_to_stl_m": 0.006498253065704719,
+          "physical_foot_sphere_gap_m": -1.7469342952804168e-06
+        },
+        "RM": {
+          "foot_center_world_xyz_m": [
+            0.39254915308790206,
+            -0.21266254491052602,
+            0.19565809185377725
+          ],
+          "nearest_point_world_xyz_m": [
+            0.39311472108335854,
+            -0.2124359382799403,
+            0.18919364525600085
+          ],
+          "nearest_triangle_index": 18021,
+          "face_normal_world": [
+            -0.08710298599750804,
+            -0.034899630688827045,
+            0.9955878090897364
+          ],
+          "face_normal_abs_z": 0.9955878090897364,
+          "plane_normal_dot_nearest_m": 0.161531356519189,
+          "component_triangle_count": 23,
+          "component_area_m2": 0.0420846432089445,
+          "true_planar_boundary_inset_m": 0.008358318217375038,
+          "distance_to_stl_m": 0.006493095374165769,
+          "physical_foot_sphere_gap_m": -6.904625834231078e-06
+        }
+      }
+    },
+    "c18_entry_actual": {
+      "stage_index": 17,
+      "stage_name": "BACK_PAIR_CENTER",
+      "phase_time_s": 0.0,
+      "actual_root_xyz": [
+        0.413964182138443,
+        -0.06192276254296303,
+        0.2990293502807617
+      ],
+      "actual_root_quaternion_xyzw": [
+        0.009998623755189721,
+        -0.006398074631872268,
+        -0.7054179644840569,
+        0.7086921669859044
+      ],
+      "feet": {
+        "LB": {
+          "foot_center_world_xyz_m": [
+            0.1921504522727501,
+            0.03000889343142732,
+            0.1513524553910063
+          ],
+          "nearest_point_world_xyz_m": [
+            0.19350167797639498,
+            0.03000889343142732,
+            0.14499543530964076
+          ],
+          "nearest_triangle_index": 17143,
+          "face_normal_world": [
+            -0.20791159846561078,
+            0.0,
+            0.9781476203638562
+          ],
+          "face_normal_abs_z": 0.9781476203638562,
+          "plane_normal_dot_nearest_m": 0.1015956968378964,
+          "component_triangle_count": 43,
+          "component_area_m2": 0.04115123498940288,
+          "true_planar_boundary_inset_m": 0.01592887175494605,
+          "distance_to_stl_m": 0.006499039561125581,
+          "physical_foot_sphere_gap_m": -9.60438874418948e-07
+        },
+        "LF": {
+          "foot_center_world_xyz_m": [
+            0.5158637969726668,
+            0.026964104093187086,
+            0.19829647873019768
+          ],
+          "nearest_point_world_xyz_m": [
+            0.5158637969726668,
+            0.026964104093187086,
+            0.1899999976158142
+          ],
+          "nearest_triangle_index": 15559,
+          "face_normal_world": [
+            0.0,
+            0.0,
+            1.0
+          ],
+          "face_normal_abs_z": 1.0,
+          "plane_normal_dot_nearest_m": 0.1899999976158142,
+          "component_triangle_count": 171,
+          "component_area_m2": 0.0748856461587181,
+          "true_planar_boundary_inset_m": 0.010417463352969395,
+          "distance_to_stl_m": 0.00829648111438347,
+          "physical_foot_sphere_gap_m": 0.0017964811143834697
+        },
+        "LM": {
+          "foot_center_world_xyz_m": [
+            0.38001004614559875,
+            0.11318278521882305,
+            0.19645629014841887
+          ],
+          "nearest_point_world_xyz_m": [
+            0.38001004614559875,
+            0.11318278521882305,
+            0.1899999976158142
+          ],
+          "nearest_triangle_index": 15609,
+          "face_normal_world": [
+            0.0,
+            0.0,
+            1.0
+          ],
+          "face_normal_abs_z": 1.0,
+          "plane_normal_dot_nearest_m": 0.1899999976158142,
+          "component_triangle_count": 171,
+          "component_area_m2": 0.0748856461587181,
+          "true_planar_boundary_inset_m": 0.016280245132299254,
+          "distance_to_stl_m": 0.006456292532604657,
+          "physical_foot_sphere_gap_m": -4.3707467395342516e-05
+        },
+        "RB": {
+          "foot_center_world_xyz_m": [
+            0.19305020838421058,
+            -0.16393452423853783,
+            0.15154721742801927
+          ],
+          "nearest_point_world_xyz_m": [
+            0.1944021485327511,
+            -0.16393452423853785,
+            0.14518683614612551
+          ],
+          "nearest_triangle_index": 17143,
+          "face_normal_world": [
+            -0.20791159846561078,
+            0.0,
+            0.9781476203638562
+          ],
+          "face_normal_abs_z": 0.9781476203638562,
+          "plane_normal_dot_nearest_m": 0.1015956968378964,
+          "component_triangle_count": 43,
+          "component_area_m2": 0.04115123498940288,
+          "true_planar_boundary_inset_m": 0.016849459340714704,
+          "distance_to_stl_m": 0.006502475852804084,
+          "physical_foot_sphere_gap_m": 2.4758528040843414e-06
+        },
+        "RF": {
+          "foot_center_world_xyz_m": [
+            0.5842127070835967,
+            -0.1572634009696826,
+            0.19088948133506178
+          ],
+          "nearest_point_world_xyz_m": [
+            0.5836466891355008,
+            -0.1570366140637297,
+            0.18441986928261744
+          ],
+          "nearest_triangle_index": 18001,
+          "face_normal_world": [
+            0.08710268584196197,
+            -0.03489950926243405,
+            0.99558783960651
+          ],
+          "face_normal_abs_z": 0.99558783960651,
+          "plane_normal_dot_nearest_m": 0.23992387421312525,
+          "component_triangle_count": 24,
+          "component_area_m2": 0.04208627687569186,
+          "true_planar_boundary_inset_m": 0.05923293823032455,
+          "distance_to_stl_m": 0.006498283521624116,
+          "physical_foot_sphere_gap_m": -1.7164783758837412e-06
+        },
+        "RM": {
+          "foot_center_world_xyz_m": [
+            0.3925490412544208,
+            -0.21266251046823265,
+            0.19565806266720193
+          ],
+          "nearest_point_world_xyz_m": [
+            0.39311460746262933,
+            -0.2124359045537453,
+            0.18919363649768445
+          ],
+          "nearest_triangle_index": 18021,
+          "face_normal_world": [
+            -0.08710298599750804,
+            -0.034899630688827045,
+            0.9955878090897364
+          ],
+          "face_normal_abs_z": 0.9955878090897364,
+          "plane_normal_dot_nearest_m": 0.16153135651918898,
+          "component_triangle_count": 23,
+          "component_area_m2": 0.0420846432089445,
+          "true_planar_boundary_inset_m": 0.008358411555282635,
+          "distance_to_stl_m": 0.0064930748553740265,
+          "physical_foot_sphere_gap_m": -6.925144625973163e-06
+        }
+      }
+    },
+    "final_actual": {
+      "stage_index": 18,
+      "stage_name": "FINAL_HOLD",
+      "phase_time_s": 0.6,
+      "actual_root_xyz": [
+        0.414671927690506,
+        -0.06097403168678284,
+        0.2993207573890686
+      ],
+      "actual_root_quaternion_xyzw": [
+        0.006608874409914966,
+        -0.00507427416293628,
+        -0.7051622135884829,
+        0.7089970571502706
+      ],
+      "feet": {
+        "LB": {
+          "foot_center_world_xyz_m": [
+            0.248505702726122,
+            0.03527078351994574,
+            0.16713779550769742
+          ],
+          "nearest_point_world_xyz_m": [
+            0.25234026908874513,
+            0.03527078351994574,
+            0.1575019657611847
+          ],
+          "nearest_triangle_index": 16144,
+          "face_normal_world": [
+            -1.0,
+            0.0,
+            0.0
+          ],
+          "face_normal_abs_z": 0.0,
+          "plane_normal_dot_nearest_m": -0.25234026908874513,
+          "component_triangle_count": 2,
+          "component_area_m2": 0.0004067533280773805,
+          "true_planar_boundary_inset_m": 2.5477135763612667e-10,
+          "distance_to_stl_m": 0.01037078174937359,
+          "physical_foot_sphere_gap_m": 0.0038707817493735903
+        },
+        "LF": {
+          "foot_center_world_xyz_m": [
+            0.5158278657824049,
+            0.027695818629813004,
+            0.19765074789075007
+          ],
+          "nearest_point_world_xyz_m": [
+            0.5158278657824049,
+            0.027695818629812994,
+            0.1899999976158142
+          ],
+          "nearest_triangle_index": 15559,
+          "face_normal_world": [
+            0.0,
+            0.0,
+            1.0
+          ],
+          "face_normal_abs_z": 1.0,
+          "plane_normal_dot_nearest_m": 0.1899999976158142,
+          "component_triangle_count": 171,
+          "component_area_m2": 0.0748856461587181,
+          "true_planar_boundary_inset_m": 0.00992546840531275,
+          "distance_to_stl_m": 0.007650750274935864,
+          "physical_foot_sphere_gap_m": 0.0011507502749358639
+        },
+        "LM": {
+          "foot_center_world_xyz_m": [
+            0.38005275568596386,
+            0.11324425132084348,
+            0.1964300279786085
+          ],
+          "nearest_point_world_xyz_m": [
+            0.38005275568596386,
+            0.11324425132084348,
+            0.1899999976158142
+          ],
+          "nearest_triangle_index": 15609,
+          "face_normal_world": [
+            0.0,
+            0.0,
+            1.0
+          ],
+          "face_normal_abs_z": 1.0,
+          "plane_normal_dot_nearest_m": 0.1899999976158142,
+          "component_triangle_count": 171,
+          "component_area_m2": 0.0748856461587181,
+          "true_planar_boundary_inset_m": 0.016221742041010994,
+          "distance_to_stl_m": 0.006430030362794298,
+          "physical_foot_sphere_gap_m": -6.996963720570185e-05
+        },
+        "RB": {
+          "foot_center_world_xyz_m": [
+            0.2494171598683716,
+            -0.15855473627222727,
+            0.18481785050629496
+          ],
+          "nearest_point_world_xyz_m": [
+            0.2515506610587854,
+            -0.15836536613093946,
+            0.17868296890985702
+          ],
+          "nearest_triangle_index": 17896,
+          "face_normal_world": [
+            -0.32833020242808597,
+            -0.02914267735215537,
+            0.9441133314016281
+          ],
+          "face_normal_abs_z": 0.9441133314016281,
+          "plane_normal_dot_nearest_m": 0.09072048434477872,
+          "component_triangle_count": 2,
+          "component_area_m2": 0.0002679185399391504,
+          "true_planar_boundary_inset_m": 8.465811632775304e-05,
+          "distance_to_stl_m": 0.006498035132424358,
+          "physical_foot_sphere_gap_m": -1.9648675756416684e-06
+        },
+        "RF": {
+          "foot_center_world_xyz_m": [
+            0.5853856157828607,
+            -0.1571987151377772,
+            0.19078709052874904
+          ],
+          "nearest_point_world_xyz_m": [
+            0.5848197749186614,
+            -0.156971999184184,
+            0.18431950255366197
+          ],
+          "nearest_triangle_index": 18001,
+          "face_normal_world": [
+            0.08710268584196197,
+            -0.03489950926243405,
+            0.99558783960651
+          ],
+          "face_normal_abs_z": 0.99558783960651,
+          "plane_normal_dot_nearest_m": 0.23992387421312522,
+          "component_triangle_count": 24,
+          "component_area_m2": 0.04208627687569186,
+          "true_planar_boundary_inset_m": 0.058816797386835595,
+          "distance_to_stl_m": 0.006496250474135236,
+          "physical_foot_sphere_gap_m": -3.749525864764e-06
+        },
+        "RM": {
+          "foot_center_world_xyz_m": [
+            0.39243699559729917,
+            -0.2124817254849537,
+            0.19565917180640624
+          ],
+          "nearest_point_world_xyz_m": [
+            0.39300295850975314,
+            -0.21225496062262422,
+            0.1891902113042697
+          ],
+          "nearest_triangle_index": 18021,
+          "face_normal_world": [
+            -0.08710298599750804,
+            -0.034899630688827045,
+            0.9955878090897364
+          ],
+          "face_normal_abs_z": 0.9955878090897364,
+          "plane_normal_dot_nearest_m": 0.16153135651918898,
+          "component_triangle_count": 23,
+          "component_area_m2": 0.0420846432089445,
+          "true_planar_boundary_inset_m": 0.008394914048485004,
+          "distance_to_stl_m": 0.006497629282997259,
+          "physical_foot_sphere_gap_m": -2.3707170027408367e-06
+        }
+      }
+    }
+  },
+  "final_nominal_targets": {
+    "LB": {
+      "foot_center_world_xyz_m": [
+        0.282,
+        0.03398546701054666,
+        0.17045257550414933
+      ],
+      "nearest_point_world_xyz_m": [
+        0.2833516345127773,
+        0.03398546701054667,
+        0.1640936380816023
+      ],
+      "nearest_triangle_index": 17163,
+      "face_normal_world": [
+        -0.2079117847680843,
+        0.0,
+        0.9781475807640428
+      ],
+      "face_normal_abs_z": 0.9781475807640428,
+      "plane_normal_dot_nearest_m": 0.10159565105978424,
+      "component_triangle_count": 43,
+      "component_area_m2": 0.04115123498940288,
+      "true_planar_boundary_inset_m": 0.025777716918908383,
+      "distance_to_stl_m": 0.00650099999999999,
+      "physical_foot_sphere_gap_m": 9.999999999905917e-07
+    },
+    "LF": {
+      "foot_center_world_xyz_m": [
+        0.55,
+        0.025,
+        0.19649999761581421
+      ],
+      "nearest_point_world_xyz_m": [
+        0.55,
+        0.025,
+        0.1899999976158142
+      ],
+      "nearest_triangle_index": 15464,
+      "face_normal_world": [
+        0.0,
+        0.0,
+        1.0
+      ],
+      "face_normal_abs_z": 1.0,
+      "plane_normal_dot_nearest_m": 0.1899999976158142,
+      "component_triangle_count": 171,
+      "component_area_m2": 0.0748856461587181,
+      "true_planar_boundary_inset_m": 0.024491496171065056,
+      "distance_to_stl_m": 0.006500000000000006,
+      "physical_foot_sphere_gap_m": 6.071532165918825e-18
+    },
+    "LM": {
+      "foot_center_world_xyz_m": [
+        0.415,
+        0.11,
+        0.19649999761581421
+      ],
+      "nearest_point_world_xyz_m": [
+        0.415,
+        0.11,
+        0.1899999976158142
+      ],
+      "nearest_triangle_index": 15603,
+      "face_normal_world": [
+        0.0,
+        0.0,
+        1.0
+      ],
+      "face_normal_abs_z": 1.0,
+      "plane_normal_dot_nearest_m": 0.1899999976158142,
+      "component_triangle_count": 171,
+      "component_area_m2": 0.0748856461587181,
+      "true_planar_boundary_inset_m": 0.021613516852940926,
+      "distance_to_stl_m": 0.006500000000000006,
+      "physical_foot_sphere_gap_m": 6.071532165918825e-18
+    },
+    "RB": {
+      "foot_center_world_xyz_m": [
+        0.282,
+        -0.15998533763006975,
+        0.18781098064584917
+      ],
+      "nearest_point_world_xyz_m": [
+        0.2825636694283812,
+        -0.15975949160540254,
+        0.18136821220002503
+      ],
+      "nearest_triangle_index": 18029,
+      "face_normal_world": [
+        -0.08710268465015705,
+        -0.034899524571651235,
+        0.9955878391741273
+      ],
+      "face_normal_abs_z": 0.9955878391741273,
+      "plane_normal_dot_nearest_m": 0.16153146259012324,
+      "component_triangle_count": 23,
+      "component_area_m2": 0.0420846432089445,
+      "true_planar_boundary_inset_m": 0.03106796738690568,
+      "distance_to_stl_m": 0.0064713209546318155,
+      "physical_foot_sphere_gap_m": -2.867904536818424e-05
+    },
+    "RF": {
+      "foot_center_world_xyz_m": [
+        0.618,
+        -0.15998477371966988,
+        0.18781099958610187
+      ],
+      "nearest_point_world_xyz_m": [
+        0.6174363310241113,
+        -0.15975892783016124,
+        0.18136823105083144
+      ],
+      "nearest_triangle_index": 17998,
+      "face_normal_world": [
+        0.08710261412276189,
+        -0.03489950344361282,
+        0.995587846085101
+      ],
+      "face_normal_abs_z": 0.995587846085101,
+      "plane_normal_dot_nearest_m": 0.23992383223868585,
+      "component_triangle_count": 24,
+      "component_area_m2": 0.04208627687569186,
+      "true_planar_boundary_inset_m": 0.031067957756549573,
+      "distance_to_stl_m": 0.00647132099955318,
+      "physical_foot_sphere_gap_m": -2.867900044681987e-05
+    },
+    "RM": {
+      "foot_center_world_xyz_m": [
+        0.425,
+        -0.215,
+        0.19649999761581421
+      ],
+      "nearest_point_world_xyz_m": [
+        0.425,
+        -0.215,
+        0.1899999976158142
+      ],
+      "nearest_triangle_index": 15478,
+      "face_normal_world": [
+        0.0,
+        0.0,
+        1.0
+      ],
+      "face_normal_abs_z": 1.0,
+      "plane_normal_dot_nearest_m": 0.1899999976158142,
+      "component_triangle_count": 171,
+      "component_area_m2": 0.0748856461587181,
+      "true_planar_boundary_inset_m": 0.018750009999999987,
+      "distance_to_stl_m": 0.006500000000000006,
+      "physical_foot_sphere_gap_m": 6.071532165918825e-18
+    }
+  },
+  "final_actual_targets": {
+    "LB": {
+      "foot_center_world_xyz_m": [
+        0.248505702726122,
+        0.03527078351994574,
+        0.16713779550769742
+      ],
+      "nearest_point_world_xyz_m": [
+        0.25234026908874513,
+        0.03527078351994574,
+        0.1575019657611847
+      ],
+      "nearest_triangle_index": 16144,
+      "face_normal_world": [
+        -1.0,
+        0.0,
+        0.0
+      ],
+      "face_normal_abs_z": 0.0,
+      "plane_normal_dot_nearest_m": -0.25234026908874513,
+      "component_triangle_count": 2,
+      "component_area_m2": 0.0004067533280773805,
+      "true_planar_boundary_inset_m": 2.5477135763612667e-10,
+      "distance_to_stl_m": 0.01037078174937359,
+      "physical_foot_sphere_gap_m": 0.0038707817493735903,
+      "nominal_actual_component_match": false
+    },
+    "LF": {
+      "foot_center_world_xyz_m": [
+        0.5158278657824049,
+        0.027695818629813004,
+        0.19765074789075007
+      ],
+      "nearest_point_world_xyz_m": [
+        0.5158278657824049,
+        0.027695818629812994,
+        0.1899999976158142
+      ],
+      "nearest_triangle_index": 15559,
+      "face_normal_world": [
+        0.0,
+        0.0,
+        1.0
+      ],
+      "face_normal_abs_z": 1.0,
+      "plane_normal_dot_nearest_m": 0.1899999976158142,
+      "component_triangle_count": 171,
+      "component_area_m2": 0.0748856461587181,
+      "true_planar_boundary_inset_m": 0.00992546840531275,
+      "distance_to_stl_m": 0.007650750274935864,
+      "physical_foot_sphere_gap_m": 0.0011507502749358639,
+      "nominal_actual_component_match": false
+    },
+    "LM": {
+      "foot_center_world_xyz_m": [
+        0.38005275568596386,
+        0.11324425132084348,
+        0.1964300279786085
+      ],
+      "nearest_point_world_xyz_m": [
+        0.38005275568596386,
+        0.11324425132084348,
+        0.1899999976158142
+      ],
+      "nearest_triangle_index": 15609,
+      "face_normal_world": [
+        0.0,
+        0.0,
+        1.0
+      ],
+      "face_normal_abs_z": 1.0,
+      "plane_normal_dot_nearest_m": 0.1899999976158142,
+      "component_triangle_count": 171,
+      "component_area_m2": 0.0748856461587181,
+      "true_planar_boundary_inset_m": 0.016221742041010994,
+      "distance_to_stl_m": 0.006430030362794298,
+      "physical_foot_sphere_gap_m": -6.996963720570185e-05,
+      "nominal_actual_component_match": false
+    },
+    "RB": {
+      "foot_center_world_xyz_m": [
+        0.2494171598683716,
+        -0.15855473627222727,
+        0.18481785050629496
+      ],
+      "nearest_point_world_xyz_m": [
+        0.2515506610587854,
+        -0.15836536613093946,
+        0.17868296890985702
+      ],
+      "nearest_triangle_index": 17896,
+      "face_normal_world": [
+        -0.32833020242808597,
+        -0.02914267735215537,
+        0.9441133314016281
+      ],
+      "face_normal_abs_z": 0.9441133314016281,
+      "plane_normal_dot_nearest_m": 0.09072048434477872,
+      "component_triangle_count": 2,
+      "component_area_m2": 0.0002679185399391504,
+      "true_planar_boundary_inset_m": 8.465811632775304e-05,
+      "distance_to_stl_m": 0.006498035132424358,
+      "physical_foot_sphere_gap_m": -1.9648675756416684e-06,
+      "nominal_actual_component_match": false
+    },
+    "RF": {
+      "foot_center_world_xyz_m": [
+        0.5853856157828607,
+        -0.1571987151377772,
+        0.19078709052874904
+      ],
+      "nearest_point_world_xyz_m": [
+        0.5848197749186614,
+        -0.156971999184184,
+        0.18431950255366197
+      ],
+      "nearest_triangle_index": 18001,
+      "face_normal_world": [
+        0.08710268584196197,
+        -0.03489950926243405,
+        0.99558783960651
+      ],
+      "face_normal_abs_z": 0.99558783960651,
+      "plane_normal_dot_nearest_m": 0.23992387421312522,
+      "component_triangle_count": 24,
+      "component_area_m2": 0.04208627687569186,
+      "true_planar_boundary_inset_m": 0.058816797386835595,
+      "distance_to_stl_m": 0.006496250474135236,
+      "physical_foot_sphere_gap_m": -3.749525864764e-06,
+      "nominal_actual_component_match": false
+    },
+    "RM": {
+      "foot_center_world_xyz_m": [
+        0.39243699559729917,
+        -0.2124817254849537,
+        0.19565917180640624
+      ],
+      "nearest_point_world_xyz_m": [
+        0.39300295850975314,
+        -0.21225496062262422,
+        0.1891902113042697
+      ],
+      "nearest_triangle_index": 18021,
+      "face_normal_world": [
+        -0.08710298599750804,
+        -0.034899630688827045,
+        0.9955878090897364
+      ],
+      "face_normal_abs_z": 0.9955878090897364,
+      "plane_normal_dot_nearest_m": 0.16153135651918898,
+      "component_triangle_count": 23,
+      "component_area_m2": 0.0420846432089445,
+      "true_planar_boundary_inset_m": 0.008394914048485004,
+      "distance_to_stl_m": 0.006497629282997259,
+      "physical_foot_sphere_gap_m": -2.3707170027408367e-06,
+      "nominal_actual_component_match": false
+    }
+  },
+  "boundary": "Face/component/inset/gap classifications do not prove contact, load, friction, stability, or hardware safety.",
+  "final_root_xy_offset_from_cad_center_m": [
+    -0.03532807230949403,
+    0.0020259683132171635
+  ],
+  "geometry_flags": {
+    "all_final_actual_gaps_ge_minus_0p5mm": true,
+    "all_final_actual_insets_ge_15mm": false,
+    "all_final_actual_faces_upward": false
+  },
+  "geometry_status": "FAIL_DIAGNOSTIC"
+}

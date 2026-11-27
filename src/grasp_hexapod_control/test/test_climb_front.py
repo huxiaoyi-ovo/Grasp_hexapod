@@ -10,7 +10,7 @@ SCRIPTS = Path(__file__).resolve().parents[1] / "scripts"
 sys.path[:0] = [str(SCRIPTS), str(SCRIPTS / "tools")]
 
 from climb_mode import ClimbMode
-from kinematics import GraspKinematic, Q_STAND
+from kinematics import GraspKinematic, Q_CLIMB_PREP
 from build_climb_front import (
     FOOT_RADIUS, P0, TRANSLATION, build, base_points, foot_sphere_signed_gap,
     ground_pair_sphere_sweep, load_triangles, preflight_synthetic_stage_entry,
@@ -50,7 +50,7 @@ def test_front_inward_prefix_uses_stl_landings_and_low_apex():
     assert stages["FRONT_INWARD"]["segment_durations_s"] == [.525, .725, .2375]
 
     with pytest.raises(ValueError, match="simulation-only"):
-        ClimbMode(None).enter(Q_STAND, config, hardware_execution=True)
+        ClimbMode(None).enter(Q_CLIMB_PREP, config, hardware_execution=True)
 
 
 def test_front_refoot_prefix_keeps_synchronized_base_knots_and_stl_receipt():
@@ -104,21 +104,21 @@ def test_front_refoot_prefix_keeps_synchronized_base_knots_and_stl_receipt():
 def test_synthetic_entry_preflight_rejects_stale_joint_or_previous_reference():
     kinematic = GraspKinematic()
     anchors = (
-        np.column_stack((kinematic.forward_base(Q_STAND), np.ones(6)))
+        np.column_stack((kinematic.forward_base(Q_CLIMB_PREP), np.ones(6)))
         @ world_from_base(P0).T
     )[:, :3]
     target = base_points(P0, anchors)
 
     assert np.allclose(
-        preflight_synthetic_stage_entry(kinematic, P0, anchors, Q_STAND, target),
+        preflight_synthetic_stage_entry(kinematic, P0, anchors, Q_CLIMB_PREP, target),
         target,
     )
     stale_pose = P0.copy()
     stale_pose[0] += .01
     with pytest.raises(ValueError, match="FK mismatch"):
-        preflight_synthetic_stage_entry(kinematic, stale_pose, anchors, Q_STAND, target)
+        preflight_synthetic_stage_entry(kinematic, stale_pose, anchors, Q_CLIMB_PREP, target)
     with pytest.raises(ValueError, match="previous-reference mismatch"):
-        preflight_synthetic_stage_entry(kinematic, P0, anchors, Q_STAND, target + .003)
+        preflight_synthetic_stage_entry(kinematic, P0, anchors, Q_CLIMB_PREP, target + .003)
 
 
 def test_ground_targets_use_local_stl_sphere_gap_not_bbox_or_xy_ring_proxy():

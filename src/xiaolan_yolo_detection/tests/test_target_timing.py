@@ -21,7 +21,8 @@ class TargetTimingTest(unittest.TestCase):
         for target, replacement in [
                 ('time.monotonic', lambda: self.now),
                 ('rospy.Time.now', lambda: rospy.Time.from_sec(self.now)),
-                ('rospy.get_param', lambda key, default=None: default),
+                # Models the slow ONNX-CPU (NX) cadence (~0.32 s frames aged 0.35 s), so max_result_age 0.8 is set explicitly; the shipped 0.25 targets TensorRT GPU.
+                ('rospy.get_param', lambda key, default=None: .8 if key == '~max_result_age' else default),
                 ('rospy.Publisher', Mock()), ('rospy.Subscriber', Mock())]:
             p = patch(target, replacement)
             p.start()
@@ -31,7 +32,7 @@ class TargetTimingTest(unittest.TestCase):
 
     def frame(self, interval=.32, age=.35, detected=True, x=0):
         self.now += interval
-        det = XiaolanDetection(detected=detected, confidence=.95,
+        det = XiaolanDetection(detected=detected, reason='DETECTED' if detected else 'NO_DETECTION', confidence=.95,
                                bbox_x=4, bbox_y=4, bbox_width=9, bbox_height=9,
                                center_u=8+x, center_v=8, image_width=32, image_height=32)
         det.header.stamp = rospy.Time.from_sec(self.now-age)

@@ -85,8 +85,9 @@ class XiaolanVisualizer:
         self.last_display = -1
         self.window = 'Xiaolan YOLO RGB'
         self.pub = rospy.Publisher('~image', Image, queue_size=1)
+        self.rgb_topic = p('~rgb_topic','/camera/color/image_raw')
+        self.rgb_sub = None
         self.subs = [
-            rospy.Subscriber(p('~rgb_topic','/camera/color/image_raw'), Image, self.rgb_cb, queue_size=1,buff_size=2**24),
             rospy.Subscriber(p('~detection_topic','/xiaolan/detection'), XiaolanDetection,self.detection_cb,queue_size=1),
             rospy.Subscriber('/xiaolan/target',XiaolanTarget,self.target_cb,queue_size=1),
             rospy.Subscriber(p('~aligned_info_topic','/camera/aligned_depth_to_color/camera_info'),CameraInfo,self.info_cb,queue_size=1),
@@ -97,7 +98,7 @@ class XiaolanVisualizer:
         with self.lock:
             self.latest_rgb = (msg,time.monotonic())
             self.colors[header_key(msg)] = self.latest_rgb
-            while len(self.colors)>30:
+            while len(self.colors)>6:
                 self.colors.popitem(last=False)
 
     def detection_cb(self,msg):
@@ -167,23 +168,37 @@ class XiaolanVisualizer:
             cv2.namedWindow(self.window,cv2.WINDOW_NORMAL)
         try:
             while not rospy.is_shutdown():
-                try:
-                    image,header = self.render()
-                    if image is not None:
-                        msg = self.bridge.cv2_to_imgmsg(image,'bgr8')
-                        msg.header = header
-                        self.pub.publish(msg)
-                        if self.show_window:
-                            cv2.imshow(self.window,image)
-                except (CvBridgeError,cv2.error,ValueError) as error:
-                    rospy.logwarn_throttle(2.,'Visualizer: %s',error)
                 if self.show_window:
-                    if cv2.waitKey(1)&255 in (27,ord('q'),ord('Q')):
-                        break
                     visible = cv2.getWindowProperty(self.window,cv2.WND_PROP_VISIBLE)
                     if visible >= 1:
                         visible_once = True
                     elif visible == 0 and visible_once:
+                        break
+                # Pull camera frames only while someone wants them: an explicit
+                # window request (the GTK window may not be queryable before the
+                # first imshow) or a subscriber of the output topic.
+                needed = self.show_window or self.pub.get_num_connections() > 0
+                if needed and self.rgb_sub is None:
+                    self.rgb_sub = rospy.Subscriber(self.rgb_topic,Image,self.rgb_cb,queue_size=1,buff_size=2**24)
+                elif not needed and self.rgb_sub is not None:
+                    self.rgb_sub.unregister()
+                    self.rgb_sub = None
+                    with self.lock:
+                        self.latest_rgb = None
+                        self.colors.clear()
+                if needed:
+                    try:
+                        image,header = self.render()
+                        if image is not None:
+                            msg = self.bridge.cv2_to_imgmsg(image,'bgr8')
+                            msg.header = header
+                            self.pub.publish(msg)
+                            if self.show_window:
+                                cv2.imshow(self.window,image)
+                    except (CvBridgeError,cv2.error,ValueError) as error:
+                        rospy.logwarn_throttle(2.,'Visualizer: %s',error)
+                if self.show_window:
+                    if cv2.waitKey(1)&255 in (27,ord('q'),ord('Q')):
                         break
                 time.sleep(1.0/self.max_fps)
         finally:

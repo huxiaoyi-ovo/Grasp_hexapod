@@ -1,0 +1,39 @@
+{
+  "schema": "climb-front-v10-archive-v1",
+  "status": "experimental simulator diagnostic; NOT hardware or physical-support acceptance",
+  "frozen_input": {
+    "config_sha256": "de855ddfd3ac8df9f25f32d5c497601ffc0f452fb44e2bdeec9e9931bbe5e725",
+    "runtime_sha256": "4a3ec853a8868e911e8e6d6b4b80845afef53b4b24207ce2859882bb03035db1"
+  },
+  "classification": {
+    "stance_lp.json": "INVALID_FORMULATION: omitted base_from_hip Jacobian rotation and wrong torque-t coefficient; not physical infeasibility",
+    "invalid_observer_samples.jsonl": "INVALID_OBSERVER: interrupted run acquired tensor before prepare_sim; not full-route evidence",
+    "actual_samples.jsonl": "VALID_GPU_OBSERVER: prepare_sim once before acquire on control/physics frame zero; simulator truth only"
+  },
+  "external_provenance": {
+    "valid_gpu_dir": "/tmp/grasp_front_v10_forces_valid_t41L0I",
+    "analysis_dir": "/tmp/grasp_front_v10_observability_C0rI5U",
+    "analysis_sha256": "76e21e4ed434a772dc1330a282b83e33d3ebadc4158a4105974dd49ac9122677"
+  },
+  "files_sha256": {
+    "actual_samples.jsonl": "111d3c20ced1e92e2d768acdfd497f066318179e0477b08139f5de4265c78c5a",
+    "audit_climb_front_landing.py": "7af1e17ec925f8b804c308f5ed41daa047958eca8dce9d6c279a660d8eafe52b",
+    "build_climb_front_optimized.py": "b9869f5472848d53e3713d650c4f8cab1422e5bf91538633bceb2ab76fe4f44f",
+    "c17_suffix_cpu.json": "d5e4a76a3bcf51fd2f1d8f972b62ac253f7bc8f7dd5c31a336eb93e314b4a963",
+    "cad.json": "b8920718bef99ca33e3fedb69defdd6403efa45730a616bb8f97f74701660bd4",
+    "cad.py": "cf59a0c10e1bd8edcc7635454117bdc0326b90acfca9c6847bff3ac6ec922b00",
+    "climb_front_optimized.json": "de855ddfd3ac8df9f25f32d5c497601ffc0f452fb44e2bdeec9e9931bbe5e725",
+    "climb_mode.py": "4a3ec853a8868e911e8e6d6b4b80845afef53b4b24207ce2859882bb03035db1",
+    "console.log": "6d99b211ef509f096fe4fcaf0dfcca366ab291104a72f73f3dd59d8ea7cc47fe",
+    "metrics.json": "82504c713c991d71a9b36d13d8e8da8c4fc8eafc8f16b104ff9f0227b7c18371",
+    "observer.py": "2de2f508c941de2c58b3dfab0a8799e179bd15a169f4c6da9970cfe5c8605a07",
+    "postprocess.json": "838cd97f7b8430e91770ce4a3c178626c4592ae689d33183353fc83c3c6f8d37",
+    "stance_lp.json": "2857b3d5ca53e9ec6b46a930511ee0d3d1dab87c51a3fef433c29b613ed71382",
+    "stance_lp.py": "b9bfa8d81177599c6894c73f49b82c8af1a939571b33ebd441c50d2ca4243eb8",
+    "stance_lp_corrected.json": "2f015669e9033d862af4556c1c2af76108d8b49932c83e1551073f9f1966ab6b",
+    "stance_lp_corrected.py": "f5fb27366c77d1e71d90ec76c75eb3c457a5ccfc2054b324e7a4080858092f36",
+    "test_climb_front_optimized.py": "96721f3b29665731c10686a2fd7a26ab88b2b910119b7ddb1514ddd3d7aea0be",
+    "invalid_observer.py": "f307995af8814befc40775a58f316d7bebc0285f3df77d71489c10a0a35c4d6b",
+    "invalid_observer_samples.jsonl": "270785ed72a93c781636bad5ebdbebe3d4ebe5730867af588e6a5be3d8c8808e"
+  }
+}

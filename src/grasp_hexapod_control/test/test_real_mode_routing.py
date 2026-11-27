@@ -80,7 +80,7 @@ finally:
 
 from climb_mode import ClimbMode
 from control import COLLISION_MARGIN, LINK_COLLISION_RADII, GraspController
-from kinematics import JOINT_LOWER, JOINT_UPPER, JOINT_VELOCITY_LIMIT, Q_STAND
+from kinematics import JOINT_LOWER, JOINT_UPPER, JOINT_VELOCITY_LIMIT, Q_CLIMB_PREP, Q_STAND
 from utils.climb import select_compact_climb_side
 from validate_climb_preview import replay, strict_contract
 
@@ -1022,19 +1022,19 @@ def test_local_compact_arm_holds_entry_and_a_is_ignored():
     node._read = RUN_REAL.RosControlNode._read
     node._process_buttons = RUN_REAL.RosControlNode._process_buttons.__get__(node)
 
-    RUN_REAL.RosControlNode.arm_local_climb(node, Q_STAND)
+    RUN_REAL.RosControlNode.arm_local_climb(node, Q_CLIMB_PREP)
     assert node.state == node.HOLD
     assert node.local_climb_armed
-    assert np.array_equal(node.local_climb_entry_q, Q_STAND)
+    assert np.array_equal(node.local_climb_entry_q, Q_CLIMB_PREP)
 
     RUN_REAL.RosControlNode._process_buttons(
-        node, np.array([1, 0, 0, 0]), True, Q_STAND
+        node, np.array([1, 0, 0, 0]), True, Q_CLIMB_PREP
     )
     assert node.local_climb_armed
     held = RUN_REAL.RosControlNode._update_control(
-        node, Q_STAND + 0.1, np.empty(0), np.zeros(4), 1.0, 1.0
+        node, Q_CLIMB_PREP + 0.1, np.empty(0), np.zeros(4), 1.0, 1.0
     )
-    assert np.array_equal(held, Q_STAND)
+    assert np.array_equal(held, Q_CLIMB_PREP)
     with pytest.raises(ValueError, match="finite"):
         RUN_REAL.RosControlNode.arm_local_climb(
             node, np.full((6, 3), np.nan)
@@ -1152,6 +1152,10 @@ class _DiagnosticReplayController:
         self.entered_hardware_execution = None
         self.entered_config = None
 
+    def climb_entry_needs_prep(self, q_cur, config, start_stage_index=0):
+        del q_cur, config, start_stage_index
+        return False
+
     def enter_climb(self, q_cur, config=None, hardware_execution=False):
         del q_cur
         self.entered_hardware_execution = hardware_execution
@@ -1182,8 +1186,8 @@ def _diagnostic_replay_node(navigation_valid, imu_valid):
 def test_x_starts_diagnostic_replay_without_imu_or_rtk_monitoring():
     node = _diagnostic_replay_node(navigation_valid=False, imu_valid=False)
     node.local_climb_armed = True
-    node.local_climb_entry_q = Q_STAND.copy()
-    RUN_REAL.RosControlNode._start_real_climb(node, Q_STAND, True)
+    node.local_climb_entry_q = Q_CLIMB_PREP.copy()
+    RUN_REAL.RosControlNode._start_real_climb(node, Q_CLIMB_PREP, True)
     assert node.state == node.RUNNING
     assert node.controller.entered_hardware_execution is True
     assert node.controller.entered_config["settle_gate"]["max_foot_target_error_m"] == 0.02
@@ -1195,7 +1199,7 @@ def test_x_starts_diagnostic_replay_without_imu_or_rtk_monitoring():
 def test_real_climb_override_gate_and_validation():
     node = _diagnostic_replay_node(navigation_valid=False, imu_valid=False)
     node.climb_foot_gate_m = 0.05
-    RUN_REAL.RosControlNode._start_real_climb(node, Q_STAND, True)
+    RUN_REAL.RosControlNode._start_real_climb(node, Q_CLIMB_PREP, True)
     assert node.controller.entered_hardware_execution is True
     assert node.controller.entered_config["settle_gate"]["max_foot_target_error_m"] == 0.05
     for value in (0.0, float("nan"), 0.101):
@@ -1207,9 +1211,9 @@ def test_b_cancels_local_compact_arm_before_normal_reset():
     node = _button_node()
     node.local_execution = True
     node.local_climb_armed = True
-    node.local_climb_entry_q = Q_STAND.copy()
+    node.local_climb_entry_q = Q_CLIMB_PREP.copy()
     RUN_REAL.RosControlNode._process_buttons(
-        node, np.array([0, 1, 0, 0]), False, Q_STAND
+        node, np.array([0, 1, 0, 0]), False, Q_CLIMB_PREP
     )
     assert not node.local_climb_armed
     assert node.local_climb_entry_q is None
@@ -1218,7 +1222,7 @@ def test_b_cancels_local_compact_arm_before_normal_reset():
 
 def test_x_enables_optional_monitoring_when_imu_and_rtk_are_fresh():
     node = _diagnostic_replay_node(navigation_valid=True, imu_valid=True)
-    RUN_REAL.RosControlNode._start_real_climb(node, Q_STAND, True)
+    RUN_REAL.RosControlNode._start_real_climb(node, Q_CLIMB_PREP, True)
     assert node.state == node.RUNNING
     assert node.real_climb_monitor_active
     assert node.climb_start_navigation is not None
@@ -1292,7 +1296,7 @@ def test_b_then_y_uses_saved_climb_terminal_joints():
 
 def test_inactive_optional_monitoring_never_holds_diagnostic_replay():
     node = _diagnostic_replay_node(navigation_valid=False, imu_valid=False)
-    node.controller.enter_climb(Q_STAND, hardware_execution=True)
+    node.controller.enter_climb(Q_CLIMB_PREP, hardware_execution=True)
     node.state = node.RUNNING
     node.real_climb_monitor_active = False
     hold_calls = []
@@ -1375,20 +1379,32 @@ def test_dock_foot_target_uses_the_shared_dls_chain():
     assert dock.failed_reason == ""
 
 
-def test_ordinary_walking_uses_40mm_swing_and_lands_before_stop():
+def test_ordinary_walking_uses_40mm_joint_space_swing_and_lands_before_stop():
     controller = GraspController(1.0 / 30.0)
     mode = controller.approach_mode
     assert np.isclose(mode.step_height, 0.040)
-    assert np.isclose(mode.phase_duration, 0.70)
+    assert np.isclose(mode.phase_duration, 0.50)
+    assert np.isclose(mode.max_foot_planar_speed, 0.14)
+    assert np.isclose(mode.max_linear_acceleration, 0.25)
+    assert np.isclose(mode.max_yaw_acceleration, 1.2)
+    assert np.isclose(mode.swing_joint_speed_limit, 3.0)
     q_cur = Q_STAND.copy()
     maximum_lift = 0.0
+    maximum_joint_speed = 0.0
+    velocity_clips = 0
     minimum_joint_margin = np.inf
     for _ in range(25):
+        previous_q = q_cur
         q_cur = controller.update(q_cur, np.array([0.20, 0.0, 0.0, 0.0]))
+        velocity_clips += controller.last_update_velocity_limit_clip_count
         ground_z = controller.foot_init_base[:, 2] - mode.body_height_offset
         maximum_lift = max(
             maximum_lift,
             float(np.max(controller.foot_desired_base[:, 2] - ground_z)),
+        )
+        maximum_joint_speed = max(
+            maximum_joint_speed,
+            float(np.max(np.abs(q_cur - previous_q))) / controller.dt,
         )
         minimum_joint_margin = min(
             minimum_joint_margin,
@@ -1396,30 +1412,41 @@ def test_ordinary_walking_uses_40mm_swing_and_lands_before_stop():
             float(np.min(JOINT_UPPER - q_cur)),
         )
         assert controller.last_update_collision_guard_hold_count == 0
-    assert maximum_lift >= 0.0399
-    assert minimum_joint_margin > 0.02
+    # 关节空间步态（phase_duration 0.50 s、最高点净空 40 mm、抬腿受 3 rad/s 速度限幅、
+    # 指令被限到 0.14 m/s，限加速度 0.25 m/s²）、默认 Q_STAND 行走站姿：
+    # 实测最大抬腿 40.3 mm、最大关节速度 2.97 rad/s、0 次单帧限幅、
+    # 关节余量最小 0.54 rad；作为回归报警，不是安全裕度。
+    assert 0.0395 <= maximum_lift <= 0.0425
+    assert maximum_joint_speed <= 3.0
+    assert velocity_clips == 0
+    assert minimum_joint_margin >= 0.3
 
-    for _ in range(30):
+    for _ in range(40):
         q_cur = controller.update(q_cur, np.zeros(4))
         if not mode.gait_started:
             break
     assert not mode.gait_started
     assert not mode.transfer_active
     assert np.allclose(mode.requested_command, 0.0)
-    assert np.allclose(mode.active_phase_command, 0.0)
     assert np.allclose(
         controller.foot_desired_base[:, 2],
         controller.foot_init_base[:, 2],
     )
+    # 步行模式下六条腿始终走关节覆盖（站立时是已提交足端的精确 IK）。
+    assert all(override is not None for override in controller.joint_override)
 
 
-def test_walking_command_switch_is_slew_limited_and_latches_active_phase():
+def test_walking_command_switch_is_slew_limited_and_stance_follows_requested_command():
     controller = GraspController(1.0 / 30.0)
     mode = controller.approach_mode
     q_cur = Q_STAND.copy()
+    # 关节空间步态单相 15 帧（0.50 s @30Hz）：在第一相内部（第 4 帧）切换指令。
+    # 支撑腿每帧都按限加速度后的 requested_command 运动（不再锁存整相指令），
+    # 落点在换相时按前瞻指令一次定下，相内不变。
+    # 实测：足端单帧步长 15.0 mm，关节速度 2.97 rad/s，关节余量最小 0.52 rad。
     commands = (
-        [np.array([0.20, 0.0, 0.0, 0.0])] * 8
-        + [np.array([-0.20, 0.0, 0.0, 0.0])] * 8
+        [np.array([0.20, 0.0, 0.0, 0.0])] * 4
+        + [np.array([-0.20, 0.0, 0.0, 0.0])] * 12
         + [np.array([0.0, 0.20, 0.0, 1.2])] * 8
     )
     previous_requested_command = mode.requested_command.copy()
@@ -1429,10 +1456,15 @@ def test_walking_command_switch_is_slew_limited_and_latches_active_phase():
     maximum_joint_speed = 0.0
     minimum_joint_margin = np.inf
     active_endpoint = None
-    requested_changed_while_active = False
+    first_phase_end = None
+    stance_frames_checked = 0
 
     for index, command in enumerate(commands):
+        transfer_before = mode.transfer_active
+        gaits_before = mode.gaits.copy()
         q_cur = controller.update(q_cur, command)
+        if first_phase_end is None and mode.transfer_active:
+            first_phase_end = index
         requested_command = mode.requested_command.copy()
         linear_acceleration = np.linalg.norm(
             requested_command[:2] - previous_requested_command[:2]
@@ -1448,17 +1480,31 @@ def test_walking_command_switch_is_slew_limited_and_latches_active_phase():
             <= mode.max_foot_planar_speed + 1e-10
         )
         if index == 0:
-            assert np.array_equal(
-                mode.active_phase_command, requested_command
-            )
             assert requested_command[0] < command[0]
         if index == 1:
             active_endpoint = mode.swing_target_base.copy()
-        if index >= 8 and mode.stance_group_index == 0:
+        if index >= 1 and first_phase_end is None:
             assert np.array_equal(mode.swing_target_base, active_endpoint)
-            requested_changed_while_active |= not np.array_equal(
-                requested_command, mode.active_phase_command
+        # 支撑腿（共同支撑期为全部六条腿）每帧位移等于 requested_command 的刚体速度。
+        stance_legs = (
+            list(range(6))
+            if transfer_before
+            else [leg for leg in range(6) if gaits_before[leg]]
+        )
+        if index >= 1 and stance_legs:
+            expected = mode._stance_velocity(
+                previous_target[stance_legs, :2], requested_command
+            ) * controller.dt
+            actual = (
+                controller.foot_desired_base[stance_legs, :2]
+                - previous_target[stance_legs, :2]
             )
+            unprojected = previous_target.copy()
+            unprojected[stance_legs, :2] += expected
+            # 指令反向后的长行程会被工作空间投影截断，那些帧不比较。
+            if controller._workspace_feasible(unprojected)[stance_legs].all():
+                assert np.allclose(actual, expected, atol=1e-9)
+                stance_frames_checked += 1
         maximum_target_step = max(
             maximum_target_step,
             float(np.max(np.linalg.norm(
@@ -1480,14 +1526,16 @@ def test_walking_command_switch_is_slew_limited_and_latches_active_phase():
         previous_q = q_cur.copy()
 
     assert active_endpoint is not None
-    assert requested_changed_while_active
-    assert maximum_target_step <= 0.012
-    assert maximum_joint_speed <= float(np.max(JOINT_VELOCITY_LIMIT)) + 1e-10
-    assert minimum_joint_margin > 0.02
+    assert first_phase_end is not None
+    assert stance_frames_checked >= 10
+    assert maximum_target_step <= 0.0155
+    assert maximum_joint_speed <= 3.0
+    assert minimum_joint_margin >= 0.3
     assert np.max(np.abs(q_cur - Q_STAND)) > 0.01
 
 
 def test_84_frame_abrupt_command_witness_remains_continuous_and_safe():
+    # 门槛钉住关节空间步态现状（行走站姿实测 21.1 mm / 0 次 / 0.34 rad），作为回归报警，不是安全裕度。
     controller = GraspController(1.0 / 30.0)
     q_cur = Q_STAND.copy()
     commands = (
@@ -1522,12 +1570,193 @@ def test_84_frame_abrupt_command_witness_remains_continuous_and_safe():
         )
 
     assert len(commands) == 84
-    assert maximum_target_step <= 0.013
-    assert velocity_clips <= 7
-    assert minimum_joint_margin > 0.02
+    assert maximum_target_step <= 0.0215
+    assert velocity_clips == 0
+    assert minimum_joint_margin >= 0.3
     assert offline_link_collision_frames == 0
     assert not controller.approach_mode.gait_started
     assert not controller.approach_mode.transfer_active
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        (0.0, 0.04, 0.0, 0.0),
+        (0.0, 0.08, 0.0, 0.0),
+        (0.0, 0.12, 0.0, 0.0),
+        (0.0, 0.14, 0.0, 0.0),
+        (0.14, 0.0, 0.0, 0.0),
+        (0.0, 0.0, 0.0, 0.6),
+        (0.07, 0.07, 0.0, 0.3),
+        (0.0, -0.10, 0.0, 0.0),
+    ],
+)
+def test_joint_space_walking_never_falls_back_and_stance_legs_follow_exact_ik(
+    monkeypatch, command
+):
+    controller = GraspController(1.0 / 30.0)
+    mode = controller.approach_mode
+    kinematic = controller.kinematic
+    aborted = []
+    saturated = []
+    original_plan = mode._plan_swing
+    monkeypatch.setattr(mode, "_abort_step", lambda: aborted.append(True))
+
+    def plan(swing_indices):
+        accepted = original_plan(swing_indices)
+        saturated.append(mode.swing_lift_saturated)
+        return accepted
+
+    monkeypatch.setattr(mode, "_plan_swing", plan)
+    q_cur = Q_STAND.copy()
+    swing_frames = 0
+    for index in range(300):
+        walking = index < 210
+        transfer_before = mode.transfer_active
+        was_started = mode.gait_started
+        q_cur = controller.update(
+            q_cur, np.array(command) if walking else np.zeros(4)
+        )
+        # 步行模式下没有 DLS：六条腿每帧都有关节覆盖。
+        assert all(override is not None for override in controller.joint_override)
+        if was_started and not transfer_before:
+            swing_frames += 1
+            stance_legs = [leg for leg in range(6) if mode.gaits[leg]]
+        else:
+            stance_legs = list(range(6))
+        # 支撑腿覆盖 = 已提交足端的精确 IK（髋系足端误差只剩数值残差）。
+        feet_hip = kinematic.base_to_hip(controller.foot_desired_base)
+        override_feet = kinematic.forward(np.array(controller.joint_override))
+        assert np.allclose(
+            override_feet[stance_legs], feet_hip[stance_legs], atol=1e-8
+        )
+        if not walking and not mode.gait_started:
+            break
+    assert not aborted
+    assert saturated and not any(saturated)
+    assert swing_frames >= 2 * 14
+    assert not mode.gait_started
+
+
+@pytest.mark.parametrize(
+    "command",
+    [(0.0, 0.04, 0.0, 0.0), (0.0, 0.08, 0.0, 0.0), (0.0, -0.10, 0.0, 0.0)],
+)
+def test_swing_lift_governor_keeps_analytic_joint_speed_within_limit(
+    monkeypatch, command
+):
+    controller = GraspController(1.0 / 30.0)
+    mode = controller.approach_mode
+    original_plan = mode._plan_swing
+    peaks = []
+
+    def plan(swing_indices):
+        accepted = original_plan(swing_indices)
+        for leg in swing_indices:
+            rates = [
+                np.abs(mode._swing_joint_state(leg, u)[1]).max()
+                for u in np.linspace(0.0, 1.0, 41)
+            ]
+            peaks.append(max(rates))
+        return accepted
+
+    monkeypatch.setattr(mode, "_plan_swing", plan)
+    q_cur = Q_STAND.copy()
+    for _ in range(120):
+        q_cur = controller.update(q_cur, np.array(command))
+    assert len(peaks) >= 9
+    assert mode.speed_governor_infeasible == 0
+    assert max(peaks) <= mode.swing_joint_speed_limit + 1e-9
+
+
+def test_swing_plan_failure_keeps_all_legs_in_stance(monkeypatch):
+    controller = GraspController(1.0 / 30.0)
+    mode = controller.approach_mode
+    monkeypatch.setattr(
+        mode, "_leg_ik", lambda leg, target_hip, q_seed: (q_seed, False)
+    )
+    q_cur = Q_STAND.copy()
+    for _ in range(10):
+        q_cur = controller.update(q_cur, np.array([0.0, 0.10, 0.0, 0.0]))
+        assert not mode.gait_started
+        assert not mode.transfer_active
+        # IK 失败：重复发出（没有上一帧时保持 q_des），站姿不动。
+        assert all(override is not None for override in controller.joint_override)
+    assert np.allclose(controller.foot_desired_base, controller.foot_init_base)
+    assert np.allclose(q_cur, Q_STAND, atol=1e-9)
+
+
+def test_stance_ik_failure_repeats_previous_overrides(monkeypatch):
+    controller = GraspController(1.0 / 30.0)
+    mode = controller.approach_mode
+    q_cur = Q_STAND.copy()
+    for _ in range(6):
+        q_cur = controller.update(q_cur, np.array([0.0, 0.10, 0.0, 0.0]))
+    previous = [override.copy() for override in controller.joint_override]
+    monkeypatch.setattr(
+        mode, "_leg_ik", lambda leg, target_hip, q_seed: (q_seed, False)
+    )
+    controller.update(q_cur, np.array([0.0, 0.10, 0.0, 0.0]))
+    for leg in range(6):
+        assert np.array_equal(controller.joint_override[leg], previous[leg])
+
+
+def test_touchdown_lookahead_is_pure_and_centres_the_stance_stroke():
+    controller = GraspController(1.0 / 30.0)
+    mode = controller.approach_mode
+    dt = controller.dt
+    swing = np.array([2, 3, 4])
+    stance_frames = mode.transfer_frames + 15 + mode.transfer_frames
+
+    steady = np.array([0.0, 0.14, 0.0, 0.0])
+    mode.requested_command[:] = steady
+    mode.slew_target_command[:] = steady
+    profile = mode._predict_command_profile(6)
+    assert np.array_equal(mode.requested_command, steady)
+    assert np.allclose(profile, steady)
+    mode._update_swing_target(swing, 0)
+    home = controller.foot_init_base[swing, 1]
+    # 恒定指令：落点 = home + 半个支撑期位移，与以前的对称公式一致。
+    assert np.allclose(
+        mode.swing_target_base[swing, 1],
+        home + 0.5 * stance_frames * dt * 0.14,
+    )
+    assert np.allclose(mode.swing_target_velocity_xy[swing, 1], -0.14)
+
+    # 指令还在加速：支撑期平均速度更小，落点更靠近 home。
+    mode.requested_command[:] = 0.0
+    mode.slew_target_command[:] = steady
+    ramp = mode._predict_command_profile(4)
+    assert np.all(np.diff(ramp[:, 1]) > 0.0)
+    mode._update_swing_target(swing, 0)
+    assert np.all(mode.swing_target_base[swing, 1] > home)
+    assert np.all(
+        mode.swing_target_base[swing, 1]
+        < home + 0.5 * stance_frames * dt * 0.14 + 1e-12
+    )
+    assert np.array_equal(mode.requested_command, np.zeros(4))
+
+
+def test_failed_swing_commit_repeats_last_joint_target(monkeypatch):
+    controller = GraspController(1.0 / 30.0)
+    mode = controller.approach_mode
+    q_cur = Q_STAND.copy()
+    for _ in range(12):
+        q_cur = controller.update(q_cur, np.array([0.0, 0.10, 0.0, 0.0]))
+    assert mode.gait_started and not mode.transfer_active
+    assert all(override is not None for override in controller.joint_override)
+    previous_override = [override.copy() for override in controller.joint_override]
+    previous_feet = controller.foot_desired_base.copy()
+    phase_time = mode.phase_time
+
+    monkeypatch.setattr(
+        controller, "_commit_workspace_candidate", lambda candidate: False
+    )
+    q_cur = controller.update(q_cur, np.array([0.0, 0.10, 0.0, 0.0]))
+    for leg in range(6):
+        assert np.array_equal(controller.joint_override[leg], previous_override[leg])
+    assert np.array_equal(controller.foot_desired_base, previous_feet)
+    assert mode.phase_time == phase_time
 
 
 def test_approach_skips_full_link_scan_but_climb_retains_it(monkeypatch):
@@ -1729,7 +1958,7 @@ def test_outer_thigh_urdf_and_controller_limits_match_exactly():
 @pytest.mark.parametrize("stage_index", (19, 21))
 def test_lift_end_fk_hold_blocks_swing_transfer(stage_index):
     controller = GraspController(1.0 / 30.0)
-    controller.enter_climb(Q_STAND, hardware_execution=True)
+    controller.enter_climb(Q_CLIMB_PREP, hardware_execution=True)
     mode = controller.climb_mode
     stage = mode.config["stages"][stage_index]
     mode.stage_index = stage_index
@@ -1739,7 +1968,7 @@ def test_lift_end_fk_hold_blocks_swing_transfer(stage_index):
     pose, anchors, _ = mode._stage_reference()
     mode._apply_reference(pose, anchors, sync_previous=True)
     reference_before_hold = controller.foot_desired_base.copy()
-    controller.update(Q_STAND + .5, np.zeros(4))
+    controller.update(Q_CLIMB_PREP + .5, np.zeros(4))
     assert mode.last_phase_hold
     assert mode.phase_time == stage["segment_durations_s"][0]
     assert np.array_equal(controller.foot_desired_base, reference_before_hold)
@@ -1747,10 +1976,10 @@ def test_lift_end_fk_hold_blocks_swing_transfer(stage_index):
 
 def test_hardware_climb_never_advances_on_time_without_settled_feedback():
     controller = GraspController(1.0 / 30.0)
-    controller.enter_climb(Q_STAND, hardware_execution=True)
+    controller.enter_climb(Q_CLIMB_PREP, hardware_execution=True)
     mode = controller.climb_mode
     mode.phase_time = sum(mode.config["stages"][0]["segment_durations_s"])
-    controller.update(Q_STAND + 0.5, np.zeros(4))
+    controller.update(Q_CLIMB_PREP + 0.5, np.zeros(4))
     assert mode.stage_index == 0
     assert mode.state == ClimbMode.RUNNING
     assert mode.settle_time == 0.0
@@ -1759,21 +1988,21 @@ def test_hardware_climb_never_advances_on_time_without_settled_feedback():
 
 def test_hardware_climb_endpoint_phase_hold_clears_when_feedback_settles():
     controller = GraspController(1.0 / 30.0)
-    controller.enter_climb(Q_STAND, hardware_execution=True)
+    controller.enter_climb(Q_CLIMB_PREP, hardware_execution=True)
     mode = controller.climb_mode
     duration = sum(mode.config["stages"][0]["segment_durations_s"])
     mode.phase_time = duration
-    controller.update(Q_STAND + 0.5, np.zeros(4))
+    controller.update(Q_CLIMB_PREP + 0.5, np.zeros(4))
     assert mode.last_phase_hold
-    controller.q_des = Q_STAND.copy()
-    controller.foot_desired_base[:] = controller.kinematic.forward_base(Q_STAND)
-    controller.update(Q_STAND, np.zeros(4))
+    controller.q_des = Q_CLIMB_PREP.copy()
+    controller.foot_desired_base[:] = controller.kinematic.forward_base(Q_CLIMB_PREP)
+    controller.update(Q_CLIMB_PREP, np.zeros(4))
     assert not mode.last_phase_hold
 
 
 def test_hardware_climb_timing_diagnostics_partition_control_cycles():
     controller = GraspController(1.0 / 30.0)
-    controller.enter_climb(Q_STAND, hardware_execution=True)
+    controller.enter_climb(Q_CLIMB_PREP, hardware_execution=True)
     mode = controller.climb_mode
     stage = mode.config["stages"][0]
     duration = sum(stage["segment_durations_s"])
@@ -1781,15 +2010,15 @@ def test_hardware_climb_timing_diagnostics_partition_control_cycles():
 
     # A terminal feedback miss is distinct from persistence and collision.
     mode.phase_time = duration
-    controller.foot_desired_base[:] = controller.kinematic.forward_base(Q_STAND)
-    mode.update(command, Q_STAND + .5)
+    controller.foot_desired_base[:] = controller.kinematic.forward_base(Q_CLIMB_PREP)
+    mode.update(command, Q_CLIMB_PREP + .5)
     timing = mode.stage_timing_metrics()[0]
     assert np.isclose(timing["terminal_feedback_hold_s"], controller.dt)
 
     # Restore ideal FK for enough endpoint samples to finish the persistence.
     while mode.stage_index == 0:
-        controller.foot_desired_base[:] = controller.kinematic.forward_base(Q_STAND)
-        mode.update(command, Q_STAND)
+        controller.foot_desired_base[:] = controller.kinematic.forward_base(Q_CLIMB_PREP)
+        mode.update(command, Q_CLIMB_PREP)
     timing = mode.stage_timing_metrics()[0]
     categories = (
         "motion_progress_s",
@@ -1832,17 +2061,17 @@ def test_stage_settle_persistence_feedback_miss_resets_count():
     config = _load_compact_config()
     config["stages"][0]["settle_persistence_s"] = .1
     controller = GraspController(1.0 / 30.0)
-    controller.enter_climb(Q_STAND, config, hardware_execution=True)
+    controller.enter_climb(Q_CLIMB_PREP, config, hardware_execution=True)
     mode = controller.climb_mode
     mode.phase_time = sum(config["stages"][0]["segment_durations_s"])
     command = np.zeros(4)
 
     for _ in range(2):
-        controller.foot_desired_base[:] = controller.kinematic.forward_base(Q_STAND)
-        mode.update(command, Q_STAND)
+        controller.foot_desired_base[:] = controller.kinematic.forward_base(Q_CLIMB_PREP)
+        mode.update(command, Q_CLIMB_PREP)
     assert np.isclose(mode.settle_time, 2.0 * controller.dt)
-    controller.foot_desired_base[:] = controller.kinematic.forward_base(Q_STAND)
-    mode.update(command, Q_STAND + .5)
+    controller.foot_desired_base[:] = controller.kinematic.forward_base(Q_CLIMB_PREP)
+    mode.update(command, Q_CLIMB_PREP + .5)
     assert mode.settle_time == 0.0
     assert mode.state == ClimbMode.RUNNING
 
@@ -1894,13 +2123,13 @@ def test_retime_audit_rejects_body_stage_hard_speed(monkeypatch):
 
 def test_hardware_climb_uses_foot_task_error_not_joint_tracking_for_phase():
     controller = GraspController(1.0 / 30.0)
-    controller.enter_climb(Q_STAND, hardware_execution=True)
+    controller.enter_climb(Q_CLIMB_PREP, hardware_execution=True)
     mode = controller.climb_mode
 
     # 模拟负载下存在关节稳态偏差，但实际 FK 足端仍在当前任务目标。
-    controller.q_des = Q_STAND + 0.5
-    controller.foot_desired_base[:] = controller.kinematic.forward_base(Q_STAND)
-    controller.update(Q_STAND, np.zeros(4))
+    controller.q_des = Q_CLIMB_PREP + 0.5
+    controller.foot_desired_base[:] = controller.kinematic.forward_base(Q_CLIMB_PREP)
+    controller.update(Q_CLIMB_PREP, np.zeros(4))
 
     assert mode.last_tracking_error_rad > mode.config["settle_gate"][
         "max_joint_tracking_error_rad"
@@ -1913,14 +2142,14 @@ def test_hardware_climb_uses_foot_task_error_not_joint_tracking_for_phase():
 
 def test_hardware_climb_only_holds_fk_error_at_segment_checkpoints():
     controller = GraspController(1.0 / 30.0)
-    controller.enter_climb(Q_STAND, hardware_execution=True)
+    controller.enter_climb(Q_CLIMB_PREP, hardware_execution=True)
     mode = controller.climb_mode
     command = np.zeros(4)
 
-    controller.update(Q_STAND, command)
+    controller.update(Q_CLIMB_PREP, command)
     moving_phase = mode.phase_time
     # C1 has one segment: a large FK error inside it must not interrupt motion.
-    q_des = controller.update(Q_STAND + 0.5, command)
+    q_des = controller.update(Q_CLIMB_PREP + 0.5, command)
     assert mode.last_foot_target_error_m > mode.config["settle_gate"][
         "max_foot_target_error_m"
     ]
@@ -1936,16 +2165,16 @@ def test_hardware_climb_only_holds_fk_error_at_segment_checkpoints():
     base, anchors, _ = mode._stage_reference()
     mode._apply_reference(base, anchors, sync_previous=True)
     reference_before_hold = controller.foot_desired_base.copy()
-    controller.update(Q_STAND + 0.5, command)
+    controller.update(Q_CLIMB_PREP + 0.5, command)
     assert mode.last_foot_target_error_m > mode.config["settle_gate"][
         "max_foot_target_error_m"
     ]
     assert mode.phase_time == mode.config["stages"][1]["segment_durations_s"][0]
     assert np.array_equal(controller.foot_desired_base, reference_before_hold)
 
-    controller.q_des = Q_STAND.copy()
-    controller.foot_desired_base[:] = controller.kinematic.forward_base(Q_STAND)
-    controller.update(Q_STAND, command)
+    controller.q_des = Q_CLIMB_PREP.copy()
+    controller.foot_desired_base[:] = controller.kinematic.forward_base(Q_CLIMB_PREP)
+    controller.update(Q_CLIMB_PREP, command)
     assert mode.last_foot_target_error_m <= mode.config["settle_gate"][
         "max_foot_target_error_m"
     ]
@@ -1954,20 +2183,20 @@ def test_hardware_climb_only_holds_fk_error_at_segment_checkpoints():
 
 def test_hardware_climb_diagnostics_keep_all_feet_and_motors():
     controller = GraspController(1.0 / 30.0)
-    controller.enter_climb(Q_STAND, hardware_execution=True)
+    controller.enter_climb(Q_CLIMB_PREP, hardware_execution=True)
     mode = controller.climb_mode
     mode.stage_index = 3
     mode.phase = mode.stage_names[mode.stage_index]
     mode.phase_time = 0.2
     mode.stage_elapsed_time = 0.7
-    controller.foot_desired_base[:] = controller.kinematic.forward_base(Q_STAND)
+    controller.foot_desired_base[:] = controller.kinematic.forward_base(Q_CLIMB_PREP)
     controller.foot_desired_base[0, 0] += 0.03
     controller.foot_desired_base[1, 1] += 0.04
-    controller.q_des = Q_STAND.copy()
+    controller.q_des = Q_CLIMB_PREP.copy()
     controller.q_des[2, 1] += 0.10
     controller.q_des[4, 2] += 0.12
 
-    mode._update_tracking_diagnostics(Q_STAND)
+    mode._update_tracking_diagnostics(Q_CLIMB_PREP)
 
     assert mode.last_worst_foot_leg == "lf"
     assert mode.last_worst_joint_leg == "rf"
@@ -2009,7 +2238,7 @@ def test_hardware_climb_timeout_includes_foot_and_motor_diagnostics(monkeypatch)
     monotonic_time = [10.0]
     monkeypatch.setattr(climb_mode.time, "monotonic", lambda: monotonic_time[0])
     controller = GraspController(1.0 / 30.0)
-    controller.enter_climb(Q_STAND, hardware_execution=True)
+    controller.enter_climb(Q_CLIMB_PREP, hardware_execution=True)
     mode = controller.climb_mode
     stage = mode.config["stages"][0]
     mode.stage_elapsed_time = (
@@ -2017,7 +2246,7 @@ def test_hardware_climb_timeout_includes_foot_and_motor_diagnostics(monkeypatch)
         + mode.config["settle_gate"]["timeout_s"]
     )
     monotonic_time[0] += 0.01
-    controller.update(Q_STAND + 0.5, np.zeros(4))
+    controller.update(Q_CLIMB_PREP + 0.5, np.zeros(4))
 
     assert mode.state == ClimbMode.FAILED
     assert "worst_foot=" in mode.failure_reason
@@ -2103,10 +2332,10 @@ def test_run_real_logs_active_leg_trace_without_phase_hold(monkeypatch):
 
 def test_hardware_climb_collision_hold_freezes_trajectory_phase():
     controller = GraspController(1.0 / 30.0)
-    controller.enter_climb(Q_STAND, hardware_execution=True)
+    controller.enter_climb(Q_CLIMB_PREP, hardware_execution=True)
     mode = controller.climb_mode
     controller.last_update_collision_guard_hold_count = 1
-    controller.update(Q_STAND, np.zeros(4))
+    controller.update(Q_CLIMB_PREP, np.zeros(4))
     assert mode.phase_time == 0.0
 
 
@@ -2115,14 +2344,14 @@ def test_hardware_climb_endpoint_requires_configured_persistence():
         (SCRIPTS.parent / "config" / "climb_compact.json").read_text()
     )
     ideal = GraspController(1.0 / 30.0)
-    ideal.enter_climb(Q_STAND, config, end_stage_index=0)
-    q_end = Q_STAND.copy()
+    ideal.enter_climb(Q_CLIMB_PREP, config, end_stage_index=0)
+    q_end = Q_CLIMB_PREP.copy()
     while ideal.climb_mode.state == ClimbMode.RUNNING:
         q_end = ideal.update(q_end, np.zeros(4))
 
     controller = GraspController(1.0 / 30.0)
     controller.enter_climb(
-        Q_STAND,
+        Q_CLIMB_PREP,
         config,
         end_stage_index=0,
         hardware_execution=True,
@@ -2151,7 +2380,7 @@ def test_hardware_climb_timeout_uses_wall_time_while_phase_is_frozen(monkeypatch
     monotonic_time = [10.0]
     monkeypatch.setattr(climb_mode.time, "monotonic", lambda: monotonic_time[0])
     controller = GraspController(1.0 / 30.0)
-    controller.enter_climb(Q_STAND, hardware_execution=True)
+    controller.enter_climb(Q_CLIMB_PREP, hardware_execution=True)
     mode = controller.climb_mode
     stage = mode.config["stages"][0]
     duration = sum(stage["segment_durations_s"])
@@ -2159,7 +2388,7 @@ def test_hardware_climb_timeout_uses_wall_time_while_phase_is_frozen(monkeypatch
         duration + mode.config["settle_gate"]["timeout_s"]
     )
     monotonic_time[0] += 0.01
-    controller.update(Q_STAND + 0.5, np.zeros(4))
+    controller.update(Q_CLIMB_PREP + 0.5, np.zeros(4))
     assert mode.state == ClimbMode.FAILED
     assert mode.phase_time == controller.dt
 
@@ -2170,21 +2399,21 @@ def test_hardware_climb_elapsed_time_uses_monotonic_running_time_only(monkeypatc
     monotonic_time = [100.0]
     monkeypatch.setattr(climb_mode.time, "monotonic", lambda: monotonic_time[0])
     controller = GraspController(1.0 / 30.0)
-    controller.enter_climb(Q_STAND, hardware_execution=True)
+    controller.enter_climb(Q_CLIMB_PREP, hardware_execution=True)
     mode = controller.climb_mode
 
     monotonic_time[0] = 100.4
-    mode.update(np.zeros(4), Q_STAND)
+    mode.update(np.zeros(4), Q_CLIMB_PREP)
     assert np.isclose(mode.stage_elapsed_time, 0.4)
 
     mode.hold()
     monotonic_time[0] = 140.0
-    mode.update(np.zeros(4), Q_STAND)
+    mode.update(np.zeros(4), Q_CLIMB_PREP)
     assert np.isclose(mode.stage_elapsed_time, 0.4)
 
     mode.resume()
     monotonic_time[0] = 140.25
-    mode.update(np.zeros(4), Q_STAND)
+    mode.update(np.zeros(4), Q_CLIMB_PREP)
     assert np.isclose(mode.stage_elapsed_time, 0.65)
 
 
@@ -2197,21 +2426,21 @@ def test_simulated_feedback_gates_use_controller_time_not_wall_time(monkeypatch)
         1.0 / 30.0,
         climb_timeout_uses_wall_time=False,
     )
-    controller.enter_climb(Q_STAND, hardware_execution=True)
+    controller.enter_climb(Q_CLIMB_PREP, hardware_execution=True)
     mode = controller.climb_mode
 
     monotonic_time[0] = 1000.0
-    mode.update(np.zeros(4), Q_STAND)
+    mode.update(np.zeros(4), Q_CLIMB_PREP)
     assert np.isclose(mode.stage_elapsed_time, controller.dt)
 
     mode.hold()
     monotonic_time[0] = 2000.0
-    mode.update(np.zeros(4), Q_STAND)
+    mode.update(np.zeros(4), Q_CLIMB_PREP)
     assert np.isclose(mode.stage_elapsed_time, controller.dt)
 
     mode.resume()
     monotonic_time[0] = 3000.0
-    mode.update(np.zeros(4), Q_STAND)
+    mode.update(np.zeros(4), Q_CLIMB_PREP)
     assert np.isclose(mode.stage_elapsed_time, 2.0 * controller.dt)
 
 
@@ -2281,3 +2510,250 @@ def test_climb_observation_uses_start_frame_relative_transforms():
     node.real_climb_max_orientation_error = 1e-9
     node.real_climb_max_angular_speed = 1e-9
     assert RUN_REAL.RosControlNode._real_climb_observation(node) == (True, "")
+
+
+# ---------------------------------------------------------------------------
+# 攀爬入口统一经过准备过渡（X / BT / 本地 Isaac 武装入口）。
+# ---------------------------------------------------------------------------
+
+_PREP_DT = 1.0 / 30.0
+
+
+def _prep_node(local_execution=False):
+    """真实 GraspController + 无 ROS 的节点夹具，覆盖 X 与 BT 入口。"""
+
+    node = _bt_node()
+    node.local_execution = local_execution
+    node.enable_real_climb = True
+    node.climb_side = "left"
+    node.climb_foot_gate_m = 0.02
+    node.control_source = "teleop"
+    node.controller = GraspController(_PREP_DT)
+    node.state = node.HOLD
+    node.command = np.zeros(4)
+    node.navigation = types.SimpleNamespace(
+        motion_snapshot=lambda: types.SimpleNamespace(valid=False),
+        snapshot=lambda: None,
+    )
+    node.imu = types.SimpleNamespace(
+        snapshot=lambda: {"valid": False, "rotation": np.eye(3)}
+    )
+    node.local_climb_armed = False
+    node.local_climb_entry_q = None
+    node.real_climb_monitor_active = False
+    node.real_climb_speed_diagnostic = None
+    node.manual_override = False
+    node.bt_request = None
+    node.axis_right, node.axis_forward, node.axis_yaw = 0, 1, 3
+    node.axis_body_down, node.axis_body_up = 4, 5
+    node.axis_right_scale = node.axis_forward_scale = node.axis_yaw_scale = 1.0
+    node.axis_body_scale = -1.0
+    node.max_linear_speed = 0.2
+    node.max_vertical_speed = 0.02
+    node.max_yaw_rate = 0.3
+    return node
+
+
+def _step_node(node, q, buttons=None, joy_fresh=True):
+    """一帧 _update_control（Joy 新鲜、摇杆满偏）；返回关节目标。"""
+
+    if buttons is None:
+        buttons = np.zeros(4, dtype=np.int32)
+    axes = np.array([1.0, 1.0, 0.0, 1.0, 0.0, 0.0, 0.0])
+    return RUN_REAL.RosControlNode._update_control(
+        node,
+        q,
+        axes,
+        buttons,
+        1.0 if joy_fresh else 0.0,
+        1.1,
+        feedback_ready=True,
+    )
+
+
+def _run_prep_until_entry(node, q, max_frames=200):
+    """零指令逐帧推进，返回 (进入攀爬的帧下标, 进入时的关节反馈)。"""
+
+    entered_at = None
+    for index in range(max_frames):
+        q = _step_node(node, q)
+        if node.controller.mode == node.controller.CLIMB:
+            entered_at = index
+            break
+    return entered_at, q
+
+
+def test_x_from_walking_stance_runs_prep_then_enters_climb_once(monkeypatch):
+    node = _prep_node()
+    entries = []
+    real_enter = node.controller.enter_climb
+
+    def counting_enter(q_cur, config=None, hardware_execution=False):
+        entries.append(np.asarray(q_cur).copy())
+        return real_enter(q_cur, config=config, hardware_execution=hardware_execution)
+
+    monkeypatch.setattr(node.controller, "enter_climb", counting_enter)
+    RUN_REAL.RosControlNode._process_buttons(
+        node, np.array([0, 0, 1, 0]), True, Q_STAND
+    )
+    # 过渡开始：不进入攀爬，状态 RUNNING，等待标志置位。
+    assert node.state == node.RUNNING
+    assert node.climb_after_prep
+    assert node.controller.climb_prep_active
+    assert node.controller.mode == node.controller.APPROACH
+    assert entries == []
+
+    q = Q_STAND.copy()
+    prep_frames = 0
+    entered_at = None
+    for index in range(200):
+        # 摇杆满偏：过渡期间必须被忽略（q 严格沿调度走）。
+        q = _step_node(node, q)
+        if node.controller.mode == node.controller.CLIMB:
+            entered_at = index
+            break
+        prep_frames += 1
+        assert node.state == node.RUNNING
+        assert node.climb_after_prep
+    assert entered_at is not None
+    assert prep_frames >= sum(node.controller.climb_prep_segment_frames) - 1
+    assert len(entries) == 1
+    config = node.controller.climb_mode._load_config()
+    gate = config["settle_gate"]["entry_max_joint_error_rad"]
+    assert np.max(np.abs(entries[0] - np.asarray(config["p0"]["q_rad"]))) <= gate
+    assert np.array_equal(entries[0], Q_CLIMB_PREP)
+    assert node.controller.climb_mode.state == ClimbMode.RUNNING
+    assert node.state == node.RUNNING
+    assert not node.climb_after_prep
+    assert not node.controller.climb_prep_posture_held
+    # 之后继续推进也不会再次进入。
+    for _ in range(5):
+        q = _step_node(node, q)
+    assert len(entries) == 1
+
+
+def test_x_at_climb_prep_enters_immediately_without_transition():
+    node = _prep_node()
+    RUN_REAL.RosControlNode._process_buttons(
+        node, np.array([0, 0, 1, 0]), True, Q_CLIMB_PREP.copy()
+    )
+    assert node.state == node.RUNNING
+    assert not node.climb_after_prep
+    assert not node.controller.climb_prep_active
+    assert node.controller.mode == node.controller.CLIMB
+    assert node.controller.climb_mode.state == ClimbMode.RUNNING
+
+
+def test_b_during_climb_prep_cancels_without_entering_and_returns_to_stand():
+    node = _prep_node()
+    RUN_REAL.RosControlNode._process_buttons(
+        node, np.array([0, 0, 1, 0]), True, Q_STAND
+    )
+    assert node.climb_after_prep
+    q = Q_STAND.copy()
+    for _ in range(20):
+        q = _step_node(node, q)
+    assert node.controller.climb_prep_active
+    # B：取消过渡与等待标志，回行走站姿。
+    q = _step_node(node, q, buttons=np.array([0, 1, 0, 0], dtype=np.int32))
+    assert node.state == node.RESETTING
+    assert not node.climb_after_prep
+    for _ in range(200):
+        q = _step_node(node, q)
+        if node.state == node.HOLD:
+            break
+    assert node.state == node.HOLD
+    assert node.controller.mode == node.controller.APPROACH
+    assert not node.controller.climb_prep_active
+    assert not node.controller.climb_prep_posture_held
+    assert node.controller.climb_mode.state != ClimbMode.RUNNING
+    assert np.allclose(q, Q_STAND, atol=1e-9)
+
+
+def test_x_prep_rejection_keeps_state_and_reports_reason():
+    node = _prep_node()
+    node.controller.approach_mode.gait_started = True
+    RUN_REAL.RosControlNode._process_buttons(
+        node, np.array([0, 0, 1, 0]), True, Q_STAND
+    )
+    assert node.state == node.HOLD
+    assert not node.climb_after_prep
+    assert "idle" in node.climb_prep_reject_reason
+    assert node.controller.mode == node.controller.APPROACH
+
+
+def test_a_pause_during_climb_prep_cancels_entry_and_holds_posture():
+    node = _prep_node()
+    RUN_REAL.RosControlNode._process_buttons(
+        node, np.array([0, 0, 1, 0]), True, Q_STAND
+    )
+    q = Q_STAND.copy()
+    for _ in range(5):
+        q = _step_node(node, q)
+    RUN_REAL.RosControlNode._process_buttons(
+        node, np.array([1, 0, 0, 0]), True, q
+    )
+    assert node.state == node.HOLD
+    assert not node.climb_after_prep
+    for _ in range(200):
+        q = _step_node(node, q)
+    # 过渡仍走完并停在准备姿态；没有自动入口。
+    assert node.controller.climb_prep_posture_held
+    assert node.controller.mode == node.controller.APPROACH
+    # 再按 X：已保持，直接入口。
+    RUN_REAL.RosControlNode._process_buttons(
+        node, np.array([0, 0, 1, 0]), True, q
+    )
+    assert node.controller.mode == node.controller.CLIMB
+    assert node.controller.climb_mode.state == ClimbMode.RUNNING
+
+
+def test_bt_climb_from_walking_stance_runs_prep_and_does_not_finish_early():
+    node = _prep_node(local_execution=True)
+    request = _bt_request("climb")
+    request["started"] = False
+    node.bt_request = request
+    q = Q_STAND.copy()
+    entered_at = None
+    for index in range(200):
+        q = _step_node(node, q)
+        if request["final"] is not None:
+            break
+        if node.controller.mode == node.controller.CLIMB:
+            entered_at = index
+            break
+    assert request["final"] is None
+    assert entered_at is not None
+    assert entered_at >= sum(node.controller.climb_prep_segment_frames) - 1
+    assert node.controller.climb_mode.state == ClimbMode.RUNNING
+    assert node.state == node.RUNNING
+
+
+def test_bt_climb_prep_rejection_fails_request_with_the_reason():
+    node = _prep_node(local_execution=True)
+    node.controller.approach_mode.transfer_active = True
+    request = _bt_request("climb")
+    request["started"] = False
+    node.bt_request = request
+    _step_node(node, Q_STAND.copy())
+    assert request["final"] is not None
+    ok, message = request["final"]
+    assert not ok
+    assert "idle" in message
+
+
+def test_local_armed_entry_away_from_p0_runs_prep_on_first_x():
+    node = _prep_node(local_execution=True)
+    node.local_climb_armed = True
+    node.local_climb_entry_q = Q_STAND.copy()
+    node.controller.q_des = Q_STAND.copy()
+    RUN_REAL.RosControlNode._process_buttons(
+        node, np.array([0, 0, 1, 0]), True, Q_STAND
+    )
+    assert node.state == node.RUNNING
+    assert node.climb_after_prep
+    assert not node.local_climb_armed
+    assert node.local_climb_entry_q is None
+    entered_at, _ = _run_prep_until_entry(node, Q_STAND.copy())
+    assert entered_at is not None
+    assert node.controller.climb_mode.state == ClimbMode.RUNNING

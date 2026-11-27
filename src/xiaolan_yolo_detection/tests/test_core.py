@@ -14,6 +14,21 @@ class CoreTest(unittest.TestCase):
         self.assertIsNone(best_box(raw,mapping,.95))
         with self.assertRaises(ValueError): best_box(np.zeros((1,84,100)),mapping,.5)
 
+    def test_prepare_rgb_channel_passthrough(self):
+        img=np.full((480,640,3),(30,60,120),np.uint8)
+        letter=Letterbox(416)
+        tensor,mapping=letter.prepare(img)
+        nw,nh,left,top=int(round(mapping[0]*mapping[4])),int(round(mapping[1]*mapping[5])),int(mapping[2]),int(mapping[3])
+        active=tensor[0][:,top:top+nh,left:left+nw]
+        for plane,value in zip(active,(30/255,60/255,120/255)):
+            self.assertAlmostEqual(plane.mean(),value,places=2)
+        border=np.ones_like(tensor[0])
+        border[:,top:top+nh,left:left+nw]=0
+        self.assertAlmostEqual(tensor[0][border!=0].mean(),114/255,places=2)
+        first=tensor.copy()
+        swapped,_=letter.prepare(np.ascontiguousarray(img[:,:,::-1]))
+        self.assertFalse(np.array_equal(first,swapped))
+
     def test_roi_median_units_holes_and_strict_range(self):
         depth=np.full((40,40),900,np.uint16)
         depth[16:25,16:25]=500

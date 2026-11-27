@@ -135,7 +135,7 @@ ROS Isaac compact 攀爬使用同一套 `ClimbMode`、20 mm FK 足端门、`.25 
 roslaunch grasp_hexapod_control run_sim_ros_climb.launch
 ```
 
-场景固定在 active compact 的 C1 入口，按 X 开始 C1--C35；A 在 armed 状态会被忽略，B
+场景固定在 active compact 的 C1 入口，按 X 开始 C1--C27；A 在 armed 状态会被忽略，B
 取消并正常回站。`/lb_pos` 与 `/lb_des` 是 Isaac 同步反馈/目标 telemetry，约为 30 Hz：
 
 ```bash
@@ -155,7 +155,7 @@ python src/grasp_hexapod_control/scripts/run_sim.py
 
 ## Isaac 攀爬区间回放
 
-仅 Python/Isaac 的 compact 攀爬预览支持闭区间参数，`C1` 到 `C35` 是固定数组
+仅 Python/Isaac 的 compact 攀爬预览支持闭区间参数，`C1` 到 `C27` 是固定数组
 别名，亦可传运行时阶段名：
 
 ```bash
@@ -187,7 +187,7 @@ B -> 等待回到标准站姿 -> A -> 接受运动指令
 
 - B：最高优先级，停止当前行为并回到站姿。
 - A：站姿初始化完成后启用或暂停运动。
-- X（默认索引2）：`run_real.launch`默认启用。完成B回站、Joy和18关节反馈新鲜并通过compact入口关节门限后，按X从C1启动完整C1--C35诊断回放；A暂停或恢复，B可随时中止。阶段只按实际关节跟踪与FK足端目标误差的连续稳定门限推进。IMU和RTK/LoRa不要求；若启动瞬间两者恰好有效，才启用可选相对运动监控。关节反馈门限不证明接触、承载或稳定性；可用`enable_real_climb:=false`显式关闭该入口。
+- X（默认索引2）：`run_real.launch`默认启用。完成B回站、Joy和18关节反馈新鲜并通过compact入口关节门限后，按X从C1启动完整C1--C27诊断回放；A暂停或恢复，B可随时中止。阶段只按实际关节跟踪与FK足端目标误差的连续稳定门限推进。IMU和RTK/LoRa不要求；若启动瞬间两者恰好有效，才启用可选相对运动监控。关节反馈门限不证明接触、承载或稳定性；可用`enable_real_climb:=false`显式关闭该入口。
 - Y（默认索引3）：`run_real.launch`默认启用。完成B回站、Joy和18关节反馈新鲜且没有运行中的攀爬时，按Y进入DockMode；不依赖IMU或RTK。DockMode等待稳定的完整AprilTag输入；它只把18关节候选交给同一个`run_real.py -> GraspController -> /<leg>_des`链路，未另行发布舵机或`JointTrajectory`命令。完成或失败都进入HOLD，B可随时中止。
 - 导航运行时推动任一运动摇杆会取消导航并锁存为手柄控制。
 - 松开摇杆不会恢复导航；按B重新初始化，再按A才会重新规划。

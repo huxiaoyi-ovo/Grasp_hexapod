@@ -18,7 +18,7 @@ ACCEPTED_SHA = "4421aff133035f358e69ed33ddaa649d580750d868f2318736efc17e797bf60c
 sys.path[:0] = [str(SCRIPTS), str(TOOLS)]
 
 from climb_mode import ClimbMode  # noqa: E402
-from kinematics import Q_STAND  # noqa: E402
+from kinematics import Q_CLIMB_PREP  # noqa: E402
 import replan_climb_front as builder  # noqa: E402
 
 
@@ -64,7 +64,7 @@ def test_accepted_route_is_continuous_and_never_reverses_an_active_foot():
             assert knots[-1, leg, 0] > knots[0, leg, 0], (stage["name"], leg)
 
     with pytest.raises(ValueError, match="front compact climbing is simulation-only"):
-        ClimbMode(None).enter(Q_STAND, config=config, hardware_execution=True)
+        ClimbMode(None).enter(Q_CLIMB_PREP, config=config, hardware_execution=True)
 
 
 @pytest.mark.parametrize("corruption, message", [

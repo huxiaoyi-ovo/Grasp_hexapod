@@ -1,0 +1,97 @@
+Running main() from /usr/src/googletest/googletest/src/gtest_main.cc
+[==========] Running 9 tests from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 9 tests from VisualGuidance
+[ RUN      ] VisualGuidance.SearchUsesYawIndexAndRightTargetTurnsNegative
+[       OK ] VisualGuidance.SearchUsesYawIndexAndRightTargetTurnsNegative (0 ms)
+[ RUN      ] VisualGuidance.ApproachUsesForwardAndYawIndices
+[       OK ] VisualGuidance.ApproachUsesForwardAndYawIndices (0 ms)
+[ RUN      ] VisualGuidance.InvalidOrFutureSourceDoesNotPoisonCorrectedSample
+[       OK ] VisualGuidance.InvalidOrFutureSourceDoesNotPoisonCorrectedSample (0 ms)
+[ RUN      ] VisualGuidance.HeldCallbackZerosButCachedControlReadRemainsUsable
+[       OK ] VisualGuidance.HeldCallbackZerosButCachedControlReadRemainsUsable (0 ms)
+[ RUN      ] VisualGuidance.SourceAgeAndBearingBlockForwardMotion
+[       OK ] VisualGuidance.SourceAgeAndBearingBlockForwardMotion (0 ms)
+[ RUN      ] VisualGuidance.SearchTimeoutStillAppliesDuringRecoveryDrain
+[       OK ] VisualGuidance.SearchTimeoutStillAppliesDuringRecoveryDrain (0 ms)
+[ RUN      ] VisualGuidance.SettleNeedsContinuousFreshSamplesAndStoppedGait
+[       OK ] VisualGuidance.SettleNeedsContinuousFreshSamplesAndStoppedGait (0 ms)
+[ RUN      ] VisualGuidance.ResumeRequiresSampleNewerThanPauseFloor
+[       OK ] VisualGuidance.ResumeRequiresSampleNewerThanPauseFloor (0 ms)
+[ RUN      ] VisualGuidance.InvalidConfigRejected
+[       OK ] VisualGuidance.InvalidConfigRejected (0 ms)
+[----------] 9 tests from VisualGuidance (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 9 tests from 1 test suite ran. (0 ms total)
+[  PASSED  ] 9 tests.
+Running main() from /usr/src/googletest/googletest/src/gtest_main.cc
+[==========] Running 13 tests from 3 test suites.
+[----------] Global test environment set-up.
+[----------] 5 tests from ModeTopicConfig
+[ RUN      ] ModeTopicConfig.LoadsSectionsAndKeys
+[       OK ] ModeTopicConfig.LoadsSectionsAndKeys (0 ms)
+[ RUN      ] ModeTopicConfig.MissingFileThrows
+[       OK ] ModeTopicConfig.MissingFileThrows (0 ms)
+[ RUN      ] ModeTopicConfig.NonMapRootThrows
+[       OK ] ModeTopicConfig.NonMapRootThrows (0 ms)
+[ RUN      ] ModeTopicConfig.MissingKeyThrowsWithName
+[       OK ] ModeTopicConfig.MissingKeyThrowsWithName (0 ms)
+[ RUN      ] ModeTopicConfig.MissingListThrowsWithName
+[       OK ] ModeTopicConfig.MissingListThrowsWithName (0 ms)
+[----------] 5 tests from ModeTopicConfig (0 ms total)
+
+[----------] 1 test from ModeRegistry
+[ RUN      ] ModeRegistry.MacroRegistrationVisible
+[       OK ] ModeRegistry.MacroRegistrationVisible (0 ms)
+[----------] 1 test from ModeRegistry (0 ms total)
+
+[----------] 7 tests from ModeLifecycle
+[ RUN      ] ModeLifecycle.FreshModeIsRunning
+[       OK ] ModeLifecycle.FreshModeIsRunning (0 ms)
+[ RUN      ] ModeLifecycle.WaitForRunTimesOutAsRunning
+[       OK ] ModeLifecycle.WaitForRunTimesOutAsRunning (0 ms)
+[ RUN      ] ModeLifecycle.FinishWakesWaiter
+[       OK ] ModeLifecycle.FinishWakesWaiter (51 ms)
+[ RUN      ] ModeLifecycle.FinishIsIdempotentFirstWins
+[       OK ] ModeLifecycle.FinishIsIdempotentFirstWins (0 ms)
+[ RUN      ] ModeLifecycle.NewRunSupersedesOldWaiter
+[       OK ] ModeLifecycle.NewRunSupersedesOldWaiter (0 ms)
+[ RUN      ] ModeLifecycle.MarkPreemptedOnlyWhenRunning
+[       OK ] ModeLifecycle.MarkPreemptedOnlyWhenRunning (0 ms)
+[ RUN      ] ModeLifecycle.PauseFlagRoundTrip
+[       OK ] ModeLifecycle.PauseFlagRoundTrip (0 ms)
+[----------] 7 tests from ModeLifecycle (51 ms total)
+
+[----------] Global test environment tear-down
+[==========] 13 tests from 3 test suites ran. (51 ms total)
+[  PASSED  ] 13 tests.
+Running main() from /usr/src/googletest/googletest/src/gtest_main.cc
+[==========] Running 7 tests from 3 test suites.
+[----------] Global test environment set-up.
+[----------] 3 tests from FeedbackGate
+[ RUN      ] FeedbackGate.AllFreshSameBoardGivesReady
+[       OK ] FeedbackGate.AllFreshSameBoardGivesReady (0 ms)
+[ RUN      ] FeedbackGate.StaleLegBlocksReady
+[       OK ] FeedbackGate.StaleLegBlocksReady (0 ms)
+[ RUN      ] FeedbackGate.SkewedBoardsBlockComplete
+[       OK ] FeedbackGate.SkewedBoardsBlockComplete (0 ms)
+[----------] 3 tests from FeedbackGate (0 ms total)
+
+[----------] 1 test from FeedbackIssue
+[ RUN      ] FeedbackIssue.ReportsMissingLegs
+[       OK ] FeedbackIssue.ReportsMissingLegs (0 ms)
+[----------] 1 test from FeedbackIssue (0 ms total)
+
+[----------] 3 tests from ClampCommand
+[ RUN      ] ClampCommand.PreservesDirectionAndClampsNorm
+[       OK ] ClampCommand.PreservesDirectionAndClampsNorm (0 ms)
+[ RUN      ] ClampCommand.SmallCommandPassesThrough
+[       OK ] ClampCommand.SmallCommandPassesThrough (0 ms)
+[ RUN      ] ClampCommand.NonFiniteBecomesZero
+[       OK ] ClampCommand.NonFiniteBecomesZero (0 ms)
+[----------] 3 tests from ClampCommand (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 7 tests from 3 test suites ran. (0 ms total)
+[  PASSED  ] 7 tests.

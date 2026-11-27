@@ -1195,12 +1195,12 @@ def self_check():
     # 用公共控制器和真实FK验证：即使调用方传入历史末姿态，
     # 从站姿或攀爬末姿态进入时也只允许竖直抬升。
     from control import GraspController
-    from kinematics import Q_STAND
+    from kinematics import Q_CLIMB_PREP
 
     for start_from_terminal in (False, True):
         controller = GraspController(1.0 / 30.0)
         current = (controller.climb_terminal_q.copy()
-                   if start_from_terminal else Q_STAND.copy())
+                   if start_from_terminal else Q_CLIMB_PREP.copy())
         initial_feet = controller.kinematic.forward_base(current)
         initial_joints = current.copy()
         entry_mode = DockMode(controller, Perception(transform((0.02, 0, -0.03))))

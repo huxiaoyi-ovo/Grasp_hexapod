@@ -18,7 +18,7 @@ SCRIPTS = ROOT / "src/grasp_hexapod_control/scripts"
 sys.path[:0] = [str(SCRIPTS)]
 
 from climb_mode import ClimbMode, COMPACT_SCHEMA
-from kinematics import FOOT_RADIUS, GraspKinematic, JOINT_LOWER, JOINT_UPPER, Q_STAND
+from kinematics import FOOT_RADIUS, GraspKinematic, JOINT_LOWER, JOINT_UPPER, Q_CLIMB_PREP
 
 MESH = ROOT / "src/grasp_hexapod_description/meshes/xiaolan/base_link_xiaolan.STL"
 TRANSLATION = np.array((.45, -.03, 0.), dtype=np.float64)
@@ -309,10 +309,10 @@ def build(stop_after=None):
     triangles = load_triangles(MESH)
     world_triangles = triangles + TRANSLATION
     kinematic = GraspKinematic()
-    anchors = (np.column_stack((kinematic.forward_base(Q_STAND), np.ones(6))) @ world_from_base(P0).T)[:, :3]
+    anchors = (np.column_stack((kinematic.forward_base(Q_CLIMB_PREP), np.ones(6))) @ world_from_base(P0).T)[:, :3]
     stages, receipts, ground_sphere_receipts, ground_sweep_receipts, surface_sphere_receipts = [], [], [], [], []
     current_pose = P0.copy()
-    q_seed = Q_STAND.copy()
+    q_seed = Q_CLIMB_PREP.copy()
 
     def endpoint_check(name, pose, active):
         nonlocal q_seed
@@ -432,7 +432,7 @@ def build(stop_after=None):
         terminal_q = q_seed.copy()
         if not prefix_preview_only:
             terminal_q, terminal_error = solve_ik(
-                kinematic, current_pose, anchors, Q_STAND, tolerance_m=.00001,
+                kinematic, current_pose, anchors, Q_CLIMB_PREP, tolerance_m=.00001,
             )
             if terminal_error > .00001:
                 raise ValueError("full front terminal DLS residual {:.6f}m".format(terminal_error))
@@ -440,7 +440,7 @@ def build(stop_after=None):
             "schema": COMPACT_SCHEMA, "simulation_only": True, "simulation_candidate_only": True,
             "climb_orientation": "front", "prefix_preview_only": prefix_preview_only,
             "xiaolan_translation": TRANSLATION.tolist(),
-            "p0": {"q_rad": Q_STAND.tolist(), "base": P0.tolist(), "anchors_world_m": ((np.column_stack((kinematic.forward_base(Q_STAND), np.ones(6))) @ world_from_base(P0).T)[:, :3]).tolist()},
+            "p0": {"q_rad": Q_CLIMB_PREP.tolist(), "base": P0.tolist(), "anchors_world_m": ((np.column_stack((kinematic.forward_base(Q_CLIMB_PREP), np.ones(6))) @ world_from_base(P0).T)[:, :3]).tolist()},
             "terminal_q_rad": terminal_q.tolist(),
             "stage_count": len(stages), "stages": stages,
             "settle_gate": {"command_tracking_only_not_contact_proof": True, "entry_max_joint_error_rad": .08,

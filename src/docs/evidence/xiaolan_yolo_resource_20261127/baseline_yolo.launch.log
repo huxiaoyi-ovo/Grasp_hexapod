@@ -1,0 +1,278 @@
+[11/27/2026-11:40:13] [TRT] [W] Using an engine plan file across different models of devices is not recommended and is likely to affect performance or even cause errors.
+[INFO] [1795750810.559804]: 3D state=4 reason=DETECTION_STREAM_TIMEOUT X=0.0 Z=0.0 source_age=None input_age=None skew=None infer_ms=0.0 det_hz=0.0 depth_hz=0.0 target_hz=0.0
+[INFO] [1795750811.070713]: 3D state=4 reason=DEPTH_STREAM_TIMEOUT X=0.0 Z=0.0 source_age=None input_age=None skew=None infer_ms=0.0 det_hz=0.0 depth_hz=5.2 target_hz=0.0
+[INFO] [1795750813.140565]: 3D summary state=4 reason=DETECTION_STREAM_TIMEOUT X=0.0 Z=0.0 source_age=None input_age=None skew=None infer_ms=0.0 det_hz=0.0 depth_hz=15.0 target_hz=0.0
+[INFO] [1795750815.205298]: 3D summary state=4 reason=DETECTION_STREAM_TIMEOUT X=0.0 Z=0.0 source_age=None input_age=None skew=None infer_ms=0.0 det_hz=0.0 depth_hz=15.0 target_hz=0.0
+[INFO] [1795750817.270781]: 3D summary state=4 reason=DETECTION_STREAM_TIMEOUT X=0.0 Z=0.0 source_age=None input_age=None skew=None infer_ms=0.0 det_hz=0.0 depth_hz=15.0 target_hz=0.0
+[INFO] [1795750819.340249]: 3D summary state=4 reason=DETECTION_STREAM_TIMEOUT X=0.0 Z=0.0 source_age=None input_age=None skew=None infer_ms=0.0 det_hz=0.0 depth_hz=15.0 target_hz=0.0
+[INFO] [1795750821.394394]: 3D summary state=4 reason=DETECTION_STREAM_TIMEOUT X=0.0 Z=0.0 source_age=None input_age=None skew=None infer_ms=0.0 det_hz=0.0 depth_hz=15.0 target_hz=0.0
+[INFO] [1795750823.460139]: 3D summary state=1 reason=NO_DETECTION X=0.0 Z=0.0 source_age=None input_age=0.149362481 skew=None infer_ms=16.7 det_hz=13.5 depth_hz=15.0 target_hz=0.0
+[INFO] [1795750825.521841]: 3D summary state=1 reason=NO_DETECTION X=0.0 Z=0.0 source_age=None input_age=0.141765488 skew=None infer_ms=16.9 det_hz=15.0 depth_hz=15.0 target_hz=0.0
+[INFO] [1795750827.609999]: 3D summary state=1 reason=NO_DETECTION X=0.0 Z=0.0 source_age=None input_age=0.160629069 skew=None infer_ms=17.0 det_hz=15.0 depth_hz=15.0 target_hz=0.0
+[INFO] [1795750829.677821]: 3D summary state=1 reason=NO_DETECTION X=0.0 Z=0.0 source_age=None input_age=0.159148041 skew=None infer_ms=16.7 det_hz=15.0 depth_hz=15.0 target_hz=0.0
+[INFO] [1795750831.734536]: 3D summary state=1 reason=NO_DETECTION X=0.0 Z=0.0 source_age=None input_age=0.213245309 skew=None infer_ms=18.7 det_hz=14.5 depth_hz=15.5 target_hz=0.0
+[INFO] [1795750833.804796]: 3D summary state=1 reason=NO_DETECTION X=0.0 Z=0.0 source_age=None input_age=0.214176423 skew=None infer_ms=16.7 det_hz=14.5 depth_hz=15.0 target_hz=0.0
+[INFO] [1795750835.865780]: 3D summary state=1 reason=NO_DETECTION X=0.0 Z=0.0 source_age=None input_age=0.205930275 skew=None infer_ms=16.9 det_hz=15.0 depth_hz=15.5 target_hz=0.0
+[INFO] [1795750837.928114]: 3D summary state=1 reason=NO_DETECTION X=0.0 Z=0.0 source_age=None input_age=0.199018901 skew=None infer_ms=16.7 det_hz=15.0 depth_hz=15.0 target_hz=0.0
+[INFO] [1795750839.981430]: 3D summary state=1 reason=NO_DETECTION X=0.0 Z=0.0 source_age=None input_age=0.116255592 skew=None infer_ms=16.8 det_hz=15.0 depth_hz=15.0 target_hz=0.0
+[INFO] [1795750842.040740]: 3D summary state=1 reason=NO_DETECTION X=0.0 Z=0.0 source_age=None input_age=0.172952496 skew=None infer_ms=16.8 det_hz=15.0 depth_hz=15.0 target_hz=0.0
+[INFO] [1795750844.102040]: 3D summary state=1 reason=NO_DETECTION X=0.0 Z=0.0 source_age=None input_age=0.165001225 skew=None infer_ms=16.9 det_hz=15.0 depth_hz=15.0 target_hz=0.0
+[INFO] [1795750846.184757]: 3D summary state=1 reason=NO_DETECTION X=0.0 Z=0.0 source_age=None input_age=0.178364681 skew=None infer_ms=16.8 det_hz=15.0 depth_hz=15.0 target_hz=0.0
+[INFO] [1795750848.247003]: 3D summary state=1 reason=NO_DETECTION X=0.0 Z=0.0 source_age=None input_age=0.171482577 skew=None infer_ms=17.0 det_hz=15.0 depth_hz=15.0 target_hz=0.0
+[INFO] [1795750850.314424]: 3D summary state=1 reason=NO_DETECTION X=0.0 Z=0.0 source_age=None input_age=0.169590735 skew=None infer_ms=16.8 det_hz=15.0 depth_hz=15.0 target_hz=0.0
+[INFO] [1795750852.369851]: 3D summary state=1 reason=NO_DETECTION X=0.0 Z=0.0 source_age=None input_age=0.222527671 skew=None infer_ms=16.8 det_hz=15.0 depth_hz=15.0 target_hz=0.0
+[INFO] [1795750854.459682]: 3D summary state=1 reason=NO_DETECTION X=0.0 Z=0.0 source_age=None input_age=0.10964133 skew=None infer_ms=16.9 det_hz=15.0 depth_hz=15.0 target_hz=0.0
+[INFO] [1795750856.525474]: 3D summary state=1 reason=NO_DETECTION X=0.0 Z=0.0 source_age=None input_age=0.17285455 skew=None infer_ms=16.8 det_hz=15.0 depth_hz=15.0 target_hz=0.0
+[INFO] [1795750858.595459]: 3D summary state=1 reason=NO_DETECTION X=0.0 Z=0.0 source_age=None input_age=0.173505222 skew=None infer_ms=16.7 det_hz=15.0 depth_hz=15.0 target_hz=0.0
+[INFO] [1795750860.670307]: 3D summary state=1 reason=NO_DETECTION X=0.0 Z=0.0 source_age=None input_age=0.179158206 skew=None infer_ms=16.7 det_hz=15.0 depth_hz=15.0 target_hz=0.0
+[INFO] [1795750862.714298]: 3D summary state=1 reason=NO_DETECTION X=0.0 Z=0.0 source_age=None input_age=0.153999635 skew=None infer_ms=17.0 det_hz=15.0 depth_hz=15.0 target_hz=0.0
+[INFO] [1795750864.779963]: 3D summary state=1 reason=NO_DETECTION X=0.0 Z=0.0 source_age=None input_age=0.150364401 skew=None infer_ms=20.8 det_hz=15.0 depth_hz=15.0 target_hz=0.0
+[INFO] [1795750866.862486]: 3D summary state=1 reason=NO_DETECTION X=0.0 Z=0.0 source_age=None input_age=0.163680853 skew=None infer_ms=16.8 det_hz=15.0 depth_hz=15.0 target_hz=0.0
+[INFO] [1795750868.932961]: 3D summary state=1 reason=NO_DETECTION X=0.0 Z=0.0 source_age=None input_age=0.164938538 skew=None infer_ms=17.0 det_hz=15.0 depth_hz=15.0 target_hz=0.0
+[INFO] [1795750871.004013]: 3D summary state=1 reason=NO_DETECTION X=0.0 Z=0.0 source_age=None input_age=0.166778341 skew=None infer_ms=16.7 det_hz=15.0 depth_hz=15.0 target_hz=0.0
+[INFO] [1795750873.058150]: 3D summary state=1 reason=NO_DETECTION X=0.0 Z=0.0 source_age=None input_age=0.151712903 skew=None infer_ms=16.6 det_hz=15.0 depth_hz=15.0 target_hz=0.0
+[INFO] [1795750875.108130]: 3D summary state=1 reason=NO_DETECTION X=0.0 Z=0.0 source_age=None input_age=0.132483372 skew=None infer_ms=16.8 det_hz=15.0 depth_hz=15.0 target_hz=0.0
+[INFO] [1795750877.176783]: 3D summary state=1 reason=NO_DETECTION X=0.0 Z=0.0 source_age=None input_age=0.131759467 skew=None infer_ms=16.8 det_hz=15.0 depth_hz=15.0 target_hz=0.0
+[INFO] [1795750879.250071]: 3D summary state=1 reason=NO_DETECTION X=0.0 Z=0.0 source_age=None input_age=0.135978654 skew=None infer_ms=16.8 det_hz=15.0 depth_hz=15.0 target_hz=0.0
+[INFO] [1795750881.316144]: 3D summary state=1 reason=NO_DETECTION X=0.0 Z=0.0 source_age=None input_age=0.199434192 skew=None infer_ms=16.7 det_hz=14.5 depth_hz=14.5 target_hz=0.0
+[INFO] [1795750883.383270]: 3D summary state=1 reason=NO_DETECTION X=0.0 Z=0.0 source_age=None input_age=0.197416044 skew=None infer_ms=17.0 det_hz=15.0 depth_hz=14.5 target_hz=0.0
+[INFO] [1795750885.448411]: 3D summary state=1 reason=NO_DETECTION X=0.0 Z=0.0 source_age=None input_age=0.193406366 skew=None infer_ms=18.6 det_hz=15.0 depth_hz=14.5 target_hz=0.0
+[INFO] [1795750887.497902]: 3D summary state=1 reason=NO_DETECTION X=0.0 Z=0.0 source_age=None input_age=0.173739335 skew=None infer_ms=16.9 det_hz=15.0 depth_hz=15.0 target_hz=0.0
+[INFO] [1795750889.563671]: 3D summary state=1 reason=NO_DETECTION X=0.0 Z=0.0 source_age=None input_age=0.170349863 skew=None infer_ms=16.9 det_hz=15.0 depth_hz=15.0 target_hz=0.0
+[INFO] [1795750891.627931]: 3D summary state=1 reason=NO_DETECTION X=0.0 Z=0.0 source_age=None input_age=0.165351259 skew=None infer_ms=17.0 det_hz=15.0 depth_hz=15.0 target_hz=0.0
+[INFO] [1795750893.706070]: 3D summary state=1 reason=NO_DETECTION X=0.0 Z=0.0 source_age=None input_age=0.174291034 skew=None infer_ms=16.9 det_hz=14.5 depth_hz=15.0 target_hz=0.0
+[INFO] [1795750895.767630]: 3D summary state=1 reason=NO_DETECTION X=0.0 Z=0.0 source_age=None input_age=0.16656547 skew=None infer_ms=17.6 det_hz=15.0 depth_hz=15.0 target_hz=0.0
+[INFO] [1795750897.822704]: 3D summary state=1 reason=NO_DETECTION X=0.0 Z=0.0 source_age=None input_age=0.152507064 skew=None infer_ms=17.0 det_hz=15.0 depth_hz=15.0 target_hz=0.0
+[INFO] [1795750899.879268]: 3D summary state=1 reason=NO_DETECTION X=0.0 Z=0.0 source_age=None input_age=0.139966814 skew=None infer_ms=18.1 det_hz=15.0 depth_hz=15.0 target_hz=0.0
+[INFO] [1795750818.750454]: YOLO backend=TensorRT GPU FP16 engine=/home/artrc-gflz/Grasp_hexapod/src/xiaolan_yolo_detection/models/best.engine
+[INFO] [1795750823.627032]: YOLO rgb_hz=14.8 infer_hz=14.8 publish_hz=14.8 inference_ms_last=18.3 avg=17.5 invalid_outputs=0 overwritten=0 reason=NO_DETECTION
+[INFO] [1795750825.699868]: YOLO rgb_hz=15.0 infer_hz=15.0 publish_hz=15.0 inference_ms_last=16.9 avg=16.8 invalid_outputs=0 overwritten=0 reason=NO_DETECTION
+[INFO] [1795750827.708071]: YOLO rgb_hz=15.0 infer_hz=15.0 publish_hz=15.0 inference_ms_last=17.0 avg=17.0 invalid_outputs=0 overwritten=0 reason=NO_DETECTION
+[INFO] [1795750829.720759]: YOLO rgb_hz=14.9 infer_hz=14.9 publish_hz=14.9 inference_ms_last=16.8 avg=17.1 invalid_outputs=0 overwritten=0 reason=NO_DETECTION
+[INFO] [1795750831.734344]: YOLO rgb_hz=15.4 infer_hz=15.0 publish_hz=15.0 inference_ms_last=16.9 avg=18.0 invalid_outputs=0 overwritten=0 reason=NO_DETECTION
+[INFO] [1795750833.811247]: YOLO rgb_hz=14.5 infer_hz=15.0 publish_hz=15.0 inference_ms_last=18.5 avg=17.7 invalid_outputs=0 overwritten=0 reason=NO_DETECTION
+[INFO] [1795750835.876989]: YOLO rgb_hz=15.6 infer_hz=15.1 publish_hz=15.1 inference_ms_last=16.9 avg=17.3 invalid_outputs=0 overwritten=0 reason=NO_DETECTION
+[INFO] [1795750837.888205]: YOLO rgb_hz=15.0 infer_hz=15.0 publish_hz=15.0 inference_ms_last=16.7 avg=17.0 invalid_outputs=0 overwritten=0 reason=NO_DETECTION
+[INFO] [1795750839.902428]: YOLO rgb_hz=14.9 infer_hz=14.9 publish_hz=14.9 inference_ms_last=16.8 avg=17.5 invalid_outputs=0 overwritten=1 reason=NO_DETECTION
+[INFO] [1795750841.922782]: YOLO rgb_hz=14.9 infer_hz=14.9 publish_hz=14.9 inference_ms_last=17.1 avg=17.0 invalid_outputs=0 overwritten=0 reason=NO_DETECTION
+[INFO] [1795750843.935805]: YOLO rgb_hz=14.9 infer_hz=14.9 publish_hz=14.9 inference_ms_last=16.8 avg=17.5 invalid_outputs=0 overwritten=0 reason=NO_DETECTION
+[INFO] [1795750845.947629]: YOLO rgb_hz=15.5 infer_hz=15.0 publish_hz=15.0 inference_ms_last=18.1 avg=17.1 invalid_outputs=0 overwritten=0 reason=NO_DETECTION
+[INFO] [1795750847.956168]: YOLO rgb_hz=15.0 infer_hz=15.0 publish_hz=15.0 inference_ms_last=16.9 avg=17.8 invalid_outputs=0 overwritten=0 reason=NO_DETECTION
+[INFO] [1795750849.965179]: YOLO rgb_hz=15.0 infer_hz=15.0 publish_hz=15.0 inference_ms_last=16.9 avg=17.3 invalid_outputs=0 overwritten=0 reason=NO_DETECTION
+[INFO] [1795750851.979976]: YOLO rgb_hz=14.9 infer_hz=14.9 publish_hz=14.9 inference_ms_last=16.8 avg=17.0 invalid_outputs=0 overwritten=0 reason=NO_DETECTION
+[INFO] [1795750853.986650]: YOLO rgb_hz=15.0 infer_hz=15.0 publish_hz=15.0 inference_ms_last=16.9 avg=17.1 invalid_outputs=0 overwritten=1 reason=NO_DETECTION
+[INFO] [1795750856.059391]: YOLO rgb_hz=15.0 infer_hz=15.0 publish_hz=15.0 inference_ms_last=16.7 avg=16.9 invalid_outputs=0 overwritten=0 reason=NO_DETECTION
+[INFO] [1795750858.066835]: YOLO rgb_hz=15.0 infer_hz=15.0 publish_hz=15.0 inference_ms_last=16.9 avg=17.0 invalid_outputs=0 overwritten=0 reason=NO_DETECTION
+[INFO] [1795750860.075819]: YOLO rgb_hz=15.0 infer_hz=15.0 publish_hz=15.0 inference_ms_last=17.0 avg=17.1 invalid_outputs=0 overwritten=0 reason=NO_DETECTION
+[INFO] [1795750862.153246]: YOLO rgb_hz=15.0 infer_hz=15.0 publish_hz=15.0 inference_ms_last=17.5 avg=17.0 invalid_outputs=0 overwritten=0 reason=NO_DETECTION
+[INFO] [1795750864.160754]: YOLO rgb_hz=15.0 infer_hz=15.0 publish_hz=15.0 inference_ms_last=16.8 avg=16.9 invalid_outputs=0 overwritten=0 reason=NO_DETECTION
+[INFO] [1795750866.169031]: YOLO rgb_hz=15.0 infer_hz=15.0 publish_hz=15.0 inference_ms_last=16.8 avg=17.4 invalid_outputs=0 overwritten=0 reason=NO_DETECTION
+[INFO] [1795750868.178831]: YOLO rgb_hz=15.5 infer_hz=15.0 publish_hz=15.0 inference_ms_last=16.9 avg=17.0 invalid_outputs=0 overwritten=0 reason=NO_DETECTION
+[INFO] [1795750870.188104]: YOLO rgb_hz=15.0 infer_hz=15.0 publish_hz=15.0 inference_ms_last=16.9 avg=16.8 invalid_outputs=0 overwritten=0 reason=NO_DETECTION
+[INFO] [1795750872.200716]: YOLO rgb_hz=14.9 infer_hz=14.9 publish_hz=14.9 inference_ms_last=16.7 avg=17.1 invalid_outputs=0 overwritten=0 reason=NO_DETECTION
+[INFO] [1795750874.210413]: YOLO rgb_hz=15.0 infer_hz=15.0 publish_hz=15.0 inference_ms_last=16.6 avg=16.8 invalid_outputs=0 overwritten=1 reason=NO_DETECTION
+[INFO] [1795750876.221103]: YOLO rgb_hz=15.0 infer_hz=15.0 publish_hz=15.0 inference_ms_last=16.8 avg=16.9 invalid_outputs=0 overwritten=0 reason=NO_DETECTION
+[INFO] [1795750878.288623]: YOLO rgb_hz=15.0 infer_hz=15.0 publish_hz=15.0 inference_ms_last=16.8 avg=16.9 invalid_outputs=0 overwritten=0 reason=NO_DETECTION
+[INFO] [1795750880.309444]: YOLO rgb_hz=14.9 infer_hz=14.9 publish_hz=14.9 inference_ms_last=16.7 avg=17.1 invalid_outputs=0 overwritten=0 reason=NO_DETECTION
+[INFO] [1795750882.316004]: YOLO rgb_hz=15.0 infer_hz=15.0 publish_hz=15.0 inference_ms_last=16.8 avg=16.9 invalid_outputs=0 overwritten=0 reason=NO_DETECTION
+[INFO] [1795750884.389585]: YOLO rgb_hz=15.0 infer_hz=15.0 publish_hz=15.0 inference_ms_last=16.7 avg=16.9 invalid_outputs=0 overwritten=0 reason=NO_DETECTION
+[INFO] [1795750886.396801]: YOLO rgb_hz=15.5 infer_hz=15.0 publish_hz=15.0 inference_ms_last=16.8 avg=17.5 invalid_outputs=0 overwritten=0 reason=NO_DETECTION
+[INFO] [1795750888.404838]: YOLO rgb_hz=15.0 infer_hz=15.0 publish_hz=15.0 inference_ms_last=18.5 avg=17.2 invalid_outputs=0 overwritten=0 reason=NO_DETECTION
+[INFO] [1795750890.414839]: YOLO rgb_hz=15.0 infer_hz=15.0 publish_hz=15.0 inference_ms_last=17.1 avg=17.0 invalid_outputs=0 overwritten=0 reason=NO_DETECTION
+[INFO] [1795750892.428493]: YOLO rgb_hz=14.9 infer_hz=14.9 publish_hz=14.9 inference_ms_last=16.8 avg=17.5 invalid_outputs=0 overwritten=1 reason=NO_DETECTION
+[INFO] [1795750894.441606]: YOLO rgb_hz=14.9 infer_hz=14.9 publish_hz=14.9 inference_ms_last=16.9 avg=17.2 invalid_outputs=0 overwritten=0 reason=NO_DETECTION
+[INFO] [1795750896.450479]: YOLO rgb_hz=15.0 infer_hz=15.0 publish_hz=15.0 inference_ms_last=17.2 avg=17.1 invalid_outputs=0 overwritten=0 reason=NO_DETECTION
+[INFO] [1795750898.461209]: YOLO rgb_hz=15.0 infer_hz=15.0 publish_hz=15.0 inference_ms_last=16.8 avg=17.3 invalid_outputs=0 overwritten=0 reason=NO_DETECTION
+[INFO] [1795750900.470427]: YOLO rgb_hz=15.0 infer_hz=15.0 publish_hz=15.0 inference_ms_last=18.7 avg=17.2 invalid_outputs=0 overwritten=0 reason=NO_DETECTION
+[INFO] [1795750902.488628]: YOLO rgb_hz=15.4 infer_hz=14.9 publish_hz=14.9 inference_ms_last=16.9 avg=17.6 invalid_outputs=0 overwritten=0 reason=NO_DETECTION
+[INFO] [1795750904.558371]: YOLO rgb_hz=15.0 infer_hz=15.0 publish_hz=15.0 inference_ms_last=16.9 avg=17.8 invalid_outputs=0 overwritten=0 reason=NO_DETECTION
+[INFO] [1795750906.568997]: YOLO rgb_hz=15.0 infer_hz=15.0 publish_hz=15.0 inference_ms_last=17.7 avg=17.1 invalid_outputs=0 overwritten=0 reason=NO_DETECTION
+[INFO] [1795750908.582822]: YOLO rgb_hz=14.9 infer_hz=14.9 publish_hz=14.9 inference_ms_last=16.8 avg=17.1 invalid_outputs=0 overwritten=1 reason=NO_DETECTION
+[INFO] [1795750910.588821]: YOLO rgb_hz=15.0 infer_hz=15.0 publish_hz=15.0 inference_ms_last=16.7 avg=17.0 invalid_outputs=0 overwritten=0 reason=NO_DETECTION
+[INFO] [1795750912.662840]: YOLO rgb_hz=15.0 infer_hz=15.0 publish_hz=15.0 inference_ms_last=17.0 avg=16.9 invalid_outputs=0 overwritten=0 reason=NO_DETECTION
+[INFO] [1795750914.670737]: YOLO rgb_hz=15.0 infer_hz=15.0 publish_hz=15.0 inference_ms_last=16.8 avg=17.4 invalid_outputs=0 overwritten=0 reason=NO_DETECTION
+[INFO] [1795750916.689209]: YOLO rgb_hz=14.9 infer_hz=14.9 publish_hz=14.9 inference_ms_last=26.6 avg=17.4 invalid_outputs=0 overwritten=0 reason=NO_DETECTION
+[INFO] [1795750918.750982]: YOLO rgb_hz=15.1 infer_hz=15.1 publish_hz=15.1 inference_ms_last=16.8 avg=17.2 invalid_outputs=0 overwritten=0 reason=NO_DETECTION
+[INFO] [1795750920.762104]: YOLO rgb_hz=15.0 infer_hz=15.0 publish_hz=15.0 inference_ms_last=17.1 avg=17.5 invalid_outputs=0 overwritten=0 reason=NO_DETECTION
+[INFO] [1795750922.774236]: YOLO rgb_hz=15.5 infer_hz=15.0 publish_hz=15.0 inference_ms_last=16.8 avg=17.1 invalid_outputs=0 overwritten=0 reason=NO_DETECTION
+[INFO] [1795750901.946282]: 3D summary state=1 reason=NO_DETECTION X=0.0 Z=0.0 source_age=None input_age=0.204542653 skew=None infer_ms=17.1 det_hz=14.5 depth_hz=15.0 target_hz=0.0
+[INFO] [1795750904.010782]: 3D summary state=1 reason=NO_DETECTION X=0.0 Z=0.0 source_age=None input_age=0.199889336 skew=None infer_ms=17.3 det_hz=15.0 depth_hz=15.0 target_hz=0.0
+[INFO] [1795750906.078277]: 3D summary state=1 reason=NO_DETECTION X=0.0 Z=0.0 source_age=None input_age=0.198249498 skew=None infer_ms=16.8 det_hz=15.0 depth_hz=15.0 target_hz=0.0
+[INFO] [1795750908.143865]: 3D summary state=1 reason=NO_DETECTION X=0.0 Z=0.0 source_age=None input_age=0.19459401 skew=None infer_ms=16.9 det_hz=15.0 depth_hz=15.0 target_hz=0.0
+[INFO] [1795750910.207082]: 3D summary state=1 reason=NO_DETECTION X=0.0 Z=0.0 source_age=None input_age=0.121759665 skew=None infer_ms=16.7 det_hz=15.0 depth_hz=15.0 target_hz=0.0
+[INFO] [1795750912.282186]: 3D summary state=1 reason=NO_DETECTION X=0.0 Z=0.0 source_age=None input_age=0.127692835 skew=None infer_ms=16.7 det_hz=15.0 depth_hz=15.0 target_hz=0.0
+[INFO] [1795750914.331988]: 3D summary state=1 reason=NO_DETECTION X=0.0 Z=0.0 source_age=None input_age=0.175265873 skew=None infer_ms=16.8 det_hz=14.5 depth_hz=15.0 target_hz=0.0
+[INFO] [1795750916.399997]: 3D summary state=1 reason=NO_DETECTION X=0.0 Z=0.0 source_age=None input_age=0.174071858 skew=None infer_ms=17.2 det_hz=15.0 depth_hz=15.0 target_hz=0.0
+[INFO] [1795750918.481807]: 3D summary state=1 reason=NO_DETECTION X=0.0 Z=0.0 source_age=None input_age=0.186346087 skew=None infer_ms=18.1 det_hz=14.5 depth_hz=15.0 target_hz=0.0
+[INFO] [1795750920.540539]: 3D summary state=1 reason=NO_DETECTION X=0.0 Z=0.0 source_age=None input_age=0.176273038 skew=None infer_ms=17.1 det_hz=15.0 depth_hz=15.0 target_hz=0.0
+[INFO] [1795750922.610519]: 3D summary state=1 reason=NO_DETECTION X=0.0 Z=0.0 source_age=None input_age=0.177232186 skew=None infer_ms=16.9 det_hz=15.0 depth_hz=15.0 target_hz=0.0
+[INFO] [1795750924.681733]: 3D summary state=1 reason=NO_DETECTION X=0.0 Z=0.0 source_age=None input_age=0.17934379 skew=None infer_ms=16.7 det_hz=15.0 depth_hz=15.0 target_hz=0.0
+[INFO] [1795750926.737977]: 3D summary state=1 reason=NO_DETECTION X=0.0 Z=0.0 source_age=None input_age=0.166426401 skew=None infer_ms=17.2 det_hz=15.0 depth_hz=15.0 target_hz=0.0
+[INFO] [1795750928.793109]: 3D summary state=1 reason=NO_DETECTION X=0.0 Z=0.0 source_age=None input_age=0.152336291 skew=None infer_ms=16.8 det_hz=15.0 depth_hz=15.0 target_hz=0.0
+[INFO] [1795750930.852146]: 3D summary state=1 reason=NO_DETECTION X=0.0 Z=0.0 source_age=None input_age=0.142211227 skew=None infer_ms=16.9 det_hz=15.0 depth_hz=15.0 target_hz=0.0
+[INFO] [1795750932.917099]: 3D summary state=1 reason=NO_DETECTION X=0.0 Z=0.0 source_age=None input_age=0.138052417 skew=None infer_ms=17.8 det_hz=15.0 depth_hz=15.0 target_hz=0.0
+[INFO] [1795750934.987448]: 3D summary state=1 reason=NO_DETECTION X=0.0 Z=0.0 source_age=None input_age=0.139302185 skew=None infer_ms=16.8 det_hz=15.0 depth_hz=15.0 target_hz=0.0
+[INFO] [1795750937.051937]: 3D summary state=1 reason=NO_DETECTION X=0.0 Z=0.0 source_age=None input_age=0.13466423 skew=None infer_ms=16.7 det_hz=15.0 depth_hz=15.0 target_hz=0.0
+[INFO] [1795750939.103612]: 3D summary state=1 reason=NO_DETECTION X=0.0 Z=0.0 source_age=None input_age=0.183994233 skew=None infer_ms=17.0 det_hz=15.0 depth_hz=15.0 target_hz=0.0
+[INFO] [1795750941.170100]: 3D summary state=1 reason=NO_DETECTION X=0.0 Z=0.0 source_age=None input_age=0.181400076 skew=None infer_ms=16.8 det_hz=14.0 depth_hz=14.5 target_hz=0.0
+[INFO] [1795750943.213105]: 3D summary state=1 reason=NO_DETECTION X=0.0 Z=0.0 source_age=None input_age=0.155210323 skew=None infer_ms=16.8 det_hz=15.0 depth_hz=15.0 target_hz=0.0
+[INFO] [1795750945.283248]: 3D summary state=1 reason=NO_DETECTION X=0.0 Z=0.0 source_age=None input_age=0.156247831 skew=None infer_ms=17.0 det_hz=15.0 depth_hz=15.0 target_hz=0.0
+[INFO] [1795750947.341152]: 3D summary state=1 reason=NO_DETECTION X=0.0 Z=0.0 source_age=None input_age=0.14499037 skew=None infer_ms=16.7 det_hz=15.0 depth_hz=15.0 target_hz=0.0
+[INFO] [1795750949.417703]: 3D summary state=1 reason=NO_DETECTION X=0.0 Z=0.0 source_age=None input_age=0.152505306 skew=None infer_ms=18.6 det_hz=15.0 depth_hz=15.0 target_hz=0.0
+[INFO] [1795750951.478477]: 3D summary state=1 reason=NO_DETECTION X=0.0 Z=0.0 source_age=None input_age=0.144175864 skew=None infer_ms=16.8 det_hz=15.0 depth_hz=15.0 target_hz=0.0
+[INFO] [1795750953.525439]: 3D summary state=1 reason=NO_DETECTION X=0.0 Z=0.0 source_age=None input_age=0.188741647 skew=None infer_ms=18.2 det_hz=15.0 depth_hz=15.0 target_hz=0.0
+[INFO] [1795750955.576546]: 3D summary state=1 reason=NO_DETECTION X=0.0 Z=0.0 source_age=None input_age=0.170524815 skew=None infer_ms=17.1 det_hz=15.0 depth_hz=15.0 target_hz=0.0
+[INFO] [1795750957.622205]: 3D summary state=1 reason=NO_DETECTION X=0.0 Z=0.0 source_age=None input_age=0.214019675 skew=None infer_ms=16.8 det_hz=15.0 depth_hz=15.0 target_hz=0.0
+[INFO] [1795750924.783662]: YOLO rgb_hz=15.0 infer_hz=15.0 publish_hz=15.0 inference_ms_last=17.2 avg=17.1 invalid_outputs=0 overwritten=0 reason=NO_DETECTION
+[INFO] [1795750926.793033]: YOLO rgb_hz=15.0 infer_hz=15.0 publish_hz=15.0 inference_ms_last=16.8 avg=16.9 invalid_outputs=0 overwritten=0 reason=NO_DETECTION
+[INFO] [1795750928.809349]: YOLO rgb_hz=14.9 infer_hz=14.9 publish_hz=14.9 inference_ms_last=16.8 avg=16.9 invalid_outputs=0 overwritten=1 reason=NO_DETECTION
+[INFO] [1795750930.881151]: YOLO rgb_hz=15.0 infer_hz=15.0 publish_hz=15.0 inference_ms_last=16.7 avg=16.8 invalid_outputs=0 overwritten=0 reason=NO_DETECTION
+[INFO] [1795750932.889638]: YOLO rgb_hz=15.0 infer_hz=15.0 publish_hz=15.0 inference_ms_last=17.8 avg=16.9 invalid_outputs=0 overwritten=0 reason=NO_DETECTION
+[INFO] [1795750934.902825]: YOLO rgb_hz=14.9 infer_hz=14.9 publish_hz=14.9 inference_ms_last=17.4 avg=16.9 invalid_outputs=0 overwritten=0 reason=NO_DETECTION
+[INFO] [1795750936.972094]: YOLO rgb_hz=15.0 infer_hz=15.0 publish_hz=15.0 inference_ms_last=16.7 avg=16.9 invalid_outputs=0 overwritten=0 reason=NO_DETECTION
+[INFO] [1795750938.986234]: YOLO rgb_hz=14.9 infer_hz=14.9 publish_hz=14.9 inference_ms_last=16.9 avg=17.1 invalid_outputs=0 overwritten=0 reason=NO_DETECTION
+[INFO] [1795750941.032227]: YOLO rgb_hz=14.2 infer_hz=14.2 publish_hz=14.2 inference_ms_last=16.7 avg=17.1 invalid_outputs=0 overwritten=0 reason=NO_DETECTION
+[INFO] [1795750943.039024]: YOLO rgb_hz=15.0 infer_hz=15.0 publish_hz=15.0 inference_ms_last=16.9 avg=17.2 invalid_outputs=0 overwritten=0 reason=NO_DETECTION
+[INFO] [1795750945.050909]: YOLO rgb_hz=15.0 infer_hz=15.0 publish_hz=15.0 inference_ms_last=17.0 avg=17.1 invalid_outputs=0 overwritten=0 reason=NO_DETECTION
+[INFO] [1795750947.119905]: YOLO rgb_hz=15.0 infer_hz=15.0 publish_hz=15.0 inference_ms_last=17.0 avg=17.3 invalid_outputs=0 overwritten=0 reason=NO_DETECTION
+[INFO] [1795750949.192116]: YOLO rgb_hz=15.0 infer_hz=15.0 publish_hz=15.0 inference_ms_last=16.9 avg=17.0 invalid_outputs=0 overwritten=0 reason=NO_DETECTION
+[INFO] [1795750951.268082]: YOLO rgb_hz=15.5 infer_hz=15.0 publish_hz=15.0 inference_ms_last=17.2 avg=17.0 invalid_outputs=0 overwritten=0 reason=NO_DETECTION
+[INFO] [1795750953.278679]: YOLO rgb_hz=15.0 infer_hz=15.0 publish_hz=15.0 inference_ms_last=19.2 avg=17.3 invalid_outputs=0 overwritten=0 reason=NO_DETECTION
+[INFO] [1795750955.349257]: YOLO rgb_hz=15.0 infer_hz=15.0 publish_hz=15.0 inference_ms_last=16.8 avg=17.1 invalid_outputs=0 overwritten=0 reason=NO_DETECTION
+[INFO] [1795750957.357382]: YOLO rgb_hz=15.0 infer_hz=15.0 publish_hz=15.0 inference_ms_last=17.9 avg=17.0 invalid_outputs=0 overwritten=0 reason=NO_DETECTION
+... logging to /home/artrc-gflz/.ros/log/e3e06e92-ea02-11f1-bc2b-70cf499c08ab/roslaunch-ubuntu-10443.log
+Checking log directory for disk usage. This may take a while.
+Press Ctrl-C to interrupt
+Done checking log file disk usage. Usage is <1GB.
+]2;/home/artrc-gflz/Grasp_hexapod/src/xiaolan_yolo_detection/launch/xiaolan_yolo.launch
+[1mstarted roslaunch server http://ubuntu:44507/[0m
+
+SUMMARY
+========
+
+PARAMETERS
+ * /rosdistro: noetic
+ * /rosversion: 1.17.4
+ * /xiaolan_target_3d_node/aligned_depth_topic: /camera/depth/ima...
+ * /xiaolan_target_3d_node/aligned_info_topic: /camera/depth/cam...
+ * /xiaolan_target_3d_node/center_tolerance_m: 0.03
+ * /xiaolan_target_3d_node/color_info_topic: /camera/color/cam...
+ * /xiaolan_target_3d_node/conf_threshold: 0.5
+ * /xiaolan_target_3d_node/confirm_frames: 2
+ * /xiaolan_target_3d_node/depth_cache_size: 45
+ * /xiaolan_target_3d_node/depth_sync_tolerance: 0.025
+ * /xiaolan_target_3d_node/depth_wait_timeout: 0.08
+ * /xiaolan_target_3d_node/detection_topic: /xiaolan/detection
+ * /xiaolan_target_3d_node/diagnostics_period_s: 2.0
+ * /xiaolan_target_3d_node/ema_alpha: 0.4
+ * /xiaolan_target_3d_node/health_publish_hz: 10.0
+ * /xiaolan_target_3d_node/input_size: 416
+ * /xiaolan_target_3d_node/inter_op_num_threads: 1
+ * /xiaolan_target_3d_node/intra_op_num_threads: 2
+ * /xiaolan_target_3d_node/lost_tolerance_frames: 3
+ * /xiaolan_target_3d_node/max_depth: 1.0
+ * /xiaolan_target_3d_node/max_det: 1
+ * /xiaolan_target_3d_node/max_fps: 15.0
+ * /xiaolan_target_3d_node/max_hold_seconds: 0.25
+ * /xiaolan_target_3d_node/max_input_age: 0.25
+ * /xiaolan_target_3d_node/max_result_age: 0.25
+ * /xiaolan_target_3d_node/max_x_jump_m: 0.15
+ * /xiaolan_target_3d_node/max_z_jump_m: 0.15
+ * /xiaolan_target_3d_node/min_depth: 0.2
+ * /xiaolan_target_3d_node/min_valid_depth_pixels: 5
+ * /xiaolan_target_3d_node/rgb_sync_tolerance: 0.05
+ * /xiaolan_target_3d_node/rgb_topic: /camera/color/ima...
+ * /xiaolan_target_3d_node/roi_size: 9
+ * /xiaolan_target_3d_node/show_window: False
+ * /xiaolan_target_3d_node/target_timeout: 0.5
+ * /xiaolan_target_3d_node/visualization_max_dt: 0.25
+ * /xiaolan_target_3d_node/visualization_max_fps: 5.0
+ * /xiaolan_visualizer/aligned_depth_topic: /camera/depth/ima...
+ * /xiaolan_visualizer/aligned_info_topic: /camera/depth/cam...
+ * /xiaolan_visualizer/center_tolerance_m: 0.03
+ * /xiaolan_visualizer/color_info_topic: /camera/color/cam...
+ * /xiaolan_visualizer/conf_threshold: 0.5
+ * /xiaolan_visualizer/confirm_frames: 2
+ * /xiaolan_visualizer/depth_cache_size: 45
+ * /xiaolan_visualizer/depth_sync_tolerance: 0.025
+ * /xiaolan_visualizer/depth_wait_timeout: 0.08
+ * /xiaolan_visualizer/detection_topic: /xiaolan/detection
+ * /xiaolan_visualizer/diagnostics_period_s: 2.0
+ * /xiaolan_visualizer/ema_alpha: 0.4
+ * /xiaolan_visualizer/health_publish_hz: 10.0
+ * /xiaolan_visualizer/input_size: 416
+ * /xiaolan_visualizer/inter_op_num_threads: 1
+ * /xiaolan_visualizer/intra_op_num_threads: 2
+ * /xiaolan_visualizer/lost_tolerance_frames: 3
+ * /xiaolan_visualizer/max_depth: 1.0
+ * /xiaolan_visualizer/max_det: 1
+ * /xiaolan_visualizer/max_fps: 15.0
+ * /xiaolan_visualizer/max_hold_seconds: 0.25
+ * /xiaolan_visualizer/max_input_age: 0.25
+ * /xiaolan_visualizer/max_result_age: 0.25
+ * /xiaolan_visualizer/max_x_jump_m: 0.15
+ * /xiaolan_visualizer/max_z_jump_m: 0.15
+ * /xiaolan_visualizer/min_depth: 0.2
+ * /xiaolan_visualizer/min_valid_depth_pixels: 5
+ * /xiaolan_visualizer/rgb_sync_tolerance: 0.05
+ * /xiaolan_visualizer/rgb_topic: /camera/color/ima...
+ * /xiaolan_visualizer/roi_size: 9
+ * /xiaolan_visualizer/show_window: False
+ * /xiaolan_visualizer/target_timeout: 0.5
+ * /xiaolan_visualizer/visualization_max_dt: 0.25
+ * /xiaolan_visualizer/visualization_max_fps: 5.0
+ * /xiaolan_yolo_node/aligned_depth_topic: /camera/depth/ima...
+ * /xiaolan_yolo_node/aligned_info_topic: /camera/depth/cam...
+ * /xiaolan_yolo_node/backend: tensorrt
+ * /xiaolan_yolo_node/center_tolerance_m: 0.03
+ * /xiaolan_yolo_node/color_info_topic: /camera/color/cam...
+ * /xiaolan_yolo_node/conf_threshold: 0.5
+ * /xiaolan_yolo_node/confirm_frames: 2
+ * /xiaolan_yolo_node/depth_cache_size: 45
+ * /xiaolan_yolo_node/depth_sync_tolerance: 0.025
+ * /xiaolan_yolo_node/depth_wait_timeout: 0.08
+ * /xiaolan_yolo_node/detection_topic: /xiaolan/detection
+ * /xiaolan_yolo_node/diagnostics_period_s: 2.0
+ * /xiaolan_yolo_node/ema_alpha: 0.4
+ * /xiaolan_yolo_node/engine_path: /home/artrc-gflz/...
+ * /xiaolan_yolo_node/health_publish_hz: 10.0
+ * /xiaolan_yolo_node/input_size: 416
+ * /xiaolan_yolo_node/inter_op_num_threads: 1
+ * /xiaolan_yolo_node/intra_op_num_threads: 2
+ * /xiaolan_yolo_node/lost_tolerance_frames: 3
+ * /xiaolan_yolo_node/max_depth: 1.0
+ * /xiaolan_yolo_node/max_det: 1
+ * /xiaolan_yolo_node/max_fps: 15.0
+ * /xiaolan_yolo_node/max_hold_seconds: 0.25
+ * /xiaolan_yolo_node/max_input_age: 0.25
+ * /xiaolan_yolo_node/max_result_age: 0.25
+ * /xiaolan_yolo_node/max_x_jump_m: 0.15
+ * /xiaolan_yolo_node/max_z_jump_m: 0.15
+ * /xiaolan_yolo_node/min_depth: 0.2
+ * /xiaolan_yolo_node/min_valid_depth_pixels: 5
+ * /xiaolan_yolo_node/model_path: /home/artrc-gflz/...
+ * /xiaolan_yolo_node/rgb_sync_tolerance: 0.05
+ * /xiaolan_yolo_node/rgb_topic: /camera/color/ima...
+ * /xiaolan_yolo_node/roi_size: 9
+ * /xiaolan_yolo_node/show_window: False
+ * /xiaolan_yolo_node/target_timeout: 0.5
+ * /xiaolan_yolo_node/visualization_max_dt: 0.25
+ * /xiaolan_yolo_node/visualization_max_fps: 5.0
+
+NODES
+  /
+    xiaolan_target_3d_node (xiaolan_yolo_detection/xiaolan_target_3d_node.py)
+    xiaolan_visualizer (xiaolan_yolo_detection/xiaolan_visualizer.py)
+    xiaolan_yolo_node (xiaolan_yolo_detection/xiaolan_yolo_node.py)
+
+[1mROS_MASTER_URI=http://localhost:11311[0m
+]2;/home/artrc-gflz/Grasp_hexapod/src/xiaolan_yolo_detection/launch/xiaolan_yolo.launch http://localhost:11311
+[1mprocess[xiaolan_yolo_node-1]: started with pid [10484][0m
+[1mprocess[xiaolan_target_3d_node-2]: started with pid [10485][0m
+[1mprocess[xiaolan_visualizer-3]: started with pid [10486][0m
+[xiaolan_visualizer-3] killing on exit
+[xiaolan_yolo_node-1] killing on exit
+[xiaolan_target_3d_node-2] killing on exit
+shutting down processing monitor...
+... shutting down processing monitor complete
+[1mdone[0m

@@ -12,7 +12,7 @@ sys.path[:0] = [str(SCRIPTS), str(SCRIPTS / "tools")]
 
 from build_climb_front import base_points, world_from_base
 from climb_mode import ClimbMode
-from kinematics import GraspKinematic, Q_STAND
+from kinematics import GraspKinematic, Q_CLIMB_PREP
 
 SPACE_CONFIG = ROOT / "src/grasp_hexapod_control/config/climb_front_space.json"
 SIDE_CONFIG = ROOT / "src/grasp_hexapod_control/config/climb_compact.json"
@@ -77,7 +77,7 @@ def test_side_active_world_piecewise_curve_remains_rejected():
 def test_front_space_config_remains_rejected_for_hardware_execution():
     config = json.loads(SPACE_CONFIG.read_text())
     with pytest.raises(ValueError, match="front compact climbing is simulation-only"):
-        ClimbMode(None).enter(Q_STAND, config, hardware_execution=True)
+        ClimbMode(None).enter(Q_CLIMB_PREP, config, hardware_execution=True)
 
 
 def test_pose_knots_reject_wrong_shape_and_discontinuous_endpoints():

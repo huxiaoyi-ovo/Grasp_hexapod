@@ -1,0 +1,27 @@
+Running main() from /usr/src/googletest/googletest/src/gtest_main.cc
+[==========] Running 9 tests from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 9 tests from VisualGuidance
+[ RUN      ] VisualGuidance.SearchUsesYawIndexAndRightTargetTurnsNegative
+[       OK ] VisualGuidance.SearchUsesYawIndexAndRightTargetTurnsNegative (0 ms)
+[ RUN      ] VisualGuidance.ApproachUsesForwardAndYawIndices
+[       OK ] VisualGuidance.ApproachUsesForwardAndYawIndices (0 ms)
+[ RUN      ] VisualGuidance.InvalidOrFutureSourceDoesNotPoisonCorrectedSample
+[       OK ] VisualGuidance.InvalidOrFutureSourceDoesNotPoisonCorrectedSample (0 ms)
+[ RUN      ] VisualGuidance.HeldCallbackZerosButCachedControlReadRemainsUsable
+[       OK ] VisualGuidance.HeldCallbackZerosButCachedControlReadRemainsUsable (0 ms)
+[ RUN      ] VisualGuidance.SourceAgeAndBearingBlockForwardMotion
+[       OK ] VisualGuidance.SourceAgeAndBearingBlockForwardMotion (0 ms)
+[ RUN      ] VisualGuidance.SearchTimeoutStillAppliesDuringRecoveryDrain
+[       OK ] VisualGuidance.SearchTimeoutStillAppliesDuringRecoveryDrain (0 ms)
+[ RUN      ] VisualGuidance.SettleNeedsContinuousFreshSamplesAndStoppedGait
+[       OK ] VisualGuidance.SettleNeedsContinuousFreshSamplesAndStoppedGait (0 ms)
+[ RUN      ] VisualGuidance.ResumeRequiresSampleNewerThanPauseFloor
+[       OK ] VisualGuidance.ResumeRequiresSampleNewerThanPauseFloor (0 ms)
+[ RUN      ] VisualGuidance.InvalidConfigRejected
+[       OK ] VisualGuidance.InvalidConfigRejected (0 ms)
+[----------] 9 tests from VisualGuidance (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 9 tests from 1 test suite ran. (0 ms total)
+[  PASSED  ] 9 tests.

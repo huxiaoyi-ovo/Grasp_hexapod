@@ -1,7 +1,7 @@
 # 接口实现清单（README）
 
 > 实机接入开发总纲：列出待实现接口（服务 / 话题数据源 / 桥接方法 / 控制栈模式）的
-> 语义、返回协议与 TODO 清单。字段级契约见 [`BT_INTERFACES.md`](BT_INTERFACES.md)；
+> 语义、返回协议与 TODO 清单。字段级契约见 [`BT_INTERFACE_GUIDE.md`](BT_INTERFACE_GUIDE.md)；
 > 本文件只讲"要实现什么、什么含义、还差什么"。
 
 ## 1. 概览与文件索引
@@ -22,7 +22,6 @@
 | `src/grasp_hexapod_bt/scripts/remote_control.py` | 遥控语义化（`/joy` → `/grasp_hexapod/remote_cmd`，仅测试链） |
 | `src/reference/lora/scripts/lora_node.py` | LoRa 串口节点（`/dev/lora`@115200 ↔ `/lora/command`、`/lora/status`） |
 | `src/grasp_hexapod_bt/config/real_bt.yaml` | 逐接口 `simulate` 开关 + 模拟时间线/故障注入（LoRa 为话题级仿真，串口不仿真） |
-| `src/docs/BT_INTERFACES.md` | 话题/服务字段级契约（唯一契约来源） |
 | `src/docs/BT_INTERFACE_GUIDE.md` | 接口速览（对接同事用）：是什么、怎么用、联调命令 |
 | `src/grasp_hexapod_bt/behavior_trees/hexapod_mission.xml` | Groot2 可视化稿（与 py_trees 人工同步） |
 | `src/grasp_hexapod_bt_control/` | **面向行为树的全链路 C++ 控制栈（新，可选替代旧控制栈）**：`bt_control_node`（服务切换状态机 + 抢占 + walk 由 `/cmd_vel` 驱动 + dock 成功必夹爪闭合）+ `remote_control_node`（手柄 → 服务调用与 `/cmd_vel`）；详见其 README |
@@ -97,7 +96,7 @@ C1 除外（三态元组）。
 - [ ] **TODO-8 双侧同步**：改树须同步 `hexapod_bt.py` 与 `hexapod_mission.xml`；
   回归用 `python3 hexapod_bt.py --selftest` + `bt_mock_world.py`。
 - [ ] **TODO-9 实机攀爬授权**：`climb_mode.py` 现为 simulation-only；接入 mode_server 前需补
-  C1→C35 步态的接触/承载/稳定性判定与安全边界，否则实机 ㉘ 攀爬节点不可放行。
+  C1→C27 步态的接触/承载/稳定性判定与安全边界，否则实机 ㉘ 攀爬节点不可放行。
 - [ ] **TODO-10 GPS/RTK 实测**：`/fix`（`reference/gps_ntrip_py`）与 `rtk_covariance_ok` 联调验收：
   协方差对角最大 ≤ `rtk_max_covariance`（0.04 m²）、超限停走（C5）、无 `/fix` 默认放行行为。
 
@@ -114,7 +113,7 @@ C1 除外（三态元组）。
 | `/grasp_hexapod/remote_cmd` | 遥控（仅测试链） | ✅ 已实现 |
 | BridgeContext C1~C10 | 树 ↔ 世界桥接 | ✅ mock / ✅ 真实（run_real_bt.py，TODO-6） |
 | 控制栈模式 7 种 | home/walk/climb/dock/spin_search/release/approach | ⚠️ 需扩展（TODO-2） |
-| 实机攀爬 climb | C1→C35 实机步态执行 | ⚠️ simulation-only，不授权实机（TODO-9） |
+| 实机攀爬 climb | C1→C27 实机步态执行 | ⚠️ simulation-only，不授权实机（TODO-9） |
 
 ## 5. 变更记录
 

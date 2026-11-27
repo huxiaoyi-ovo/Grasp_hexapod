@@ -1,0 +1,41 @@
+Running main() from /usr/src/googletest/googletest/src/gtest_main.cc
+[==========] Running 13 tests from 3 test suites.
+[----------] Global test environment set-up.
+[----------] 5 tests from ModeTopicConfig
+[ RUN      ] ModeTopicConfig.LoadsSectionsAndKeys
+[       OK ] ModeTopicConfig.LoadsSectionsAndKeys (1 ms)
+[ RUN      ] ModeTopicConfig.MissingFileThrows
+[       OK ] ModeTopicConfig.MissingFileThrows (0 ms)
+[ RUN      ] ModeTopicConfig.NonMapRootThrows
+[       OK ] ModeTopicConfig.NonMapRootThrows (0 ms)
+[ RUN      ] ModeTopicConfig.MissingKeyThrowsWithName
+[       OK ] ModeTopicConfig.MissingKeyThrowsWithName (0 ms)
+[ RUN      ] ModeTopicConfig.MissingListThrowsWithName
+[       OK ] ModeTopicConfig.MissingListThrowsWithName (0 ms)
+[----------] 5 tests from ModeTopicConfig (1 ms total)
+
+[----------] 1 test from ModeRegistry
+[ RUN      ] ModeRegistry.MacroRegistrationVisible
+[       OK ] ModeRegistry.MacroRegistrationVisible (0 ms)
+[----------] 1 test from ModeRegistry (0 ms total)
+
+[----------] 7 tests from ModeLifecycle
+[ RUN      ] ModeLifecycle.FreshModeIsRunning
+[       OK ] ModeLifecycle.FreshModeIsRunning (0 ms)
+[ RUN      ] ModeLifecycle.WaitForRunTimesOutAsRunning
+[       OK ] ModeLifecycle.WaitForRunTimesOutAsRunning (0 ms)
+[ RUN      ] ModeLifecycle.FinishWakesWaiter
+[       OK ] ModeLifecycle.FinishWakesWaiter (50 ms)
+[ RUN      ] ModeLifecycle.FinishIsIdempotentFirstWins
+[       OK ] ModeLifecycle.FinishIsIdempotentFirstWins (0 ms)
+[ RUN      ] ModeLifecycle.NewRunSupersedesOldWaiter
+[       OK ] ModeLifecycle.NewRunSupersedesOldWaiter (0 ms)
+[ RUN      ] ModeLifecycle.MarkPreemptedOnlyWhenRunning
+[       OK ] ModeLifecycle.MarkPreemptedOnlyWhenRunning (0 ms)
+[ RUN      ] ModeLifecycle.PauseFlagRoundTrip
+[       OK ] ModeLifecycle.PauseFlagRoundTrip (0 ms)
+[----------] 7 tests from ModeLifecycle (50 ms total)
+
+[----------] Global test environment tear-down
+[==========] 13 tests from 3 test suites ran. (51 ms total)
+[  PASSED  ] 13 tests.

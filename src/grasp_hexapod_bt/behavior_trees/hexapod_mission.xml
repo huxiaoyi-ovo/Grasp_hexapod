@@ -3,7 +3,7 @@
   六足机器人 · 空地协同回收任务行为树（Groot2 可视化规划稿）—— 统一模式执行版
   ============================================================
   对照实现：src/grasp_hexapod_bt/scripts/hexapod_bt.py（py_trees）
-  契约文档：src/docs/BT_INTERFACES.md
+  契约文档：src/docs/BT_INTERFACE_GUIDE.md
 
   本文件是设计与可视化交付物，可被 Groot2 直接打开查看/编辑；
   目前不接入 BT.CPP 运行时，叶子节点尚未注册为可执行代码（与 py_trees

@@ -39,6 +39,18 @@ class ClimbMode {
 
   // 读取 compact 攀爬配置（每次进入攀爬重新读盘，与 Python 语义一致）。
   ClimbCompactConfig loadConfig() const;
+  // 读取与默认 compact 同目录（控制 config 目录）下的指定配置文件；
+  // 仅接受不含路径分隔符的文件名。
+  ClimbCompactConfig loadConfig(const std::string& file_name) const;
+
+  // 规划支撑/空中角色（仅诊断：绝不是接触、载荷或稳定性观测）。
+  // 与 Python planned_support_legs / planned_airborne_legs 对应。
+  static std::vector<int> plannedSupportLegs(
+      const ClimbCompactConfig& config, int stage_index,
+      std::optional<double> phase_time = std::nullopt);
+  static std::vector<int> plannedAirborneLegs(const ClimbCompactConfig& config,
+                                              int stage_index,
+                                              const std::string& boundary);
 
   // 返回配置中明确保存的攀爬末帧关节姿态。
   JointAngles terminalJoints(const std::optional<ClimbCompactConfig>& config) const;
@@ -46,12 +58,21 @@ class ClimbMode {
   void validateConfig(const ClimbCompactConfig& config) const;
 
   // 进入 compact 攀爬预览；参数与 Python enter() 一一对应。
+  // front compact + hardware_execution：仅当 config.allow_front_hardware 为 true 时
+  // 接受（项目所有者决定的与 Python 的有意差异），否则以同一消息拒绝；
+  // 实机模式始终使用共享 4 rad/s 关节步进上限。
   void enter(const JointAngles& q_current,
              const std::optional<ClimbCompactConfig>& config, int start_stage_index,
              std::optional<int> end_stage_index, bool hardware_execution);
 
   void hold();
   void resume();
+
+  // HOLD/FAILED 帧不重新计算参考：把最近一次的关节空间覆盖原样重新交给控制器，
+  // 使暂停时继续追踪同一关节目标。
+  void republishJointOverride();
+  // 丢弃已保存的关节空间覆盖（abort/退出攀爬时调用）。
+  void clearJointOverride() { last_joint_override_ = {}; }
 
   // 推进当前攀爬预览阶段；command 不参与攀爬插值。
   void update(const Eigen::Vector4d& command, const JointAngles& q_current);
@@ -70,7 +91,7 @@ class ClimbMode {
   double settle_time = 0.0;
   std::string failure_reason;
   std::optional<std::array<Vector3d, 6>> anchors_world;
-  std::optional<std::array<double, 5>> base_pose;
+  std::optional<BasePose> base_pose;
   std::optional<int> stage_index;
   std::optional<int> end_stage_index;
   std::vector<std::string> stage_names;
@@ -107,17 +128,18 @@ class ClimbMode {
   static double smoothstep(double value);
 
   void updateHardwareStageElapsedTime();
-  void applyReference(const std::array<double, 5>& base,
+  void applyReference(const BasePose& base,
                       const std::array<Vector3d, 6>& anchors,
                       bool sync_previous = false);
   // 返回 {pose, anchors, total}。
-  std::tuple<std::array<double, 5>, std::array<Vector3d, 6>, double>
-  stageReference() const;
+  std::tuple<BasePose, std::array<Vector3d, 6>, double> stageReference() const;
   std::array<Vector3d, 6> relativeBaseHighStep(const CompactStage& stage,
-                                               const std::array<double, 5>& pose,
+                                               const BasePose& pose,
                                                double pose_weight, double phase) const;
   std::array<Vector3d, 6> piecewiseBase(const CompactStage& stage,
-                                        const std::array<double, 5>& pose) const;
+                                        const BasePose& pose) const;
+  static BasePose piecewisePose(const std::vector<BasePose>& knots,
+                                const std::vector<double>& durations, double elapsed);
   static std::array<Vector3d, 6> piecewiseAnchors(
       const std::vector<std::array<Vector3d, 6>>& knots,
       const std::vector<double>& durations, double elapsed);
@@ -125,6 +147,10 @@ class ClimbMode {
       const std::vector<std::vector<Vector3d>>& knots,
       const std::vector<double>& durations,
       const std::vector<std::vector<Vector3d>>* velocities, double elapsed);
+  // 当前阶段声明 joint_space 且 phase_time 位于 [T(from), T(to)] 时，
+  // 用关节节点插值得到 q_ref：覆盖这些腿的足端目标/世界锚点为 FK(q_ref)，
+  // 并向控制器发布关节覆盖；否则不发布任何覆盖。
+  void applyJointSpace(bool sync_previous);
   void advanceStage();
   void startStageTiming();
   void recordStageTiming(const std::string& category);
@@ -134,6 +160,7 @@ class ClimbMode {
 
   GraspController* controller_;
   ClimbCompactConfig config_;
+  std::array<std::optional<Vector3d>, 6> last_joint_override_{};
   std::optional<std::chrono::steady_clock::time_point>
       hardware_stage_last_monotonic_;
 };

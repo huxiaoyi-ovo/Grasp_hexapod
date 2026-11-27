@@ -22,6 +22,7 @@
     python3 test/fake_hardware_e2e.py
 脚本自行启动/停止 bt_control_node（rosrun，全部默认参数即可）。
 """
+import argparse
 import subprocess
 import sys
 import threading
@@ -29,6 +30,7 @@ import time
 from contextlib import contextmanager
 
 import numpy as np
+import rosgraph
 import rospy
 from geometry_msgs.msg import Twist
 from grasp_hexapod_msgs.msg import ModeStatus
@@ -43,14 +45,16 @@ POSE_RATE_HZ = 30.0
 class FakeHardware:
     """双板伺服仿真 + 伪夹爪服务；反馈线程全程持续发布。"""
 
-    def __init__(self):
-        rospy.init_node("fake_hardware_bt_e2e")
+    def __init__(self, initialize_node=True):
+        if initialize_node:
+            rospy.init_node("fake_hardware_bt_e2e")
         self.lock = threading.Lock()
         self.q_des = np.full((6, 3), 0.02)
         self.legs_seen = set()
         self.gripper_calls = []
         self.walk_targets = []
         self.record_targets = False
+        self.feedback_enabled = True
         self.pos_pubs = {
             leg: rospy.Publisher(f"/{leg}_pos", JointState, queue_size=1)
             for leg in LEG_NAMES
@@ -90,6 +94,10 @@ class FakeHardware:
         while not rospy.is_shutdown():
             with self.lock:
                 snapshot = self.q_des.copy()
+                feedback_enabled = self.feedback_enabled
+            if not feedback_enabled:
+                rate.sleep()
+                continue
             stamp = rospy.Time.now()
             for index, leg in enumerate(LEG_NAMES):
                 message = JointState()
@@ -321,5 +329,33 @@ def main():
         node.wait(timeout=10)
 
 
+def feedback_only_main():
+    """Serve fake feedback only after rejecting a possibly live graph."""
+    rospy.init_node("phase1_fake_feedback")
+    if not rospy.get_param("~allow_fake_feedback", False):
+        raise RuntimeError("~allow_fake_feedback:=true is required")
+    master = rosgraph.Master(rospy.get_name())
+    publishers, _, services = master.getSystemState()
+    existing_publishers = {
+        topic for topic, _ in publishers
+        if topic in {f"/{leg}_pos" for leg in LEG_NAMES}
+    }
+    if existing_publishers:
+        raise RuntimeError(
+            "refusing fake feedback: existing joint publishers: " +
+            ", ".join(sorted(existing_publishers)))
+    if any(name == "/grasp_hexapod/gripper_act" for name, _ in services):
+        raise RuntimeError("refusing fake feedback: gripper service already exists")
+    FakeHardware(initialize_node=False)
+    rospy.loginfo("phase1 fake feedback is active on an isolated ROS graph")
+    rospy.spin()
+
+
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--feedback-only", action="store_true")
+    args, _ = parser.parse_known_args()
+    if args.feedback_only:
+        feedback_only_main()
+    else:
+        main()

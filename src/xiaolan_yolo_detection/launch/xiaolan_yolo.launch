@@ -6,8 +6,11 @@
   <arg name="yolo_python" default="$(find xiaolan_yolo_detection)/../../.venv/jetson-gpu/bin/python3"/>
   <arg name="start_yolo" default="true"/>
   <arg name="start_3d" default="true"/>
-  <arg name="start_visualizer" default="true"/>
+  <arg name="start_visualizer" default="false"/>
   <arg name="show_window" default="false"/>
+  <!-- true: depth arrives UNALIGNED (camera depth_registration:=false) and
+       target_3d aligns only the ROI pixels with the depth->colour TF. -->
+  <arg name="sparse_align" default="false"/>
   <node if="$(arg start_yolo)" pkg="xiaolan_yolo_detection" type="xiaolan_yolo_node.py" name="xiaolan_yolo_node" output="screen" launch-prefix="$(arg yolo_python)" required="true">
     <env name="OMP_NUM_THREADS" value="2"/>
     <env name="OPENBLAS_NUM_THREADS" value="1"/>
@@ -20,6 +23,7 @@
   <node if="$(arg start_3d)" pkg="xiaolan_yolo_detection" type="xiaolan_target_3d_node.py" name="xiaolan_target_3d_node" output="screen">
     <env name="OPENBLAS_NUM_THREADS" value="1"/>
     <rosparam command="load" file="$(arg config)"/>
+    <param name="sparse_align" value="$(arg sparse_align)"/>
   </node>
   <node if="$(arg start_visualizer)" pkg="xiaolan_yolo_detection" type="xiaolan_visualizer.py" name="xiaolan_visualizer" output="screen">
     <rosparam command="load" file="$(arg config)"/>

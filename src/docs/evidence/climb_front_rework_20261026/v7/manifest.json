@@ -1,0 +1,21 @@
+{
+  "archive": "immutable rejected v7 builder/config, CPU/CAD/GPU, and preflight evidence",
+  "v7_config_sha256": "b2351359bd492dd40c04d30f5bfd365084730b4802543cf64ff2de4befd3ec7e",
+  "files": {
+    "build_climb_front_optimized_v7.py": "759b004643d1dbf83e54aaf001163b63e441424634dfa028024ab26c594277cc",
+    "cad54_manifest.json": "da2208ed79559c697fd78b9b9b4422d7040a5e21fb637f128a8c461174d61f69",
+    "cad54_report.json": "887bc4b75399aee6a4615e4318b8cb012358c2b9524ab3358c26f30f0e49a5d1",
+    "climb_front_optimized_v7.json": "b2351359bd492dd40c04d30f5bfd365084730b4802543cf64ff2de4befd3ec7e",
+    "cpu.json": "fe8d7d847b482f03fc891e7cae96c6dfc06512f60a481b122836ca7d34f0b5f7",
+    "cpu_console.log": "828ce877985299803be0db0803087ac3d7a0b6239603f8bebe7e9b53824c0e64",
+    "gpu_1p2_preflight_console.log": "3142d00fd051400af6dcec7b984ba43cf1a59513ea7bd6e502c562d0e2f47040",
+    "gpu_1p2_preflight_manifest.json": "d5bcdf269f805478690a60f2d3f8a660ed54ce276e60c092d4ad1fa1556d6bde",
+    "gpu_actual_samples.jsonl": "bc6eded2bb952b230ec680406d9b4e4fad58fcf291badc1e2d4b0d196355df4b",
+    "gpu_console.log": "421c40888ece7e44feb9b6265b132df14d727ace22c07b56091fee65a3f27d5f",
+    "gpu_manifest.json": "bbe729290743af57d4865ab956f0874fc1d38c7f2b28202e16a22d27a75be1b9",
+    "gpu_metrics.json": "af490278b3b97e2dda5735672abde0ddb18c306a888ae44c1bc456af918c01b9",
+    "gpu_observer_runner.py": "04fe63f93da31e7855f4a52a684a5e5db088ae5b98c002b18c803e8afe71f675",
+    "v7_cpu_manifest.json": "e30d0edcaa2e6ef786b247002ab3cc3ef469b3c4bfd265d37154eafb1854972d"
+  },
+  "boundary": "v7 is rejected by GPU feedback timeout; no hardware authorization."
+}

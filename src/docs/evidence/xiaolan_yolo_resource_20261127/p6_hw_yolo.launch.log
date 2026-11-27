@@ -1,0 +1,174 @@
+[11/27/2026-11:44:29] [TRT] [W] Using an engine plan file across different models of devices is not recommended and is likely to affect performance or even cause errors.
+[INFO] [1795751066.320700]: 3D state=4 reason=DETECTION_STREAM_TIMEOUT X=0.0 Z=0.0 source_age=None input_age=None skew=None infer_ms=0.0 det_hz=0.0 depth_hz=0.0 target_hz=0.0
+[INFO] [1795751068.385702]: 3D summary state=4 reason=DETECTION_STREAM_TIMEOUT X=0.0 Z=0.0 source_age=None input_age=None skew=None infer_ms=0.0 det_hz=0.0 depth_hz=0.0 target_hz=0.0
+[INFO] [1795751070.443519]: 3D summary state=4 reason=DETECTION_STREAM_TIMEOUT X=0.0 Z=0.0 source_age=None input_age=None skew=None infer_ms=0.0 det_hz=0.0 depth_hz=0.0 target_hz=0.0
+[INFO] [1795751072.515608]: 3D summary state=4 reason=DETECTION_STREAM_TIMEOUT X=0.0 Z=0.0 source_age=None input_age=None skew=None infer_ms=0.0 det_hz=0.0 depth_hz=0.0 target_hz=0.0
+[INFO] [1795751074.579852]: 3D summary state=4 reason=DETECTION_STREAM_TIMEOUT X=0.0 Z=0.0 source_age=None input_age=None skew=None infer_ms=0.0 det_hz=0.0 depth_hz=0.0 target_hz=0.0
+[INFO] [1795751076.652236]: 3D summary state=4 reason=DETECTION_STREAM_TIMEOUT X=0.0 Z=0.0 source_age=None input_age=None skew=None infer_ms=0.0 det_hz=0.0 depth_hz=0.0 target_hz=0.0
+[INFO] [1795751078.700498]: 3D summary state=4 reason=DETECTION_STREAM_TIMEOUT X=0.0 Z=0.0 source_age=None input_age=None skew=None infer_ms=0.0 det_hz=0.0 depth_hz=0.0 target_hz=0.0
+[INFO] [1795751080.788085]: 3D summary state=4 reason=DETECTION_STREAM_TIMEOUT X=0.0 Z=0.0 source_age=None input_age=None skew=None infer_ms=0.0 det_hz=0.0 depth_hz=0.0 target_hz=0.0
+[INFO] [1795751082.867680]: 3D summary state=4 reason=DETECTION_STREAM_TIMEOUT X=0.0 Z=0.0 source_age=None input_age=None skew=None infer_ms=0.0 det_hz=0.0 depth_hz=0.0 target_hz=0.0
+[INFO] [1795751084.938343]: 3D summary state=4 reason=DETECTION_STREAM_TIMEOUT X=0.0 Z=0.0 source_age=None input_age=None skew=None infer_ms=0.0 det_hz=0.0 depth_hz=0.0 target_hz=0.0
+[INFO] [1795751086.998250]: 3D summary state=4 reason=DETECTION_STREAM_TIMEOUT X=0.0 Z=0.0 source_age=None input_age=None skew=None infer_ms=0.0 det_hz=0.0 depth_hz=0.0 target_hz=0.0
+[INFO] [1795751089.028241]: 3D summary state=4 reason=DETECTION_STREAM_TIMEOUT X=0.0 Z=0.0 source_age=None input_age=None skew=None infer_ms=0.0 det_hz=0.0 depth_hz=0.0 target_hz=0.0
+[INFO] [1795751091.108577]: 3D summary state=4 reason=DETECTION_STREAM_TIMEOUT X=0.0 Z=0.0 source_age=None input_age=None skew=None infer_ms=0.0 det_hz=0.0 depth_hz=0.0 target_hz=0.0
+[INFO] [1795751093.183592]: 3D summary state=4 reason=DETECTION_STREAM_TIMEOUT X=0.0 Z=0.0 source_age=None input_age=None skew=None infer_ms=0.0 det_hz=0.0 depth_hz=0.0 target_hz=0.0
+[INFO] [1795751095.271267]: 3D summary state=4 reason=DETECTION_STREAM_TIMEOUT X=0.0 Z=0.0 source_age=None input_age=None skew=None infer_ms=0.0 det_hz=0.0 depth_hz=0.0 target_hz=0.0
+[INFO] [1795751097.348771]: 3D summary state=4 reason=DETECTION_STREAM_TIMEOUT X=0.0 Z=0.0 source_age=None input_age=None skew=None infer_ms=0.0 det_hz=0.0 depth_hz=0.0 target_hz=0.0
+[INFO] [1795751099.423118]: 3D summary state=4 reason=DETECTION_STREAM_TIMEOUT X=0.0 Z=0.0 source_age=None input_age=None skew=None infer_ms=0.0 det_hz=0.0 depth_hz=0.0 target_hz=0.0
+[INFO] [1795751101.510373]: 3D summary state=4 reason=DETECTION_STREAM_TIMEOUT X=0.0 Z=0.0 source_age=None input_age=None skew=None infer_ms=0.0 det_hz=0.0 depth_hz=0.0 target_hz=0.0
+[INFO] [1795751103.588471]: 3D summary state=4 reason=DETECTION_STREAM_TIMEOUT X=0.0 Z=0.0 source_age=None input_age=None skew=None infer_ms=0.0 det_hz=0.0 depth_hz=0.0 target_hz=0.0
+[INFO] [1795751105.661815]: 3D summary state=4 reason=DETECTION_STREAM_TIMEOUT X=0.0 Z=0.0 source_age=None input_age=None skew=None infer_ms=0.0 det_hz=0.0 depth_hz=0.0 target_hz=0.0
+[INFO] [1795751107.729816]: 3D summary state=4 reason=DETECTION_STREAM_TIMEOUT X=0.0 Z=0.0 source_age=None input_age=None skew=None infer_ms=0.0 det_hz=0.0 depth_hz=0.0 target_hz=0.0
+[INFO] [1795751109.804921]: 3D summary state=4 reason=DETECTION_STREAM_TIMEOUT X=0.0 Z=0.0 source_age=None input_age=None skew=None infer_ms=0.0 det_hz=0.0 depth_hz=0.0 target_hz=0.0
+[INFO] [1795751111.886538]: 3D summary state=4 reason=DETECTION_STREAM_TIMEOUT X=0.0 Z=0.0 source_age=None input_age=None skew=None infer_ms=0.0 det_hz=0.0 depth_hz=0.0 target_hz=0.0
+[INFO] [1795751113.971932]: 3D summary state=4 reason=DETECTION_STREAM_TIMEOUT X=0.0 Z=0.0 source_age=None input_age=None skew=None infer_ms=0.0 det_hz=0.0 depth_hz=0.0 target_hz=0.0
+[INFO] [1795751116.056418]: 3D summary state=4 reason=DETECTION_STREAM_TIMEOUT X=0.0 Z=0.0 source_age=None input_age=None skew=None infer_ms=0.0 det_hz=0.0 depth_hz=0.0 target_hz=0.0
+[INFO] [1795751118.140181]: 3D summary state=4 reason=DETECTION_STREAM_TIMEOUT X=0.0 Z=0.0 source_age=None input_age=None skew=None infer_ms=0.0 det_hz=0.0 depth_hz=0.0 target_hz=0.0
+[INFO] [1795751120.220980]: 3D summary state=4 reason=DETECTION_STREAM_TIMEOUT X=0.0 Z=0.0 source_age=None input_age=None skew=None infer_ms=0.0 det_hz=0.0 depth_hz=0.0 target_hz=0.0
+[INFO] [1795751122.308914]: 3D summary state=4 reason=DETECTION_STREAM_TIMEOUT X=0.0 Z=0.0 source_age=None input_age=None skew=None infer_ms=0.0 det_hz=0.0 depth_hz=0.0 target_hz=0.0
+[INFO] [1795751124.382063]: 3D summary state=4 reason=DETECTION_STREAM_TIMEOUT X=0.0 Z=0.0 source_age=None input_age=None skew=None infer_ms=0.0 det_hz=0.0 depth_hz=0.0 target_hz=0.0
+[INFO] [1795751126.462826]: 3D summary state=4 reason=DETECTION_STREAM_TIMEOUT X=0.0 Z=0.0 source_age=None input_age=None skew=None infer_ms=0.0 det_hz=0.0 depth_hz=0.0 target_hz=0.0
+[INFO] [1795751128.537962]: 3D summary state=4 reason=DETECTION_STREAM_TIMEOUT X=0.0 Z=0.0 source_age=None input_age=None skew=None infer_ms=0.0 det_hz=0.0 depth_hz=0.0 target_hz=0.0
+[INFO] [1795751130.611400]: 3D summary state=4 reason=DETECTION_STREAM_TIMEOUT X=0.0 Z=0.0 source_age=None input_age=None skew=None infer_ms=0.0 det_hz=0.0 depth_hz=0.0 target_hz=0.0
+[INFO] [1795751132.682693]: 3D summary state=4 reason=DETECTION_STREAM_TIMEOUT X=0.0 Z=0.0 source_age=None input_age=None skew=None infer_ms=0.0 det_hz=0.0 depth_hz=0.0 target_hz=0.0
+[INFO] [1795751134.767369]: 3D summary state=4 reason=DETECTION_STREAM_TIMEOUT X=0.0 Z=0.0 source_age=None input_age=None skew=None infer_ms=0.0 det_hz=0.0 depth_hz=0.0 target_hz=0.0
+[INFO] [1795751136.851600]: 3D summary state=4 reason=DETECTION_STREAM_TIMEOUT X=0.0 Z=0.0 source_age=None input_age=None skew=None infer_ms=0.0 det_hz=0.0 depth_hz=0.0 target_hz=0.0
+[INFO] [1795751138.933867]: 3D summary state=4 reason=DETECTION_STREAM_TIMEOUT X=0.0 Z=0.0 source_age=None input_age=None skew=None infer_ms=0.0 det_hz=0.0 depth_hz=0.0 target_hz=0.0
+[INFO] [1795751074.130444]: YOLO backend=TensorRT GPU FP16 engine=/home/artrc-gflz/Grasp_hexapod/src/xiaolan_yolo_detection/models/best.engine
+... logging to /home/artrc-gflz/.ros/log/e3e06e92-ea02-11f1-bc2b-70cf499c08ab/roslaunch-ubuntu-11022.log
+Checking log directory for disk usage. This may take a while.
+Press Ctrl-C to interrupt
+Done checking log file disk usage. Usage is <1GB.
+]2;/home/artrc-gflz/Grasp_hexapod/src/xiaolan_yolo_detection/launch/xiaolan_yolo.launch
+[1mstarted roslaunch server http://ubuntu:41245/[0m
+
+SUMMARY
+========
+
+PARAMETERS
+ * /rosdistro: noetic
+ * /rosversion: 1.17.4
+ * /xiaolan_target_3d_node/aligned_depth_topic: /camera/depth/ima...
+ * /xiaolan_target_3d_node/aligned_info_topic: /camera/depth/cam...
+ * /xiaolan_target_3d_node/center_tolerance_m: 0.03
+ * /xiaolan_target_3d_node/color_info_topic: /camera/color/cam...
+ * /xiaolan_target_3d_node/conf_threshold: 0.5
+ * /xiaolan_target_3d_node/confirm_frames: 2
+ * /xiaolan_target_3d_node/depth_cache_size: 45
+ * /xiaolan_target_3d_node/depth_sync_tolerance: 0.025
+ * /xiaolan_target_3d_node/depth_wait_timeout: 0.08
+ * /xiaolan_target_3d_node/detection_topic: /xiaolan/detection
+ * /xiaolan_target_3d_node/diagnostics_period_s: 2.0
+ * /xiaolan_target_3d_node/ema_alpha: 0.4
+ * /xiaolan_target_3d_node/health_publish_hz: 10.0
+ * /xiaolan_target_3d_node/input_size: 416
+ * /xiaolan_target_3d_node/inter_op_num_threads: 1
+ * /xiaolan_target_3d_node/intra_op_num_threads: 2
+ * /xiaolan_target_3d_node/lost_tolerance_frames: 3
+ * /xiaolan_target_3d_node/max_depth: 1.0
+ * /xiaolan_target_3d_node/max_det: 1
+ * /xiaolan_target_3d_node/max_fps: 15.0
+ * /xiaolan_target_3d_node/max_hold_seconds: 0.25
+ * /xiaolan_target_3d_node/max_input_age: 0.25
+ * /xiaolan_target_3d_node/max_result_age: 0.25
+ * /xiaolan_target_3d_node/max_x_jump_m: 0.15
+ * /xiaolan_target_3d_node/max_z_jump_m: 0.15
+ * /xiaolan_target_3d_node/min_depth: 0.2
+ * /xiaolan_target_3d_node/min_valid_depth_pixels: 5
+ * /xiaolan_target_3d_node/rgb_sync_tolerance: 0.05
+ * /xiaolan_target_3d_node/rgb_topic: /camera/color/ima...
+ * /xiaolan_target_3d_node/roi_size: 9
+ * /xiaolan_target_3d_node/show_window: False
+ * /xiaolan_target_3d_node/target_timeout: 0.5
+ * /xiaolan_target_3d_node/visualization_max_dt: 0.25
+ * /xiaolan_target_3d_node/visualization_max_fps: 5.0
+ * /xiaolan_visualizer/aligned_depth_topic: /camera/depth/ima...
+ * /xiaolan_visualizer/aligned_info_topic: /camera/depth/cam...
+ * /xiaolan_visualizer/center_tolerance_m: 0.03
+ * /xiaolan_visualizer/color_info_topic: /camera/color/cam...
+ * /xiaolan_visualizer/conf_threshold: 0.5
+ * /xiaolan_visualizer/confirm_frames: 2
+ * /xiaolan_visualizer/depth_cache_size: 45
+ * /xiaolan_visualizer/depth_sync_tolerance: 0.025
+ * /xiaolan_visualizer/depth_wait_timeout: 0.08
+ * /xiaolan_visualizer/detection_topic: /xiaolan/detection
+ * /xiaolan_visualizer/diagnostics_period_s: 2.0
+ * /xiaolan_visualizer/ema_alpha: 0.4
+ * /xiaolan_visualizer/health_publish_hz: 10.0
+ * /xiaolan_visualizer/input_size: 416
+ * /xiaolan_visualizer/inter_op_num_threads: 1
+ * /xiaolan_visualizer/intra_op_num_threads: 2
+ * /xiaolan_visualizer/lost_tolerance_frames: 3
+ * /xiaolan_visualizer/max_depth: 1.0
+ * /xiaolan_visualizer/max_det: 1
+ * /xiaolan_visualizer/max_fps: 15.0
+ * /xiaolan_visualizer/max_hold_seconds: 0.25
+ * /xiaolan_visualizer/max_input_age: 0.25
+ * /xiaolan_visualizer/max_result_age: 0.25
+ * /xiaolan_visualizer/max_x_jump_m: 0.15
+ * /xiaolan_visualizer/max_z_jump_m: 0.15
+ * /xiaolan_visualizer/min_depth: 0.2
+ * /xiaolan_visualizer/min_valid_depth_pixels: 5
+ * /xiaolan_visualizer/rgb_sync_tolerance: 0.05
+ * /xiaolan_visualizer/rgb_topic: /camera/color/ima...
+ * /xiaolan_visualizer/roi_size: 9
+ * /xiaolan_visualizer/show_window: False
+ * /xiaolan_visualizer/target_timeout: 0.5
+ * /xiaolan_visualizer/visualization_max_dt: 0.25
+ * /xiaolan_visualizer/visualization_max_fps: 5.0
+ * /xiaolan_yolo_node/aligned_depth_topic: /camera/depth/ima...
+ * /xiaolan_yolo_node/aligned_info_topic: /camera/depth/cam...
+ * /xiaolan_yolo_node/backend: tensorrt
+ * /xiaolan_yolo_node/center_tolerance_m: 0.03
+ * /xiaolan_yolo_node/color_info_topic: /camera/color/cam...
+ * /xiaolan_yolo_node/conf_threshold: 0.5
+ * /xiaolan_yolo_node/confirm_frames: 2
+ * /xiaolan_yolo_node/depth_cache_size: 45
+ * /xiaolan_yolo_node/depth_sync_tolerance: 0.025
+ * /xiaolan_yolo_node/depth_wait_timeout: 0.08
+ * /xiaolan_yolo_node/detection_topic: /xiaolan/detection
+ * /xiaolan_yolo_node/diagnostics_period_s: 2.0
+ * /xiaolan_yolo_node/ema_alpha: 0.4
+ * /xiaolan_yolo_node/engine_path: /home/artrc-gflz/...
+ * /xiaolan_yolo_node/health_publish_hz: 10.0
+ * /xiaolan_yolo_node/input_size: 416
+ * /xiaolan_yolo_node/inter_op_num_threads: 1
+ * /xiaolan_yolo_node/intra_op_num_threads: 2
+ * /xiaolan_yolo_node/lost_tolerance_frames: 3
+ * /xiaolan_yolo_node/max_depth: 1.0
+ * /xiaolan_yolo_node/max_det: 1
+ * /xiaolan_yolo_node/max_fps: 15.0
+ * /xiaolan_yolo_node/max_hold_seconds: 0.25
+ * /xiaolan_yolo_node/max_input_age: 0.25
+ * /xiaolan_yolo_node/max_result_age: 0.25
+ * /xiaolan_yolo_node/max_x_jump_m: 0.15
+ * /xiaolan_yolo_node/max_z_jump_m: 0.15
+ * /xiaolan_yolo_node/min_depth: 0.2
+ * /xiaolan_yolo_node/min_valid_depth_pixels: 5
+ * /xiaolan_yolo_node/model_path: /home/artrc-gflz/...
+ * /xiaolan_yolo_node/rgb_sync_tolerance: 0.05
+ * /xiaolan_yolo_node/rgb_topic: /camera/color/ima...
+ * /xiaolan_yolo_node/roi_size: 9
+ * /xiaolan_yolo_node/show_window: False
+ * /xiaolan_yolo_node/target_timeout: 0.5
+ * /xiaolan_yolo_node/visualization_max_dt: 0.25
+ * /xiaolan_yolo_node/visualization_max_fps: 5.0
+
+NODES
+  /
+    xiaolan_target_3d_node (xiaolan_yolo_detection/xiaolan_target_3d_node.py)
+    xiaolan_visualizer (xiaolan_yolo_detection/xiaolan_visualizer.py)
+    xiaolan_yolo_node (xiaolan_yolo_detection/xiaolan_yolo_node.py)
+
+[1mROS_MASTER_URI=http://localhost:11311[0m
+]2;/home/artrc-gflz/Grasp_hexapod/src/xiaolan_yolo_detection/launch/xiaolan_yolo.launch http://localhost:11311
+[1mprocess[xiaolan_yolo_node-1]: started with pid [11063][0m
+[1mprocess[xiaolan_target_3d_node-2]: started with pid [11064][0m
+[1mprocess[xiaolan_visualizer-3]: started with pid [11066][0m
+[xiaolan_target_3d_node-2] killing on exit
+[xiaolan_visualizer-3] killing on exit
+[xiaolan_yolo_node-1] killing on exit
+shutting down processing monitor...
+... shutting down processing monitor complete
+[1mdone[0m

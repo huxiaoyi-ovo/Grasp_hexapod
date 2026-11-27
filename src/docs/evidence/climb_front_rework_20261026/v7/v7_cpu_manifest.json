@@ -1,0 +1,24 @@
+{
+  "contract": "v7 C15 hip-polar correction; one cached v6-entry CPU replay",
+  "inputs": {
+    "v7_config_sha256": "b2351359bd492dd40c04d30f5bfd365084730b4802543cf64ff2de4befd3ec7e",
+    "builder_sha256": "759b004643d1dbf83e54aaf001163b63e441424634dfa028024ab26c594277cc",
+    "runtime_sha256": "4a3ec853a8868e911e8e6d6b4b80845afef53b4b24207ce2859882bb03035db1",
+    "v6_prefix_config_sha256": "582a331cb4ea331ffd2d37fc7866a44c32437a9870ae8684a712014bc77c9106",
+    "cached_entry_stage": "LB_PLATFORM_225"
+  },
+  "validation": {
+    "tier0": "compile, deterministic generation, schema/load passed",
+    "focused_pytest": "7 passed",
+    "c15_annulus_30hz_min_m": 0.09341725647787921
+  },
+  "cpu": {
+    "process_exit_code": 0,
+    "audit_state": "DONE",
+    "ticks": 367,
+    "first_failure": null,
+    "receipt_sha256": "fe8d7d847b482f03fc891e7cae96c6dfc06512f60a481b122836ca7d34f0b5f7",
+    "console_sha256": "828ce877985299803be0db0803087ac3d7a0b6239603f8bebe7e9b53824c0e64",
+    "boundary": "CPU/model diagnostics only; no contact/load/stability or hardware claim"
+  }
+}

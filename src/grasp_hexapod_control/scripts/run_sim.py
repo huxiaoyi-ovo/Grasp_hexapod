@@ -366,6 +366,14 @@ def parse_arguments():
         help="加载 compact 攀爬场景并立即回放",
     )
     parser.add_argument(
+        "--climb-from-walk-stance",
+        action="store_true",
+        help=(
+            "仅 --climb-start 且起点为 C1：以行走站姿 Q_STAND（z=行走站姿机身高度）"
+            "在 compact 入口 xy/yaw 出生，先走攀爬准备过渡再进入攀爬"
+        ),
+    )
+    parser.add_argument(
         "--full-mission",
         action="store_true",
         help="随机开局并自动执行APPROACH、CLIMB到DOCK交接的仿真全流程",
@@ -592,6 +600,64 @@ def _new_climb_metric(index, name):
     }
 
 
+def _metric_planned_roles(compact, stage_index, phase_time=None):
+    """Return planned role labels only; they are not simulator contact truth."""
+
+    support = ClimbMode.planned_support_legs(compact, stage_index, phase_time)
+    air_start = ClimbMode.planned_airborne_legs(
+        compact, stage_index, "start"
+    )
+    air_end = ClimbMode.planned_airborne_legs(compact, stage_index, "end")
+    return support, air_start, air_end
+
+
+def _metric_stationary_support_mask(compact, stage_index, stationary, phase_time=None):
+    """Exclude planned carried-air feet from support-drift diagnostics only."""
+
+    stationary = np.asarray(stationary, dtype=bool).reshape(6)
+    if compact.get("contact_plan_version") != 1:
+        return stationary
+    support, _, _ = _metric_planned_roles(compact, stage_index, phase_time)
+    mask = np.zeros(6, dtype=bool)
+    mask[list(support)] = True
+    return stationary & mask
+
+
+def _segment_support_drift_baselines(
+    metric, compact, stage_index, phase_time, actual_world
+):
+    """Return role-onset diagnostic references for optional segment supports.
+
+    This uses planned-role changes only; it neither observes contact nor feeds a
+    controller or transition. Legacy stages deliberately retain stage-start
+    drift references.
+    """
+
+    stage = compact["stages"][stage_index]
+    if (
+        compact.get("contact_plan_version") != 1
+        or "segment_support_legs" not in stage
+    ):
+        return None
+    actual_world = np.asarray(actual_world, dtype=np.float64).reshape(6, 3)
+    baseline = metric.setdefault(
+        "planned_support_drift_baselines_world_m", [None] * 6
+    )
+    support = set(ClimbMode.planned_support_legs(
+        compact, stage_index, phase_time
+    ))
+    for leg in range(6):
+        if leg in support:
+            if baseline[leg] is None:
+                baseline[leg] = actual_world[leg].tolist()
+        else:
+            baseline[leg] = None
+    return support, np.asarray([
+        actual_world[leg] if value is None else value
+        for leg, value in enumerate(baseline)
+    ], dtype=np.float64)
+
+
 def _update_climb_command_metric(
     metric, q_target, previous_target, velocity_clips, dt
 ):
@@ -642,6 +708,18 @@ def _update_climb_metric(
     """更新不反馈到控制器的关节、根部和足端漂移诊断。"""
 
     metric["simulated_duration_s"] += dt
+    compact = controller.climb_mode.config
+    support, air_start, air_end = _metric_planned_roles(
+        compact, metric["stage_index"], controller.climb_mode.phase_time
+    )
+    metric["planned_support_leg_names"] = [LEG_NAMES[leg] for leg in support]
+    metric["planned_carried_air_start_leg_names"] = [
+        LEG_NAMES[leg] for leg in air_start
+    ]
+    metric["planned_carried_air_end_leg_names"] = [
+        LEG_NAMES[leg] for leg in air_end
+    ]
+    metric["planned_roles_diagnostic_only_not_contact_or_load_proof"] = True
     joint_errors = np.abs(q_current - controller.q_des)
     joint_index = np.unravel_index(np.argmax(joint_errors), joint_errors.shape)
     joint_error = float(joint_errors[joint_index])
@@ -709,11 +787,25 @@ def _update_climb_metric(
     if metric["stage_start_anchor_world_xyz_m"] is None:
         metric["stage_start_anchor_world_xyz_m"] = anchors_world.tolist()
         metric["stage_start_actual_world_foot_xyz_m"] = actual_world.tolist()
-    start_anchors = np.asarray(metric["stage_start_anchor_world_xyz_m"])
-    start_actual_world = np.asarray(metric["stage_start_actual_world_foot_xyz_m"])
-    stationary = np.linalg.norm(anchors_world - start_anchors, axis=1) <= 1e-12
+    segment_baselines = _segment_support_drift_baselines(
+        metric, compact, metric["stage_index"], controller.climb_mode.phase_time,
+        actual_world,
+    )
+    if segment_baselines is None:
+        start_anchors = np.asarray(metric["stage_start_anchor_world_xyz_m"])
+        start_actual_world = np.asarray(metric["stage_start_actual_world_foot_xyz_m"])
+        stationary = np.linalg.norm(anchors_world - start_anchors, axis=1) <= 1e-12
+        stationary = _metric_stationary_support_mask(
+            compact, metric["stage_index"], stationary,
+            controller.climb_mode.phase_time
+        )
+        support_reference_world = start_actual_world
+    else:
+        support, support_reference_world = segment_baselines
+        stationary = np.zeros(6, dtype=bool)
+        stationary[list(support)] = True
     if stationary.any():
-        drifts = np.linalg.norm(actual_world - start_actual_world, axis=1)
+        drifts = np.linalg.norm(actual_world - support_reference_world, axis=1)
         drifts[~stationary] = -np.inf
         drift_index = int(np.argmax(drifts))
         drift = float(drifts[drift_index])
@@ -723,7 +815,7 @@ def _update_climb_metric(
             metric["worst_support_foot_drift_leg"] = LEG_NAMES[drift_index]
             metric["worst_support_foot_drift_time_s"] = metric["simulated_duration_s"]
             metric["worst_support_foot_start_world_xyz_m"] = (
-                start_actual_world[drift_index].tolist()
+                support_reference_world[drift_index].tolist()
             )
             metric["worst_support_foot_current_world_xyz_m"] = (
                 actual_world[drift_index].tolist()
@@ -967,6 +1059,8 @@ def main() -> None:
         raise ValueError("--full-mission always runs the complete compact climb")
     if args.mission_seed is not None and not args.full_mission:
         raise ValueError("--mission-seed requires --full-mission")
+    if args.climb_from_walk_stance and not args.climb_start:
+        raise ValueError("--climb-from-walk-stance requires --climb-start")
     if args.climb_config is not None and not climb_scene:
         raise ValueError(
             "--climb-config requires --climb-start, --climb-scene or "
@@ -1118,8 +1212,8 @@ def main() -> None:
         if compact.get("climb_orientation") == "front":
             if args.climb_side != "left":
                 raise ValueError("front compact climbing has no right-side mirror")
-            if args.full_mission or args.ros:
-                raise ValueError("front compact climbing is unavailable with --full-mission or --ros")
+            if args.ros:
+                raise ValueError("front compact climbing is unavailable with --ros")
         compact = select_compact_climb_side(compact, args.climb_side)
         if (
             compact.get("schema") != "SIMULATION_ONLY_CLIMB_COMPACT_V2"
@@ -1148,6 +1242,10 @@ def main() -> None:
         climb_start_index, climb_end_index = resolve_compact_stage_range(
             compact, args.climb_from, args.climb_to
         )
+        if args.climb_from_walk_stance and climb_start_index != 0:
+            raise ValueError(
+                "--climb-from-walk-stance requires the climb to start at C1"
+            )
         for stage in compact["stages"]:
             stage["segment_durations_s"] = [
                 duration / args.climb_speed
@@ -1252,6 +1350,23 @@ def main() -> None:
             float(np.sin(half_yaw)),
             float(np.cos(half_yaw)),
         )
+    elif compact is not None and args.climb_from_walk_stance:
+        # 行走站姿出生：compact 入口 xy/yaw，z 取行走站姿机身高度（P0 比它低）。
+        entry_yaw = (
+            0.0 if np.asarray(compact_entry_pose).shape == (5,)
+            else float(compact_entry_pose[5])
+        )
+        pose.p = gymapi.Vec3(
+            float(compact_entry_pose[0]),
+            float(compact_entry_pose[1]),
+            float(controller.base_height_at_stand),
+        )
+        pose.r = gymapi.Quat(
+            0.0,
+            0.0,
+            float(np.sin(0.5 * entry_yaw)),
+            float(np.cos(0.5 * entry_yaw)),
+        )
     elif compact is not None:
         pose.p = gymapi.Vec3(*compact_entry_pose[:3])
         pose.r = _compact_root_quaternion(compact_entry_pose)
@@ -1315,7 +1430,12 @@ def main() -> None:
         dof_properties["upper"],
         dof_indices,
     )
-    if compact is not None and not args.full_mission:
+    if args.climb_from_walk_stance:
+        # 行走站姿出生；攀爬入口由准备过渡之后的主循环执行。
+        q_init_control = controller.q_init
+        print("Compact climb: initialized in the walking stance (Q_STAND); "
+              "climb-prep transition runs before entry")
+    elif compact is not None and not args.full_mission:
         print(
             "Compact climb: initialized at C{}:{} entry snapshot".format(
                 climb_start_index + 1, compact["stages"][climb_start_index]["name"]
@@ -1428,7 +1548,9 @@ def main() -> None:
             approach_timeout_s=args.approach_timeout,
             approach_position_tolerance_m=0.002,
             approach_yaw_tolerance_rad=np.deg2rad(0.2),
-            climb_hardware_execution=True,
+            # 与 --climb-start 一致：正面 compact 只做仿真回放（Python 端 front
+            # 不接受 hardware_execution）；侧面沿用实机门控路径。
+            climb_hardware_execution=compact.get("climb_orientation") != "front",
         )
         if result.failed:
             raise RuntimeError(
@@ -1486,7 +1608,11 @@ def main() -> None:
         motion_state = "RUNNING"
     elif trace_script is not None:
         motion_state = "HOLD"
-    if args.climb_start:
+    # --climb-from-walk-stance：入口推迟到准备过渡保持之后（主循环内执行）。
+    climb_walk_prep_pending = bool(args.climb_from_walk_stance)
+    climb_walk_prep_started = False
+    climb_walk_prep_held_frames = 0
+    if args.climb_start and not climb_walk_prep_pending:
         controller.enter_climb(
             q_init_control,
             compact,
@@ -1507,7 +1633,7 @@ def main() -> None:
     climb_report_t0 = 0.0
     climb_report_q_ref = None
     climb_phase_reported = None
-    climb_entered = bool(args.climb_start)
+    climb_entered = bool(args.climb_start) and not climb_walk_prep_pending
     climb_metrics_by_stage = {}
     climb_metrics_written = False
     mission_state_reported = (
@@ -1706,6 +1832,45 @@ def main() -> None:
                     # 暂停时让当前摆动腿先落地再停止。
                     command[:] = 0.0
 
+            if climb_walk_prep_pending and ros_controller is None:
+                if not climb_walk_prep_started:
+                    ok, prep_reason = controller.begin_climb_prep(q_control)
+                    if not ok:
+                        raise RuntimeError(
+                            "climb prep rejected: " + prep_reason
+                        )
+                    climb_walk_prep_started = True
+                    print(f"[climb-prep] started frame={control_frame}")
+                elif (
+                    not controller.climb_prep_active
+                    and controller.climb_prep_posture_held
+                ):
+                    # 过渡已保持在 Q_CLIMB_PREP：等关节反馈进入入口门限后执行既有入口
+                    # （enter_climb 门限失败前会先消耗保持标志，故先自检再调用）。
+                    entry_error = float(np.max(np.abs(
+                        q_control - np.asarray(compact["p0"]["q_rad"])
+                    )))
+                    if entry_error <= compact["settle_gate"]["entry_max_joint_error_rad"]:
+                        controller.enter_climb(
+                            q_control,
+                            compact,
+                            climb_start_index,
+                            climb_end_index,
+                            hardware_execution=(
+                                compact.get("climb_orientation") != "front"
+                            ),
+                        )
+                        climb_walk_prep_pending = False
+                        climb_entered = True
+                        print(f"[climb-prep] done frame={control_frame}")
+                    else:
+                        climb_walk_prep_held_frames += 1
+                        if climb_walk_prep_held_frames > 8.0 * args.control_rate:
+                            raise RuntimeError(
+                                "climb entry after prep failed: joint error "
+                                f"{entry_error:.4f} rad exceeds the entry gate"
+                            )
+
             metric_stage_index = None
             metric_stage_name = None
             if controller.mode == controller.CLIMB:
@@ -1753,6 +1918,7 @@ def main() -> None:
                 and compact is not None
                 and not climb_entered
                 and not args.full_mission
+                and not climb_walk_prep_pending
             ):
                 # --climb-scene 的入口已是 selected snapshot；等待 X 时不能让
                 # APPROACH 的足端参考把它重新拉向 Q_STAND。
@@ -1804,10 +1970,15 @@ def main() -> None:
                             current_pose[:2, 3]
                             - mission_target_pose[:2, 3]
                         )
+                        # 相对接近目标的偏航误差（正面 P0 偏航为 -90 度，不能打印绝对偏航）。
                         current_yaw = np.arctan2(
                             current_pose[1, 0],
                             current_pose[0, 0],
+                        ) - np.arctan2(
+                            mission_target_pose[1, 0],
+                            mission_target_pose[0, 0],
                         )
+                        current_yaw = np.arctan2(np.sin(current_yaw), np.cos(current_yaw))
                         print(
                             "[mission] CLIMB entered after stopped-pose "
                             "recheck: position_error={:.3f}m "
@@ -1843,9 +2014,9 @@ def main() -> None:
                             climb_properties,
                         )
                         print(
-                            "[mission] PREPARE_CLIMB entered: smooth return "
-                            "to Q_STAND with the shared Approach drive "
-                            "baseline, then persistent "
+                            "[mission] PREPARE_CLIMB entered: the walking "
+                            "stance steps into Q_CLIMB_PREP (climb-prep "
+                            "transition), then persistent "
                             "joint-feedback gate"
                         )
                     elif mission_state == controller.mission.APPROACH:

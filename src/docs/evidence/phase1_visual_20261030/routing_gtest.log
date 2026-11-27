@@ -1,0 +1,29 @@
+Running main() from /usr/src/googletest/googletest/src/gtest_main.cc
+[==========] Running 7 tests from 3 test suites.
+[----------] Global test environment set-up.
+[----------] 3 tests from FeedbackGate
+[ RUN      ] FeedbackGate.AllFreshSameBoardGivesReady
+[       OK ] FeedbackGate.AllFreshSameBoardGivesReady (0 ms)
+[ RUN      ] FeedbackGate.StaleLegBlocksReady
+[       OK ] FeedbackGate.StaleLegBlocksReady (0 ms)
+[ RUN      ] FeedbackGate.SkewedBoardsBlockComplete
+[       OK ] FeedbackGate.SkewedBoardsBlockComplete (0 ms)
+[----------] 3 tests from FeedbackGate (0 ms total)
+
+[----------] 1 test from FeedbackIssue
+[ RUN      ] FeedbackIssue.ReportsMissingLegs
+[       OK ] FeedbackIssue.ReportsMissingLegs (0 ms)
+[----------] 1 test from FeedbackIssue (0 ms total)
+
+[----------] 3 tests from ClampCommand
+[ RUN      ] ClampCommand.PreservesDirectionAndClampsNorm
+[       OK ] ClampCommand.PreservesDirectionAndClampsNorm (0 ms)
+[ RUN      ] ClampCommand.SmallCommandPassesThrough
+[       OK ] ClampCommand.SmallCommandPassesThrough (0 ms)
+[ RUN      ] ClampCommand.NonFiniteBecomesZero
+[       OK ] ClampCommand.NonFiniteBecomesZero (0 ms)
+[----------] 3 tests from ClampCommand (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 7 tests from 3 test suites ran. (0 ms total)
+[  PASSED  ] 7 tests.

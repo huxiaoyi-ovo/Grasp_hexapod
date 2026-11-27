@@ -3,8 +3,7 @@ import sys,json,cv2,numpy as np
 from pathlib import Path
 root=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(root/'scripts'))
-sys.path.insert(0,str(root/'test/reference'))
-import dock_mode_python as d
+import dock_mode as d
 d.rospy.logwarn_throttle=lambda *a,**k: None
 out=root/'test/ring_fixtures';out.mkdir(exist_ok=True)
 images=[]

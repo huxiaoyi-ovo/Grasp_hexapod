@@ -8,8 +8,12 @@ grasp_hexapod_control（C++ 部分）的 gtest 逐项对比。
 
 序列设计（两侧实现必须完全一致）：
     reset_then_walk : 扰动关节角 -> B 回站 -> 恒定速度步态 -> 反向 -> 停止
-    climb_left      : Q_STAND 入口，compact 左侧、hardware_execution=True、
+    climb_left      : Q_CLIMB_PREP 入口，compact 左侧、hardware_execution=True、
                       理想舵服（q_cur = 上一帧 q_des），直到 DONE
+    climb_front_direct : Q_CLIMB_PREP 入口，config/climb_front_direct.json（front，6 元素位姿，
+                      simulation_joint_velocity_limit_rad_s=6.0）、hardware_execution=False
+                      （Python 拒绝 front + hardware；仿真模式使用 front 的 6 rad/s 步进上限）、
+                      不改 settle_gate，理想舵服，直到 DONE
 伺服模型为"零延迟完美跟踪"，因此整个序列是确定性的。
 """
 
@@ -25,7 +29,7 @@ sys.path.insert(0, str(SCRIPTS_DIR))
 from climb_mode import ClimbMode  # noqa: E402
 from control import GraspController  # noqa: E402
 from dock_mode import load_dock_system  # noqa: E402
-from kinematics import Q_STAND  # noqa: E402
+from kinematics import Q_CLIMB_PREP, Q_STAND  # noqa: E402
 from utils.climb import (  # noqa: E402
     derive_compact_approach_geometry,
     select_compact_climb_side,
@@ -33,6 +37,9 @@ from utils.climb import (  # noqa: E402
 
 DT = 1.0 / 30.0
 CLIMB_FOOT_GATE_M = 0.05  # 与 run_real.launch 的 climb_foot_gate_m 默认一致
+CLIMB_FRONT_DIRECT_PATH = (
+    Path(__file__).resolve().parents[2] / "config" / "climb_front_direct.json"
+)
 GOLDEN_PATH = (
     SCRIPTS_DIR.parents[1]
     / "grasp_hexapod_control"
@@ -59,18 +66,18 @@ def flatten_feet(feet):
 
 
 def kinematics_samples():
-    """固定关节角下的 FK/Jacobian/DLS/碰撞检查快照。"""
+    """固定关节角下的 FK/Jacobian/DLS/碰撞检查快照（以攀爬准备姿态为中心）。"""
     rng = np.random.default_rng(20260909)
     samples = []
     q_values = [
-        Q_STAND.copy(),
-        Q_STAND + np.deg2rad(np.array([[6, -8, 5], [-4, 7, -6], [8, -5, 4],
+        Q_CLIMB_PREP.copy(),
+        Q_CLIMB_PREP + np.deg2rad(np.array([[6, -8, 5], [-4, 7, -6], [8, -5, 4],
                                        [-7, 6, -5], [5, -9, 7], [-6, 4, -8]])),
     ]
     for _ in range(3):
         q_values.append(
             np.clip(
-                Q_STAND + rng.normal(0.0, np.deg2rad(10.0), size=(6, 3)),
+                Q_CLIMB_PREP + rng.normal(0.0, np.deg2rad(10.0), size=(6, 3)),
                 -1.2,
                 1.2,
             )
@@ -168,10 +175,10 @@ def replay_climb_left():
     config = controller.climb_mode._load_config()
     config = select_compact_climb_side(config, "left")
     config["settle_gate"]["max_foot_target_error_m"] = CLIMB_FOOT_GATE_M
-    controller.enter_climb(Q_STAND.copy(), config=config, hardware_execution=True)
+    controller.enter_climb(Q_CLIMB_PREP.copy(), config=config, hardware_execution=True)
 
     command = np.zeros(4, dtype=np.float64)
-    q_cur = Q_STAND.copy()
+    q_cur = Q_CLIMB_PREP.copy()
     frames = []
     for _ in range(20000):
         q_des = controller.update(q_cur, command)
@@ -191,6 +198,94 @@ def replay_climb_left():
             + str(controller.climb_mode.failure_reason)
         )
     return frames, controller.mode
+
+
+def replay_climb_front_direct():
+    """front direct 整链回放：仿真模式（非 hardware），沿用配置自带 settle_gate。"""
+    controller = make_controller()
+    with CLIMB_FRONT_DIRECT_PATH.open() as file:
+        config = json.load(file)
+    config = select_compact_climb_side(config, "left")  # front: 原样副本
+    controller.enter_climb(Q_CLIMB_PREP.copy(), config=config, hardware_execution=False)
+
+    command = np.zeros(4, dtype=np.float64)
+    q_cur = Q_CLIMB_PREP.copy()
+    frames = []
+    for _ in range(40000):
+        q_des = controller.update(q_cur, command)
+        frames.append(
+            {
+                "q_des": flatten_joints(q_des),
+                "foot_desired": flatten_feet(controller.foot_desired_base),
+            }
+        )
+        q_cur = q_des
+        if controller.climb_mode.state in (ClimbMode.DONE, ClimbMode.FAILED):
+            break
+
+    if controller.climb_mode.state != ClimbMode.DONE:
+        raise RuntimeError(
+            "golden front climb replay did not finish: "
+            + str(controller.climb_mode.failure_reason)
+        )
+    return frames, controller.mode
+
+
+def climb_front_config_digest():
+    """front direct 配置解析快照（与 C++ loadClimbCompact/validate 对比）。"""
+    with CLIMB_FRONT_DIRECT_PATH.open() as file:
+        config = json.load(file)
+    ClimbMode(None)._validate_config(config)
+    try:
+        select_compact_climb_side(config, "right")
+    except ValueError as error:
+        right_error = str(error)
+    else:
+        raise RuntimeError("front right-side mirror must be rejected")
+    left = select_compact_climb_side(config, "left")
+    stages = []
+    for stage in left["stages"]:
+        velocities = stage.get("active_base_velocities_m_s")
+        stages.append(
+            {
+                "name": stage["name"],
+                "pose_start": [float(v) for v in stage["pose_start"]],
+                "pose_end": [float(v) for v in stage["pose_end"]],
+                "active_legs": [int(v) for v in stage["active_legs"]],
+                "pose_curve": stage["pose_curve"],
+                "anchor_curve": stage["anchor_curve"],
+                "segment_durations_s": [float(v) for v in stage["segment_durations_s"]],
+                "anchor_knots": [
+                    [float(v) for v in np.asarray(knot).reshape(18)]
+                    for knot in stage["anchor_knots"]
+                ],
+                "active_base_knots": [
+                    [float(v) for v in np.asarray(knot).reshape(-1)]
+                    for knot in stage.get("active_base_knots_m", [])
+                ],
+                "active_base_velocities": (
+                    None
+                    if velocities is None
+                    else [
+                        [float(v) for v in np.asarray(row).reshape(-1)]
+                        for row in velocities
+                    ]
+                ),
+            }
+        )
+    return {
+        "climb_orientation": left["climb_orientation"],
+        "stage_count": int(left["stage_count"]),
+        "simulation_joint_velocity_limit_rad_s": float(
+            left["simulation_joint_velocity_limit_rad_s"]
+        ),
+        "xiaolan_translation": [float(v) for v in left["xiaolan_translation"]],
+        "p0_base": [float(v) for v in left["p0"]["base"]],
+        "p0_anchors": flatten_feet(left["p0"]["anchors_world_m"]),
+        "terminal_q": flatten_joints(left["terminal_q_rad"]),
+        "right_mirror_error": right_error,
+        "stages": stages,
+    }
 
 
 def climb_mirror_digest():
@@ -267,6 +362,17 @@ def main():
     )
     print(f"climb_left: {len(climb_frames)} frames, mode={climb_mode}")
 
+    front_frames, front_mode = replay_climb_front_direct()
+    golden["sequences"].append(
+        {
+            "name": "climb_front_direct",
+            "frames": front_frames,
+            "final_mode": str(front_mode),
+        }
+    )
+    print(f"climb_front_direct: {len(front_frames)} frames, mode={front_mode}")
+
+    golden["climb_front_direct"] = climb_front_config_digest()
     golden["climb_mirror"] = climb_mirror_digest()
     golden["dock_system"] = dock_system_digest()
     golden["approach_geometry"] = approach_geometry_digest()

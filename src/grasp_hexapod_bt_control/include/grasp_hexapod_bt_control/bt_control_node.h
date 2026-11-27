@@ -132,6 +132,8 @@ class BtControlNode : public ModeContext, public SharedInputs {
       const JointAngles& q_cur, double now,
       const std::array<double, 6>* feedback_stamp);
   void publishTargets(const JointAngles& q_des);
+  void reportVisualLoop(double now,
+                        const std::array<double, 6>& feedback_stamp);
 
   // ---------------------------------------------------------------------
   // 参数（名与默认值与原实现一致；各模式专属参数由各模式自读）。
@@ -145,6 +147,8 @@ class BtControlNode : public ModeContext, public SharedInputs {
   double bt_hold_lease_s_ = 0.15;
   double max_linear_speed_ = 0.20;
   double max_yaw_rate_ = 0.0;
+  bool visual_guidance_enabled_ = false;
+  bool phase1_feedback_ready_ = false;
 
   // ---------------------------------------------------------------------
   // 机器状态机与控制器。
@@ -181,6 +185,10 @@ class BtControlNode : public ModeContext, public SharedInputs {
   double tick_compute_max_ = 0.0;
   int tick_compute_count_ = 0;
   ros::Time tick_stats_window_start_;
+  double visual_diagnostics_period_s_ = 2.0;
+  double visual_stats_window_start_ = 0.0;
+  uint64_t published_target_frames_ = 0;
+  uint64_t visual_report_target_frames_ = 0;
 
   // ROS I/O。
   ros::NodeHandle& nh_;

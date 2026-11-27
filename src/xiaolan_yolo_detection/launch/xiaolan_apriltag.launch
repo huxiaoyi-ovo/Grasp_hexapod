@@ -1,0 +1,49 @@
+<launch>
+  <!-- Detect a single tag36h11 ID from the raw color stream of
+       xiaolan_orbbec_camera.launch. Start that camera launch first. -->
+  <arg name="image_topic" default="/camera/color/image_raw"/>
+  <arg name="camera_info_topic" default="/camera/color/camera_info"/>
+  <arg name="tag_id" default="255"/>
+  <!-- Edge length of the printed tag in metres, black border included. -->
+  <arg name="tag_size_m" default="0.050"/>
+  <arg name="publish_tf" default="true"/>
+  <arg name="show_window" default="true"/>
+  <!-- Detector cost on this Jetson (848x480 @ 15 Hz, one tag in view, measured
+       2026-11-26): decimate 1.0 = 145% CPU, 2.0 = 60-65% with identical
+       detections and pose. Integer values only (2.5 blurs the tag and detects
+       nothing); use a lower value when the tag is small in the image. -->
+  <arg name="tag_decimate" default="2.0"/>
+  <!-- 4 -> 2 threads saves about 5 CPU points. -->
+  <arg name="tag_threads" default="2"/>
+
+  <node pkg="apriltag_ros" type="apriltag_ros_continuous_node"
+        name="xiaolan_apriltag_detector_$(arg tag_id)" clear_params="true" output="screen">
+    <param name="tag_family" value="tag36h11"/>
+    <param name="tag_threads" value="$(arg tag_threads)"/>
+    <param name="tag_decimate" value="$(arg tag_decimate)"/>
+    <param name="tag_refine_edges" value="1"/>
+    <param name="max_hamming_dist" value="1"/>
+    <param name="transport_hint" value="raw"/>
+    <param name="publish_tf" value="$(arg publish_tf)"/>
+    <param name="publish_tag_detections_image" type="bool" value="true"/>
+    <param name="remove_duplicates" value="true"/>
+    <!-- Only the listed ID is published; other tag36h11 IDs are ignored. -->
+    <rosparam param="standalone_tags" subst_value="true">
+      - {id: $(arg tag_id), size: $(arg tag_size_m), name: tag_$(arg tag_id)}
+    </rosparam>
+    <rosparam param="tag_bundles">[]</rosparam>
+    <remap from="image_rect" to="$(arg image_topic)"/>
+    <remap from="camera_info" to="$(arg camera_info_topic)"/>
+  </node>
+
+  <!-- image_view segfaults when no X display is reachable (e.g. SSH shell
+       without DISPLAY), so the window only starts when DISPLAY is set.
+       Force it off anywhere with show_window:=false. -->
+  <!-- <node if="$(eval arg('show_window') and optenv('DISPLAY', '') != '')"
+        pkg="image_view" type="image_view"
+        name="tag_$(arg tag_id)_view" output="screen">
+    <remap from="image" to="/tag_detections_image"/>
+    <param name="window_name" value="AprilTag tag_$(arg tag_id)"/>
+    <param name="autosize" value="true"/>
+  </node> -->
+</launch>

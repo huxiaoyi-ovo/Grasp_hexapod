@@ -12,7 +12,7 @@ sys.path[:0] = [str(SCRIPTS), str(SCRIPTS / "tools")]
 
 from climb_mode import ClimbMode
 from control import GraspController
-from kinematics import JOINT_VELOCITY_LIMIT, Q_STAND
+from kinematics import JOINT_VELOCITY_LIMIT, Q_CLIMB_PREP, Q_STAND
 from tools.optimize_climb_front import _geometry_sha256
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -181,10 +181,10 @@ def test_front_simulation_cap_is_fail_closed_and_does_not_pollute_side_session()
 
     controller = GraspController(1.0 / 30.0, False, False)
     side = json.loads(SIDE.read_text())
-    controller.enter_climb(Q_STAND, side, hardware_execution=False)
+    controller.enter_climb(Q_CLIMB_PREP, side, hardware_execution=False)
     original = controller.climb_mode.config
     with pytest.raises(ValueError, match="simulation-only"):
-        controller.enter_climb(Q_STAND, fast, hardware_execution=True)
+        controller.enter_climb(Q_CLIMB_PREP, fast, hardware_execution=True)
     assert controller.climb_mode.config is original
     assert controller.climb_mode.hardware_execution is False
     assert controller.climb_mode.state == ClimbMode.RUNNING
@@ -192,19 +192,19 @@ def test_front_simulation_cap_is_fail_closed_and_does_not_pollute_side_session()
     # Bypass only the collision proxy to expose the step guard.  The retained
     # side session must still use its shared 4 rad/s cap, not fast's 6 rad/s.
     controller.collision_guard = lambda candidate, current: candidate
-    controller.foot_desired_base[:] = controller.foot_init_base + .5
-    q_next = controller.cal_joint_poses(Q_STAND)
-    assert np.max(np.abs(q_next - Q_STAND)) == pytest.approx(
+    controller.foot_desired_base[:] = controller.foot_climb_prep_base + .5
+    q_next = controller.cal_joint_poses(Q_CLIMB_PREP)
+    assert np.max(np.abs(q_next - Q_CLIMB_PREP)) == pytest.approx(
         JOINT_VELOCITY_LIMIT * controller.dt
     )
 
     front = GraspController(1.0 / 30.0, False, False)
-    front.enter_climb(Q_STAND, fast, hardware_execution=False)
+    front.enter_climb(Q_CLIMB_PREP, fast, hardware_execution=False)
     front.collision_guard = lambda candidate, current: candidate
-    front.foot_desired_base[:] = front.foot_init_base + .5
-    q_front = front.cal_joint_poses(Q_STAND)
-    assert np.max(np.abs(q_front - Q_STAND)) > np.max(JOINT_VELOCITY_LIMIT) * front.dt
-    assert np.max(np.abs(q_front - Q_STAND)) <= 6.0 * front.dt + 1e-12
+    front.foot_desired_base[:] = front.foot_climb_prep_base + .5
+    q_front = front.cal_joint_poses(Q_CLIMB_PREP)
+    assert np.max(np.abs(q_front - Q_CLIMB_PREP)) > np.max(JOINT_VELOCITY_LIMIT) * front.dt
+    assert np.max(np.abs(q_front - Q_CLIMB_PREP)) <= 6.0 * front.dt + 1e-12
 
     approach = GraspController(1.0 / 30.0, False, False)
     approach.collision_guard = lambda candidate, current: candidate

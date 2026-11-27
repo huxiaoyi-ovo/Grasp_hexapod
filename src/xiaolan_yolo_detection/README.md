@@ -195,7 +195,7 @@ roslaunch xiaolan_yolo_detection xiaolan_yolo.launch \
   show_window:=true
 ```
 
-无桌面环境将 `show_window` 改为 `false`；仍会发布可视化图像话题。
+无桌面环境将 `show_window` 改为 `false`；可视化节点默认不启动，需显式 `start_visualizer:=true` 开启，开启后仍会发布可视化图像话题。
 
 | 启动参数 | 默认值 | 说明 |
 | --- | --- | --- |
@@ -206,7 +206,7 @@ roslaunch xiaolan_yolo_detection xiaolan_yolo.launch \
 | `engine_path` | 包内 `models/best.engine` | 本机生成的 TensorRT FP16 引擎 |
 | `start_yolo` | `true` | 启用检测节点 |
 | `start_3d` | `true` | 启用定位节点 |
-| `start_visualizer` | `true` | 启用可视化节点 |
+| `start_visualizer` | `false` | 启用可视化节点；需要时显式 `start_visualizer:=true` 开启 |
 | `show_window` | `false` | 显示 OpenCV 窗口 |
 
 `start_yolo:=false` 可用于配合录制的检测消息调试定位与显示，本身不会进行目标识别。
@@ -226,7 +226,7 @@ rosrun rqt_image_view rqt_image_view /xiaolan_visualizer/image
 | `/xiaolan/detection` | `xiaolan_yolo_detection/XiaolanDetection` | 检测状态、置信度、检测框、中心像素、推理耗时及原因 |
 | `/xiaolan/target` | `xiaolan_yolo_detection/XiaolanTarget` | 供下游使用的目标定位结果 |
 | `/xiaolan/target_debug` | `std_msgs/String` | 定位诊断信息 |
-| `/xiaolan_visualizer/image` | `sensor_msgs/Image` | 叠加检测与定位信息的图像 |
+| `/xiaolan_visualizer/image` | `sensor_msgs/Image` | 叠加检测与定位信息的图像；节点显式开启后，也只在有人订阅该话题或显示窗口时才订阅相机图像 |
 
 检测框坐标和消息时间戳对应原始 RGB 图像。X、Z 使用**相机光学坐标系**：X 向右为正、向左为负，Z 为前方深度，单位为米；未转换到机器人 `base_link` 坐标系。
 
@@ -245,16 +245,17 @@ rosrun rqt_image_view rqt_image_view /xiaolan_visualizer/image
 | `intra_op_num_threads` | `2` | ONNX Runtime 算子内部线程数；关闭空闲忙等以减轻 CPU 争用 |
 | `visualization_max_fps` | `5.0` | 预览刷新率上限；可视化 OpenCV 固定为单线程，降低 NX 与远程桌面的负载 |
 | `depth_sync_tolerance` | `0.025` | RGB 与深度时间戳容差，秒 |
+| `depth_cache_size` | `6` | 深度帧缓存长度，仅用于与检测时间戳配对 |
 | `roi_size` | `9` | 检测框中心深度采样区域边长，像素 |
 | `min_valid_depth_pixels` | `5` | 深度区域最少有效像素数 |
-| `min_depth` / `max_depth` | `0.20` / `1.00` | 有效深度范围，严格排除边界，米 |
+| `min_depth` / `max_depth` | `0.20` / `2.50` | 有效深度范围，严格排除边界，米 |
 | `center_tolerance_m` | `0.03` | 居中判断的横向偏移容差，米 |
 | `confirm_frames` | `2` | 目标确认所需连续有效帧数 |
 | `lost_tolerance_frames` | `3` | 短时丢失容忍帧数 |
 | `max_hold_seconds` | `0.25` | 丢失或跳变时，自上次有效测量起允许复用旧结果的最长时间；不用于重置连续有效检测，秒 |
 | `ema_alpha` | `0.4` | 位置平滑系数 |
 | `target_timeout` | `0.5` | 检测消息中断阈值；超过后清空确认状态，秒 |
-| `max_result_age` | `0.8` | 从 RGB 采集到定位结果的总有效期，包含 CPU 推理耗时，秒 |
+| `max_result_age` | `0.25` | 从 RGB 采集到定位结果的总有效期，包含 CPU 推理耗时，秒 |
 
 CPU 对比启动（本机 GPU 解释器也包含 ONNX Runtime）：
 
@@ -323,7 +324,7 @@ YOLO 日志中的 `FPS` 只统计实际执行推理的帧，`dropped` 是该日�
 
 若有检测框但定位失败，查看 `/xiaolan/target_debug` 中的 `depth_stats`：
 `NO_VALID_DEPTH` 表示中心 ROI 无正数有限深度；`DEPTH_OUT_OF_RANGE` 表示深度全部
-超出配置的严格范围 `(0.20, 1.00)` 米；`INSUFFICIENT_DEPTH_PIXELS` 表示范围内像素
+超出配置的严格范围 `(0.20, 2.50)` 米；`INSUFFICIENT_DEPTH_PIXELS` 表示范围内像素
 不足。`observed_median_m` 给出筛选前的正数深度中值，`valid_pixels` 给出范围内像素数。
 应根据实际距离和测量结果调整范围，或检查相机深度空洞，不要仅凭检测置信度判断定位有效。
 
@@ -333,7 +334,7 @@ YOLO 日志中的 `FPS` 只统计实际执行推理的帧，`dropped` 是该日�
 | 提示找不到 `tensorrt` 或 CUDA 库 | 执行本机 GPU 安装步骤，并使用 `.venv/jetson-gpu/bin/python3` 入口 |
 | 引擎缺失或版本/模型不匹配 | 用 GPU 解释器重新运行 `scripts/build_trt_engine.py` |
 | 提示找不到 `onnxruntime` | 检查 `yolo_python` 是否指向已安装依赖的虚拟环境 |
-| `STALE_OR_INVALID_RGB_TIMESTAMP` / `STALE_RGB_RESULT` | 检测前 RGB 有效期为 `max_input_age`（0.5 秒），定位总有效期为 `max_result_age`（0.8 秒）；检查相机延迟和 CPU 推理耗时，诊断话题 `rgb_age_s` 可查看定位时帧龄 |
+| `STALE_OR_INVALID_RGB_TIMESTAMP` / `STALE_RGB_RESULT` | 检测前 RGB 有效期为 `max_input_age`（0.25 秒），定位总有效期为 `max_result_age`（0.25 秒）；检查相机延迟和 CPU 推理耗时，诊断话题 `rgb_age_s` 可查看定位时帧龄 |
 | `OUT_OF_ORDER_RGB` / `INVALID_RGB_TIMESTAMP` | 检查重复、倒退、零时间戳或超前的 RGB 时间戳，以及 ROS 时钟配置 |
 | 模型输入或输出格式报错 | 检查单类别、静态尺寸、FP32 和无内置 NMS 的导出要求 |
 | 有检测框但没有有效定位 | 检查对齐深度、内参、时间戳匹配以及深度是否在配置范围内 |

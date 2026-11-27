@@ -1,0 +1,28 @@
+<launch>
+  <!-- Hardware-free Phase-1 bench: no serial, joy, camera, or direct target publisher. -->
+  <arg name="config" default="$(find grasp_hexapod_bt_control)/config/phase1_visual.yaml"/>
+  <arg name="start_depth" default="false"/>
+  <arg name="start_sequence" default="false"/>
+
+  <node pkg="grasp_hexapod_bt_control" type="bt_control_node" name="bt_control_node" output="screen">
+    <rosparam command="load" file="$(arg config)"/>
+    <param name="visual_guidance_enabled" value="true"/>
+    <param name="enable_real_climb" value="false"/>
+    <param name="enable_real_dock" value="false"/>
+    <param name="start_dock_perception" value="false"/>
+  </node>
+
+  <node pkg="grasp_hexapod_bt_control" type="fake_hardware_e2e.py" name="phase1_fake_feedback" args="--feedback-only" output="screen">
+    <param name="allow_fake_feedback" value="true"/>
+  </node>
+
+  <include if="$(arg start_depth)" file="$(find xiaolan_yolo_detection)/launch/xiaolan_yolo.launch">
+    <arg name="start_yolo" value="false"/>
+    <arg name="start_3d" value="true"/>
+    <arg name="start_visualizer" value="false"/>
+  </include>
+
+  <node if="$(arg start_sequence)" pkg="grasp_hexapod_bt_control" type="phase1_visual_sequence" name="phase1_visual_sequence" output="screen">
+    <param name="controller_node" value="/bt_control_node"/>
+  </node>
+</launch>

@@ -11,7 +11,7 @@ sys.path.insert(0, str(SCRIPTS))
 sys.path.insert(0, str(SCRIPTS / 'tools'))
 from climb_mode import ClimbMode
 from control import GraspController
-from kinematics import Q_STAND
+from kinematics import Q_CLIMB_PREP
 from rebuild_climb_tail import build, continuous_swings
 
 
@@ -62,7 +62,7 @@ def test_internal_hermite_checkpoint_holds_on_feedback_mismatch():
         np.asarray(stage['active_base_knots_m'], dtype=np.float64)
     ).tolist()
     controller = GraspController(1.0 / 30.0)
-    controller.enter_climb(Q_STAND, config, hardware_execution=True)
+    controller.enter_climb(Q_CLIMB_PREP, config, hardware_execution=True)
     mode = controller.climb_mode
     mode.stage_index = 1
     mode.phase = mode.stage_names[1]
@@ -71,7 +71,7 @@ def test_internal_hermite_checkpoint_holds_on_feedback_mismatch():
     pose, anchors, _ = mode._stage_reference()
     mode._apply_reference(pose, anchors, sync_previous=True)
     reference_before_hold = controller.foot_desired_base.copy()
-    controller.update(Q_STAND + .5, np.zeros(4))
+    controller.update(Q_CLIMB_PREP + .5, np.zeros(4))
     assert mode.last_phase_hold
     assert mode.phase_time == stage['segment_durations_s'][0]
     assert np.array_equal(controller.foot_desired_base, reference_before_hold)
@@ -102,7 +102,7 @@ def test_continuous_air_marker_rejects_non_lm_or_landing_boundary():
 def test_continuous_air_transition_skips_duplicate_endpoint_but_mismatch_holds():
     config = continuous_config()
     controller = GraspController(1.0 / 30.0)
-    controller.enter_climb(Q_STAND, config, hardware_execution=True)
+    controller.enter_climb(Q_CLIMB_PREP, config, hardware_execution=True)
     mode = controller.climb_mode
     c24 = config['stages'][23]
     mode.stage_index = 23
@@ -111,14 +111,14 @@ def test_continuous_air_transition_skips_duplicate_endpoint_but_mismatch_holds()
     mode.stage_elapsed_time = mode.phase_time
     pose, anchors, _ = mode._stage_reference()
     mode._apply_reference(pose, anchors, sync_previous=True)
-    mode.update(np.zeros(4), Q_STAND + .5)
+    mode.update(np.zeros(4), Q_CLIMB_PREP + .5)
     assert mode.last_phase_hold
     assert mode.stage_index == 23
     assert mode.phase_time == sum(c24['segment_durations_s'])
 
     mode._update_tracking_diagnostics = lambda unused: setattr(mode, 'last_settled', True)
     mode.settle_time = mode._effective_settle_required(c24) - controller.dt
-    mode.update(np.zeros(4), Q_STAND)
+    mode.update(np.zeros(4), Q_CLIMB_PREP)
     assert mode.stage_index == 24
     assert mode.phase_time == controller.dt
     c25_start = np.asarray(config['stages'][24]['active_base_knots_m'][0][0])

@@ -1,5 +1,8 @@
-import sys, time
-sys.path.insert(0, "/home/artrc/guangfu/Grasp_hexapod/src/grasp_hexapod_control/scripts")
+from pathlib import Path
+import sys
+import time
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 import numpy as np
 from control import GraspController
 from kinematics import Q_STAND

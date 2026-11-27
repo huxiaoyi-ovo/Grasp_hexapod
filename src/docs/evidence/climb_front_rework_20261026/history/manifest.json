@@ -1,0 +1,29 @@
+{
+  "argv": [
+    "--climb-start",
+    "--climb-config",
+    "src/grasp_hexapod_control/config/climb_front_optimized.json",
+    "--climb-speed",
+    "1",
+    "--climb-joint-speed",
+    "1.8",
+    "--climb-metrics",
+    "metrics.json"
+  ],
+  "display": ":0",
+  "xauthority": "/run/user/1000/gdm/Xauthority",
+  "config_sha256": "7ae2970e1f4ee6ec5044b5b9eee877e04b00ac40afb997222fad885ceca1cea5",
+  "runtime_sha256": {
+    "src/grasp_hexapod_control/scripts/run_sim.py": "6b8ed32e642b58e35794caffbd89491ee9084bf9e225343aa6ead497fe848c8f",
+    "src/grasp_hexapod_control/scripts/climb_mode.py": "225009277f1498d031409e25787056ab003d4c6a74d6380cfc847195690541a6",
+    "src/grasp_hexapod_control/scripts/control.py": "66f3c5490d58aeb3ef3913f81676a26f0d3789e1632cb60597d07dcb6659901a",
+    "src/grasp_hexapod_control/scripts/kinematics.py": "3e6674108c0b0f1b24a75af41d84bc686b5c12e9d77934c6f9e02e7ea217a513",
+    "src/grasp_hexapod_control/scripts/tools/build_climb_front.py": "72dc8dc5b4cbaba3132dcf9b62756656e3a2a7eb4aaa9a1090fc9c3466f0c441"
+  },
+  "xiaolan_translation": [
+    0.45,
+    -0.03,
+    0.0
+  ],
+  "observer_only": true
+}

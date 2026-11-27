@@ -37,6 +37,9 @@ RemoteControlNode::RemoteControlNode(ros::NodeHandle& nh, ros::NodeHandle& pnh) 
   button_b_ = pnh.param("button_b", 1);
   button_x_ = pnh.param("button_x", 2);
   button_y_ = pnh.param("button_y", 3);
+  button_lb_ = pnh.param("button_lb", 4);
+  button_start_ = pnh.param("button_start", 7);
+  full_mission_hold_s_ = pnh.param("full_mission_hold_s", 2.0);
   axis_right_ = pnh.param("axis_right", 0);
   axis_forward_ = pnh.param("axis_forward", 1);
   axis_yaw_ = pnh.param("axis_yaw", 3);
@@ -61,8 +64,10 @@ RemoteControlNode::RemoteControlNode(ros::NodeHandle& nh, ros::NodeHandle& pnh) 
 
   ROS_INFO(
       "remote control ready: %s → %s + %s; A=walk B=home X=climb Y=dock; "
+      "LB=approach test (spin_search+approach); hold START %.1fs=full mission; "
       "dpad left=clamp right=open",
-      joy_topic_.c_str(), cmd_vel_topic_.c_str(), switch_mode_service_.c_str());
+      joy_topic_.c_str(), cmd_vel_topic_.c_str(), switch_mode_service_.c_str(),
+      full_mission_hold_s_);
 }
 
 void RemoteControlNode::joyCallback(const sensor_msgs::Joy::ConstPtr& message) {
@@ -91,6 +96,18 @@ void RemoteControlNode::joyCallback(const sensor_msgs::Joy::ConstPtr& message) {
 }
 
 void RemoteControlNode::handleButtonPress(int index) {
+  if (index == button_a_ || index == button_b_ || index == button_x_ ||
+      index == button_y_) {
+    // Any direct mode button cancels a running LB/START sequence.
+    if (sequence_running_.load()) {
+      ROS_WARN("button %d: cancelling the running mode sequence", index);
+    }
+    sequence_generation_.fetch_add(1);
+  }
+  if (index == button_lb_) {
+    runSequence({"spin_search", "approach"}, "approach test (LB)");
+    return;
+  }
   if (index == button_a_) {
     callSwitchMode("walk");
   } else if (index == button_b_) {
@@ -126,6 +143,52 @@ void RemoteControlNode::callSwitchMode(const std::string& mode) {
                service.response.message.c_str());
     }
     inflight_switch_calls_.fetch_sub(1, std::memory_order_relaxed);
+  }).detach();
+}
+
+bool RemoteControlNode::switchModeBlocking(const std::string& mode) {
+  grasp_hexapod_msgs::SwitchMode service;
+  service.request.target_mode = mode;
+  if (!switch_mode_client_.waitForExistence(ros::Duration(1.0))) {
+    ROS_WARN("sequence: switch_mode %s failed: service unavailable", mode.c_str());
+    return false;
+  }
+  if (!switch_mode_client_.call(service)) {
+    ROS_WARN("sequence: switch_mode %s failed: service call error", mode.c_str());
+    return false;
+  }
+  if (!service.response.success) {
+    ROS_WARN("sequence: %s failed: %s", mode.c_str(), service.response.message.c_str());
+    return false;
+  }
+  ROS_INFO("sequence: %s: %s", mode.c_str(), service.response.message.c_str());
+  return true;
+}
+
+void RemoteControlNode::runSequence(const std::vector<std::string>& modes,
+                                    const std::string& name) {
+  bool expected = false;
+  if (!sequence_running_.compare_exchange_strong(expected, true)) {
+    ROS_WARN("%s ignored: a mode sequence is already running (B cancels it)", name.c_str());
+    return;
+  }
+  const int generation = sequence_generation_.load();
+  ROS_INFO("%s started", name.c_str());
+  std::thread([this, modes, name, generation]() {
+    bool ok = true;
+    for (const std::string& mode : modes) {
+      if (sequence_generation_.load() != generation) {
+        ROS_WARN("%s cancelled before %s", name.c_str(), mode.c_str());
+        ok = false;
+        break;
+      }
+      if (!switchModeBlocking(mode)) {
+        ok = false;
+        break;
+      }
+    }
+    ROS_INFO("%s %s", name.c_str(), ok ? "completed" : "stopped");
+    sequence_running_.store(false);
   }).detach();
 }
 
@@ -219,9 +282,27 @@ void RemoteControlNode::spin() {
     }
 
     double dpad = 0.0;
+    bool start_down = false;
     {
       std::lock_guard<std::mutex> guard(lock_);
       dpad = readAxis(axes_, axis_gripper_);
+      start_down = button_start_ >= 0 &&
+                   button_start_ < static_cast<int>(buttons_.size()) &&
+                   buttons_[static_cast<std::size_t>(button_start_)] != 0 &&
+                   nowSeconds() - joy_stamp_ <= max_joy_age_;
+    }
+    // START must be HELD (full mission includes a real climb): a tap does nothing.
+    if (!start_down) {
+      start_pressed_at_ = 0.0;
+      start_fired_ = false;
+    } else if (start_pressed_at_ == 0.0) {
+      start_pressed_at_ = nowSeconds();
+      ROS_INFO("START held: full mission starts after %.1f s (release to abort)",
+               full_mission_hold_s_);
+    } else if (!start_fired_ && nowSeconds() - start_pressed_at_ >= full_mission_hold_s_) {
+      start_fired_ = true;
+      runSequence({"home", "spin_search", "approach", "climb", "dock"},
+                  "full mission (START)");
     }
     maybeTriggerGripper(dpad);
 

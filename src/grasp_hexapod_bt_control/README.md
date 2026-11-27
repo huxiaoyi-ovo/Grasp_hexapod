@@ -88,9 +88,288 @@ bt_control_node（模式调度器：ModeContext 注入各模式实例）
 # 全链路（含现有 Python 行为树；remote_test 为空则跑主链，默认 walk 测试链）
 roslaunch grasp_hexapod_bt_control full_chain.launch remote_test:=walk
 
-# 仅控制栈 + 遥控器（无行为树，联调/排查用）
+# 仅控制栈 + 遥控器（无行为树，联调/排查用；也是实机手动攀爬入口）
 roslaunch grasp_hexapod_bt_control control_only.launch
 ```
+
+攀爬默认即正面 v11：`bt_control_node` 的 `~climb_config_file` 默认
+`climb_front_v11.json`、`~allow_front_hardware` 默认 true、`~climb_foot_gate_m`
+默认 0.04（`control_only.launch` 同为 0.04）。侧面旧配置需显式
+`climb_config_file:=climb_compact.json`。手动攀爬：不按手柄不动；脚离地按 B 回正 →
+放到 P0（Q_STAND）→ 按 X 攀爬 → 完成后按 Y 对接。暂停用
+`rostopic pub -r 20 /grasp_hexapod/hold_motion std_msgs/String "data: 'hold'"`。
+**攀爬/对接进行中不要再按任何键**：任何新的 `switch_mode` 请求都会触发 2 s 全腿
+关节空间回正，挂在小蓝上会摔落。
+
+### Phase-1 visual coarse approach
+
+The diagnostic path is `/xiaolan/target` → C++ `spin_search` / coarse
+`approach` → existing `/<leg>_des` joint-target path. Bring it up with:
+
+```bash
+roslaunch grasp_hexapod_bt_control phase1_visual.launch
+```
+
+This production entry does not start a sequence automatically, but includes
+`control_only.launch` and therefore servo/joy nodes; do not use it for PC
+offline checks. Camera and YOLO are optional and off by default; request them
+explicitly with `start_camera:=true` and `start_perception:=true`. Override
+`yolo_python:=/absolute/path/to/python3` when the TensorRT runtime lives
+outside the default package-relative launcher. After the controller reports
+feedback-ready, start only the bounded sequence manually:
+
+```bash
+rosrun grasp_hexapod_bt_control phase1_visual_sequence
+```
+
+It executes `home -> spin_search -> approach -> HOLD`; it never requests climb
+or dock. Its deployment-start limits are `.03 m/s` maximum forward motion and
+`.60 m` camera-optical stopping depth. Existing perception accepts depth only
+in `(0.2, 2.5) m`. Beyond visual_far_distance_m (1.0 m) the coarse forward limit ramps over visual_far_ramp_m (0.3 m) to visual_far_max_forward_speed_m_s (0.08 m/s); within 1 m it stays 0.03 m/s. This batch adds no camera-to-body extrinsic transform, hot
+extrinsic update, or AprilTag alignment. `visual_guidance_enabled` stays false
+in the legacy launch, so its default fake/RTK behavior remains unchanged.
+
+Validation is limited to the current code path: 9 visual-guidance gtests, 13
+mode-framework gtests, 7 routing gtests, and isolated fake-feedback ROS E2E.
+Final synthetic receipts are `/tmp/grasp_phase1_startup_e2e_20261030T010110`,
+`/tmp/grasp_phase1_visual_e2e_20261030T010126`, and
+`/tmp/grasp_phase1_perception_e2e_20261030T010148`; they are not physical
+camera, servo, collision, contact, load, or hardware validation.
+
+### Full mission (front climb)
+
+Step-by-step bring-up, teach-in and debugging commands (Chinese) are in the root `README.md`, section "实机全流程（正面攀爬）调试".
+
+`launch/full_mission.launch` starts the phase-1 stack with climb and dock
+enabled, plus the standalone AprilTag detector (`tag_id`, default 255, `tag_size_m` 0.050 — the hardware tag; output
+`/xiaolan/tag_detections`). It is **not certified for hardware**: front
+climbing and docking are not certified. Run only with harness/support and the
+e-stop within reach. `climb_front_v11` is timed for the shared 4 rad/s hardware
+step cap (zero clips in CPU/C++ replay); follow the staged bring-up in
+`CLAUDE_HANDOFF.md` (tag teach-in, suspended dry run) before a full run.
+
+```bash
+roslaunch grasp_hexapod_bt_control full_mission.launch
+# Sequence only when requested (default start_sequence:=false):
+roslaunch grasp_hexapod_bt_control full_mission.launch start_sequence:=true
+```
+
+Staged usage with `stop_after` (empty by default; stops successfully after the
+named mode completes):
+
+```bash
+roslaunch grasp_hexapod_bt_control full_mission.launch start_sequence:=true stop_after:=approach
+roslaunch grasp_hexapod_bt_control full_mission.launch start_sequence:=true stop_after:=climb
+```
+
+The sequence is `home -> spin_search -> approach -> climb -> dock`, with an
+extra `home` before `dock` when `home_before_dock:=true`. Preflight requires
+`visual_guidance_enabled` and `tag_guidance_enabled`, plus `enable_real_climb`
+when climb is in the planned sequence and `enable_real_dock` when dock is in
+it. A failed mode stops the sequence with the robot in HOLD for operator
+takeover; nothing is retried.
+
+Desktop view (`show_windows:=true`, default; needs the robot computer's own display): the YOLO window shows the box, Xiaolan centre and `X_target`/`Z_target`; the AprilTag window shows the detected tag outline and id; the dock window shows the raw bottom camera (no ring overlay yet). The terminal prints the mode progress, the visual approach state with target x/z, bearing and commands, and during alignment the tag x/z/yaw, errors and commands every 2 s. Over ssh without a display, pass `show_windows:=false` and use `rqt_image_view` on `/xiaolan_visualizer/image`, `/xiaolan/tag_detections_image` or `/dock_camera/image_raw`.
+
+**实机操作手册**：[docs/HW_APPROACH_RUNBOOK.md](docs/HW_APPROACH_RUNBOOK.md)（approach 测试的完整顺序）。
+
+**实机标定向导**：`rosrun grasp_hexapod_bt_control hw_calibrate.py`（终端交互，自动写配置；步骤见 [docs/HW_CALIBRATION.md](docs/HW_CALIBRATION.md)）。
+
+Teach-in reminder: `tag_ref_x_m`, `tag_p0_z_m` and `tag_ref_yaw_rad` in
+`config/phase1_visual.yaml` are placeholders. Teach them with
+`scripts/record_tag_reference.py` with the robot at P0 (offset 0 by default;
+see below) before `approach` can succeed.
+
+The launch sets `climb_config_file:=climb_front_v11.json`,
+`allow_front_hardware:=true` (explicit hardware opt-in for the front route; the
+shared 4 rad/s joint step cap applies) and `climb_foot_gate_m:=0.04`. The tag
+id is `tag_guidance_id` in `config/phase1_visual.yaml`; the detector `tag_id`
+arg must match it. Camera, YOLO, the AprilTag detector, the dock camera and the viewer windows all start by default in this launch.
+
+### AprilTag handoff inside visual `approach`
+
+With `tag_guidance_enabled: true` (set in `config/phase1_visual.yaml`; code
+default false, and false leaves the visual branch unchanged) the YOLO approach
+now stops at the coarse `visual_stop_distance_m: 0.20` and hands off to the tag:
+
+- Input: `apriltag_ros/AprilTagDetectionArray` on `approach.tag_detections` of
+  `config/mode_topics.yaml` (default `/xiaolan/tag_detections`). After
+  `tag_handoff_confirm_frames` (5) consecutive NEW detections of
+  `tag_guidance_id` (255) with a finite pose in front of the camera, age
+  `<= tag_max_age_s` (0.25), frame `visual_expected_target_frame`, the run
+  switches permanently to TagGuidance; YOLO is then ignored for control.
+- Hardware 2026-11-27: the camera still sees the tag at ~0.15 m depth with the
+  front legs touching Xiaolan, so the tag is visible at the climb start pose P0
+  (P0 front feet are ~27 mm from the face; P0 depth ~0.17-0.18 m). The tag
+  therefore guides alignment and the advance to the end; the blind finish
+  (leg odometry + IMU heading hold) only covers a tag loss. With a back-off
+  teaching (fallback) `tag_p0_z_m` is a VIRTUAL depth: taught depth minus the
+  measured back-off distance D; an error in D transfers 1:1 to the stop.
+  `z_target = tag_p0_z_m - tag_final_overshoot_m` (default 0.01, i.e. aim 1 cm
+  closer than P0).
+- Tag geometry (camera optical frame; the Gemini 336L optical axis is parallel
+  to base_link +y, pitch about 0, user-confirmed 2026-11-25, so camera depth z
+  equals body-forward distance): `ex = x - tag_ref_x_m`, `ez = z - z_target`,
+  `eyaw = wrap(yaw - tag_ref_yaw_rad)`, `yaw = atan2(R(2,0), R(0,0))`
+  (R = tag frame in camera frame; tag x axis, independent of the tag z
+  convention). A CCW body yaw
+  lowers the observed tag yaw, so positive `eyaw` commands positive (CCW) yaw
+  (`yaw = +k_yaw*eyaw`, `right = k_lat*ex`; the servo deadband is
+  `kServoDeadbandFraction = 0.5` x tolerance on lateral, forward and yaw, so the
+  pose parks well inside the 1x tolerance used by the handover check and the
+  success check, and the 2x advance gate);
+  the closed-loop sign is checked in `test/test_tag_guidance.cpp`. A pose with
+  non-finite values or `|R(1,0)| > 0.5` (bogus / heavily rolled) is rejected.
+- State machine (all in ROS-free `TagGuidance`, unit-tested):
+  1. ALIGNING: lateral + yaw servo; forward is 0 until `|ex| <= 2*tol` and
+     `|eyaw| <= 2*yaw_tol`. Tag loss here keeps `tag_loss_timeout_s` -> `"tag lost"`.
+  2. ADVANCING: lateral/yaw keep correcting; `forward = clamp(tag_forward_gain *
+     (z - z_target), 0, tag_max_forward_speed_m_s)` (0 inside the servo
+     deadband; never backward), set to 0 again whenever the pose leaves the 2x
+     gate. If the tag stays reliable and `|ex| <= tol`, `|eyaw| <= yaw_tol`,
+     `ez <= tol` (one-sided: closer than `z_target` is accepted) with the gait
+     stopped for `tag_settle_s` -> SUCCESS.
+  3. HANDOVER while ADVANCING when no fresh valid detection for
+     `tag_handover_loss_s` (0.3) or the last valid `z < tag_min_reliable_z_m`
+     (0 = off). The LAST valid sample must have `|ex| <= tol` and
+     `|eyaw| <= yaw_tol`, else `"tag lost before alignment"`.
+     `remaining = z_last - z_target - travelled`, where `travelled` is the leg
+     odometry since that last valid sample (odometry accumulates continuously
+     from the handoff and is reset only when BLIND starts): `<= 0` goes straight
+     to settling;
+     `> tag_max_blind_distance_m` (0.25) fails with
+     `"tag lost too far from P0 (remaining X m)"`; otherwise BLIND (one log line
+     with z_last, ex, eyaw, travelled, remaining).
+  4. BLIND: lateral 0, forward `tag_blind_speed_m_s` (0.015), yaw
+     `clamp(tag_heading_gain*(yaw_hold - imu_yaw), +-tag_max_yaw_rate)` where
+     `yaw_hold` is a tag-aligned target: the IMU heading when the last valid
+     tag sample was accepted plus that sample's `eyaw` (positive `eyaw` needs CCW
+     rotation), so the residual tag yaw error and any rotation during the loss
+     window are corrected instead of frozen (current IMU heading if none was
+     valid then); `imu_yaw = tag_imu_yaw_sign * atan2(R(1,0), R(0,0))` of the IMU
+     rotation. The handover log line prints `heading_target_offset_deg` (target
+     minus current heading). Travelled distance = leg odometry: per frame the body
+     forward increment is `-mean(delta foot_y)` of the stance legs (feet in
+     base_link from the joint FEEDBACK via the kinematic model, legs on the
+     ground in both frames; the stance mask is `ApproachMode::stanceMask()`,
+     treated as all-stance during transfer and when the gait is stopped).
+     Forward stops when odometry >= remaining, then the gait must stop and stay
+     stopped for `tag_settle_s` -> SUCCESS. Failures: `"imu unavailable for
+     blind finish"` (at handover or during blind), `"blind heading error"`
+     (`|yaw_hold - imu_yaw| > tag_max_heading_error_rad`, 0.087), `"blind
+     odometry mismatch (blocked or slipping legs?)"` (`|odometry - integrated
+     forward command| > tag_odom_mismatch_m`, 0.03), `"blind finish timeout"`
+     (`tag_blind_timeout_s`, 30). The 2 s tag log line also prints odometry, the
+     command integral and the heading error.
+  `tag_align_timeout_s` covers ALIGNING + ADVANCING. Pause/resume discards
+  pre-pause detections and restarts the loss clock; during BLIND it also freezes
+  odometry/command accumulation (new foot baseline) and keeps `yaw_hold`.
+- Params (defaults): `tag_lateral_gain/forward_gain/yaw_gain` 0.5/0.5/0.8,
+  `tag_max_lateral_speed_m_s` 0.02, `tag_max_forward_speed_m_s` 0.02,
+  `tag_max_yaw_rate` 0.10, `tag_position_tolerance_m` 0.01,
+  `tag_yaw_tolerance_rad` 0.035, `tag_settle_s` 0.5, `tag_loss_timeout_s` 1.0,
+  `tag_align_timeout_s` 60, `tag_final_overshoot_m` 0.01,
+  `tag_handover_loss_s` 0.3, `tag_min_reliable_z_m` 0.0,
+  `tag_max_blind_distance_m` 0.25, `tag_blind_speed_m_s` 0.015,
+  `tag_heading_gain` 0.8, `tag_max_heading_error_rad` 0.087,
+  `tag_odom_mismatch_m` 0.03, `tag_blind_timeout_s` 30, `tag_imu_yaw_sign` +1
+  (+1 or -1 only; anything else is rejected). `tag_p0_z_m` is the
+  former z reference parameter, now a virtual depth at P0.
+- IMU yaw sign check (on the robot, once): the IMU snapshot is the raw sensor
+  orientation, so its yaw axis may point along -z of base_link. With the launch
+  running and the robot standing, turn it by hand counter-clockwise (seen from
+  above) and confirm the IMU yaw increases (`rostopic echo /grasp_hexapod/imu`,
+  quaternion yaw); if it decreases set `tag_imu_yaw_sign: -1`.
+- Success (tag settle or blind finish): gait stopped for `tag_settle_s` ->
+  `approach_plan.ready_for_climb = true`, HOLD, outcome
+  `"tag alignment complete: ready for climb"`. Failures (HOLD): `"tag lost"`,
+  `"tag lost before alignment"`, `"tag lost too far from P0 (remaining X m)"`,
+  `"imu unavailable for blind finish"`, `"blind heading error"`,
+  `"blind odometry mismatch (blocked or slipping legs?)"`,
+  `"blind finish timeout"`, `"tag alignment timeout"`, and
+  `"coarse stop reached without tag handoff"`.
+- `tag_ref_x_m / tag_p0_z_m / tag_ref_yaw_rad` (defaults 0.0 / 0.15 / 0.0) are
+  PLACEHOLDERS and must be taught. Teach-in: put the robot at P0 (walking
+  stance), then
+  `rosrun grasp_hexapod_bt_control record_tag_reference.py _tag_id:=<ID> _samples:=30`
+  (`_offset_from_p0_m` defaults to 0; pass the measured back-off D > 0 only if
+  the tag cannot be seen at P0; optional `_topic:= _frame:=`). It prints the
+  three yaml lines (`tag_p0_z_m = mean z - D`) and the sample standard
+  deviation of x, z and yaw.
+- Handoff gate / yaw jump: `tag_handoff_max_z_m` (yaml 0.5, code default 0 =
+  off): only tag detections with camera depth z <= this count toward the handoff
+  (single-tag yaw is ambiguous farther away; also keeps the 0.02 m/s tag advance
+  inside the 60 s timeout). `tag_max_yaw_jump_rad` (yaml 0.10, code default 0 =
+  off): a yaw change larger than this (plus `tag_max_yaw_rate*dt` after the
+  handoff) between accepted samples is physically impossible for the robot and
+  is rejected as pose ambiguity (in Coarse it resets the count; after handoff
+  the update commands zero and a persistent run ends in "tag lost").
+- Teaching additions: before teaching, check yaw vs
+  distance: back the robot straight from P0 in about 5 cm steps out to 0.5 m
+  and confirm the tag yaw spread is <= 1 deg (half of `tag_yaw_tolerance_rad`
+  0.035); a larger spread means a print/size/calibration problem - report it
+  instead of teaching.
+- Stance for teaching: do the tag teaching and the yaw-vs-distance check in the
+  walking stance `Q_STAND` (body 96 mm; the camera sits 2.6 cm higher than in
+  the old stance). The climb-prep posture (`Q_CLIMB_PREP`, the old stance and
+  the climb P0) is entered automatically before the climb, after the tag
+  handoff: climb requests from the walking stance run the 2.6 s climb-prep
+  transition and then start the climb by themselves.
+- Mounting: mount the tag upright or upside down (180 deg is fine after
+  teaching); a 90 deg in-plane mount gives |R(1,0)| about 1 and every detection
+  is rejected. Print the official tag36h11 images; OpenCV's DICT_APRILTAG_36h11
+  renders the same code rotated 180 deg.
+- Leg odometry only shows that the stance feet moved back as commanded (it
+  cannot prove the body advanced when feet slip). The remaining distance is the
+  last valid sample minus the leg-odometry travel since it; the gait's
+  stopping step after the forward command ends is not compensated (a few mm).
+  The blind finish uses no contact or force sensing.
+- The 0.20 m stop and the taught reference are camera-frame diagnostics, not
+  body clearance, contact, or hardware-safety evidence. Not yet verified on
+  hardware or with catkin/e2e (the legacy visual e2e scripts assume the old
+  0.60 m stop and Success outcome).
+
+### Hardware-free Phase-1 bench
+
+For offline integration, use the bench launch on an isolated ROS master.  It
+starts only `bt_control_node`, a guarded fake joint-feedback/gripper fixture,
+and—when requested—the existing Python `Target3DNode`; it never starts serial,
+servo, joy, camera, or a synthetic `/xiaolan/target` publisher.
+
+```bash
+source devel/setup.bash
+export ROS_MASTER_URI=http://127.0.0.1:11331
+roscore -p 11331
+# Terminal A runs one selected bench launch; terminal B uses the same ROS_MASTER_URI.
+# Choose one bench command; do not run both simultaneously.
+roslaunch grasp_hexapod_bt_control phase1_visual_bench.launch
+# Or add only depth localization for a replay/external detection-depth source:
+roslaunch grasp_hexapod_bt_control phase1_visual_bench.launch start_depth:=true
+# Terminal B, after the controller reports feedback-ready:
+rosrun grasp_hexapod_bt_control phase1_visual_sequence _controller_node:=/bt_control_node
+```
+
+`start_depth:=true` runs `xiaolan_target_3d_node.py` only (`start_yolo=false`,
+`start_visualizer=false`).  By default the bench has no target publisher:
+an external replay or perception process must supply `/xiaolan/detection`,
+`/camera/depth/image_raw`, and matching depth/color `CameraInfo`; Target3DNode
+then remains the sole `/xiaolan/target` publisher.  The fake fixture refuses a
+graph that already publishes a joint-feedback topic or offers the gripper
+service, and requires its explicit private `allow_fake_feedback` launch
+parameter.  This is integration evidence only, not authorization for camera,
+servo, motion, or hardware operation.
+
+The CPU-only model smoke test uses the isolated runtime and actual `best.onnx`:
+
+```bash
+python3 src/grasp_hexapod_bt_control/test/phase1_yolo_smoke.py \
+  --python "$PWD/.venv/xiaolan-ort/bin/python3" \
+  --model "$PWD/src/xiaolan_yolo_detection/models/best.onnx"
+```
+
+It requires an isolated ROS master and tests blank synthetic RGB only. See
+[`PHASE1_VISUAL_PIPELINE_AUDIT.md`](../docs/PHASE1_VISUAL_PIPELINE_AUDIT.md)
+for timing, frames, limits, and non-hardware boundaries.
 
 服务切换状态机与原按键语义对照：
 

@@ -3,6 +3,9 @@
        Raw transport avoids plugins that cannot encode 16UC1 depth as bgr8. -->
   <arg name="camera_fps" default="15"/>
   <arg name="enable_noise_removal_filter" default="false"/>
+  <!-- false: no full-frame software depth->colour alignment in the driver
+       (use with xiaolan_yolo.launch sparse_align:=true). -->
+  <arg name="depth_registration" default="true"/>
   <include file="$(find orbbec_camera)/launch/gemini_330_series.launch">
     <arg name="color_width" value="848"/>
     <arg name="color_height" value="480"/>
@@ -11,7 +14,7 @@
     <arg name="depth_height" value="480"/>
     <arg name="depth_fps" value="$(arg camera_fps)"/>
     <arg name="enable_noise_removal_filter" value="$(arg enable_noise_removal_filter)"/>
-    <arg name="depth_registration" value="true"/>
+    <arg name="depth_registration" value="$(arg depth_registration)"/>
     <arg name="enable_point_cloud" value="false"/>
     <arg name="enable_image_transport_plugins" value="false"/>
   </include>

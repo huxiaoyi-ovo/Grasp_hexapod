@@ -1,4 +1,8 @@
-// approach 模式：RTK 导航巡行至攀爬起始位（自动接近）。
+// approach defaults to legacy fake/RTK navigation; opt-in visual guidance is
+// a coarse YOLO approach.  With ~tag_guidance_enabled it hands off to AprilTag
+// guidance (tag_guidance.h: align, advance, short blind finish) and sets
+// ready_for_climb only after it completes; without it the visual branch never
+// sets ready_for_climb.
 //
 // 双分支（~approach_fake 开关，默认 true）：
 // - 假实现（导航栈未就绪时用）：跳过 control_source 门控，Running 保持
@@ -8,6 +12,10 @@
 #pragma once
 
 #include "grasp_hexapod_bt_control/mode_base.h"
+#include "grasp_hexapod_bt_control/tag_guidance.h"
+#include "grasp_hexapod_bt_control/visual_guidance.h"
+
+#include <ros/ros.h>
 
 #include <string>
 
@@ -21,12 +29,35 @@ class ApproachMode : public ModeBase {
   bool start(const JointAngles& q_cur, std::string& reason) override;
   std::optional<JointAngles> step(const ModeStepInput& input) override;
   std::optional<ModeOutcome> checkTerminal() override;
+  void resume() override;
+  void pause(const std::string& reason) override;
+  bool onNodeHold(const std::string& reason) override;
 
  private:
   bool fake_ = true;           // ~approach_fake（默认 true：假实现）
   double fake_duration_s_ = 5.0;
   double fake_started_at_ = 0.0;
   std::string control_source_;  // ~control_source（真实分支用）
+  bool visual_enabled_ = false;
+  VisualGuidance visual_{VisualGuidanceConfig()};
+  bool tag_enabled_ = false;   // ~tag_guidance_enabled（仅在视觉分支内有效）
+  TagGuidance tag_{TagGuidanceConfig()};
+  ros::Subscriber tag_subscriber_;
+  ros::Subscriber target_subscriber_;
+  ros::Subscriber health_subscriber_;
+  double failure_started_at_ = 0.0;
+  bool handover_logged_ = false;  // one log line per run at the tag handover
+  // ~tag_fallback_on_loss: per-frame arbitration "tag first, YOLO fallback
+  // (until the coarse stop distance), else stop and wait".
+  bool arbitrate_ = false;
+  double wait_timeout_s_ = 5.0;     // ~approach_wait_timeout_s: stopped with no usable source
+  double overall_timeout_s_ = 120.0;  // ~visual_approach_timeout_s, whole run
+  double run_started_ = 0.0;
+  double waiting_since_ = 0.0;
+  double paused_at_ = 0.0;
+  bool arb_failed_ = false;
+  std::string arb_reason_;
+  void arbFail(const std::string& reason);
 };
 
 }  // namespace modes

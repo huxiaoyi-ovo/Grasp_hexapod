@@ -16,6 +16,7 @@
 
 #include <optional>
 #include <string>
+#include <vector>
 
 namespace grasp_hexapod_control_cpp {
 
@@ -130,6 +131,24 @@ class GraspController {
 
   double base_height_at_stand = 0.0;
 
+  // 攀爬准备姿态（旧默认站姿 Q_CLIMB_PREP）：行走站姿 Q_STAND 通过抬脚换位过渡到它。
+  JointAngles q_climb_prep{};
+  FootPositions foot_climb_prep_base{};
+  double base_height_at_climb_prep = 0.0;
+  // 过渡执行中 / 过渡完成后保持姿态；保持期间步态不得把机身拉回行走高度。
+  bool climb_prep_active = false;
+  bool climb_prep_posture_held = false;
+  // 过渡调度的 5 段帧数（S1 A 组、S2 保持、S3 B 组、S4 保持、S5 降机身）与逐帧关节目标
+  // （下标 k 为第 k 帧结束时的目标，下标 0 为起点）。
+  std::array<int, 5> climb_prep_segment_frames{};
+  const std::vector<JointAngles>& climbPrepSchedule() const { return climb_prep_schedule_; }
+
+  // 关节空间覆盖：存在时该腿的关节候选直接取此值，跳过 DLS（限位、单帧速度
+  // 限幅、碰撞守卫仍照常作用于所有腿）。每个控制周期开头清空，仅由攀爬在本周期
+  // 内设置；setMode/resetToStand/abortClimb 同样清空，不会泄漏到攀爬之外。
+  std::array<std::optional<Vector3d>, 6> joint_override{};
+
+
   // A 使能和 B 复位都用五次曲线平滑回到标准站姿。
   double reset_duration = 2.0;
   double reset_time = 0.0;
@@ -176,6 +195,13 @@ class GraspController {
   void resetToStand(const JointAngles& q_cur);
   // 从当前关节角平滑整理到 compact 要求的标准站姿。
   void prepareClimbEntry(const JointAngles& q_cur);
+  // 从行走站姿抬脚换位过渡到 Q_CLIMB_PREP（A 组、B 组各迈一步再降机身）。
+  // 前置条件不满足或调度未通过校验时返回 false 并写 reason，不改变任何状态。
+  bool beginClimbPrep(const JointAngles& q_cur, std::string* reason);
+  // 非任务攀爬入口是否要先走准备过渡：起始阶段为 0、q_cur 与 config.p0.q_rad 的
+  // 最大关节差超过入口门限，且准备姿态尚未保持（已保持则直接进入，由入口门限把关）。
+  bool climbEntryNeedsPrep(const JointAngles& q_cur, const ClimbCompactConfig& config,
+                           int start_stage_index) const;
   // 在 APPROACH 模式下选择安全接近点并启动固定路径。
   ApproachPlan startAutonomousApproach(
       const NavigationState& navigation_state,
@@ -221,6 +247,12 @@ class GraspController {
  private:
   std::array<bool, 6> sameLegCollisionFree(
       const std::array<std::array<Vector3d, 5>, 6>& collision_points) const;
+  // 规划并校验整段过渡调度（含 q_s 起点帧）；失败返回 false 并写 reason。
+  bool planClimbPrep(const JointAngles& q_start, std::vector<JointAngles>* schedule,
+                     std::array<int, 5>* segment_frames, std::string* reason) const;
+
+  std::vector<JointAngles> climb_prep_schedule_;
+  std::size_t climb_prep_frame_ = 0;
 
   ControlPaths paths_;
 };

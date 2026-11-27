@@ -1,0 +1,85 @@
+xiaolan_yolo chain resource-reduction evidence manifest
+branch: perf/xiaolan-yolo-resource (from test @ 7596500)
+date: 2026-11-27
+No commit/push/serial servo/control node/hardware motion occurred.
+Scene note: bench camera had NO detectable xiaolan target during all windows
+(detection 0%, all NO_DETECTION / NO_TARGET, zero faults); CPU/RAM numbers are
+valid regardless, but detection-equivalence gates for P3 remain pending a
+target in view.
+
+Tool: src/xiaolan_yolo_detection/tests/resource_profile.py (Sol)
+- /proc per-process CPU%/RSS/threads sampling + maps library origin + small
+  /xiaolan/* topic monitors + tegrastats side log. Probe never subscribes the
+  camera raw streams. Two consecutive runs used as the noise gate.
+
+Protocol M: xiaolan_orbbec_camera.launch (SW align, 848x480@15) +
+xiaolan_yolo.launch defaults; nvpmodel untouched (pmode:0008,
+MODE_20W_6CORE, 6 cores pinned 1420800 kHz through all runs).
+
+BASELINE (start_visualizer default was still true; git worktree at
+7596500 + probe only), one SW camera process reused across both runs:
+- baseline_run1.json / baseline_run2.json (+ .tegrastats.log each)
+  launch logs: baseline_camera.launch.log, baseline_yolo.launch.log
+- CPU%avg per process:      run1: camera 89.1  yolo 42.2  td3 22.3  visualizer 31.5
+                            run2: camera 88.7  yolo 41.1  td3 22.3  visualizer 31.2
+  chain CPU sum: 185.1 / 184.3 (% of one core); noise gate PASS (<=15% rel)
+- RSS MB: camera ~117, yolo ~2010, td3 148.7-150.4, visualizer ~172
+  chain RSS sum ~2447.8 MB; noise gate PASS (<=5%)
+- detection 14.95 Hz, target 14.95 Hz, latency p50 140/134 ms p99 168/165 ms
+  states {1: NO_TARGET only}, faults {}
+
+POST (P1+P2+P3 applied), fresh SW camera (post_p6_camera.launch.log):
+- post_run1.json / post_run2.json (+ tegrastats); launch log post_yolo.launch.log
+- CPU%avg: run1 camera 87.0  yolo 19.7  td3 20.3 (visualizer ABSENT by default)
+           run2 camera 86.8  yolo 19.7  td3 20.2
+  chain CPU sum (camera+yolo+td3): 127.0 / 126.7  vs baseline same-3-sum 153.6
+  => -26.6 points excluding the removed visualizer (-31.5 more from it not
+     running); whole-chain baseline sum 185.1 -> 127.0 = -58.1 points
+- RSS MB: camera ~112, yolo ~2007, td3 116.2-116.8; chain sum 2235.7 MB
+  => -212 MB whole-chain (visualizer process -172, td3 cache -33)
+- detection 14.95 Hz, target 14.95 Hz, latency p50 131/133 p99 166/163 ms
+  states {1}, faults {}; NO_ALIGNED_DEPTH_WITHIN_TOLERANCE 0 (same as baseline)
+
+P1 on-demand subscription (post_vis_idle.json, post_vis.launch.log,
+post_vis_viewer.log):
+- default launch: /xiaolan_visualizer absent from master; roslaunch --nodes
+  lists 2 nodes (checked by Luna, exit 0)
+- start_visualizer:=true, no viewer, no DISPLAY, 20 s: visualizer does NOT
+  appear in /camera/color/image_raw subscribers; CPU 2.7% avg (max 4.0) <= 3% gate
+- viewer attached (~/zc_tmp/visualizer_viewer.py, 10 s): visualizer appears in
+  RGB subscriber list; output 45 frames / 10 s = 4.5 Hz (gate 4-6); 45/45 image
+  header stamps found in /xiaolan/detection stamps (gate was >=20 frames)
+- viewer detached: RGB subscriber gone on the next check (<=3 s resolution)
+
+P2 depth cache: td3 RSS 150.4 -> 116.8 MB (-33.6 >= 30 gate); target rate and
+latency unchanged (14.95 Hz; p99 168 -> 166 ms); unit timing tests untouched
+and passing.
+
+P3 RGB passthrough:
+- unit test test_prepare_rgb_channel_passthrough added (channel means 30/60/120
+  over 255 in active region, border 114/255, channel-swap changes tensor)
+- YOLO node CPU 42.2 -> 19.7% (gate was "not higher than baseline +1"; actual
+  -22.5 points: rgb8 zero-copy view removes full-frame cvtColor2, and the CHW
+  multiply now reads a contiguous canvas view instead of a reversed-stride one)
+- ON-ROBOT DETECTION EQUIVALENCE GATE NOT RUN: no xiaolan target in view
+  (0/903 detections baseline and post). Pending user scene setup.
+
+P5 dual-OpenCV probe: NOT TRIGGERED - maps show exactly one
+libopencv_core.so (system 4.2) + one cv2 binding per process in baseline_run*.json.
+P6 HW D2C probe: TRIGGERED (camera 89% >= 30%); driver rejects the profile
+pair: "Selected profiles do not support HW D2C. color=848x480@15,
+depth=848x480@15" repeatedly (p6_hw_camera.launch.log:294-308), pipeline never
+starts, 0 frames. Closed: SW align cost (~89% of one core at this resolution)
+is inherent to the supported profile set; camera node kept at align_mode:=SW.
+
+Isolated-master functional validation (Luna, port 11312, cleaned up after):
+- py_compile x4 + xmllint launch: exit 0
+- roslaunch --nodes default: 2 nodes; start_visualizer:=true: 3 nodes
+- unittest discover: Ran 22, OK (skipped=3 = test_gpu without XIAOLAN_TEST_GPU)
+- phase1_yolo_smoke.py (onnx backend): exit 0, fresh=15, stale rejected
+- phase1_perception_e2e.py: exit 0, 15 Hz on all three topics, VALID recovery
+- test_visualizer.py untouched and passing
+
+Residual: TensorRT on-robot detection-equivalence for P3 needs the xiaolan
+target placed in front of the camera; rerun resource_profile baseline-style
+comparison when the scene is restored.

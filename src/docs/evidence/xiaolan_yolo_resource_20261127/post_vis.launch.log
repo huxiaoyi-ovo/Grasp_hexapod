@@ -1,0 +1,59 @@
+... logging to /home/artrc-gflz/.ros/log/e3e06e92-ea02-11f1-bc2b-70cf499c08ab/roslaunch-ubuntu-14431.log
+Checking log directory for disk usage. This may take a while.
+Press Ctrl-C to interrupt
+Done checking log file disk usage. Usage is <1GB.
+]2;/home/artrc-gflz/Grasp_hexapod/src/xiaolan_yolo_detection/launch/xiaolan_yolo.launch
+[1mstarted roslaunch server http://ubuntu:36101/[0m
+
+SUMMARY
+========
+
+PARAMETERS
+ * /rosdistro: noetic
+ * /rosversion: 1.17.4
+ * /xiaolan_visualizer/aligned_depth_topic: /camera/depth/ima...
+ * /xiaolan_visualizer/aligned_info_topic: /camera/depth/cam...
+ * /xiaolan_visualizer/center_tolerance_m: 0.03
+ * /xiaolan_visualizer/color_info_topic: /camera/color/cam...
+ * /xiaolan_visualizer/conf_threshold: 0.5
+ * /xiaolan_visualizer/confirm_frames: 2
+ * /xiaolan_visualizer/depth_cache_size: 6
+ * /xiaolan_visualizer/depth_sync_tolerance: 0.025
+ * /xiaolan_visualizer/depth_wait_timeout: 0.08
+ * /xiaolan_visualizer/detection_topic: /xiaolan/detection
+ * /xiaolan_visualizer/diagnostics_period_s: 2.0
+ * /xiaolan_visualizer/ema_alpha: 0.4
+ * /xiaolan_visualizer/health_publish_hz: 10.0
+ * /xiaolan_visualizer/input_size: 416
+ * /xiaolan_visualizer/inter_op_num_threads: 1
+ * /xiaolan_visualizer/intra_op_num_threads: 2
+ * /xiaolan_visualizer/lost_tolerance_frames: 3
+ * /xiaolan_visualizer/max_depth: 1.0
+ * /xiaolan_visualizer/max_det: 1
+ * /xiaolan_visualizer/max_fps: 15.0
+ * /xiaolan_visualizer/max_hold_seconds: 0.25
+ * /xiaolan_visualizer/max_input_age: 0.25
+ * /xiaolan_visualizer/max_result_age: 0.25
+ * /xiaolan_visualizer/max_x_jump_m: 0.15
+ * /xiaolan_visualizer/max_z_jump_m: 0.15
+ * /xiaolan_visualizer/min_depth: 0.2
+ * /xiaolan_visualizer/min_valid_depth_pixels: 5
+ * /xiaolan_visualizer/rgb_sync_tolerance: 0.05
+ * /xiaolan_visualizer/rgb_topic: /camera/color/ima...
+ * /xiaolan_visualizer/roi_size: 9
+ * /xiaolan_visualizer/show_window: False
+ * /xiaolan_visualizer/target_timeout: 0.5
+ * /xiaolan_visualizer/visualization_max_dt: 0.25
+ * /xiaolan_visualizer/visualization_max_fps: 5.0
+
+NODES
+  /
+    xiaolan_visualizer (xiaolan_yolo_detection/xiaolan_visualizer.py)
+
+[1mROS_MASTER_URI=http://localhost:11311[0m
+]2;/home/artrc-gflz/Grasp_hexapod/src/xiaolan_yolo_detection/launch/xiaolan_yolo.launch http://localhost:11311
+[1mprocess[xiaolan_visualizer-1]: started with pid [14472][0m
+[xiaolan_visualizer-1] killing on exit
+shutting down processing monitor...
+... shutting down processing monitor complete
+[1mdone[0m

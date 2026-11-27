@@ -5,6 +5,7 @@
 // 这些函数只做确定性模型计算；校验失败抛 ConfigError，消息与 Python 一致。
 #pragma once
 
+#include "grasp_hexapod_control_cpp/kinematics.h"
 #include "grasp_hexapod_control_cpp/types.h"
 
 #include <nlohmann/json.hpp>
@@ -19,8 +20,13 @@ namespace grasp_hexapod_control_cpp {
 
 inline constexpr const char* kCompactSchema = "SIMULATION_ONLY_CLIMB_COMPACT_V2";
 
-// 根据 (x, y, z, roll, pitch) 生成世界坐标变换矩阵（ClimbMode._world_from_base）。
+// 机身位姿 [x, y, z, roll, pitch, yaw]；侧向 compact 的 5 元素位姿以 yaw=0 存放。
+using BasePose = std::array<double, 6>;
+
+// 根据 (x, y, z, roll, pitch[, yaw]) 生成世界坐标变换矩阵（ClimbMode._world_from_base）。
+// 5 元素重载等价于 yaw=0，数值与历史 5 元素实现逐位一致。
 Matrix4d worldFromBase(const std::array<double, 5>& base);
+Matrix4d worldFromBase(const BasePose& base);
 
 // compact settle gate（settle_gate 字段）。
 struct CompactSettleGate {
@@ -34,11 +40,25 @@ struct CompactSettleGate {
   bool tracking_errors_diagnostic_only = false;
 };
 
+// compact 阶段内可选的关节空间摆动段（stage.joint_space）：指定腿在
+// [from_knot, to_knot] 区间直接插值关节角，不经笛卡尔目标 + DLS，
+// 用于越过伸直奇异点。形状由校验器判定。
+struct CompactJointSpace {
+  std::vector<int> legs;
+  int from_knot = 0;
+  int to_knot = 0;
+  // (to-from+1, len(legs), 3)，rad。
+  std::vector<std::vector<Vector3d>> q_knots_rad;
+  bool has_q_velocities = false;
+  std::vector<std::vector<Vector3d>> q_velocities_rad_s;
+};
+
 // compact 单阶段（stages[i]）。
 struct CompactStage {
   std::string name;
-  std::array<double, 5> pose_start{};
-  std::array<double, 5> pose_end{};
+  // 侧向 compact 为 5 元素（yaw 存 0）；front compact 为完整 6 元素。
+  BasePose pose_start{};
+  BasePose pose_end{};
   // K 个锚点关键帧，每个是 6 条腿的世界坐标 (x,y,z)。
   std::vector<std::array<Vector3d, 6>> anchor_knots;
   std::vector<double> segment_durations_s;
@@ -58,18 +78,51 @@ struct CompactStage {
   bool has_active_base_velocities = false;
   std::vector<std::vector<Vector3d>> active_base_velocities_m_s;
   bool continuous_air_transition = false;
+  // 可选关节空间摆动段（仅 piecewise_base_quintic 阶段允许）。
+  bool has_joint_space = false;
+  CompactJointSpace joint_space;
+  // front-only: pose_curve == piecewise_quintic 的机身位姿关键帧 (K, 6)。
+  // pose_knots_wellformed=false 表示存在但不是有限的 (K,6) 数组。
+  bool has_pose_knots = false;
+  bool pose_knots_wellformed = false;
+  std::vector<BasePose> pose_knots;
+  // contact_plan_version=1 角色元数据（support_legs / airborne_legs_start /
+  // airborne_legs_end / segment_support_legs）：保留原始 JSON，由校验器判定。
+  // 仅验证与诊断使用，其中 segment_support_legs 另会固定声明腿的世界锚点。
+  std::map<std::string, nlohmann::json> contact_roles;
+
+  // 读取角色列表；键不存在返回空。仅在校验通过后使用。
+  std::vector<int> roleLegs(const std::string& key) const;
+  // segment_support_legs 存在且非 null。
+  bool hasSegmentSupportLegs() const;
+  std::vector<int> segmentSupportLegs(std::size_t segment) const;
 };
 
 struct CompactP0 {
   std::array<Vector3d, 6> anchors_world_m{};
   JointAngles q_rad{};
+  // 侧向 schema: [x, y, z, pitch]；front schema 不使用（全零），改用 pose。
   std::array<double, 4> base{};
+  // 完整 P0 机身位姿 [x, y, z, roll, pitch, yaw]（侧向由 base 推出，roll=yaw=0）。
+  BasePose pose{};
 };
 
 struct ClimbCompactConfig {
   std::string schema;
   bool simulation_only = false;
   bool simulation_candidate_only = false;
+  // "front" 为 front compact（6 元素位姿、无右侧镜像）；空/其他为侧向 schema。
+  std::string climb_orientation;
+  // 仅仿真的 front 关节速度上限（JSON 缺失或 null 视为未设置）；
+  // malformed=true 表示字段存在但类型非法（bool/非数值）。
+  std::optional<double> simulation_joint_velocity_limit_rad_s;
+  bool simulation_joint_velocity_limit_malformed = false;
+  // contact_plan_version：present=字段存在且非 null；is_one=其值等于 1。
+  bool contact_plan_version_present = false;
+  bool contact_plan_version_is_one = false;
+  // 调用方（ROS 参数 ~allow_front_hardware）授权 front+hardware_execution。
+  // 绝不从 JSON 读取；默认 false，此时 front + hardware 被拒绝。
+  bool allow_front_hardware = false;
   Vector3d xiaolan_translation = Vector3d::Zero();
   std::vector<std::string> visual_validation_deferred_for_sim_finish;
   CompactP0 p0;
@@ -77,7 +130,13 @@ struct ClimbCompactConfig {
   int stage_count = 0;
   std::vector<CompactStage> stages;
   CompactSettleGate settle_gate;
+
+  bool isFront() const { return climb_orientation == "front"; }
 };
+
+// 一条腿关节角对应的足端球心（base_link，与 active_base_knots_m 同一约定：
+// hipToBase(forward(q))）。关节空间摆动段的边界连续性校验与运行时共用。
+Vector3d legFootBase(const GraspKinematic& kinematic, int leg, const Vector3d& q);
 
 // 读取并检查 compact 配置（文件不存在/JSON 非法抛 ConfigError）。
 ClimbCompactConfig loadClimbCompact(const std::string& path);
@@ -92,7 +151,8 @@ ClimbCompactConfig climbCompactFromJson(const nlohmann::json& document);
 std::string validateCompactClimbSide(const std::string& side);
 
 // 返回 compact 的独立侧别副本，right 按小蓝 world x 中心镜像
-// （utils/climb.py::select_compact_climb_side）。
+// （utils/climb.py::select_compact_climb_side）。front compact 没有右侧镜像：
+// left 原样返回，right 抛 ConfigError。
 ClimbCompactConfig selectCompactClimbSide(const ClimbCompactConfig& config,
                                           const std::string& side);
 

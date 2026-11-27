@@ -247,7 +247,7 @@ def step_tag_config(ctx):
     launch_id = read_launch_default(ctx.launch, "tag_id")
     launch_size = read_launch_default(ctx.launch, "tag_size_m")
     say(f"  当前：yaml tag_guidance_id={yaml_id}，launch tag_id={launch_id}，tag_size_m={launch_size}")
-    tag_id = ask_number("  小蓝正面用于接近的 tag 编号（tag36h11）", yaml_id, int, 0, 586)
+    tag_id = ask_number("  小蓝被攀爬那一面上的 tag 编号（tag36h11，已确认的是 255）", yaml_id, int, 0, 586)
     if launch_id is None or launch_size is None:
         say(f"  ✗ {ctx.launch} 里找不到 tag_id / tag_size_m 参数，无法自动设置。")
         raise Quit()
@@ -364,8 +364,8 @@ def step_teach(ctx):
     if ctx.tag_id is None:
         ctx.tag_id = int(read_yaml_value(ctx.yaml, "tag_guidance_id"))
     say("  先在看板点 home，让机器人站成行走站姿；然后把机器人摆到攀爬起点 P0：")
-    say("    - 正对小蓝正面，机身侧边与立面垂直（不要歪）；")
-    say("    - 机身中心线对准小蓝正面中心（攀爬配置里偏右约 5 mm，可视为居中）；")
+    say("    - 机器人正面朝向小蓝被攀爬的那一面（贴 tag 的那一面），机身与立面垂直（不要歪）；")
+    say("    - 机身中心线对准这一面的中心（攀爬配置里偏右约 5 mm，可视为居中）；")
     say("    - 两只前脚脚尖离小蓝立面约 2 cm（机身中心离立面约 19.5 cm）；")
     say("    - 机身静止、六条腿都着地。")
     while True:
@@ -440,6 +440,41 @@ def step_yaw_check(ctx):
         say(f"  偏航随距离的变化 {spread:.2f} 度（≤1 度为正常）：{verdict}")
 
 
+GUIDE = """
+================ 实机 approach 标定向导 ================
+本程序只读传感器，不会让机器人动。任何提示下：回车=继续，s=跳过这一步，q=退出。
+
+【开始前】需要 4 个终端（都先 source devel/setup.bash）：
+  终端1  roscore
+  终端2  roslaunch grasp_hexapod_bt_control full_mission.launch show_windows:=false start_dock_perception:=false
+  终端3  rosrun grasp_hexapod_bt bt_dashboard.py    （浏览器打开 http://<机器人IP>:8080）
+  终端4  本程序
+  然后在看板「模式控制」点 home，让机器人站起来（行走站姿）。
+
+【原理】机器人站在攀爬起点 P0 时，相机看 tag 得到三个数（横向 x、距离 z、偏航）。
+  示教就是在 P0 把这三个数记下来；以后接近时机器人一边走一边调整，直到看到同样的三个数。
+
+【本程序 6 步】
+  1 tag 配置    输入 tag 编号和边长（默认 255 / 0.050，直接回车即可）
+  2 话题检查    什么都不用做，看有没有"缺失"
+  3 YOLO 检查   按提示把机器人搬到小蓝前 1 m、2 m
+  4 IMU 方向    没有 IMU 会自动跳过
+  5 P0 示教     【必须做】把机器人摆到攀爬起点，按回车
+  6 偏航检查    可选，输入 s 跳过
+==========================================================="""
+
+NEXT_STEPS = """
+=========== 接下来这样做（标定没做完就先补做第 5 步）===========
+  1. 终端2 按 Ctrl-C，再执行同样的 roslaunch 命令（控制节点只在启动时读参数）。
+     roscore 和看板不用重启。启动后在看板再点一次 home。
+  2. 把机器人放到小蓝被攀爬那一面的前方 1-2 m（朝向可以偏，看不到小蓝会原地转身找）。
+  3. 看板「模式控制」依次点：自转搜索 → 等它成功 → 接近导航。
+  4. 成功提示：tag alignment complete: ready for climb（机器人停在攀爬起点）。
+  随时停止：看板点 home，或按实体手柄 B。
+  ！只测 approach 时不要点攀爬、不要按手柄 X 键（会直接开始实机攀爬）。
+  失败时把 approach 返回的信息和终端2 里含 "approach:" "tag mode=" 的行发给开发。
+==========================================================="""
+
 STEPS = {"tag": step_tag_config, "topics": step_topics, "yolo": step_yolo,
          "imu": step_imu, "teach": step_teach, "yawcheck": step_yaw_check}
 
@@ -462,7 +497,7 @@ def main():
     parser.add_argument("--launch", type=Path, default=DEFAULT_LAUNCH)
     args = parser.parse_args(rospy.myargv()[1:])
     ctx = Context(args.yaml, args.launch)
-    say("实机 approach 标定向导：只读传感器，不会让机器人运动。任何提示下输入 q 退出。")
+    say(GUIDE)
     say(f"配置文件：{ctx.yaml}\nlaunch：  {ctx.launch}")
     rospy.init_node("hw_calibrate", anonymous=True, disable_signals=True)
     order = list(STEPS)
@@ -489,9 +524,7 @@ def main():
             f"tag_size_m: {read_launch_default(ctx.launch, 'tag_size_m')}")
         say("注意：这些文件受 git 管理。以后 git pull 前先 git stash，pull 完再 git stash pop，"
             "否则 pull 会因本地改动失败。")
-    if ctx.changed_params or ctx.backups:
-        say("下一步：Ctrl-C 停掉 full_mission.launch 并重新启动，让控制节点读取新参数。")
-        say("然后把机器人放到 1-2 m 外，在看板上依次点 home -> spin_search -> approach（不要点 climb）。")
+    say(NEXT_STEPS)
     return 0
 
 

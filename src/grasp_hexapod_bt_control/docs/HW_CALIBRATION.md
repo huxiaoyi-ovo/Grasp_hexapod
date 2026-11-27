@@ -35,11 +35,11 @@ rosrun grasp_hexapod_bt_control hw_calibrate.py
 
 | 步骤 | 你要做什么 | 向导做什么 |
 |---|---|---|
-| 1 tag 配置 | 输入小蓝正面那张 tag 的编号和黑框外边长 | 写入 `phase1_visual.yaml` 的 `tag_guidance_id`，以及 `full_mission.launch` 的 `tag_id`/`tag_size_m`。**有改动时向导会退出**：在终端 A 重启 launch，再运行 `hw_calibrate.py --from topics` 接着做（roslaunch 自带的 ROS master 会随 launch 一起重启，向导不能跨重启继续） |
+| 1 tag 配置 | 输入小蓝被攀爬那一面上 tag 的编号和黑框外边长（默认 255 / 0.050，已在实机确认） | 写入 `phase1_visual.yaml` 的 `tag_guidance_id`，以及 `full_mission.launch` 的 `tag_id`/`tag_size_m`。**有改动时向导会退出**：在终端 A 重启 launch，再运行 `hw_calibrate.py --from topics` 接着做（roslaunch 自带的 ROS master 会随 launch 一起重启，向导不能跨重启继续） |
 | 2 话题检查 | 不用动 | 检查 YOLO、tag 检测、IMU、舵机反馈有没有数据 |
 | 3 YOLO 检查 | 按提示把机器人放在小蓝前 1 m、2 m | 报告能否检出小蓝、有没有有效深度。检不出或没有深度，就不能从这个距离起步 |
 | 4 IMU 方向 | 机器人静止 → 从上往下看，用手**逆时针**转约 30°，再确认方向 | 自动设置 `tag_imu_yaw_sign`（转反会写反，所以会再问一次方向）。没有 IMU 时自动跳过（tag 一路可见时用不到 IMU） |
-| 5 **P0 示教**（必须做） | 先在看板点 **home**（行走站姿），再把机器人摆到攀爬起点 P0：正对小蓝正面、机身与立面垂直；机身中心线对准小蓝正面中心（攀爬配置里偏右约 5 mm，可视为居中）；**两只前脚脚尖离立面约 2 cm**（机身中心离立面约 19.5 cm）；静止、六腿着地 | 检查是否在行走站姿，采集 30 帧 tag，检查坐标系、抖动和深度（P0 处深度约 0.15–0.20 m），确认后写入 `tag_ref_x_m`、`tag_p0_z_m`、`tag_ref_yaw_rad` |
+| 5 **P0 示教**（必须做） | 先在看板点 **home**（行走站姿），再把机器人摆到攀爬起点 P0：机器人正面朝向小蓝被攀爬的那一面（贴 tag 的那一面）、机身与立面垂直；机身中心线对准这一面的中心（攀爬配置里偏右约 5 mm，可视为居中）；**两只前脚脚尖离立面约 2 cm**（机身中心离立面约 19.5 cm）；静止、六腿着地 | 检查是否在行走站姿，采集 30 帧 tag，检查坐标系、抖动和深度（P0 处深度约 0.15–0.20 m），确认后写入 `tag_ref_x_m`、`tag_p0_z_m`、`tag_ref_yaw_rad` |
 | 6 偏航-距离检查（可选） | 从 P0 沿直线后退到约 0.30 m、0.45 m | 检查 tag 偏航随距离的变化 ≤1°。超过说明 tag 打印变形、边长不对或相机标定有问题，先报告，不要上机 |
 
 只做某一步：`rosrun grasp_hexapod_bt_control hw_calibrate.py --step teach`；

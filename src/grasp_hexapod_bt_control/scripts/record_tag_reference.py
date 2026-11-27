@@ -1,14 +1,17 @@
 #!/usr/bin/env python3
 """Teach-in helper: average N fresh AprilTag detections and print yaml lines.
 
-The camera cannot image the tag at the climb start pose P0 (it is practically
-touching Xiaolan), so teach from a back-off pose: place the robot at P0, walk
-straight back along a heading line to where the tag is clearly visible, measure
-the back-off distance D with a tape, then run
-  rosrun grasp_hexapod_bt_control record_tag_reference.py _tag_id:=0 _samples:=30 _offset_from_p0_m:=<D>
-Prints tag_ref_x_m / tag_p0_z_m / tag_ref_yaw_rad for config/phase1_visual.yaml,
-with tag_p0_z_m = mean taught depth - D (virtual depth at P0; an error in D
-transfers 1:1 to the stopping position), and the sample standard deviations.
+Preferred (hardware 2026-11-27: the camera still sees the tag at ~0.15 m when
+the front legs touch Xiaolan, so the tag is visible at P0): place the robot at
+the climb start pose P0 in the walking stance that will be used, then run
+  rosrun grasp_hexapod_bt_control record_tag_reference.py _tag_id:=<ID> _samples:=30
+(_offset_from_p0_m defaults to 0). Fallback when the tag cannot be seen at P0:
+walk straight back from P0 to where it is clearly visible, measure the back-off
+distance D with a tape and pass _offset_from_p0_m:=<D>; then tag_p0_z_m =
+mean taught depth - D (virtual depth at P0; an error in D transfers 1:1 to the
+stopping position).
+Prints tag_ref_x_m / tag_p0_z_m / tag_ref_yaw_rad for config/phase1_visual.yaml
+and the sample standard deviations.
 
 Frame: camera optical (x right, y down, z forward).  yaw uses the same
 definition as the controller: yaw = atan2(R(2,0), R(0,0)) with R the rotation
@@ -47,10 +50,12 @@ def main():
     max_age = rospy.get_param("~max_age_s", 0.25)
     frame = rospy.get_param("~frame", "camera_color_optical_frame")
     timeout = rospy.get_param("~timeout_s", 30.0)
-    offset = rospy.get_param("~offset_from_p0_m", None)
-    if offset is None or isinstance(offset, bool) or not isinstance(offset, (int, float)) \
-            or not math.isfinite(offset) or not offset > 0.0:
-        rospy.logerr("~offset_from_p0_m is required and must be > 0 (measured back-off distance D from P0, metres)")
+    # 0 = taught at P0 itself (hardware 2026-11-27: the tag stays visible down to
+    # ~0.15 m, i.e. at P0). > 0 only when teaching from a measured back-off D.
+    offset = rospy.get_param("~offset_from_p0_m", 0.0)
+    if isinstance(offset, bool) or not isinstance(offset, (int, float)) \
+            or not math.isfinite(offset) or offset < 0.0:
+        rospy.logerr("~offset_from_p0_m must be >= 0 (0 = robot at P0; else measured back-off D in metres)")
         sys.exit(1)
     samples = []
     last_stamp = [0.0]

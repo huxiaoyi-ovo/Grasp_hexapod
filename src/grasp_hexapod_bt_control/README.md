@@ -173,8 +173,8 @@ Desktop view (`show_windows:=true`, default; needs the robot computer's own disp
 
 Teach-in reminder: `tag_ref_x_m`, `tag_p0_z_m` and `tag_ref_yaw_rad` in
 `config/phase1_visual.yaml` are placeholders. Teach them with
-`scripts/record_tag_reference.py` (needs the measured back-off distance
-`_offset_from_p0_m`) before `approach` can succeed.
+`scripts/record_tag_reference.py` with the robot at P0 (offset 0 by default;
+see below) before `approach` can succeed.
 
 The launch sets `climb_config_file:=climb_front_v11.json`,
 `allow_front_hardware:=true` (explicit hardware opt-in for the front route; the
@@ -194,11 +194,13 @@ now stops at the coarse `visual_stop_distance_m: 0.20` and hands off to the tag:
   `tag_guidance_id` (0) with a finite pose in front of the camera, age
   `<= tag_max_age_s` (0.25), frame `visual_expected_target_frame`, the run
   switches permanently to TagGuidance; YOLO is then ignored for control.
-- The camera cannot image the tag at the climb start pose P0 (it is practically
-  touching Xiaolan). The tag therefore guides alignment and the advance, and a
-  short blind finish (leg odometry + IMU heading hold) covers the rest.
-  `tag_p0_z_m` is a VIRTUAL depth: taught depth minus the measured back-off
-  distance D; an error in D transfers 1:1 to the stopping position.
+- Hardware 2026-11-27: the camera still sees the tag at ~0.15 m depth with the
+  front legs touching Xiaolan, so the tag is visible at the climb start pose P0
+  (P0 front feet are ~27 mm from the face; P0 depth ~0.17-0.18 m). The tag
+  therefore guides alignment and the advance to the end; the blind finish
+  (leg odometry + IMU heading hold) only covers a tag loss. With a back-off
+  teaching (fallback) `tag_p0_z_m` is a VIRTUAL depth: taught depth minus the
+  measured back-off distance D; an error in D transfers 1:1 to the stop.
   `z_target = tag_p0_z_m - tag_final_overshoot_m` (default 0.01, i.e. aim 1 cm
   closer than P0).
 - Tag geometry (camera optical frame; the Gemini 336L optical axis is parallel
@@ -283,12 +285,12 @@ now stops at the coarse `visual_stop_distance_m: 0.20` and hands off to the tag:
   `"blind finish timeout"`, `"tag alignment timeout"`, and
   `"coarse stop reached without tag handoff"`.
 - `tag_ref_x_m / tag_p0_z_m / tag_ref_yaw_rad` (defaults 0.0 / 0.15 / 0.0) are
-  PLACEHOLDERS and must be taught. Teach-in: put the robot at P0, walk straight
-  back along a taped heading line until the tag is clearly visible, measure the
-  back-off distance D with a tape, then
-  `rosrun grasp_hexapod_bt_control record_tag_reference.py _tag_id:=0 _samples:=30 _offset_from_p0_m:=<D>`
-  (`_offset_from_p0_m` required, > 0; optional `_topic:= _frame:=`). It prints
-  the three yaml lines (`tag_p0_z_m = mean z - D`) and the sample standard
+  PLACEHOLDERS and must be taught. Teach-in: put the robot at P0 (walking
+  stance), then
+  `rosrun grasp_hexapod_bt_control record_tag_reference.py _tag_id:=<ID> _samples:=30`
+  (`_offset_from_p0_m` defaults to 0; pass the measured back-off D > 0 only if
+  the tag cannot be seen at P0; optional `_topic:= _frame:=`). It prints the
+  three yaml lines (`tag_p0_z_m = mean z - D`) and the sample standard
   deviation of x, z and yaw.
 - Handoff gate / yaw jump: `tag_handoff_max_z_m` (yaml 0.5, code default 0 =
   off): only tag detections with camera depth z <= this count toward the handoff
@@ -298,13 +300,17 @@ now stops at the coarse `visual_stop_distance_m: 0.20` and hands off to the tag:
   handoff) between accepted samples is physically impossible for the robot and
   is rejected as pose ambiguity (in Coarse it resets the count; after handoff
   the update commands zero and a persistent run ends in "tag lost").
-- Teaching additions: choose the back-off distance D so the taught tag depth is
-  about 0.3 m (inside the 0.5 m gate, near the handover depth, because the
-  single-tag yaw bias varies with distance). Before teaching, check yaw vs
+- Teaching additions: before teaching, check yaw vs
   distance: back the robot straight from P0 in about 5 cm steps out to 0.5 m
   and confirm the tag yaw spread is <= 1 deg (half of `tag_yaw_tolerance_rad`
   0.035); a larger spread means a print/size/calibration problem - report it
   instead of teaching.
+- Stance for teaching: do the tag teaching and the yaw-vs-distance check in the
+  walking stance `Q_STAND` (body 96 mm; the camera sits 2.6 cm higher than in
+  the old stance). The climb-prep posture (`Q_CLIMB_PREP`, the old stance and
+  the climb P0) is entered automatically before the climb, after the tag
+  handoff: climb requests from the walking stance run the 2.6 s climb-prep
+  transition and then start the climb by themselves.
 - Mounting: mount the tag upright or upside down (180 deg is fine after
   teaching); a 90 deg in-plane mount gives |R(1,0)| about 1 and every detection
   is rejected. Print the official tag36h11 images; OpenCV's DICT_APRILTAG_36h11

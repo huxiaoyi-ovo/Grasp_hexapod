@@ -35,11 +35,19 @@
        from that YAML, which is loaded on the controller node). -->
   <arg name="tag_id" default="0"/>
   <arg name="tag_size_m" default="0.060"/>
+  <!-- Detector cost on the Jetson (848x480 @ 15 Hz, measured 2026-11-26):
+       decimate 1.0 = 145% CPU, 2.0 = 60-65% with identical detections and pose.
+       Integer values only (2.5 blurs the tag). 2.0 still detects a 50-60 mm tag
+       out to about 0.8 m, beyond the 0.5 m tag_handoff_max_z_m gate. -->
+  <arg name="tag_decimate" default="2.0"/>
+  <arg name="tag_threads" default="2"/>
   <arg name="climb_foot_gate_m" default="0.04"/>
   <arg name="start_dock_perception" default="true"/>
   <arg name="start_sequence" default="false"/>
-  <!-- Desktop viewing on the robot computer (needs a local display / DISPLAY):
-       YOLO overlay window, AprilTag overlay window and bottom dock camera window. -->
+  <!-- Desktop viewing on the robot computer: YOLO overlay window, AprilTag
+       overlay window and bottom dock camera window. The image_view windows are
+       skipped automatically when DISPLAY is unset (image_view segfaults without
+       an X display, e.g. over SSH). -->
   <arg name="show_windows" default="true"/>
   <arg name="stop_after" default=""/>
   <arg name="home_before_dock" default="false"/>
@@ -93,9 +101,14 @@
     <node pkg="apriltag_ros" type="apriltag_ros_continuous_node"
           name="xiaolan_apriltag_detector" clear_params="true" output="screen">
       <param name="tag_family" value="tag36h11"/>
+      <param name="tag_threads" value="$(arg tag_threads)"/>
+      <param name="tag_decimate" value="$(arg tag_decimate)"/>
+      <param name="tag_refine_edges" value="1"/>
       <param name="publish_tf" value="false"/>
       <param name="publish_tag_detections_image" type="bool" value="true"/>
-      <rosparam param="standalone_tags">
+      <!-- subst_value is required: without it the detector receives the literal
+           string "$(arg tag_id)", fails to load the tag and publishes nothing. -->
+      <rosparam param="standalone_tags" subst_value="true">
         - {id: $(arg tag_id), size: $(arg tag_size_m), name: xiaolan_tag}
       </rosparam>
       <rosparam param="tag_bundles">[]</rosparam>
@@ -104,8 +117,8 @@
       <remap from="tag_detections" to="/xiaolan/tag_detections"/>
       <remap from="tag_detections_image" to="/xiaolan/tag_detections_image"/>
     </node>
-    <node if="$(arg show_windows)" pkg="image_view" type="image_view"
-          name="tag_view" output="screen">
+    <node if="$(eval arg('show_windows') and optenv('DISPLAY', '') != '')"
+          pkg="image_view" type="image_view" name="tag_view" output="screen">
       <remap from="image" to="/xiaolan/tag_detections_image"/>
       <param name="window_name" value="AprilTag (approach alignment)"/>
       <param name="autosize" value="true"/>
@@ -113,7 +126,7 @@
   </group>
 
   <!-- Bottom dock camera (raw image; the ring detector publishes no overlay yet). -->
-  <node if="$(eval arg('show_windows') and arg('start_dock_perception'))"
+  <node if="$(eval arg('show_windows') and arg('start_dock_perception') and optenv('DISPLAY', '') != '')"
         pkg="image_view" type="image_view" name="dock_view" output="screen">
     <remap from="image" to="/dock_camera/image_raw"/>
     <param name="window_name" value="Dock camera (bottom)"/>

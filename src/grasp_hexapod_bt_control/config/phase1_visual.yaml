@@ -40,13 +40,17 @@ tag_max_yaw_jump_rad: 0.10
 tag_max_age_s: 0.25
 # Taught reference of the tag in camera_color_optical_frame
 # (x right, y down, z forward). !!! PLACEHOLDERS, MUST BE TAUGHT on the rig:
-#   rosrun grasp_hexapod_bt_control record_tag_reference.py _tag_id:=0 _samples:=30 _offset_from_p0_m:=<D>
+#   robot at the climb start pose P0, walking stance, then
+#   rosrun grasp_hexapod_bt_control record_tag_reference.py _tag_id:=<ID> _samples:=30
+# (hardware 2026-11-27: the tag stays visible down to ~0.15 m camera depth, so
+# it is taught at P0 directly; _offset_from_p0_m:=<D> only as a back-off
+# fallback, then tag_p0_z_m is a virtual depth at P0).
 # yaw = atan2(R(2,0), R(0,0)) of the tag frame in the camera frame (tag x axis).
-# The camera cannot image the tag at the climb start pose P0, so the tag is
-# taught from a back-off distance D behind P0 and the depth is converted to a
-# virtual depth at P0. After handoff: align (lateral + yaw), advance on the tag
-# toward z_target = tag_p0_z_m - tag_final_overshoot_m, and when the tag is lost
-# finish the remaining distance blind (leg odometry + IMU heading hold).
+# The camera is pitched slightly down; the reference absorbs it, but re-teach
+# whenever the walking stance (camera height) changes. After handoff: align
+# (lateral + yaw), advance on the tag toward z_target = tag_p0_z_m -
+# tag_final_overshoot_m; only if the tag is lost finish the remaining distance
+# blind (leg odometry + IMU heading hold).
 tag_ref_x_m: 0.0
 # virtual tag depth at P0 = taught depth - offset D; computed by record_tag_reference.py
 tag_p0_z_m: 0.15

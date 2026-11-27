@@ -171,6 +171,8 @@ takeover; nothing is retried.
 
 Desktop view (`show_windows:=true`, default; needs the robot computer's own display): the YOLO window shows the box, Xiaolan centre and `X_target`/`Z_target`; the AprilTag window shows the detected tag outline and id; the dock window shows the raw bottom camera (no ring overlay yet). The terminal prints the mode progress, the visual approach state with target x/z, bearing and commands, and during alignment the tag x/z/yaw, errors and commands every 2 s. Over ssh without a display, pass `show_windows:=false` and use `rqt_image_view` on `/xiaolan_visualizer/image`, `/xiaolan/tag_detections_image` or `/dock_camera/image_raw`.
 
+**实机操作手册**：[docs/HW_APPROACH_RUNBOOK.md](docs/HW_APPROACH_RUNBOOK.md)（approach 测试的完整顺序）。
+
 **实机标定向导**：`rosrun grasp_hexapod_bt_control hw_calibrate.py`（终端交互，自动写配置；步骤见 [docs/HW_CALIBRATION.md](docs/HW_CALIBRATION.md)）。
 
 Teach-in reminder: `tag_ref_x_m`, `tag_p0_z_m` and `tag_ref_yaw_rad` in

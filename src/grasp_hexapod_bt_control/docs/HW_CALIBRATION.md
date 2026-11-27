@@ -1,5 +1,7 @@
 # 实机 approach 标定（`hw_calibrate.py`）
 
+> 完整的实机操作顺序（启动 → 标定 → 测试 → 排错）见 [HW_APPROACH_RUNBOOK.md](HW_APPROACH_RUNBOOK.md)。
+
 目标：让机器人从 1–2 m 外，经 YOLO 粗接近、AprilTag 对准，停到攀爬起点 P0。
 标定向导一边提示一边读传感器，自动把结果写进配置。它**只读话题、不发运动指令**，
 每次改文件前都会自动备份为 `<文件名>.bak_<时间戳>`。

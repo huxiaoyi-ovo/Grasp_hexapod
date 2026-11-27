@@ -95,14 +95,14 @@ def yes(prompt, default="y"):
 # ---------------------------------------------------------------- 配置文件读写
 
 def read_yaml_value(path, key):
-    match = re.search(rf"^{re.escape(key)}:\s*([^#\n]+)", path.read_text(), re.M)
+    match = re.search(rf"^{re.escape(key)}:[ \t]*([^#\n]+)", path.read_text(), re.M)
     return match.group(1).strip() if match else None
 
 
 def write_yaml_values(path, values, backup_done):
     text = path.read_text()
     for key, value in values.items():
-        pattern = rf"^({re.escape(key)}:\s*)([^#\n]*?)(\s*(#.*)?)$"
+        pattern = rf"^({re.escape(key)}:[ \t]*)([^#\n]*?)([ \t]*(#.*)?)$"
         if not re.search(pattern, text, re.M):
             raise RuntimeError(f"{path} 中找不到 {key}")
         text = re.sub(pattern, lambda m: f"{m.group(1)}{value}{m.group(3)}", text, count=1, flags=re.M)
@@ -150,7 +150,7 @@ def tag_yaw(q):
 
 
 def collect_tags(tag_id, count, timeout_s):
-    """收集 count 个新鲜、有效的 (x, z, yaw)；返回样本和看到的其他 ID。"""
+    """收集 count 个新鲜、有效的 (x, z, yaw)；返回 (样本, 其他 ID, 坐标系是否正确)。"""
     from apriltag_ros.msg import AprilTagDetectionArray
     samples, other_ids, last, frames = [], set(), [0.0], set()
 
@@ -161,10 +161,13 @@ def collect_tags(tag_id, count, timeout_s):
             if det.id[0] != tag_id:
                 other_ids.add(det.id[0])
                 continue
-            stamp = det.pose.header.stamp.to_sec() or msg.header.stamp.to_sec()
+            # 与控制器 mode_approach.cpp 相同：检测自带时间戳时用它自己的 header
+            #（含坐标系），否则用数组的 header。
+            header = det.pose.header if not det.pose.header.stamp.is_zero() else msg.header
+            stamp = header.stamp.to_sec()
             if stamp <= last[0]:
                 continue
-            frames.add(det.pose.header.frame_id or msg.header.frame_id)
+            frames.add(header.frame_id)
             p, yaw = det.pose.pose.pose.position, tag_yaw(det.pose.pose.pose.orientation)
             if yaw is None or not p.z > 0.0:
                 continue
@@ -180,8 +183,8 @@ def collect_tags(tag_id, count, timeout_s):
     if bad:
         say(f"  ✗ tag 坐标系是 {sorted(bad)}，控制器只接受 {FRAME}，approach 会拒收所有 tag。"
             "检查 full_mission.launch 里检测器订阅的图像话题。")
-        return [], other_ids
-    return samples[:count], other_ids
+        return [], other_ids, False
+    return samples[:count], other_ids, True
 
 
 def stats(samples):
@@ -217,6 +220,27 @@ def imu_yaw(timeout_s=2.0):
 
 # ---------------------------------------------------------------- 各步骤
 
+def stance_error():
+    """当前关节反馈与行走站姿 Q_STAND 的最大偏差（rad）；读不到返回 None。"""
+    from sensor_msgs.msg import JointState
+    try:
+        import rospkg
+        sys.path.insert(0, str(Path(rospkg.RosPack().get_path("grasp_hexapod_control")) / "scripts"))
+        from kinematics import Q_STAND
+    except Exception:  # noqa: BLE001
+        return None
+    worst = 0.0
+    for index, leg in enumerate(("lb", "lf", "lm", "rb", "rf", "rm")):
+        try:
+            msg = rospy.wait_for_message(f"/{leg}_pos", JointState, timeout=1.0)
+        except rospy.ROSException:
+            return None
+        if len(msg.position) < 3:
+            return None
+        worst = max(worst, max(abs(msg.position[j] - Q_STAND[index][j]) for j in range(3)))
+    return worst
+
+
 def step_tag_config(ctx):
     say("\n== 1/6 tag 配置 ==")
     yaml_id = read_yaml_value(ctx.yaml, "tag_guidance_id")
@@ -224,6 +248,9 @@ def step_tag_config(ctx):
     launch_size = read_launch_default(ctx.launch, "tag_size_m")
     say(f"  当前：yaml tag_guidance_id={yaml_id}，launch tag_id={launch_id}，tag_size_m={launch_size}")
     tag_id = ask_number("  小蓝正面用于接近的 tag 编号（tag36h11）", yaml_id, int, 0, 586)
+    if launch_id is None or launch_size is None:
+        say(f"  ✗ {ctx.launch} 里找不到 tag_id / tag_size_m 参数，无法自动设置。")
+        raise Quit()
     size = ask_number("  tag 黑框外边长（米，例如 0.05）", launch_size, float, 0.01, 0.30)
     ctx.tag_id = tag_id
     changed = False
@@ -234,7 +261,7 @@ def step_tag_config(ctx):
         write_launch_default(ctx.launch, "tag_id", tag_id, ctx.backups)
         changed = True
     if abs(size - float(launch_size)) > 1e-9:
-        write_launch_default(ctx.launch, "tag_size_m", f"{size:.3f}", ctx.backups)
+        write_launch_default(ctx.launch, "tag_size_m", f"{size:.4f}", ctx.backups)
         changed = True
     if changed:
         say("  已写入。检测器只在启动时加载 tag 编号和边长，需要重启 full_mission.launch。")
@@ -276,14 +303,26 @@ def step_yolo(ctx):
     for distance in ("1.0", "2.0"):
         if not wait_enter(f"  把机器人放在小蓝正前方约 {distance} m，相机对着小蓝"):
             continue
-        got = []
-        sub = rospy.Subscriber(TARGET_TOPIC, XiaolanTarget,
-                               lambda m: got.append((m.x_target, m.z_target)) if m.detected else None, queue_size=50)
+        got, no_depth = [], [0]
+
+        def on_target(m):
+            if not m.detected:
+                return
+            if math.isfinite(m.z_target) and m.z_target > 0.0:
+                got.append((m.x_target, m.z_target))
+            else:
+                no_depth[0] += 1
+
+        sub = rospy.Subscriber(TARGET_TOPIC, XiaolanTarget, on_target, queue_size=50)
         time.sleep(3.0)
         sub.unregister()
         if not got:
-            say(f"  ✗ {distance} m：3 秒内没有检出小蓝。approach 无法从这个距离开始。")
-            say("    检查：画面里小蓝是否完整、光线、模型是否加载（看 xiaolan_yolo_node 日志）。")
+            if no_depth[0]:
+                say(f"  ✗ {distance} m：检出了小蓝但没有有效深度（{no_depth[0]} 帧）。approach 会因 "
+                    "TARGET_PENDING 失败：检查深度相机、距离是否超出 max_depth（xiaolan_yolo.yaml）。")
+            else:
+                say(f"  ✗ {distance} m：3 秒内没有检出小蓝。approach 无法从这个距离开始。")
+                say("    检查：画面里小蓝是否完整、光线、模型是否加载（看 xiaolan_yolo_node 日志）。")
             continue
         xs = [g[0] for g in got]
         zs = [g[1] for g in got]
@@ -308,6 +347,9 @@ def step_imu(ctx):
     if abs(delta) < 10.0:
         say("  变化太小，无法判断，跳过（转得不够或 IMU 无输出）。")
         return
+    if not yes("  确认刚才是从上往下看【逆时针】转的？"):
+        say("  方向不确定：不写入，请重做这一步（--step imu）。")
+        return
     sign = 1.0 if delta > 0 else -1.0
     current = read_yaml_value(ctx.yaml, "tag_imu_yaw_sign")
     say(f"  tag_imu_yaw_sign 应为 {sign:+.0f}（当前 {current}）")
@@ -329,8 +371,19 @@ def step_teach(ctx):
     while True:
         if not wait_enter("  摆好了"):
             return
+        error = stance_error()
+        if error is None:
+            say("  ⚠ 读不到六条腿的关节反馈，无法确认站姿。")
+        elif error > 0.10:
+            say(f"  ⚠ 当前关节离行走站姿差 {error:.2f} rad：请先在看板点 home，站好后再摆到 P0。")
+            if yes("  重新摆放？"):
+                continue
+        else:
+            say(f"  站姿正确（离行走站姿 {error:.3f} rad）。")
         say(f"  采集 tag {ctx.tag_id} 的 30 帧……")
-        samples, others = collect_tags(ctx.tag_id, 30, 15.0)
+        samples, others, frame_ok = collect_tags(ctx.tag_id, 30, 15.0)
+        if not frame_ok:
+            return
         if len(samples) < 30:
             say(f"  ✗ 只收到 {len(samples)} 帧 tag {ctx.tag_id}。" +
                 (f" 画面里看到的是其他编号 {sorted(others)}，回到第 1 步改编号。" if others else
@@ -366,17 +419,23 @@ def step_yaw_check(ctx):
     for distance in ("0.30", "0.45"):
         if not wait_enter(f"  沿直线后退到相机离 tag 约 {distance} m，不要转身"):
             continue
-        samples, _ = collect_tags(ctx.tag_id, 15, 10.0)
+        samples, _, frame_ok = collect_tags(ctx.tag_id, 15, 10.0)
+        if not frame_ok:
+            return
         if len(samples) < 10:
             say(f"  ✗ {distance} m 收不到足够的 tag 帧（{len(samples)}）")
             continue
         _, mz, myaw, *_ = stats(samples)
-        yaws.append(myaw)
         say(f"  {distance} m：z={mz:.3f} m  yaw={math.degrees(myaw):+.2f} 度")
+        if abs(mz - float(distance)) > 0.08:
+            say(f"  ⚠ 实测深度 {mz:.2f} m 与要求的 {distance} m 差太多，这一点不计入（是否没有后退？）")
+            continue
+        yaws.append(myaw)
     if ctx.taught_yaw is not None:
         yaws.append(ctx.taught_yaw)
     if len(yaws) >= 2:
-        spread = math.degrees(max(yaws) - min(yaws))
+        diffs = [math.atan2(math.sin(y - yaws[0]), math.cos(y - yaws[0])) for y in yaws]
+        spread = math.degrees(max(diffs) - min(diffs))
         verdict = "OK" if spread <= 1.0 else "偏大：可能 tag 打印变形、边长不对或相机标定误差，先报告再上机"
         say(f"  偏航随距离的变化 {spread:.2f} 度（≤1 度为正常）：{verdict}")
 
@@ -423,6 +482,13 @@ def main():
         say("\n已退出。")
     if ctx.backups:
         say("\n本次改动的文件：" + "，".join(p.name for p in ctx.backups) + "（原文件已备份为 .bak_时间戳）")
+        say("当前标定值（请保存或发给开发同学入库）：")
+        for key in ("tag_guidance_id", "tag_ref_x_m", "tag_p0_z_m", "tag_ref_yaw_rad", "tag_imu_yaw_sign"):
+            say(f"  {key}: {read_yaml_value(ctx.yaml, key)}")
+        say(f"  launch tag_id: {read_launch_default(ctx.launch, 'tag_id')}  "
+            f"tag_size_m: {read_launch_default(ctx.launch, 'tag_size_m')}")
+        say("注意：这些文件受 git 管理。以后 git pull 前先 git stash，pull 完再 git stash pop，"
+            "否则 pull 会因本地改动失败。")
     if ctx.changed_params or ctx.backups:
         say("下一步：Ctrl-C 停掉 full_mission.launch 并重新启动，让控制节点读取新参数。")
         say("然后把机器人放到 1-2 m 外，在看板上依次点 home -> spin_search -> approach（不要点 climb）。")

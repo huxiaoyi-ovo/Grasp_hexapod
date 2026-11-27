@@ -1448,7 +1448,8 @@ class RosControlNode:
         """攀爬入口配置（side/足端门限与旧入口一致）。"""
 
         config = self.controller.climb_mode._load_config()
-        config = select_compact_climb_side(config, getattr(self, "climb_side", "left"))
+        climb_side = getattr(self, "climb_side", "left")
+        config = select_compact_climb_side(config, climb_side)
         config["settle_gate"]["max_foot_target_error_m"] = getattr(
             self, "climb_foot_gate_m", 0.02
         )

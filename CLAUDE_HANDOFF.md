@@ -570,3 +570,25 @@
 - 证据：`src/docs/evidence/xiaolan_yolo_resource_20261127/`（6 个 JSON + tegrastats 侧录 + launch 日志 + validation.txt + manifest.sha256，校验通过）。
 - **遗留（P3 检出等价性）**：实机场景无目标，"同场景检出率相同、框中心 ≤1 px、置信度 ≤0.01"无法测；目标放回视野后按 validation.txt 的 baseline-style 流程补测。相机进程仍在跑（SW），供补测直接用。
 - 台架诊断，不构成硬件运动授权；`full_mission.launch` 的感知邻接项（image_proc 矫正链、AprilTag 无 decimate/threads 参数、show_windows 默认 true、standalone_tags 缺 subst_value）未动，仍待用户决定。
+
+## 2026-11-27 Claude Code (Sol): approach deployment prep finished on local test (not pushed)
+- Local commits on top of origin/test (537d929 merged in f0ab125):
+  - c46e48e: walking gait.
+  - d98c163: Q_STAND = walking stance, Q_CLIMB_PREP = old stance, controller climb-prep transition and mission path.
+  - a366723: every climb entry runs the transition (X / BT climb / BT mode_climb / run_real / run_sim `--climb-from-walk-stance`). Sol finished the Luna run 2b, which stopped on a rate limit. C++ gtests 5/9/7/13 pass.
+  - c31743f: tag chain.
+    - full_mission.launch standalone_tags gains subst_value. Before this the detector published nothing.
+    - New tag_decimate 2 and tag_threads 2.
+    - image_view starts only when DISPLAY is set.
+    - Tag teaching happens at P0 (offset 0 by default; hardware: tag visible to ~0.15 m).
+    - PROJECT_MEMORY: the camera is pitched slightly down.
+    - New `src/grasp_hexapod_bt_control/test/approach_closed_loop_e2e.py`.
+- Closed loop (isolated master, compiled bt_control_node, fake servos, kinematic world with synthetic YOLO/tag/IMU, tag taught at P0): 4/4 PASS against P0 with a budget of right 15 mm, forward 20 mm, yaw 3°.
+  - straight: −1.6 / 5.4 mm / 0.25°.
+  - far offset (1.0 m, 12 cm, 20°): −3.3 / 5.5 mm / −0.30°.
+  - search (target outside the FOV): 3.7 / 6.7 mm / 0.26°.
+  - tag hidden below 0.24 m, blind finish: −5.6 / 10.1 mm / 0.52°.
+  - The tag handoff happens at 0.49 m (the 0.5 m gate).
+- Timing: the C++ gait alone costs mean 0.023 ms and max 0.36 ms per frame on the desktop (600 frames walking). The 30–100 ms control-loop spikes seen in the closed-loop run come from host load (Python world + ROS), not from the gait. Isaac `--climb-start --climb-from-walk-stance`: the prep takes 78 frames, then C1..C27 complete; PREVIEW VERDICT SUCCESS.
+- Hardware TODO after the push: teach the tag at P0; confirm tag ID (0 vs 255) and size (0.05 vs 0.06), IMU yaw sign and camera pitch; launch with show_windows:=false over SSH.
+- Climb session closed. Its v16.6 is still a prototype (`claude_front_v18_20261124/v166hw.json`, 10/11 Isaac, not in the repo). Control/node/BT/launch files are free again for climb work.

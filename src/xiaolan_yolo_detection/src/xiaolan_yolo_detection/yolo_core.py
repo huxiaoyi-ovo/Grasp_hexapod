@@ -52,6 +52,67 @@ def best_box(output, mapping, confidence):
     return None
 
 
+def depth_median_sparse(depth, encoding, k_depth, k_color, r_cd, t_cd, box, center,
+                        roi_size=9, min_valid=5, min_z=.2, max_z=1., diagnostics=None):
+    """Depth at a colour-image ROI from an UNALIGNED depth image (sparse D2C).
+
+    Same result as depth_median() on a driver-aligned image, without aligning
+    the whole frame: only the depth pixels that can land in the colour ROI
+    (a window bounded by the depth-colour parallax at min_z) are back-projected
+    with the depth intrinsics, moved into the colour frame (p_c = r_cd @ p_d +
+    t_cd) and projected with the colour intrinsics.  Returns the median colour-
+    frame z of the points inside the ROI (clipped to the bbox) or None.
+    k_depth / k_color: 3x3 intrinsics; box/center in colour pixels.
+    """
+    if encoding not in ('16UC1', '32FC1') or depth.ndim != 2:
+        raise ValueError('Expected single-channel 16UC1 mm or 32FC1 metres')
+    scale = .001 if encoding == '16UC1' else 1.
+    k_depth, k_color = np.asarray(k_depth, float).reshape(3, 3), np.asarray(k_color, float).reshape(3, 3)
+    r_cd, t_cd = np.asarray(r_cd, float).reshape(3, 3), np.asarray(t_cd, float).reshape(3)
+    x, y, bw, bh = box
+    u, v = center
+    half = roi_size // 2
+    ru1, rv1 = max(x, u-half), max(y, v-half)
+    ru2, rv2 = min(x+bw, u+half+1), min(y+bh, v+half+1)
+    # Window in the depth image: the ROI centre seen at infinity (rotation only),
+    # widened by the largest parallax (at min_z) plus the ROI size.
+    ray = np.linalg.solve(k_color, [u, v, 1.])
+    at_inf = k_depth @ (r_cd.T @ ray)
+    ud, vd = at_inf[0]/at_inf[2], at_inf[1]/at_inf[2]
+    margin = int(np.ceil(k_depth[0, 0]*np.linalg.norm(t_cd)/max(min_z, 1e-3))) + roi_size
+    h, w = depth.shape
+    c1, c2 = max(0, int(ud)-margin), min(w, int(ud)+margin+1)
+    r1, r2 = max(0, int(vd)-margin), min(h, int(vd)+margin+1)
+    values = np.empty(0, np.float32)
+    positive_count = roi_pixels = 0
+    if c2 > c1 and r2 > r1:
+        win = depth[r1:r2, c1:c2].astype(np.float32) * scale
+        rows, cols = np.nonzero(np.isfinite(win) & (win > 0))
+        zd = win[rows, cols]
+        xd = (cols + c1 - k_depth[0, 2]) * zd / k_depth[0, 0]
+        yd = (rows + r1 - k_depth[1, 2]) * zd / k_depth[1, 1]
+        pc = r_cd @ np.vstack((xd, yd, zd)) + t_cd[:, None]
+        front = pc[2] > 1e-6
+        pc = pc[:, front]
+        uc = k_color[0, 0]*pc[0]/pc[2] + k_color[0, 2]
+        vc = k_color[1, 1]*pc[1]/pc[2] + k_color[1, 2]
+        inside = (uc >= ru1-.5) & (uc < ru2-.5) & (vc >= rv1-.5) & (vc < rv2-.5)
+        values = pc[2, inside].astype(np.float32)
+        positive_count = roi_pixels = int(values.size)
+    in_range = values[(values > min_z) & (values < max_z)]
+    if diagnostics is not None:
+        diagnostics.update(encoding=encoding, roi_pixels=roi_pixels, positive_pixels=positive_count,
+            min_depth_m=min_z, max_depth_m=max_z,
+            observed_median_m=float(np.median(values)) if values.size else None,
+            below_range_pixels=int(np.count_nonzero(values <= min_z)),
+            above_range_pixels=int(np.count_nonzero(values >= max_z)),
+            valid_pixels=int(in_range.size), required_pixels=min_valid, sparse_align=True,
+            reason=('MEASURED' if in_range.size >= min_valid else
+                    'NO_VALID_DEPTH' if not values.size else
+                    'DEPTH_OUT_OF_RANGE' if not in_range.size else 'INSUFFICIENT_DEPTH_PIXELS'))
+    return float(np.median(in_range)) if in_range.size >= min_valid else None
+
+
 def depth_median(depth, encoding, box, center, roi_size=9,
                  min_valid=5, min_z=.2, max_z=1., diagnostics=None):
     """Use only the central ROI clipped to bbox; ignore zero/NaN/out-of-range."""

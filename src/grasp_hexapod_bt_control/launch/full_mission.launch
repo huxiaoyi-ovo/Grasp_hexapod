@@ -28,6 +28,12 @@
   <arg name="servo_diagnostics" default="true"/>
   <arg name="camera_fps" default="15"/>
   <arg name="perception_config" default="$(find xiaolan_yolo_detection)/config/xiaolan_yolo.yaml"/>
+  <!-- CPU option (default off until A/B-measured on the robot): the camera
+       skips its full-frame software depth->colour alignment and target_3d
+       aligns only the YOLO ROI pixels (yolo_core.depth_median_sparse, same
+       result within a few mm in tests). Measure with
+       tests/resource_profile.py before/after. -->
+  <arg name="sparse_depth_align" default="false"/>
 
   <!-- Full-mission additions. -->
   <arg name="start_tag_detector" default="true"/>
@@ -89,6 +95,7 @@
 
   <include if="$(arg start_camera)" file="$(find xiaolan_yolo_detection)/launch/xiaolan_orbbec_camera.launch">
     <arg name="camera_fps" value="$(arg camera_fps)"/>
+    <arg name="depth_registration" value="$(eval not arg('sparse_depth_align'))"/>
   </include>
   <include if="$(arg start_perception)" file="$(find xiaolan_yolo_detection)/launch/xiaolan_yolo.launch">
     <arg name="backend" value="$(arg backend)"/>
@@ -97,6 +104,7 @@
     <arg name="engine_path" value="$(arg engine_path)"/>
     <arg name="config" value="$(arg perception_config)"/>
     <arg name="show_window" value="$(arg show_windows)"/>
+    <arg name="sparse_align" value="$(arg sparse_depth_align)"/>
   </include>
 
   <!-- AprilTag detector for tag guidance. phase1_visual.launch does not provide

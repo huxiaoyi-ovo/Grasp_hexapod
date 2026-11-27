@@ -11,7 +11,25 @@ from cv_bridge import CvBridge
 from sensor_msgs.msg import Image, CameraInfo
 from std_msgs.msg import String
 from xiaolan_yolo_detection.msg import XiaolanDetection, XiaolanTarget, PerceptionStatus
-from xiaolan_yolo_detection.yolo_core import depth_median, StableTarget
+from xiaolan_yolo_detection.yolo_core import depth_median, depth_median_sparse, StableTarget
+
+
+def validate_sparse(det, depth, depth_info, color_info):
+    """Sparse mode: depth stays in its own frame; colour intrinsics are required."""
+    if depth_info is None or color_info is None:
+        raise ValueError('CAMERA_INFO_MISSING')
+    if not det.header.frame_id or not depth.header.frame_id:
+        raise ValueError('EMPTY_FRAME_ID')
+    if (depth.width, depth.height) != (depth_info.width, depth_info.height):
+        raise ValueError('DEPTH_INFO_SIZE_MISMATCH')
+    if (det.image_width, det.image_height, det.header.frame_id) != (
+            color_info.width, color_info.height, color_info.header.frame_id):
+        raise ValueError('COLOR_INFO_MISMATCH')
+    for info in (depth_info, color_info):
+        if len(info.K) != 9 or not np.isfinite(info.K).all() or info.K[0] <= 0 or info.K[4] <= 0:
+            raise ValueError('INVALID_INTRINSICS')
+        if info.binning_x > 1 or info.binning_y > 1 or info.roi.x_offset or info.roi.y_offset:
+            raise ValueError('ROI/BINNING_NOT_SUPPORTED')
 
 
 def validate_alignment(det, depth, aligned_info, color_info):
@@ -53,6 +71,16 @@ class Target3DNode:
         self.max_result_age = float(p('~max_result_age', .25))
         self.hold_time = float(p('~max_hold_seconds', .25))
         self.roi = int(p('~roi_size', 9))
+        # ~sparse_align: the camera driver does NOT align depth to colour
+        # (depth_registration:=false saves its full-frame software D2C); only
+        # the ROI depth pixels are moved into the colour frame here, using the
+        # driver's static TF depth->colour.  Off by default.
+        self.sparse = bool(p('~sparse_align', False))
+        self.extrinsic = None
+        if self.sparse:
+            import tf2_ros
+            self.tf_buffer = tf2_ros.Buffer()
+            self.tf_listener = tf2_ros.TransformListener(self.tf_buffer)
         self.min_valid = int(p('~min_valid_depth_pixels', 5))
         self.min_z, self.max_z = float(p('~min_depth', .2)), float(p('~max_depth', 2.5))
         self.center = float(p('~center_tolerance_m', .03))
@@ -102,6 +130,28 @@ class Target3DNode:
             rospy.Subscriber(p('~aligned_info_topic', '/camera/depth/camera_info'), CameraInfo, self.aligned_cb, queue_size=1),
             rospy.Subscriber(p('~color_info_topic', '/camera/color/camera_info'), CameraInfo, self.color_cb, queue_size=1),
         ]
+
+    def check_geometry(self, det, depth, ai, ci):
+        if self.sparse:
+            validate_sparse(det, depth, ai, ci)
+        else:
+            validate_alignment(det, depth, ai, ci)
+
+    def depth_to_color(self, color_frame, depth_frame):
+        """Static depth->colour extrinsic (p_c = R p_d + t), looked up once."""
+        if self.extrinsic is None or self.extrinsic[0] != (color_frame, depth_frame):
+            try:
+                tf = self.tf_buffer.lookup_transform(color_frame, depth_frame, rospy.Time(0))
+            except Exception:
+                raise ValueError('NO_DEPTH_TO_COLOR_TF')
+            q, t = tf.transform.rotation, tf.transform.translation
+            x, y, z, w = q.x, q.y, q.z, q.w
+            rot = np.array([[1-2*(y*y+z*z), 2*(x*y-z*w), 2*(x*z+y*w)],
+                            [2*(x*y+z*w), 1-2*(x*x+z*z), 2*(y*z-x*w)],
+                            [2*(x*z-y*w), 2*(y*z+x*w), 1-2*(x*x+y*y)]])
+            self.extrinsic = ((color_frame, depth_frame), rot, np.array([t.x, t.y, t.z]))
+            rospy.loginfo('sparse_align: depth->colour t=%s m', np.round(self.extrinsic[2], 4).tolist())
+        return self.extrinsic[1], self.extrinsic[2]
 
     def depth_cb(self, msg):
         with self.lock:
@@ -230,7 +280,7 @@ class Target3DNode:
             else:
                 try:
                     validate_depth_source(depth, rospy.Time.now(), self.max_result_age)
-                    validate_alignment(det, depth, ai, ci)
+                    self.check_geometry(det, depth, ai, ci)
                     self.set_health(PerceptionStatus.NO_TARGET, 'NO_DETECTION', det, depth)
                 except Exception as error:
                     reason = str(error)
@@ -242,16 +292,24 @@ class Target3DNode:
             else:
                 try:
                     validate_depth_source(depth, rospy.Time.now(), self.max_result_age)
-                    validate_alignment(det, depth, ai, ci)
+                    self.check_geometry(det, depth, ai, ci)
                     dt = (depth.header.stamp-det.header.stamp).to_sec()
                     arr = self.bridge.imgmsg_to_cv2(depth, 'passthrough')
                     box = (det.bbox_x, det.bbox_y, det.bbox_width, det.bbox_height)
-                    z = depth_median(arr, depth.encoding, box, (det.center_u, det.center_v),
-                                     self.roi, self.min_valid, self.min_z, self.max_z,
-                                     diagnostics=depth_stats)
+                    if self.sparse:
+                        rot, trans = self.depth_to_color(det.header.frame_id, depth.header.frame_id)
+                        z = depth_median_sparse(arr, depth.encoding, ai.K, ci.K, rot, trans, box,
+                                                (det.center_u, det.center_v), self.roi, self.min_valid,
+                                                self.min_z, self.max_z, diagnostics=depth_stats)
+                        kx = ci.K
+                    else:
+                        z = depth_median(arr, depth.encoding, box, (det.center_u, det.center_v),
+                                         self.roi, self.min_valid, self.min_z, self.max_z,
+                                         diagnostics=depth_stats)
+                        kx = ai.K
                     reason = depth_stats['reason']
                     if z is not None:
-                        x = (det.center_u-ai.K[2])*z/ai.K[0]
+                        x = (det.center_u-kx[2])*z/kx[0]
                         measurement, reason = (x, z), 'MEASURED'
                 except Exception as error:
                     # A calibration/format error must never retain valid control data.

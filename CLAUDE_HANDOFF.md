@@ -607,3 +607,12 @@
 - 计划时长 38.5 s（v16.6 48.9 s、v16.1 39.1 s）。CPU 30 Hz DONE，1211 帧，0 次截断；C++ 仿真/实机模式 DONE，峰值 3.72 rad/s。提交时 Isaac 11 组扫描还在后台跑（`claude_front_v18_20261124/full_v167.log`）。
 - 原型文件：`/home/artrc/grasp_sync_backups/v167_20261127/`（merge_lb.py、cart_v167.py、c2r.json）。
 - 工作区里 `hw_calibrate.py` 的改动是别的会话的，没有提交。
+
+## 2026-11-27 Claude Code (Sol, walk/approach session): approach hardening + on-robot load, pushed 98d5178
+- Pushed: bc80369..98d5178.
+- Tag default ID 255 / 50 mm (Xiaolan is climbed from a side; "front climb" = hexapod faces it); launch tag_id also sets the controller tag_guidance_id.
+- Approach: per-frame arbitration (tag_fallback_on_loss): tag first (≤0.5 m, 3 frames) → YOLO until the 0.20 m coarse stop → else stop and wait 5 s; no IMU blind finish. Closed loop: 6/6 as expected, no IMU.
+- External (Gemini) review read the stale main checkout ca59b7f; the still-valid points are fixed in f5c7549: target_3d health published per frame; record_tag_reference race; tag_id sync; HOLD not counted toward the run timeout.
+- hw_calibrate prints the full guide; joystick LB = approach test, hold START 2 s = full mission, B cancels.
+- Load: AprilTag on raw image_raw (no image_proc chain); target_3d is event-driven; optional sparse_depth_align (default off, A/B on the robot with tests/resource_profile.py, which now covers all full_mission nodes).
+- The main checkout /home/artrc/Grasp_hexapod sits on a stale detached ca59b7f with duplicate uncommitted edits; point reviewers at grasp_wt_test (branch test).

@@ -2,8 +2,9 @@
 """实机 approach 标定向导（终端交互）。
 
 用法（full_mission.launch 已在运行时）：
-    rosrun grasp_hexapod_bt_control hw_calibrate.py            # 全部步骤
-    rosrun grasp_hexapod_bt_control hw_calibrate.py --step teach   # 只做某一步
+    rosrun grasp_hexapod_bt_control hw_calibrate.py               # 全部步骤
+    rosrun grasp_hexapod_bt_control hw_calibrate.py --step teach  # 只做某一步
+    rosrun grasp_hexapod_bt_control hw_calibrate.py --from topics # 从某一步往后
 
 步骤：tag 配置 -> 话题检查 -> YOLO 检查 -> IMU 方向 -> P0 示教 -> 偏航-距离检查。
 每一步都可以跳过（输入 s）或退出（输入 q）。写配置前自动备份原文件。
@@ -21,7 +22,18 @@ from pathlib import Path
 
 import rospy
 
-PKG_DIR = Path(__file__).resolve().parents[1]
+
+
+def package_dir():
+    """与 launch 的 $(find grasp_hexapod_bt_control) 相同的包目录。"""
+    try:
+        import rospkg
+        return Path(rospkg.RosPack().get_path("grasp_hexapod_bt_control"))
+    except Exception:  # noqa: BLE001  未 source 工作空间时退回源码位置
+        return Path(__file__).resolve().parents[1]
+
+
+PKG_DIR = package_dir()
 DEFAULT_YAML = PKG_DIR / "config" / "phase1_visual.yaml"
 DEFAULT_LAUNCH = PKG_DIR / "launch" / "full_mission.launch"
 FRAME = "camera_color_optical_frame"
@@ -37,6 +49,10 @@ class Quit(Exception):
     pass
 
 
+class Restart(Exception):
+    """配置已改、需要重启 launch：结束本次运行。"""
+
+
 def say(text=""):
     print(text, flush=True)
 
@@ -50,6 +66,20 @@ def ask(prompt, default=None):
     if answer.lower() == "q":
         raise Quit()
     return answer if answer else ("" if default is None else str(default))
+
+
+def ask_number(prompt, default, cast, low, high):
+    """反复询问直到得到 [low, high] 内的数字。"""
+    while True:
+        text = ask(prompt, default)
+        try:
+            value = cast(text)
+        except ValueError:
+            say(f"  请输入数字（{low}–{high}）")
+            continue
+        if low <= value <= high:
+            return value
+        say(f"  超出范围（{low}–{high}）")
 
 
 def wait_enter(prompt):
@@ -122,7 +152,7 @@ def tag_yaw(q):
 def collect_tags(tag_id, count, timeout_s):
     """收集 count 个新鲜、有效的 (x, z, yaw)；返回样本和看到的其他 ID。"""
     from apriltag_ros.msg import AprilTagDetectionArray
-    samples, other_ids, last = [], set(), [0.0]
+    samples, other_ids, last, frames = [], set(), [0.0], set()
 
     def callback(msg):
         for det in msg.detections:
@@ -134,6 +164,7 @@ def collect_tags(tag_id, count, timeout_s):
             stamp = det.pose.header.stamp.to_sec() or msg.header.stamp.to_sec()
             if stamp <= last[0]:
                 continue
+            frames.add(det.pose.header.frame_id or msg.header.frame_id)
             p, yaw = det.pose.pose.pose.position, tag_yaw(det.pose.pose.pose.orientation)
             if yaw is None or not p.z > 0.0:
                 continue
@@ -145,6 +176,11 @@ def collect_tags(tag_id, count, timeout_s):
     while len(samples) < count and time.time() < deadline and not rospy.is_shutdown():
         time.sleep(0.05)
     sub.unregister()
+    bad = frames - {FRAME}
+    if bad:
+        say(f"  ✗ tag 坐标系是 {sorted(bad)}，控制器只接受 {FRAME}，approach 会拒收所有 tag。"
+            "检查 full_mission.launch 里检测器订阅的图像话题。")
+        return [], other_ids
     return samples[:count], other_ids
 
 
@@ -187,8 +223,8 @@ def step_tag_config(ctx):
     launch_id = read_launch_default(ctx.launch, "tag_id")
     launch_size = read_launch_default(ctx.launch, "tag_size_m")
     say(f"  当前：yaml tag_guidance_id={yaml_id}，launch tag_id={launch_id}，tag_size_m={launch_size}")
-    tag_id = int(ask("  小蓝正面用于接近的 tag 编号（tag36h11）", yaml_id))
-    size = float(ask("  tag 黑框外边长（米）", launch_size))
+    tag_id = ask_number("  小蓝正面用于接近的 tag 编号（tag36h11）", yaml_id, int, 0, 586)
+    size = ask_number("  tag 黑框外边长（米，例如 0.05）", launch_size, float, 0.01, 0.30)
     ctx.tag_id = tag_id
     changed = False
     if str(tag_id) != str(yaml_id):
@@ -201,9 +237,11 @@ def step_tag_config(ctx):
         write_launch_default(ctx.launch, "tag_size_m", f"{size:.3f}", ctx.backups)
         changed = True
     if changed:
-        say("  已写入。检测器只在启动时加载 tag 编号和边长：")
-        say("  请 Ctrl-C 停掉 full_mission.launch 并重新启动，然后回到这里。")
-        wait_enter("  重启好了")
+        say("  已写入。检测器只在启动时加载 tag 编号和边长，需要重启 full_mission.launch。")
+        say("  roslaunch 自带的 ROS master 会随 launch 一起重启，本向导必须先退出：")
+        say("    1) 终端 A：Ctrl-C，再重新 roslaunch ... full_mission.launch show_windows:=false")
+        say("    2) 终端 B：rosrun grasp_hexapod_bt_control hw_calibrate.py --from topics")
+        raise Restart()
     else:
         say("  配置一致，无需改动。")
 
@@ -283,8 +321,11 @@ def step_teach(ctx):
     say("\n== 5/6 P0 示教 ==")
     if ctx.tag_id is None:
         ctx.tag_id = int(read_yaml_value(ctx.yaml, "tag_guidance_id"))
-    say("  把机器人摆到攀爬起点 P0：正对小蓝、前腿差不多挨着小蓝（前足离立面约 3 cm），")
-    say("  横向放在攀爬要求的位置，处于行走站姿（home 之后的默认站姿），机身静止。")
+    say("  先在看板点 home，让机器人站成行走站姿；然后把机器人摆到攀爬起点 P0：")
+    say("    - 正对小蓝正面，机身侧边与立面垂直（不要歪）；")
+    say("    - 机身中心线对准小蓝正面中心（攀爬配置里偏右约 5 mm，可视为居中）；")
+    say("    - 两只前脚脚尖离小蓝立面约 2 cm（机身中心离立面约 19.5 cm）；")
+    say("    - 机身静止、六条腿都着地。")
     while True:
         if not wait_enter("  摆好了"):
             return
@@ -357,6 +398,7 @@ class Context:
 def main():
     parser = argparse.ArgumentParser(description="实机 approach 标定向导")
     parser.add_argument("--step", choices=sorted(STEPS), help="只运行某一步")
+    parser.add_argument("--from", dest="start", choices=sorted(STEPS), help="从某一步开始往后运行")
     parser.add_argument("--yaml", type=Path, default=DEFAULT_YAML)
     parser.add_argument("--launch", type=Path, default=DEFAULT_LAUNCH)
     args = parser.parse_args(rospy.myargv()[1:])
@@ -364,10 +406,19 @@ def main():
     say("实机 approach 标定向导：只读传感器，不会让机器人运动。任何提示下输入 q 退出。")
     say(f"配置文件：{ctx.yaml}\nlaunch：  {ctx.launch}")
     rospy.init_node("hw_calibrate", anonymous=True, disable_signals=True)
-    steps = [args.step] if args.step else list(STEPS)
+    order = list(STEPS)
+    if args.step:
+        steps = [args.step]
+    elif args.start:
+        steps = order[order.index(args.start):]
+    else:
+        steps = order
     try:
         for name in steps:
             STEPS[name](ctx)
+    except Restart:
+        say("\n本次运行结束（等待重启 launch）。")
+        return 0
     except (Quit, KeyboardInterrupt):
         say("\n已退出。")
     if ctx.backups:

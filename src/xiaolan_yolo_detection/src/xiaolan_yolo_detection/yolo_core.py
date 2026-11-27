@@ -9,15 +9,16 @@ class Letterbox:
         self.canvas = np.empty((size, size, 3), np.uint8)
         self.tensor = np.empty((1, 3, size, size), np.float32)
 
-    def prepare(self, bgr):
-        h, w = bgr.shape[:2]
+    def prepare(self, rgb):
+        """Letterbox an RGB image into the reusable CHW tensor; input must be RGB."""
+        h, w = rgb.shape[:2]
         ratio = min(self.size / w, self.size / h)
         nw, nh = round(w * ratio), round(h * ratio)
         left, top = (self.size - nw) // 2, (self.size - nh) // 2
         self.canvas.fill(114)
-        cv2.resize(bgr, (nw, nh), dst=self.canvas[top:top+nh, left:left+nw])
-        # BGR -> RGB / CHW into a reusable input tensor.
-        np.multiply(self.canvas[:, :, ::-1].transpose(2, 0, 1), 1.0/255,
+        cv2.resize(rgb, (nw, nh), dst=self.canvas[top:top+nh, left:left+nw])
+        # RGB / CHW into a reusable input tensor; channels are already RGB.
+        np.multiply(self.canvas.transpose(2, 0, 1), 1.0/255,
                     out=self.tensor[0], casting='unsafe')
         return self.tensor, (nw / w, nh / h, left, top, w, h)
 

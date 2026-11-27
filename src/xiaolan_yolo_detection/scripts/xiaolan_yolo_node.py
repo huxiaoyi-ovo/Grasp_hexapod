@@ -98,8 +98,12 @@ class YoloNode:
                 if msg.header.stamp.to_nsec() == 0 or age < -.05 or age > self.max_age or started-received > self.max_age:
                     raise ValueError('STALE_OR_INVALID_RGB_TIMESTAMP age_s=%.3f local_wait_s=%.3f' %
                                      (age, started-received))
-                bgr = self.bridge.imgmsg_to_cv2(msg, 'bgr8')
-                tensor, mapping = self.pre.prepare(bgr)
+                if msg.encoding == 'rgb8':
+                    # Zero-copy view; RGB is already the target channel order.
+                    rgb = self.bridge.imgmsg_to_cv2(msg, 'passthrough')
+                else:
+                    rgb = self.bridge.imgmsg_to_cv2(msg, 'rgb8')
+                tensor, mapping = self.pre.prepare(rgb)
                 t0 = time.monotonic()
                 raw = self.infer(tensor)
                 out.inference_ms = (time.monotonic()-t0)*1000

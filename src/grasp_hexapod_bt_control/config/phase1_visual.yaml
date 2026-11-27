@@ -59,10 +59,10 @@ tag_max_age_s: 0.25
 # (lateral + yaw), advance on the tag toward z_target = tag_p0_z_m -
 # tag_final_overshoot_m; only if the tag is lost finish the remaining distance
 # blind (leg odometry + IMU heading hold).
-tag_ref_x_m: 0.0
+tag_ref_x_m: 0.0329
 # virtual tag depth at P0 = taught depth - offset D; computed by record_tag_reference.py
-tag_p0_z_m: 0.15
-tag_ref_yaw_rad: 0.0
+tag_p0_z_m: 0.1604
+tag_ref_yaw_rad: 3.1227
 tag_final_overshoot_m: 0.01
 tag_lateral_gain: 0.5
 tag_forward_gain: 0.5

@@ -592,3 +592,11 @@
 - Timing: the C++ gait alone costs mean 0.023 ms and max 0.36 ms per frame on the desktop (600 frames walking). The 30–100 ms control-loop spikes seen in the closed-loop run come from host load (Python world + ROS), not from the gait. Isaac `--climb-start --climb-from-walk-stance`: the prep takes 78 frames, then C1..C27 complete; PREVIEW VERDICT SUCCESS.
 - Hardware TODO after the push: teach the tag at P0; confirm tag ID (0 vs 255) and size (0.05 vs 0.06), IMU yaw sign and camera pitch; launch with show_windows:=false over SSH.
 - Climb session closed. Its v16.6 is still a prototype (`claude_front_v18_20261124/v166hw.json`, 10/11 Isaac, not in the repo). Control/node/BT/launch files are free again for climb work.
+
+## 2026-11-27 攀爬会话（Sol）：v16.6 入库并设为默认（本地提交，未推送）
+- 新文件 `src/grasp_hexapod_control/config/climb_front_v16_6.json`，来源：原型 `claude_front_v18_20261124/v166hw.json`（sha256 c9a1b482…），内含 `front_v16_6_provenance`。P0、xiaolan_translation、settle_gate 与 v16.1 相同。
+- 摆腿改动（C4/C8/C12/C14/C15/C17/C20）：先按脚位置竖直抬到关节限位允许的最高处（目标 50 mm），再用 joint_space 把小腿翻成朝上，平移过去，在落点上方 ≥50 mm 处展开，最后竖直落下。C3/C11/C19 沿用 v16.4。计划时长 48.9 s。
+- 默认配置切换只改了这几处：`mode_climb.cpp` 的 climb_config_file 默认值和注释；`full_mission.launch` 的参数和注释；`control_only.launch` 的注释。v16.1/v16/v11 保留，可回退。
+- 在 eccc25d 上重新验证：CPU 30 Hz DONE，1523 帧，0 次截断；用当前源码重编的 C++ cpp_replay 在仿真/实机模式下都是 DONE，与 70d631e 时的结果逐帧一致，峰值 3.80 rad/s。Isaac 11 组 10/11 是之前测的；那之后攀爬代码只做了 Q_CLIMB_PREP 改名。
+- 注意：仓库里的证据脚本 `src/docs/evidence/climb_front_direct_20260924/cpu_direct_audit.py` 仍用 Q_STAND 做攀爬起点，在新站姿下会报 "compact entry joint error exceeds simulation gate"。复跑时换成 Q_CLIMB_PREP（这次用的是 scratchpad 里改过的副本，证据目录本身没动）。
+- 遗留问题：C19 RF 只能先竖直抬 13 mm，随后在低处横移 112 mm；C12 前腿只能抬 23–28 mm；C3/C11 低处横移 10–30 mm。

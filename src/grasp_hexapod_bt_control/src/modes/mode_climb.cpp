@@ -49,11 +49,11 @@ ClimbMode::ClimbMode(ModeContext& ctx, const ModeTopics& topics)
   enable_real_climb_ = pnh.param("enable_real_climb", false);
   climb_side_ = pnh.param<std::string>("climb_side", "left");
   validateCompactClimbSide(climb_side_);
-  // 配置文件名（在控制 config 目录内解析）。默认是实机部署的正面攀爬 v16.1，
-  // 并默认授权 front 实机执行（v16.1 按 4 rad/s 硬件步长上限定时、FK 检查点门限
+  // 配置文件名（在控制 config 目录内解析）。默认是实机部署的正面攀爬 v16.6，
+  // 并默认授权 front 实机执行（v16.6 按 4 rad/s 硬件步长上限定时、FK 检查点门限
   // 0.04 m）。侧面旧配置：~climb_config_file:=climb_compact.json。
   climb_config_file_ =
-      pnh.param<std::string>("climb_config_file", "climb_front_v16_1.json");
+      pnh.param<std::string>("climb_config_file", "climb_front_v16_6.json");
   allow_front_hardware_ = pnh.param("allow_front_hardware", true);
   climb_foot_gate_m_ = pnh.param("climb_foot_gate_m", 0.04);
   if (!std::isfinite(climb_foot_gate_m_) || climb_foot_gate_m_ <= 0.0 ||

@@ -131,7 +131,7 @@ install(TARGETS bt_control_node remote_control_node phase1_visual_sequence full_
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
-catkin_install_python(PROGRAMS test/fake_hardware_e2e.py scripts/record_tag_reference.py
+catkin_install_python(PROGRAMS test/fake_hardware_e2e.py scripts/record_tag_reference.py scripts/hw_calibrate.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 

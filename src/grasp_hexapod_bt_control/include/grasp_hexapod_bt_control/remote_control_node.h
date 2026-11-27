@@ -33,6 +33,10 @@ class RemoteControlNode {
   void joyCallback(const sensor_msgs::Joy::ConstPtr& message);
   void handleButtonPress(int index);
   void callSwitchMode(const std::string& mode);
+  // Runs switch_mode for each mode in order (blocking calls on a worker
+  // thread); stops at the first failure or when another button cancels it.
+  void runSequence(const std::vector<std::string>& modes, const std::string& name);
+  bool switchModeBlocking(const std::string& mode);
   void maybeTriggerGripper(double dpad);
   void runGripper(const std::string& action);
   geometry_msgs::Twist makeTwist(bool* fresh) const;
@@ -50,6 +54,13 @@ class RemoteControlNode {
   int button_b_ = 1;
   int button_x_ = 2;
   int button_y_ = 3;
+  int button_lb_ = 4;      // approach test: spin_search -> approach
+  int button_start_ = 7;   // held >= full_mission_hold_s_: full mission
+  double full_mission_hold_s_ = 2.0;
+  double start_pressed_at_ = 0.0;
+  bool start_fired_ = false;
+  std::atomic<bool> sequence_running_{false};
+  std::atomic<int> sequence_generation_{0};
   int axis_right_ = 0;
   int axis_forward_ = 1;
   int axis_yaw_ = 3;

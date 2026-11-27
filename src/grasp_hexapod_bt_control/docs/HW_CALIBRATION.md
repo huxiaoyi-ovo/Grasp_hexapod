@@ -51,7 +51,8 @@ rosrun grasp_hexapod_bt_control hw_calibrate.py
 
 1. 在终端 A 按 **Ctrl-C** 停掉，再重新启动 `full_mission.launch`。控制节点只在启动时读这些参数，不重启就不会生效。
 2. 把机器人放到小蓝前 1–2 m（朝向可以偏，看不到小蓝时会原地转身搜索）。
-3. 在看板上依次点 **home → spin_search → approach**。
+3. 开始接近：**手柄按一下 LB**（自动 自转搜索 → 接近，只测 approach），或在看板上依次点 **home → spin_search → approach**。
+   全流程（含实机攀爬、对接）：**手柄按住 START 2 秒**。随时按 **B** 停止并取消序列。
 4. 成功时 approach 会返回 `tag alignment complete: ready for climb`，机器人停在 P0。
    **只验证 approach 时，不要点 climb。**
 

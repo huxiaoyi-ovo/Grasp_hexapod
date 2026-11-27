@@ -468,10 +468,13 @@ NEXT_STEPS = """
   1. 终端2 按 Ctrl-C，再执行同样的 roslaunch 命令（控制节点只在启动时读参数）。
      roscore 和看板不用重启。启动后在看板再点一次 home。
   2. 把机器人放到小蓝被攀爬那一面的前方 1-2 m（朝向可以偏，看不到小蓝会原地转身找）。
-  3. 看板「模式控制」依次点：自转搜索 → 等它成功 → 接近导航。
+  3. 开始接近（二选一）：
+       手柄按一下 LB            → 自动执行 自转搜索 → 接近（只测 approach，不会攀爬）
+       或看板「模式控制」依次点 自转搜索 → 接近导航
   4. 成功提示：tag alignment complete: ready for climb（机器人停在攀爬起点）。
-  随时停止：看板点 home，或按实体手柄 B。
-  ！只测 approach 时不要点攀爬、不要按手柄 X 键（会直接开始实机攀爬）。
+  全流程（含实机攀爬和对接）：手柄【按住 START 2 秒】→ home → 搜索 → 接近 → 攀爬 → 对接。
+  随时停止：手柄 B（也会取消正在跑的 LB/START 序列），或看板点 home。
+  ！只测 approach 时不要按 X、不要按住 START（都会开始实机攀爬）。
   失败时把 approach 返回的信息和终端2 里含 "approach:" "tag mode=" 的行发给开发。
 ==========================================================="""
 
@@ -517,7 +520,7 @@ def main():
         say("\n已退出。")
     if ctx.backups:
         say("\n本次改动的文件：" + "，".join(p.name for p in ctx.backups) + "（原文件已备份为 .bak_时间戳）")
-        say("当前标定值（请保存或发给开发同学入库）：")
+        say("以上标定值【已自动写入配置文件，不需要手动复制】；下面只是留个记录：")
         for key in ("tag_guidance_id", "tag_ref_x_m", "tag_p0_z_m", "tag_ref_yaw_rad", "tag_imu_yaw_sign"):
             say(f"  {key}: {read_yaml_value(ctx.yaml, key)}")
         say(f"  launch tag_id: {read_launch_default(ctx.launch, 'tag_id')}  "

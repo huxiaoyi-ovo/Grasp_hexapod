@@ -1454,5 +1454,56 @@ TEST(TagGuidance, SlowRotationAfterHandoffIsAccepted) {
   }
 }
 
+
+// --- fallback_on_loss: "tag first, YOLO fallback, else stop" (2026-11-27) ---
+
+TagGuidanceConfig fallbackConfig() {
+  TagGuidanceConfig c = testConfig();
+  c.fallback_on_loss = true;
+  return c;
+}
+
+TEST(TagGuidance, FallbackRevertsToCoarseWhenLostWhileAligning) {
+  Rig rig(fallbackConfig());
+  rig.handoff(0.05, 0.3, 0.1);  // misaligned: stays in Aligning
+  ASSERT_EQ(rig.guidance.state(), TagState::Aligning);
+  const double last = rig.now;
+  while (rig.now - last < 0.25) rig.tick();
+  EXPECT_EQ(rig.guidance.state(), TagState::Aligning);  // within handover_loss_s (0.3)
+  while (rig.now - last < 0.35) rig.tick();
+  EXPECT_EQ(rig.guidance.state(), TagState::Coarse);    // reverted, not failed
+  EXPECT_EQ(rig.guidance.reverts(), 1);
+  EXPECT_TRUE(rig.guidance.takeReverted());
+  EXPECT_FALSE(rig.guidance.takeReverted());  // reported once
+  EXPECT_EQ(rig.tick(), Eigen::Vector4d::Zero());
+}
+
+TEST(TagGuidance, FallbackRevertsInsteadOfBlindWhileAdvancing) {
+  const TagGuidanceConfig c = fallbackConfig();
+  Rig rig(c);
+  const Eigen::Vector4d cmd = advanceThenLose(rig, c.ref_x_m + 0.004, 0.20, c.ref_yaw_rad - 0.01);
+  EXPECT_EQ(rig.guidance.state(), TagState::Coarse);  // no blind finish, no failure
+  EXPECT_EQ(cmd, Eigen::Vector4d::Zero());
+  EXPECT_FALSE(rig.guidance.handover().occurred);
+}
+
+TEST(TagGuidance, FallbackHandsOffAgainAndStillConverges) {
+  const TagGuidanceConfig c = fallbackConfig();
+  Rig rig(c);
+  rig.handoff(c.ref_x_m, 0.30, c.ref_yaw_rad);
+  ASSERT_TRUE(rig.guidance.handedOff());
+  const double last = rig.now;
+  while (rig.now - last < 0.4) rig.tick();
+  ASSERT_EQ(rig.guidance.state(), TagState::Coarse);
+  rig.handoff(c.ref_x_m, 0.28, c.ref_yaw_rad);  // fresh consistent detections
+  EXPECT_TRUE(rig.guidance.handedOff());
+  // At the target and stopped: settles to Success.
+  for (int i = 0; i < 40 && rig.guidance.state() != TagState::Success; ++i) {
+    rig.step(c.ref_x_m, zTarget(c), c.ref_yaw_rad);
+  }
+  EXPECT_EQ(rig.guidance.state(), TagState::Success);
+  EXPECT_EQ(rig.guidance.reverts(), 1);
+}
+
 }  // namespace
 }  // namespace grasp_hexapod_bt_control

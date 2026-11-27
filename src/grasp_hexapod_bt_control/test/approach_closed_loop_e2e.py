@@ -71,7 +71,9 @@ CASES = {
     "straight": (0.70, 0.00, 0.0),
     "far_offset": (0.90, 0.12, 20.0),
     "search": (0.80, -0.10, 70.0),   # Xiaolan outside the FOV: spin_search must turn
-    "tag_dropout": (0.70, 0.05, -10.0),  # tag hidden below 0.24 m depth -> blind finish
+    "tag_dropout": (0.70, 0.05, -10.0),  # tag hidden below 0.24 m depth: stop and wait -> expected FAIL
+    "yolo_dropout_near": (0.80, 0.08, 15.0),  # YOLO hidden below 0.45 m: the tag must take over
+    "tag_flicker": (0.80, -0.06, -12.0),  # tag hidden at 0.30-0.36 m: back to YOLO, re-handoff
 }
 
 
@@ -188,6 +190,8 @@ class World:
         p = self.in_camera(self.tag_w, pose, height)
         if not (self.args.tag_min_range_m <= p[2] <= self.args.tag_max_range_m):
             return None
+        if self.args.tag_hide_band and self.args.tag_hide_band[0] <= p[2] <= self.args.tag_hide_band[1]:
+            return None
         cam_w, r_w_opt = self.camera(pose, height)
         r = r_w_opt.T @ self.r_w_tag
         # Incidence: angle between the tag normal and the line of sight.
@@ -205,7 +209,7 @@ class World:
         uv = self.project(p)
         if uv is None or not (0 <= uv[0] <= IMG_W and 0 <= uv[1] <= IMG_H):
             return None
-        if not (0.20 <= p[2] <= self.args.yolo_max_depth_m):
+        if not (max(0.20, self.args.yolo_min_range_m) <= p[2] <= self.args.yolo_max_depth_m):
             return None
         return p, uv
 
@@ -239,8 +243,16 @@ def main():
                         help="publish no IMU (the robot may run without one; only the blind finish needs it)")
     parser.add_argument("--out", default="")
     args = parser.parse_args()
+    args.tag_hide_band = None
+    args.yolo_min_range_m = 0.0
+    expect_fail = False
     if args.case == "tag_dropout":
         args.tag_min_range_m = 0.24
+        expect_fail = True  # no IMU blind finish under arbitration: stops, waits, fails clearly
+    elif args.case == "yolo_dropout_near":
+        args.yolo_min_range_m = 0.45
+    elif args.case == "tag_flicker":
+        args.tag_hide_band = (0.30, 0.36)
     rng = np.random.default_rng(args.seed)
     world = World(args)
 
@@ -391,6 +403,11 @@ def main():
         if args.out:
             np.savez(args.out, trace=np.array(world.trace), p0=P0, start=start, final=final,
                      face_x=FACE_X, tag=world.tag_w, target=world.target_w)
+        if expect_fail:
+            ok_fail = results.get("approach", (None, ""))[0] is False and \
+                "no usable YOLO or tag" in results.get("approach", (None, ""))[1]
+            print(f"[loop] {'PASS' if ok_fail else 'FAIL'} (expected a clean stop-and-wait failure)")
+            return 0 if ok_fail else 1
         passed = (results.get("approach", (False,))[0] is True and abs(err_body[0]) <= 0.015
                   and abs(err_body[1]) <= 0.020 and abs(yaw_err) <= 3.0)
         print(f"[loop] {'PASS' if passed else 'FAIL'} (budget right 15 mm, forward 20 mm, yaw 3 deg)")

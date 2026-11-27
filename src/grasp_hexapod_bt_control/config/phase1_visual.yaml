@@ -32,7 +32,15 @@ visual_approach_timeout_s: 120.0
 # 0.20 m coarse stop nor the reference below is a body-clearance claim.
 tag_guidance_enabled: true
 tag_guidance_id: 255  # hardware tag (tag36h11 ID 255, 50 mm); must equal full_mission.launch tag_id
-tag_handoff_confirm_frames: 5
+tag_handoff_confirm_frames: 3
+# Per-frame source arbitration (2026-11-27): tag first (<= tag_handoff_max_z_m,
+# tag_handoff_confirm_frames consistent detections); a tag lost for
+# tag_handover_loss_s falls back to YOLO (driving only until the coarse stop
+# distance) or, with neither source usable, the robot stops and waits; failure
+# only after approach_wait_timeout_s of waiting or visual_approach_timeout_s in
+# total. The IMU blind finish is not used in this mode.
+tag_fallback_on_loss: true
+approach_wait_timeout_s: 5.0
 # Gate: only tag detections with camera depth z <= 0.5 m count toward the handoff (single-tag yaw is ambiguous farther away; also keeps the 0.02 m/s tag advance inside the 60 s timeout).
 tag_handoff_max_z_m: 0.5
 # Jump: a yaw change > 0.10 rad (+ max_yaw_rate*dt after handoff) between accepted samples is physically impossible for the robot and is rejected as pose ambiguity.

@@ -46,6 +46,16 @@ class ApproachMode : public ModeBase {
   ros::Subscriber health_subscriber_;
   double failure_started_at_ = 0.0;
   bool handover_logged_ = false;  // one log line per run at the tag handover
+  // ~tag_fallback_on_loss: per-frame arbitration "tag first, YOLO fallback
+  // (until the coarse stop distance), else stop and wait".
+  bool arbitrate_ = false;
+  double wait_timeout_s_ = 5.0;     // ~approach_wait_timeout_s: stopped with no usable source
+  double overall_timeout_s_ = 120.0;  // ~visual_approach_timeout_s, whole run
+  double run_started_ = 0.0;
+  double waiting_since_ = 0.0;
+  bool arb_failed_ = false;
+  std::string arb_reason_;
+  void arbFail(const std::string& reason);
 };
 
 }  // namespace modes

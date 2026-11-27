@@ -66,6 +66,10 @@ struct TagGuidanceConfig {
   // imu_yaw used by the blind finish = imu_yaw_sign * input.imu_yaw.  The raw IMU
   // yaw axis may point along -z of base_link; check on the robot (README).
   double imu_yaw_sign = 1.;           // +1 or -1 only
+  // true: a tag lost for handover_loss_s while Aligning/Advancing reverts to
+  // Coarse (the mode then drives with YOLO or stops and waits) instead of
+  // failing or starting the blind finish.  "Tag first, YOLO fallback, else stop."
+  bool fallback_on_loss = false;
 };
 
 struct TagObservation {
@@ -157,6 +161,11 @@ class TagGuidance {
   double headingError() const { return heading_error_; }
   std::string reason() const { return reason_; }
   int confirmations() const { return confirmations_; }
+  // Number of tag->Coarse reverts this run (fallback_on_loss only).
+  int reverts() const { return reverts_; }
+  // True once after each revert (the mode restarts YOLO guidance on it).
+  bool takeReverted() { const bool r = reverted_; reverted_ = false; return r; }
+  double lastValidZ() const { return have_last_valid_ ? last_z_ : -1.0; }
   int tagId() const { return config_.tag_id; }
   // Last servo errors [ex, ez, eyaw], ez = z - z_target (valid while Aligning/Advancing).
   Eigen::Vector3d lastError() const { return error_; }
@@ -193,6 +202,9 @@ class TagGuidance {
   double guiding_started_ = 0.0;
   double settle_started_ = 0.0;
   int confirmations_ = 0;
+  int reverts_ = 0;
+  bool reverted_ = false;
+  void revertToCoarse();
   Eigen::Vector3d error_ = Eigen::Vector3d::Zero();
   std::string reason_;
   // Last valid sample (survives later invalid detections; cleared by resume()).

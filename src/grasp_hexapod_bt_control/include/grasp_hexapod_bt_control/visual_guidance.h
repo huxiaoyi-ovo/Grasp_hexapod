@@ -51,6 +51,12 @@ class VisualGuidance {
   void report(double now, const std::string& mode,
               const Eigen::Vector4d& command, bool gait_stopped);
   VisualState state() const { return state_; }
+  // A target was accepted within the last `window` seconds of this run.
+  bool targetRecent(double now, double window) const {
+    return last_valid_ > 0. && now - last_valid_ <= window;
+  }
+  // Depth of the last accepted target (-1 if none this run).
+  double lastTargetZ() const { return accepted_available_ ? accepted_.z : -1.0; }
   std::string reason() const { return reason_; }
   int confirmations() const { return confirmations_; }
 

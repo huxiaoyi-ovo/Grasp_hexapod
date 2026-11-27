@@ -96,6 +96,8 @@ void TagGuidance::begin(double now) {
   have_last_valid_ = false;
   last_yaw_stamp_ = 0.0;
   handover_ = TagHandover();
+  reverts_ = 0;
+  reverted_ = false;
   odom_ = cmd_integral_ = last_forward_cmd_ = heading_error_ = odom_at_last_valid_ = 0.0;
   last_imu_valid_ = imu_at_last_valid_ok_ = false;
   last_imu_heading_ = imu_heading_at_last_valid_ = 0.0;
@@ -204,6 +206,18 @@ Eigen::Vector4d TagGuidance::servo(double x, double z, double yaw, bool allow_fo
   const double yaw_rate = std::abs(eyaw) <= kServoDeadbandFraction * config_.yaw_tolerance_rad
       ? 0. : bounded(config_.yaw_gain * eyaw, config_.max_yaw_rate);
   return Eigen::Vector4d(right, forward, 0., yaw_rate);
+}
+
+void TagGuidance::revertToCoarse() {
+  // Back to counting: the next confirm_frames consistent detections hand off
+  // again.  The yaw-jump reference (last valid sample) is kept.
+  state_ = TagState::Coarse;
+  confirmations_ = 0;
+  accepted_available_ = false;
+  settle_started_ = 0.0;
+  last_forward_cmd_ = 0.0;
+  ++reverts_;
+  reverted_ = true;
 }
 
 void TagGuidance::fail(const std::string& reason) {
@@ -369,6 +383,10 @@ Eigen::Vector4d TagGuidance::update(double now, const TagGuidanceInput& input) {
   // Aligning / Advancing.
   if (now - guiding_started_ > config_.align_timeout_s) {
     fail("tag alignment timeout");
+    return zero;
+  }
+  if (config_.fallback_on_loss && now - last_valid_ > config_.handover_loss_s) {
+    revertToCoarse();
     return zero;
   }
   if (state_ == TagState::Aligning) {

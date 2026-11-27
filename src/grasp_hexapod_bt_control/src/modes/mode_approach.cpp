@@ -10,6 +10,8 @@
 #include <apriltag_ros/AprilTagDetectionArray.h>
 
 #include <cmath>
+#include <cstdio>
+#include <stdexcept>
 
 namespace grasp_hexapod_bt_control {
 namespace modes {
@@ -52,6 +54,7 @@ TagGuidanceConfig loadTagGuidanceConfig(ros::NodeHandle& p, bool enabled) {
   c.odom_mismatch_m = p.param("tag_odom_mismatch_m", .03);
   c.blind_timeout_s = p.param("tag_blind_timeout_s", 30.);
   c.imu_yaw_sign = p.param("tag_imu_yaw_sign", 1.0);
+  c.fallback_on_loss = p.param("tag_fallback_on_loss", false);
   return c;
 }
 
@@ -83,6 +86,13 @@ ApproachMode::ApproachMode(ModeContext& ctx, const ModeTopics& topics)
       tag_enabled_(visual_enabled_ &&
                    ctx.privateNodeHandle().param("tag_guidance_enabled", false)),
       tag_(loadTagGuidanceConfig(ctx.privateNodeHandle(), tag_enabled_)) {
+  arbitrate_ = tag_enabled_ &&
+               ctx.privateNodeHandle().param("tag_fallback_on_loss", false);
+  wait_timeout_s_ = ctx.privateNodeHandle().param("approach_wait_timeout_s", 5.0);
+  overall_timeout_s_ = ctx.privateNodeHandle().param("visual_approach_timeout_s", 120.0);
+  if (!(wait_timeout_s_ > 0.) || !(overall_timeout_s_ > 0.)) {
+    throw std::invalid_argument("approach wait/overall timeouts must be > 0");
+  }
   if (tag_enabled_) {
     // Callback only caches the detection matching the configured id.
     tag_subscriber_ = ctx.nodeHandle().subscribe<apriltag_ros::AprilTagDetectionArray>(
@@ -143,6 +153,10 @@ bool ApproachMode::start(const JointAngles& q_cur, std::string& reason) {
     controller.approach_mode.approach_plan.ready_for_climb = false;
     failure_started_at_ = 0.0;
     handover_logged_ = false;
+    run_started_ = nowSeconds();
+    waiting_since_ = 0.0;
+    arb_failed_ = false;
+    arb_reason_.clear();
     visual_.begin(VisualState::Approaching, nowSeconds());
     if (tag_enabled_) {
       tag_.begin(nowSeconds());
@@ -202,8 +216,15 @@ std::optional<JointAngles> ApproachMode::step(const ModeStepInput& input) {
       tag_input.imu_valid = imu.valid && imu.rotation.allFinite();
       tag_input.imu_yaw = tag_input.imu_valid
           ? std::atan2(imu.rotation(1, 0), imu.rotation(0, 0)) : 0.0;
-      const Eigen::Vector4d tag_command = tag_.update(input.now, tag_input);
+      Eigen::Vector4d tag_command = tag_.update(input.now, tag_input);
+      if (arbitrate_ && !arb_failed_ && input.now - run_started_ > overall_timeout_s_) {
+        arbFail("approach timeout (" + std::to_string(static_cast<int>(overall_timeout_s_)) + " s)");
+      }
+      if (arb_failed_) {
+        return ctx().controller().update(input.q_cur, Eigen::Vector4d::Zero());
+      }
       if (tag_.handedOff()) {
+        waiting_since_ = 0.0;
         // After handoff YOLO observations are ignored for control.
         if (!was_handed_off) {
           ROS_INFO("approach: AprilTag handoff (id %d), coarse YOLO guidance ignored",
@@ -229,6 +250,41 @@ std::optional<JointAngles> ApproachMode::step(const ModeStepInput& input) {
         return ctx().controller().update(input.q_cur, tag_command);
       }
     }
+    if (arbitrate_) {
+      // Tag not usable (Coarse): YOLO drives until the coarse stop distance,
+      // otherwise stop and wait for either source.
+      const double now = input.now;
+      if (tag_.takeReverted()) {
+        ROS_WARN("approach: tag lost (last z=%.3f m), back to YOLO / wait (revert %d)",
+                 tag_.lastValidZ(), tag_.reverts());
+        visual_.begin(VisualState::Approaching, now);
+      }
+      if (visual_.state() == VisualState::Failed) {
+        ROS_INFO_THROTTLE(2.0, "approach: YOLO unusable (%s); stopped, waiting for YOLO or tag",
+                          visual_.reason().c_str());
+        visual_.begin(VisualState::Approaching, now);
+      }
+      Eigen::Vector4d command = visual_.update(now, gait_stopped);
+      const bool yolo_driving = visual_.state() == VisualState::Approaching &&
+                                visual_.targetRecent(now, 0.5);
+      if (yolo_driving) {
+        waiting_since_ = 0.0;
+      } else if (waiting_since_ == 0.0) {
+        waiting_since_ = now;
+        ROS_INFO("approach: stopped, waiting for the tag or YOLO beyond the coarse stop (up to %.1f s)",
+                 wait_timeout_s_);
+      }
+      if (waiting_since_ > 0.0 && now - waiting_since_ > wait_timeout_s_) {
+        char text[200];
+        std::snprintf(text, sizeof(text),
+                      "no usable YOLO or tag for %.1f s (last YOLO z=%.2f m, last tag z=%.2f m)",
+                      wait_timeout_s_, visual_.lastTargetZ(), tag_.lastValidZ());
+        arbFail(text);
+        command.setZero();
+      }
+      visual_.report(now, name(), command, gait_stopped);
+      return ctx().controller().update(input.q_cur, command);
+    }
     const Eigen::Vector4d command = visual_.update(input.now, gait_stopped);
     visual_.report(input.now, name(), command, gait_stopped);
     return ctx().controller().update(input.q_cur, command);
@@ -244,10 +300,27 @@ std::optional<JointAngles> ApproachMode::step(const ModeStepInput& input) {
       input.q_cur, Eigen::Vector4d::Zero(), &navigation_state, nullptr);
 }
 
+void ApproachMode::arbFail(const std::string& reason) {
+  arb_failed_ = true;
+  arb_reason_ = reason;
+  ROS_WARN("approach failed: %s", reason.c_str());
+}
+
 std::optional<ModeOutcome> ApproachMode::checkTerminal() {
   if (visual_enabled_) {
     const auto& approach = ctx().controller().approach_mode;
     const bool drained = !approach.gait_started && !approach.transfer_active_;
+    if (arbitrate_ && arb_failed_) {
+      if (!failure_started_at_) {
+        failure_started_at_ = nowSeconds();
+      }
+      if (drained || nowSeconds() - failure_started_at_ >= 3.0) {
+        ctx().setMachineState(MachineState::Hold);
+        return ModeOutcome{ModeResult::Failure,
+                           arb_reason_ + (drained ? "" : " (zero-drain timeout)")};
+      }
+      return std::nullopt;
+    }
     if (tag_enabled_ && tag_.handedOff()) {
       if (tag_.state() == TagState::Failed) {
         if (!failure_started_at_) {
@@ -266,6 +339,9 @@ std::optional<ModeOutcome> ApproachMode::checkTerminal() {
                            "tag alignment complete: ready for climb"};
       }
       return std::nullopt;
+    }
+    if (arbitrate_) {
+      return std::nullopt;  // Coarse under arbitration: YOLO end states only mean "wait"
     }
     if (visual_.state() == VisualState::Failed) {
       if (!failure_started_at_) {
@@ -318,6 +394,7 @@ void ApproachMode::resume() {
     if (tag_enabled_) {
       tag_.resume(nowSeconds());
     }
+    waiting_since_ = 0.0;  // a pause is not "waiting without a source"
   }
 }
 

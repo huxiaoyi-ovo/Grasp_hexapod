@@ -68,8 +68,7 @@ rosrun grasp_hexapod_bt_control hw_calibrate.py
 | 第 5 步提示"画面里看到的是其他编号 [N]" | tag 编号填错了：回到第 1 步（`--step tag`）改成 N，并重启 launch |
 | 第 5 步收不到 tag | tag 不在画面里，或检测器没起来。先跑 `--step topics` |
 | 第 5 步提示"tag 坐标系是 [...]" | 检测器订阅的图像坐标系不是 `camera_color_optical_frame`，控制器会拒收所有 tag。检查 `full_mission.launch` 里 apriltag 节点的图像话题 |
-| approach 结束时显示 `coarse stop reached without tag handoff` | YOLO 已经走近，但 0.5 m 以内没有连续 5 帧 tag 检测。检查 tag 是否在视野内、光线是否稳定 |
-| approach 结束时显示 `imu unavailable for blind finish` | tag 在途中丢失，同时又没有 IMU。机器人会安全停下。保证 tag 一路可见，或者接上 IMU |
+| approach 结束时显示 `no usable YOLO or tag for 5.0 s (last YOLO z=…, last tag z=…)` | 接近逻辑是"tag 优先、YOLO 兜底、都没有就停下等"：0.5 m 内连续 3 帧 tag 就用 tag；tag 丢失 0.3 s 就退回 YOLO（YOLO 只开到 0.20 m）；两者都用不了就原地停下，等满 5 s 才失败。看报出的两个距离：tag 距离停在某个值，说明 tag 在那里看丢了（视野、光线、遮挡）；YOLO 距离是 0.20 m，说明粗引导已经到底、只差 tag |
 | 想恢复原配置 | 把 `config/phase1_visual.yaml.bak_<时间戳>`（或 launch 的 `.bak`）复制回原文件名 |
 
 > 换了行走站姿（相机高度变了）或重新贴了 tag，都要重做第 5 步。

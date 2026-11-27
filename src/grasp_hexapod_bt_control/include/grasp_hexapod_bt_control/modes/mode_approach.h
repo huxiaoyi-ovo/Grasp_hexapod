@@ -30,6 +30,7 @@ class ApproachMode : public ModeBase {
   std::optional<JointAngles> step(const ModeStepInput& input) override;
   std::optional<ModeOutcome> checkTerminal() override;
   void resume() override;
+  void pause(const std::string& reason) override;
   bool onNodeHold(const std::string& reason) override;
 
  private:
@@ -53,6 +54,7 @@ class ApproachMode : public ModeBase {
   double overall_timeout_s_ = 120.0;  // ~visual_approach_timeout_s, whole run
   double run_started_ = 0.0;
   double waiting_since_ = 0.0;
+  double paused_at_ = 0.0;
   bool arb_failed_ = false;
   std::string arb_reason_;
   void arbFail(const std::string& reason);

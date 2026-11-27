@@ -67,6 +67,8 @@ class Target3DNode:
             raise ValueError('Invalid 3D/filter parameters')
         self.filter = StableTarget(confirm, lost, max_x, max_z, alpha)
         self.bridge, self.lock = CvBridge(), threading.Lock()
+        # Wakes run() on new input instead of polling every 5 ms.
+        self.wake = threading.Event()
         cache_size = int(p('~depth_cache_size', 45))
         if cache_size < 1:
             raise ValueError('depth_cache_size must be positive')
@@ -106,6 +108,7 @@ class Target3DNode:
             self.depths.append(msg)
             self.last_depth = msg
             self.window.append(('depth', time.monotonic()))
+        self.wake.set()
 
     def aligned_cb(self, msg):
         with self.lock:
@@ -119,6 +122,7 @@ class Target3DNode:
         with self.lock:
             self.serial += 1
             self.pending = (self.serial, msg, time.monotonic())
+        self.wake.set()
 
     def _rate(self, kind, now):
         with self.lock:
@@ -307,7 +311,11 @@ class Target3DNode:
     def run(self):
         handled = -1
         while not rospy.is_shutdown():
+            # Clear before reading the inputs: a callback after this point wakes
+            # the wait below immediately, so no input is missed.
+            self.wake.clear()
             now = time.monotonic()
+            wake_at = self.last_watchdog + .1
             with self.lock:
                 pending = self.pending
                 depths = list(self.depths)
@@ -326,10 +334,16 @@ class Target3DNode:
                         not det.detected and (health_depth is not None or now-received >= self.wait)):
                     handled = serial
                     self.process(det, nearest if det.detected else health_depth, ai, ci)
+                    # Health for this frame goes out with the target (not on the
+                    # next 10 Hz watchdog tick): up to 100 ms less status age.
+                    self.publish_health(time.monotonic(), force=True)
+                else:
+                    wake_at = min(wake_at, received + self.wait)
             if now-self.last_watchdog >= .1:
                 self.watchdog(now)
                 self.last_watchdog = now
-            time.sleep(.005)
+                wake_at = min(wake_at, now + .1)
+            self.wake.wait(max(.001, wake_at - time.monotonic()))
 
 
 if __name__ == '__main__':

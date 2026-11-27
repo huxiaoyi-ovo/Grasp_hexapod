@@ -387,8 +387,17 @@ std::optional<ModeOutcome> ApproachMode::checkTerminal() {
   return std::nullopt;
 }
 
+void ApproachMode::pause(const std::string& reason) {
+  ModeBase::pause(reason);
+  paused_at_ = nowSeconds();
+}
+
 void ApproachMode::resume() {
   ModeBase::resume();
+  if (paused_at_ > 0.0 && run_started_ > 0.0) {
+    run_started_ += nowSeconds() - paused_at_;  // a HOLD does not count toward the run timeout
+  }
+  paused_at_ = 0.0;
   if (visual_enabled_) {
     visual_.resume(nowSeconds());
     if (tag_enabled_) {

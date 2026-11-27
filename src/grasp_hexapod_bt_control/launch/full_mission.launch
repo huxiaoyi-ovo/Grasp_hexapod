@@ -73,6 +73,10 @@
 
   <!-- Controller params not exposed as control_only args. tag_guidance_enabled
        and tag_guidance_id come from phase1_visual.yaml. -->
+  <!-- One tag id for the detector and the controller: overrides the
+       tag_guidance_id loaded from phase1_visual.yaml, so tag_id:=N on the
+       command line can never leave the two looking for different tags. -->
+  <param name="/grasp_hexapod_bt_control/tag_guidance_id" value="$(arg tag_id)"/>
   <param name="/grasp_hexapod_bt_control/climb_config_file" value="climb_front_v16_7.json"/>
   <param name="/grasp_hexapod_bt_control/allow_front_hardware" value="true"/>
 

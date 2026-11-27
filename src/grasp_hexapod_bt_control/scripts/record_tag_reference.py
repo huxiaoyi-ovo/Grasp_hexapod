@@ -79,7 +79,7 @@ def main():
             samples.append((p.x, p.z, yaw))
             return
 
-    rospy.Subscriber(topic, AprilTagDetectionArray, callback, queue_size=1)
+    sub = rospy.Subscriber(topic, AprilTagDetectionArray, callback, queue_size=1)
     deadline = rospy.Time.now() + rospy.Duration(timeout)
     rate = rospy.Rate(50)
     while not rospy.is_shutdown() and len(samples) < count:
@@ -87,6 +87,10 @@ def main():
             rospy.logerr("only %d/%d fresh detections of id %d on %s", len(samples), count, tag_id, topic)
             sys.exit(1)
         rate.sleep()
+    sub.unregister()
+    # Snapshot: a callback still in flight must not append between the length
+    # and the sums below (31 samples summed over n=30 would bias the depth).
+    samples = list(samples[:count])
     if len(samples) < count:
         sys.exit(1)
 
@@ -104,6 +108,14 @@ def main():
     syaw = std([math.atan2(math.sin(s[2] - myaw), math.cos(s[2] - myaw)) for s in samples])
     print("# %d samples of tag id %d at back-off D=%.4f m from P0 (camera optical frame)" % (len(samples), tag_id, offset))
     print("# sample std: x=%.4f m  z=%.4f m  yaw=%.4f rad  (mean taught depth z=%.4f m)" % (sx, sz, syaw, mz))
+    overshoot = rospy.get_param("/grasp_hexapod_bt_control/tag_final_overshoot_m", 0.01)
+    if not (mz - offset - overshoot > 0.0):
+        rospy.logerr("tag_p0_z_m = %.4f would be <= tag_final_overshoot_m (%.3f): the controller rejects it; "
+                     "check the back-off distance D", mz - offset, overshoot)
+        sys.exit(1)
+    if syaw > 0.0087:
+        rospy.logwarn("yaw spread %.2f deg is large (pose ambiguity or a moving robot?): consider re-teaching",
+                      math.degrees(syaw))
     print("tag_ref_x_m: %.4f" % mx)
     print("tag_p0_z_m: %.4f" % (mz - offset))
     print("tag_ref_yaw_rad: %.4f" % myaw)
